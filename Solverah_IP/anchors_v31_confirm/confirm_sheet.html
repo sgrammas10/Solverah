@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rubric v3.1 check</title>
+<style>
+  :root { --ink:#1b1d22; --muted:#667085; --line:#e3e6eb; --bg:#faf9f6; --card:#fff;
+          --was:#9aa1ad; --now:#fff4c2; --accent:#1f4e79; --ok:#1a6b3c; --okbg:#eef7f1;
+          --flag:#8a5a00; --flagbg:#fff8e6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+         font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:18px 16px 60px; }
+  h1 { font-size:20px; margin:4px 0 6px; }
+  .lede { color:var(--muted); font-size:14.5px; margin:0 0 10px; }
+  .bar { position:sticky; top:0; z-index:2; background:var(--bg); padding:8px 0;
+         border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:center;
+         flex-wrap:wrap; margin-bottom:14px; }
+  .bar .count { font-size:14px; }
+  .bar .saved { font-size:12.5px; color:var(--muted); }
+  .bar button { margin-left:auto; }
+  .warn { background:#fdecea; border:1px solid #f1b5ae; color:#5f1512; padding:10px 12px;
+          border-radius:8px; font-size:14px; margin-bottom:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px;
+          padding:14px 16px; margin-bottom:14px; }
+  .card.done { border-color:#b8dcc6; }
+  .card h2 { font-size:16px; margin:0 0 6px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 7px; border-radius:10px;
+         background:var(--flagbg); color:var(--flag); border:1px solid #e8d9a8; margin-left:6px; }
+  .her { font-size:14px; color:var(--muted); border-left:3px solid var(--line);
+         padding:2px 0 2px 10px; margin:6px 0 10px; font-style:italic; }
+  .edit { margin:8px 0 10px; }
+  .edit .where { font-size:12.5px; color:var(--muted); margin-bottom:3px; }
+  .was { color:var(--was); text-decoration:line-through; font-size:14px; margin:0 0 4px; }
+  .now { background:var(--now); padding:6px 8px; border-radius:6px; font-size:14.5px; margin:0; }
+  .ask { font-weight:600; margin:10px 0 8px; }
+  .choices { display:flex; gap:8px; flex-wrap:wrap; }
+  .choices button { font:inherit; font-size:14px; padding:8px 12px; border-radius:8px;
+                    border:1px solid #c3cad4; background:#fff; cursor:pointer; }
+  .choices button[aria-pressed="true"] { border-color:var(--accent); background:#eaf2fa;
+                                         box-shadow:inset 0 0 0 1px var(--accent); }
+  textarea { width:100%; margin-top:8px; font:inherit; font-size:14px; padding:8px;
+             border:1px solid var(--line); border-radius:8px; resize:vertical; }
+  .hidden { display:none !important; }
+  button.primary { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:none;
+                   background:var(--accent); color:#fff; cursor:pointer; }
+  pre.fallback { white-space:pre-wrap; word-break:break-word; background:#fff;
+                 border:1px solid var(--line); border-radius:8px; padding:10px; font-size:12px; }
+  .end { color:var(--muted); font-size:14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rubric v3.1: did I apply your rulings the way you meant?</h1>
+  <p class="lede">Seven short questions, about 10 minutes. Each one shows what you said, the old
+    wording, and the new wording. Answer in any order and stop whenever you like: every click
+    saves, so you can close this and pick up later. "I'd rather not say" is always a fine answer.
+    The last two are changes I made that you didn't rule on.</p>
+  <div id="warn" class="warn hidden"></div>
+  <div class="bar">
+    <span class="count" id="count"></span>
+    <span class="saved" id="saved"></span>
+    <button class="primary" id="send">Download my answers so far</button>
+  </div>
+  <div id="items"></div>
+  <p class="end">When you're done (or done for now), press <b>Download my answers so far</b> and
+    send Sebastian the file. A half-finished sheet is still useful.</p>
+  <pre id="fallback" class="fallback hidden"></pre>
+</div>
+<script>
+var ITEMS = [{"id": "ruling-1", "ruling": 1, "derived": false, "title": "Ruling 1 -- Feedback's lowest band", "her_words": "disagreement itself isn't necessarily feedback. I would prefer something like \"candid developmental or corrective input is rare in the evidence\"", "ask": "Is this the wording you meant?", "edits": [{"change_id": "R1", "where": "Feedback's lowest band", "was": "and open disagreement is rare in the evidence.", "now": "and candid developmental or corrective input is rare in the evidence."}]}, {"id": "ruling-2", "ruling": 2, "derived": false, "title": "Ruling 2 -- Raising concerns: Collaboration or Feedback?", "her_words": "\"People raise concerns freely and managers listen\" is not automatically Feedback evidence ... A passage can support both dimensions, but it should independently satisfy each definition", "ask": "Does this draw the line where you drew it?", "edits": [{"change_id": "R2a", "where": "Raising concerns: Collaboration by default (Collaboration's guardrail)", "was": "Warmth and quality of working relationships -- \"good team,\" \"supportive coworkers,\" \"people feel comfortable raising concerns\" -- are weak Collaboration signals about how much people work together, and are NOT Feedback signals at all.", "now": "Warmth and quality of working relationships -- \"good team,\" \"supportive coworkers\" -- are weak Collaboration signals about how much people work together, and are NOT Feedback signals at all. \"People raise concerns freely and managers listen\" is Collaboration / workplace-climate evidence by default. It becomes Feedback evidence only when the concern carries evaluative, corrective, developmental or behavioural input directed at someone's work or behaviour. A passage may be cited under both dimensions only when it independently satisfies each definition -- never merely because communication occurred."}, {"change_id": "R2b", "where": "Raising concerns: when it IS Feedback (Feedback's where-to-look)", "was": "not just whether it uses feedback-adjacent vocabulary.", "now": "not just whether it uses feedback-adjacent vocabulary. A concern raised, or a manager listening, counts here only when it carries evaluative, corrective, developmental or behavioural input directed at someone's work or behaviour; otherwise it is Collaboration evidence (see keep_distinct)."}, {"change_id": "R2c", "where": "Citing one passage under both (Feedback's guardrail)", "was": "were all filed under BOTH dimensions by the same rater. Feedback needs", "now": "were all filed under BOTH dimensions by the same rater. Raising concerns freely, and managers listening, is Collaboration / workplace-climate evidence by default; it is Feedback evidence only when the concern carries evaluative, corrective, developmental or behavioural input directed at someone's work or behaviour. A passage may support both dimensions only when it independently satisfies each definition -- never merely because communication occurred. Feedback needs"}]}, {"id": "ruling-3", "ruling": 3, "derived": false, "title": "Ruling 3 -- Decision: following a procedure vs. a procedure for deciding", "her_words": "Procedures become Decision evidence when they describe how decisions are actually reached ... I'd distinguish \"following a procedure\" from \"a procedure governing decision-making.\"", "ask": "Decision's scale runs judgement to data. I read your ruling as: a decision procedure counts here, and is scored by what it makes the decision rest on (required analysis -> data; escalation to a senior person's call -> judgement). Is that what you meant, or should approval layers, consensus and escalation count some other way?", "edits": [{"change_id": "R3a", "where": "Decision's guardrail: following a procedure vs. a procedure governing decisions", "was": "Also not the same as Autonomy: this dimension is about what a decision rests on (data vs. judgement), not who has authority to make it or how much process surrounds it. \u201cDecisively,\u201d \u201cownership,\u201d \u201cwithout a formalized process,\u201d \u201clittle or no direction,\u201d \u201cfollowing procedures,\u201d and \u201cconservative, long-term view\u201d are Autonomy or values signals, not Decision signals, even when they sit in the same sentence as something that sounds decision-related.", "now": "Also not the same as Autonomy. \u201cFollowing a procedure\u201d is Autonomy: it is about how much latitude a person has over their own approach. \u201cA procedure governing decision-making\u201d is Decision evidence: required analysis, approval layers, consensus, escalation, and who holds the final call all describe how decisions are actually reached. Score such a procedure by what it makes the decision rest on \u2014 a mandated analysis, business case or metrics gate points toward data; escalation to a senior person's call, or a consensus of experienced people with no stated analysis, points toward judgement. \u201cDecisively,\u201d \u201cownership,\u201d \u201cwithout a formalized process,\u201d \u201clittle or no direction,\u201d and \u201cconservative, long-term view\u201d stay Autonomy or values signals, not Decision signals, unless the passage also says what the decision rests on. A passage may support both dimensions only when it independently satisfies each definition."}, {"change_id": "R3b", "where": "Decision's where-to-look: stop excluding approval layers", "was": "Do NOT count language about approval layers, ownership, independence, or process formality here \u2014 that is Autonomy, see keep_distinct.", "now": "A procedure that governs how decisions are reached \u2014 required analysis or business cases, metric or experiment gates, approval layers, consensus requirements, escalation paths, who holds the final call \u2014 IS evidence here; score it by what it makes the decision rest on. Merely following a procedure, ownership, independence, or process formality in general is Autonomy, see keep_distinct."}]}, {"id": "ruling-4", "ruling": 4, "derived": false, "title": "Ruling 4 -- Recording \"insufficient evidence\" instead of a score", "her_words": "Insufficient evidence is meaningfully different from a 0.5 score ... I don't want the model creating apparent knowledge simply because the rater was required to select a number.", "ask": "The rater page and the LLM can now both record this instead of a score. Is this definition right?", "edits": [{"change_id": "R4", "where": "A way to record \"insufficient evidence\"", "was": null, "now": "Insufficient evidence: Nothing in the packet lets you characterise the company on this dimension, so record no score. This is not 0.5: 0.5 means the evidence genuinely supports a mixed or balanced position; insufficient evidence means there is not enough to say either way. Do not pick a number just because one is asked for."}]}, {"id": "ruling-5", "ruling": 5, "derived": false, "title": "Ruling 5 -- When Decision's middle band (0.5) applies", "her_words": "I wouldn't make contradictory evidence automatically equal 0.5. The strength, recency, relevance, and amount of evidence still matter.", "ask": "Is this the wording you meant?", "edits": [{"change_id": "R5", "where": "Decision's middle band: when 0.5 applies", "was": "Use this band when different parts of the packet point to different poles \u2014 that is what it exists for.", "now": "Use this band when credible evidence supports both poles and neither predominates. Contradictory evidence is not automatically 0.5: the strength, recency, relevance and amount of evidence on each side still decide whether one pole outweighs the other, and if one does, score toward it."}]}, {"id": "D1", "ruling": 4, "derived": true, "title": "The \"Evidence over gut\" gate (my inference, not your ruling)", "her_words": null, "ask": "The old gate told raters an \"honest 0.5 at low confidence\" was the safe answer when unsure, which is the thing your ruling 4 separates out. I changed it. OK?", "edits": [{"change_id": "D1", "where": "The \"Evidence over gut\" gate (my inference, not your ruling)", "was": "more than an honest 0.5 at low confidence.", "now": "more than an honest low-confidence score. If nothing in the packet bears on the dimension at all, mark insufficient evidence rather than scoring 0.5."}]}, {"id": "D2", "ruling": 4, "derived": true, "title": "The lowest confidence band (my inference, not your ruling)", "her_words": null, "ask": "\"Very low\" confidence and \"insufficient evidence\" sit close together. I kept Very low and pointed it at the new option for the case where nothing bears at all. OK, or should Very low go?", "edits": [{"change_id": "D2", "where": "The lowest confidence band (my inference, not your ruling)", "was": "You are close to guessing.", "now": "You are close to guessing. If nothing bears on it at all, mark insufficient evidence instead of scoring."}]}];
+var SHEET = { id: "anchors_v3_1_confirm", rubric_version: "v3.1-PROPOSED-2026-09-29", changes: ["R1", "R2a", "R2b", "R2c", "R3a", "R3b", "R4", "R5", "D1", "D2"] };
+var STORE_KEY = "solverah_" + SHEET.id;
+
+var state = { started_at: null, answers: {} };
+var STORAGE_OK = (function(){
+  try { var k = "__probe__" + Math.random(); window.localStorage.setItem(k, "1");
+        var ok = window.localStorage.getItem(k) === "1"; window.localStorage.removeItem(k); return ok; }
+  catch(e){ return false; }
+})();
+
+function warn(msg){ var w = document.getElementById("warn"); w.textContent = msg; w.classList.remove("hidden"); }
+function load(){
+  if(!STORAGE_OK) return;
+  try { var raw = window.localStorage.getItem(STORE_KEY);
+        if(raw){ var p = JSON.parse(raw); if(p && p.answers) state = p; } } catch(e){}
+}
+function save(){
+  if(!state.started_at) state.started_at = new Date().toISOString();
+  state.saved_at = new Date().toISOString();
+  if(!STORAGE_OK){ return; }
+  try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state));
+        document.getElementById("saved").textContent = "saved"; }
+  catch(e){ STORAGE_OK = false;
+    warn("Your answers stopped saving in this browser. They are still on screen -- press " +
+         "\"Download my answers so far\" before closing this page."); }
+}
+
+var CHOICES = [["yes", "Yes, as written"], ["change", "Change this"], ["decline", "I'd rather not say"]];
+
+function el(tag, cls, text){ var e = document.createElement(tag); if(cls) e.className = cls;
+  if(text !== undefined && text !== null) e.textContent = text; return e; }
+
+function answered(id){ var a = state.answers[id]; return !!(a && a.choice); }
+
+function renderCount(){
+  var n = ITEMS.filter(function(it){ return answered(it.id); }).length;
+  document.getElementById("count").textContent = n + " of " + ITEMS.length + " answered";
+}
+
+function renderItem(it){
+  var a = state.answers[it.id] || {};
+  var card = el("section", "card" + (a.choice ? " done" : "")); card.id = "item_" + it.id;
+  var h = el("h2", null, it.title);
+  if(it.derived) h.appendChild(el("span", "tag", "my inference, not your ruling"));
+  card.appendChild(h);
+  if(it.her_words) card.appendChild(el("p", "her", "You said: “" + it.her_words + "”"));
+  it.edits.forEach(function(ed){
+    var box = el("div", "edit");
+    if(it.edits.length > 1) box.appendChild(el("div", "where", ed.where));
+    if(ed.was) box.appendChild(el("p", "was", ed.was));
+    box.appendChild(el("p", "now", ed.now));
+    card.appendChild(box);
+  });
+  card.appendChild(el("p", "ask", it.ask));
+  var row = el("div", "choices");
+  CHOICES.forEach(function(c){
+    var b = el("button", null, c[1]); b.type = "button"; b.dataset.choice = c[0];
+    b.setAttribute("aria-pressed", a.choice === c[0] ? "true" : "false");
+    b.onclick = function(){ choose(it.id, c[0]); };
+    row.appendChild(b);
+  });
+  card.appendChild(row);
+  var ta = el("textarea"); ta.rows = 3; ta.id = "text_" + it.id;
+  ta.placeholder = "What should it say instead? A rough version is fine.";
+  ta.value = a.text || "";
+  if(a.choice !== "change") ta.classList.add("hidden");
+  ta.oninput = function(){ var cur = state.answers[it.id] || {}; cur.text = ta.value;
+                           state.answers[it.id] = cur; save(); };
+  card.appendChild(ta);
+  return card;
+}
+
+function choose(id, choice){
+  var cur = state.answers[id] || {};
+  cur.choice = choice; cur.at = new Date().toISOString();
+  state.answers[id] = cur; save();
+  var it = ITEMS.filter(function(x){ return x.id === id; })[0];
+  var old = document.getElementById("item_" + id);
+  old.parentNode.replaceChild(renderItem(it), old);
+  if(choice === "change") document.getElementById("text_" + id).focus();
+  renderCount();
+}
+
+function payload(){
+  return JSON.stringify({
+    sheet: SHEET.id, rubric_version: SHEET.rubric_version, changes_covered: SHEET.changes,
+    started_at: state.started_at, saved_at: state.saved_at,
+    answered: ITEMS.filter(function(it){ return answered(it.id); }).length, of: ITEMS.length,
+    answers: ITEMS.map(function(it){ var a = state.answers[it.id] || {};
+      return { item: it.id, changes: it.edits.map(function(e){ return e.change_id; }),
+               choice: a.choice || null, text: a.choice === "change" ? (a.text || "") : "" }; })
+  }, null, 2);
+}
+
+document.getElementById("send").onclick = function(){
+  var text = payload();
+  try {
+    var blob = new Blob([text], {type: "application/json"});
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = "solverah_rubric_v31_julie.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    document.getElementById("saved").textContent = "downloaded -- please send it to Sebastian";
+  } catch(e){
+    var pre = document.getElementById("fallback"); pre.textContent = text; pre.classList.remove("hidden");
+    warn("The download didn't work in this browser. Copy the text at the bottom of the page into an email.");
+  }
+};
+
+load();
+if(!STORAGE_OK) warn("This browser won't save your answers between visits. You can still answer -- " +
+                     "just press \"Download my answers so far\" before you close the page.");
+var host = document.getElementById("items");
+ITEMS.forEach(function(it){ host.appendChild(renderItem(it)); });
+renderCount();
+</script>
+</body>
+</html>

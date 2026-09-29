@@ -285,6 +285,8 @@ TEMPLATE = r"""<!DOCTYPE html>
   .band .lbl { font-weight:600; display:block; margin-bottom:2px; font-size:13px; }
   .band .txt { color:#3d434d; font-size:12.5px; }
   .band.chosen { border-color:var(--accent); background:#f2f7fc; box-shadow:inset 3px 0 0 var(--accent); }
+  .band.insuff { border-style:dashed; margin-top:6px; }
+  .noconf { color:var(--muted); font-size:12.5px; font-style:italic; margin:6px 0 4px; }
   .storagewarn { margin:0; padding:14px 18px; background:#fdecea; border-bottom:3px solid #b3261e;
                  color:#5f1512; font-size:15px; line-height:1.5; }
   .selnote { padding:0 15px 8px; color:#b3261e; font-size:13px; min-height:0; }
@@ -442,6 +444,13 @@ TEMPLATE = r"""<!DOCTYPE html>
 <script>
 const CFG = __CONFIG_JSON__;
 const DIMS = CFG.dimensions, CONF = CFG.confidence_bands;
+/* Julie's ruling 4 (anchors v3.1+): a rater may record "insufficient evidence" instead of a
+   score. Offered ONLY when the anchors file defines it -- a page built from the frozen v1
+   anchors behaves exactly as round 1's did. In a draft the choice is the string INSUFF_V,
+   because null already means "no band picked yet"; committed, it is score:null,
+   confidence:null, insufficient_evidence:true. */
+const INSUFF = CFG.insufficient_evidence || null, INSUFF_V = "insufficient";
+const isInsuff = v => v === INSUFF_V;
 const PACKET_ID = "__PACKET_ID__", RATER = "__RATER__";
 const STORE_KEY = "solverah_" + PACKET_ID + "_" + RATER;
 
@@ -627,17 +636,21 @@ function renderDim(key){
   const sc = state.scores[key];
 
   if(sc){
+    const skipped = sc.insufficient_evidence === true;
     el.className = "dim done"; el.open = false;
     el.innerHTML =
       '<summary><span class="sname">' + d.name + '</span>' +
-      '<span class="sstat ok">committed &nbsp;·&nbsp; score ' + sc.score.toFixed(1) +
-      ' &nbsp;·&nbsp; confidence ' + sc.confidence.toFixed(1) +
+      '<span class="sstat ok">committed &nbsp;·&nbsp; ' +
+      (skipped ? esc(INSUFF ? INSUFF.label : "insufficient evidence").toLowerCase()
+               : 'score ' + sc.score.toFixed(1) + ' &nbsp;·&nbsp; confidence ' + sc.confidence.toFixed(1)) +
       ' &nbsp;·&nbsp; ' + sc.quotes.length + ' quote' + (sc.quotes.length===1?'':'s') + '</span></summary>' +
       '<div class="dimbody"><div class="summary">' +
         '<div class="row"><span class="k">Band</span><span>' +
-          d.bands.find(b => b.value === sc.score).reads_as + '</span></div>' +
+          (skipped ? esc(INSUFF ? INSUFF.label : "Insufficient evidence") + ' &mdash; no score'
+                   : d.bands.find(b => b.value === sc.score).reads_as) + '</span></div>' +
         '<div class="row"><span class="k">Evidence</span><span>' +
-          sc.quotes.map(q => '&ldquo;' + esc(q.text) + '&rdquo;<br><span class="fine">' + q.eid + ' &middot; ' + SRC_LABEL(q.src) + '</span>').join('<br><br>') + '</span></div>' +
+          (sc.quotes.length ? sc.quotes.map(q => '&ldquo;' + esc(q.text) + '&rdquo;<br><span class="fine">' + q.eid + ' &middot; ' + SRC_LABEL(q.src) + '</span>').join('<br><br>')
+                            : '<span class="fine">none filed</span>') + '</span></div>' +
         (sc.note ? '<div class="row"><span class="k">Note</span><span>' + esc(sc.note) + '</span></div>' : '') +
         '<div class="row"><span class="k">Locked</span><span class="fine">' +
           new Date(sc.committed_at).toLocaleTimeString() + ' &mdash; cannot be changed</span></div>' +
@@ -664,19 +677,31 @@ function renderDim(key){
          '<span><span class="lbl">' + b.reads_as + ' <span class="val">' + b.value.toFixed(1) + '</span></span>' +
          '<span class="txt">' + b.text + '</span></span></label>';
   });
+  if(INSUFF){
+    const on = isInsuff(dr.band);
+    h += '<label class="band insuff' + (on ? ' chosen' : '') + '" data-v="' + INSUFF_V + '">' +
+         '<input type="radio" name="band_' + key + '" value="' + INSUFF_V + '"' + (on ? ' checked' : '') + '>' +
+         '<span><span class="lbl">' + esc(INSUFF.label) + ' <span class="val">no score</span></span>' +
+         '<span class="txt">' + esc(INSUFF.text) + '</span></span></label>';
+  }
   h += '</div>';
 
   h += '<div><b style="font-size:13px">Evidence for this score</b><div class="cite" id="cite_' + key + '"></div></div>';
 
-  h += '<div><b style="font-size:13px">How confident are you in this score?</b><div class="conf">';
-  CONF.forEach(c => {
-    h += '<label' + (dr.conf === c.value ? ' class="chosen"' : '') + ' data-v="' + c.value + '">' +
-         '<input type="radio" name="conf_' + key + '" value="' + c.value + '"' +
-         (dr.conf === c.value ? ' checked' : '') + '>' +
-         '<span class="cl">' + c.label + ' <span class="val">' + c.value.toFixed(1) + '</span></span>' +
-         '<span class="ct">' + c.text + '</span></label>';
-  });
-  h += '</div></div>';
+  if(isInsuff(dr.band)){
+    h += '<div class="noconf">No confidence rating: you are recording that the packet cannot ' +
+         'support a score on this dimension.</div>';
+  } else {
+    h += '<div><b style="font-size:13px">How confident are you in this score?</b><div class="conf">';
+    CONF.forEach(c => {
+      h += '<label' + (dr.conf === c.value ? ' class="chosen"' : '') + ' data-v="' + c.value + '">' +
+           '<input type="radio" name="conf_' + key + '" value="' + c.value + '"' +
+           (dr.conf === c.value ? ' checked' : '') + '>' +
+           '<span class="cl">' + c.label + ' <span class="val">' + c.value.toFixed(1) + '</span></span>' +
+           '<span class="ct">' + c.text + '</span></label>';
+    });
+    h += '</div></div>';
+  }
 
   h += '<div style="margin-top:11px"><label class="fine" for="note_' + key + '">One line on your reasoning (optional)</label>' +
        '<textarea id="note_' + key + '" rows="2">' + esc(dr.note) + '</textarea></div>';
@@ -688,7 +713,10 @@ function renderDim(key){
 
   el.querySelectorAll(".band").forEach(b => {
     b.onclick = ev => { ev.preventDefault();
-      dr.band = parseFloat(b.dataset.v);
+      const was = dr.band;
+      dr.band = isInsuff(b.dataset.v) ? INSUFF_V : parseFloat(b.dataset.v);
+      if(isInsuff(dr.band)) dr.conf = null;   /* a skip carries no confidence */
+      if(isInsuff(was) !== isInsuff(dr.band)){ save(); renderDim(key); return; }
       el.querySelectorAll(".band").forEach(x => x.classList.remove("chosen"));
       b.classList.add("chosen"); b.querySelector("input").checked = true;
       save(); validate(key); };
@@ -713,7 +741,9 @@ function renderCites(key){
   const dr = draft(key);
   if(!dr.quotes.length){
     box.innerHTML = '<div class="hint">Highlight a line in the packet on the left, then file it ' +
-                    'under this dimension. At least one quote is required.</div>';
+                    'under this dimension. ' +
+                    (isInsuff(dr.band) ? 'Optional when recording insufficient evidence.'
+                                       : 'At least one quote is required.') + '</div>';
     return;
   }
   box.innerHTML = "";
@@ -733,7 +763,8 @@ function validate(key){
   const btn = document.getElementById("commit_" + key), err = document.getElementById("err_" + key);
   if(!btn) return;
   let msg = "";
-  if(dr.band === null) msg = "Pick a band.";
+  if(dr.band === null) msg = INSUFF ? "Pick a band, or record insufficient evidence." : "Pick a band.";
+  else if(isInsuff(dr.band)) msg = "";   /* quotes optional, no confidence */
   else if(!dr.quotes.length) msg = "File at least one quote from the packet under this dimension.";
   else if(dr.conf === null) msg = "Record your confidence.";
   err.textContent = msg; btn.disabled = msg !== "";
@@ -741,12 +772,15 @@ function validate(key){
 
 function commit(key){
   const dr = draft(key);
+  const skip = isInsuff(dr.band);
   state.scores[key] = {
-    dimension: key, score: dr.band, confidence: dr.conf,
+    dimension: key, score: skip ? null : dr.band, confidence: skip ? null : dr.conf,
     quotes: dr.quotes.slice(), note: (dr.note || "").trim(),
     committed_at: new Date().toISOString(),
     commit_position: state.commit_order.length + 1
   };
+  /* The key exists only on a skip, so a scored row is shaped exactly as in round 1. */
+  if(skip) state.scores[key].insufficient_evidence = true;
   state.commit_order.push(key);
   delete state.drafts[key];
   save(); renderDim(key); renderCounter(); checkComplete();

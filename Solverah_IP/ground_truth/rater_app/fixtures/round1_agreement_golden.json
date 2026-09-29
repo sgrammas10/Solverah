@@ -1,0 +1,914 @@
+{
+  "_note": "Captured 2026-09-29 from the UNCHANGED rater_agreement.py / three_way_dispersion.py, before the insufficient-evidence change, against returned/round1 (18 files) and the frozen anchors.json. test_round1_unchanged.py asserts the new code reproduces this exactly. Never regenerate it from post-change code.",
+  "cells": [
+    {
+      "blind": {
+        "B": 4,
+        "C": 0
+      },
+      "blind_spread": 4,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 4
+      },
+      "blind_spread": 1,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 4
+      },
+      "blind_spread": 3,
+      "dimension": "decision",
+      "expert": {
+        "A": 4
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 2
+      },
+      "blind_spread": 1,
+      "dimension": "feedback",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 1
+      },
+      "blind_spread": 1,
+      "dimension": "innovation",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 3
+      },
+      "blind_spread": 2,
+      "dimension": "pace",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-01",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 2
+      },
+      "blind_spread": 1,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 4
+      },
+      "blind_spread": 2,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 2
+      },
+      "blind_spread": 1,
+      "dimension": "decision",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 3
+      },
+      "blind_spread": 2,
+      "dimension": "feedback",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 1
+      },
+      "blind_spread": 0,
+      "dimension": "innovation",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 3
+      },
+      "blind_spread": 1,
+      "dimension": "pace",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-02",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 4
+      },
+      "blind_spread": 2,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 4
+      },
+      "blind_spread": 3,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 3
+      },
+      "blind_spread": 2,
+      "dimension": "decision",
+      "expert": {
+        "A": 4
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 2
+      },
+      "blind_spread": 2,
+      "dimension": "feedback",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 3
+      },
+      "blind_spread": 1,
+      "dimension": "innovation",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 3
+      },
+      "blind_spread": 1,
+      "dimension": "pace",
+      "expert": {
+        "A": 4
+      },
+      "expert_divergence": null,
+      "packet_id": "P-03",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 3
+      },
+      "blind_spread": 0,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 4
+      },
+      "blind_spread": 2,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 0
+      },
+      "blind_spread": 3,
+      "dimension": "decision",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 2
+      },
+      "blind_spread": 0,
+      "dimension": "feedback",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 1
+      },
+      "blind_spread": 3,
+      "dimension": "innovation",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 3
+      },
+      "blind_spread": 0,
+      "dimension": "pace",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-04",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 3
+      },
+      "blind_spread": 1,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 4
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 1
+      },
+      "blind_spread": 0,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 0,
+        "C": 4
+      },
+      "blind_spread": 4,
+      "dimension": "decision",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 1
+      },
+      "blind_spread": 2,
+      "dimension": "feedback",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 1
+      },
+      "blind_spread": 2,
+      "dimension": "innovation",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 2
+      },
+      "blind_spread": 1,
+      "dimension": "pace",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-05",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 0
+      },
+      "blind_spread": 2,
+      "dimension": "autonomy",
+      "expert": {
+        "A": 1
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 3,
+        "C": 3
+      },
+      "blind_spread": 0,
+      "dimension": "collaboration",
+      "expert": {
+        "A": 3
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "AGREE"
+    },
+    {
+      "blind": {
+        "B": 4,
+        "C": 1
+      },
+      "blind_spread": 3,
+      "dimension": "decision",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "REVIEW"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 1
+      },
+      "blind_spread": 1,
+      "dimension": "feedback",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 1,
+        "C": 0
+      },
+      "blind_spread": 1,
+      "dimension": "innovation",
+      "expert": {
+        "A": 0
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "WATCH"
+    },
+    {
+      "blind": {
+        "B": 2,
+        "C": 2
+      },
+      "blind_spread": 0,
+      "dimension": "pace",
+      "expert": {
+        "A": 2
+      },
+      "expert_divergence": null,
+      "packet_id": "P-06",
+      "verdict": "AGREE"
+    }
+  ],
+  "n_files": 18,
+  "n_readings": 108,
+  "three_way_records": [
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 4,
+        "A-C": 0,
+        "B-C": 4
+      },
+      "three_way_spread": 4
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 2,
+        "A-C": 3,
+        "B-C": 1
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 3,
+        "A-C": 0,
+        "B-C": 3
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 2,
+        "B-C": 1
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 2,
+        "B-C": 1
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-01",
+      "pair_distances": {
+        "A-B": 2,
+        "A-C": 0,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 3,
+        "A-C": 2,
+        "B-C": 1
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 3,
+        "B-C": 2
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 0,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 2,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 0,
+        "B-C": 0
+      },
+      "three_way_spread": 0
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-02",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 0,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 2,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 2,
+        "A-C": 1,
+        "B-C": 3
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 3,
+        "A-C": 1,
+        "B-C": 2
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 1,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-03",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 1,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 0
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 2,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 3,
+        "A-C": 0,
+        "B-C": 3
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 0
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 2,
+        "B-C": 3
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-04",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 0
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 1,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 0
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 4,
+        "B-C": 4
+      },
+      "three_way_spread": 4
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 3,
+        "A-C": 1,
+        "B-C": 2
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-05",
+      "pair_distances": {
+        "A-B": 2,
+        "A-C": 1,
+        "B-C": 1
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "autonomy",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 1,
+        "B-C": 2
+      },
+      "three_way_spread": 2
+    },
+    {
+      "dimension": "collaboration",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 0,
+        "B-C": 0
+      },
+      "three_way_spread": 0
+    },
+    {
+      "dimension": "decision",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 2,
+        "A-C": 1,
+        "B-C": 3
+      },
+      "three_way_spread": 3
+    },
+    {
+      "dimension": "feedback",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 1,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "innovation",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 1,
+        "A-C": 0,
+        "B-C": 1
+      },
+      "three_way_spread": 1
+    },
+    {
+      "dimension": "pace",
+      "packet_id": "P-06",
+      "pair_distances": {
+        "A-B": 0,
+        "A-C": 0,
+        "B-C": 0
+      },
+      "three_way_spread": 0
+    }
+  ],
+  "three_way_summary": {
+    "cells_incomplete": 0,
+    "licensed_inference": {
+      "mass_d_ge_2": {
+        "A-B": 0.3055555555555556,
+        "A-C": 0.2777777777777778,
+        "B-C": 0.4722222222222222
+      }
+    },
+    "n_cells": 36,
+    "pair_distance_distribution": {
+      "A-B": {
+        "0": 11,
+        "1": 14,
+        "2": 5,
+        "3": 5,
+        "4": 1
+      },
+      "A-C": {
+        "0": 10,
+        "1": 16,
+        "2": 7,
+        "3": 2,
+        "4": 1
+      },
+      "B-C": {
+        "0": 7,
+        "1": 12,
+        "2": 10,
+        "3": 5,
+        "4": 2
+      }
+    },
+    "three_way_spread_distribution": {
+      "0": 3,
+      "1": 11,
+      "2": 10,
+      "3": 10,
+      "4": 2
+    }
+  }
+}

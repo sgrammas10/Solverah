@@ -1,0 +1,519 @@
+{
+  "_note": "Captured 2026-09-29 from the UNCHANGED scorer_pipeline.py against the frozen anchors.json, before the insufficient-evidence change. The v1 request surface must stay byte-identical. Never regenerate from post-change code.",
+  "anchors_rubric_version": "v1-frozen-2026-08-15",
+  "request_kwargs": {
+    "messages": [
+      {
+        "content": "RUBRIC:\nSOLVERAH\nCompany Culture Rating Rubric\nGround-truth scoring instrument · v1-frozen-2026-08-15 · frozen for round 1\n\nScore each of the six dimensions independently, using ONLY the evidence packet provided. For each dimension, pick exactly one band value from [0.1, 0.3, 0.5, 0.7, 0.9] for the score, and exactly one band value from the confidence bands below for the confidence. Do not interpolate between bands. Also quote 1-3 short verbatim phrases from the packet that most directly support your score -- copy them exactly as they appear, do not paraphrase.\n\nFive gates -- read before scoring:\n1. Neither pole is better. Every dimension runs between two legitimate cultures. “Directed” is not worse than “self-directed.” If you catch yourself scoring toward the pole you personally prefer, stop — that is bias, not signal.\n2. Score the company as it is, not as you would like it. You are describing a culture, not grading it. Aspirational careers-page copy is weak evidence; how people describe daily reality is strong evidence.\n3. Kill the halo. A well-liked brand tends to drag every score toward “good.” Score each dimension only from evidence about that dimension.\n4. Evidence over gut. If you cannot point to a line in the packet that supports the number, lower your confidence. A guess dressed as a 0.9 poisons the ground truth more than an honest 0.5 at low confidence.\n5. Stale culture is wrong culture. Prefer recent evidence. Where the packet flags an evidence-age problem, let it lower your confidence.\n6. Do not search for anything in this packet. If you recognise the company, that is expected and is not a failure — tick the recognition box and keep scoring from the evidence in front of you.\n\nConfidence bands (about the EVIDENCE, not about you):\n  0.9 (High): Multiple corroborating sources of different types all point the same way.\n  0.6 (Medium): Some real evidence but from one source type, or sources partly conflict. A defensible read, not a certain one.\n  0.3 (Low): Thin or indirect evidence — a single ambiguous signal. You can defend a direction, but only weakly.\n  0.1 (Very low): Almost nothing in the packet bears on this dimension. You are close to guessing.\n\nThe six dimensions:\n\n## Autonomy (autonomy)   Directed (0.1)  →  Self-directed (0.9)\nMeasures: How much latitude individuals have to set their own approach, priorities and decisions, vs. following assigned direction, defined process and approval chains.\nWhere to look: Job-post verbs (“execute against the roadmap” vs. “own your domain end-to-end”), number of approval layers, presence of detailed SOP/process docs, review mentions of micromanagement vs. freedom, IC decision rights, remote-trust language.\nKeep distinct: Not the same as Collaboration. A person can be highly self-directed AND work collectively. Autonomy is about who decides the how; Collaboration is about alone vs. together.\nScore bands:\n  0.1 (Directed): Work is assigned and specified top-down. Most decisions need sign-off. Postings stress “follow established processes,” reviews cite micromanagement or rigid procedure.\n  0.3 (Leaning directed): Manager sets direction and priorities; individual chooses tactics inside clear guardrails. Some latitude, but the frame is given.\n  0.5 (Mixed): Direction set at team level, individuals pick the how within it. No strong signal either way, or genuinely balanced.\n  0.7 (Leaning self-directed): ICs own outcomes and choose their approach with light approval. “Ownership,” results-over-process language present.\n  0.9 (Self-directed): Individuals set their own priorities and methods with minimal approval. High-trust, flat decision rights pervade the evidence.\n\n## Pace (pace)   Steady (0.1)  →  Fast (0.9)\nMeasures: The tempo and intensity of work — deliberate, sustainable cadence vs. rapid, high-urgency, quick-turnaround.\nWhere to look: “Fast-paced” in postings, release/ship frequency, deadline and crunch culture, review mentions of hours/intensity/burnout vs. calm, on-call expectations.\nKeep distinct: Not the same as Innovation. A company can move fast while only optimizing, or invent slowly. Pace is tempo; Innovation is novelty.\nScore bands:\n  0.1 (Steady): Deliberate cadence, long planning horizons, stability and quality emphasis. Reviews describe a calm, sustainable pace.\n  0.3 (Leaning steady): Generally measured tempo with occasional pushes. Deadlines exist but rarely dominate.\n  0.5 (Mixed): Ordinary business tempo — some crunch, some calm. No dominant signal.\n  0.7 (Leaning fast): Regular urgency, frequent releases, tight-ish timelines. Energy is up but not relentless.\n  0.9 (Fast): “Move fast,” rapid iteration, aggressive deadlines. Reviews cite long hours, intensity or hypergrowth.\n\n## Collaboration (collaboration)   Solo (0.1)  →  Collective (0.9)\nMeasures: How work actually gets produced — individual, heads-down ownership vs. group, cross-functional, in-the-room problem-solving.\nWhere to look: Team structure (pods/squads vs. individual owners), meeting and pairing culture, open-plan vs. deep-work norms, “we win together” vs. “own your area” language, async-individual vs. sync-group.\nKeep distinct: Not the same as Autonomy. Collective teams can still hand individuals full ownership of the how. Score meeting and team density here, decision rights under Autonomy.\nScore bands:\n  0.1 (Solo): Individual ownership, heads-down norm, low meeting load. Async and individual contribution valued.\n  0.3 (Leaning solo): Mostly individual work with periodic syncs. Collaboration is coordination, not co-production.\n  0.5 (Mixed): Balanced individual and group work; no dominant mode.\n  0.7 (Leaning collective): Cross-functional teamwork common, meetings frequent, decisions shared.\n  0.9 (Collective): Heavy pairing, meeting and consensus culture, cross-functional pods, “we win together” throughout.\n\n## Feedback Culture (feedback)   Sparse / gentle (0.1)  →  Frequent / blunt (0.9)\nMeasures: How performance feedback flows — occasional and softened vs. frequent, direct and unfiltered.\nWhere to look: “Radical candor” or “direct communication” in values, review-cycle frequency, mentions of blunt vs. supportive delivery, debate and critique norms, conflict-avoidant vs. conflict-embracing signals.\nKeep distinct: Score the delivery style and frequency of critique, not whether feedback is “nice.” Both poles are legitimate cultures, not good and bad.\nScore bands:\n  0.1 (Sparse / gentle): Feedback is occasional and softened. Harmony valued, conflict avoided, supportive or nurturing framing.\n  0.3 (Leaning gentle): Feedback mostly on cycles, delivered with care. Directness is the exception.\n  0.5 (Mixed): Normal mix of scheduled and ad-hoc feedback, moderate directness.\n  0.7 (Leaning blunt): Frequent, fairly direct feedback; debate is normal; thicker skin helps.\n  0.9 (Frequent / blunt): Radical candor, constant unfiltered input, “we tell it straight,” critique and debate are the default.\n\n## Innovation Stance (innovation)   Execute / optimize (0.1)  →  Invent / explore (0.9)\nMeasures: Where the work sits on the create-vs-refine axis — improving and scaling what exists vs. inventing what does not exist yet.\nWhere to look: R&D emphasis, “0-to-1” vs. “operational excellence” language, product maturity, tolerance for failed bets, “experiment” vs. “scale what works.”\nKeep distinct: Not the same as Pace. Optimizing can be frantic; inventing can be slow. Score novelty of the work, not its speed.\nScore bands:\n  0.1 (Execute / optimize): Operational excellence, refine and scale existing product, efficiency focus, mature offering.\n  0.3 (Leaning optimize): Mostly improving known things; occasional new bets at the edges.\n  0.5 (Mixed): Real split between maintaining and creating; no dominant stance.\n  0.7 (Leaning invent): New-product or new-capability work is common; experimentation encouraged.\n  0.9 (Invent / explore): R&D-forward, novel products, “0-to-1,” research culture, explicit tolerance for failed experiments.\n\n## Decision Basis (decision)   Intuition / judgement (0.1)  →  Data / analysis (0.9)\nMeasures: What decisions actually rest on — experience, taste and judgement vs. metrics, experiments and analysis.\nWhere to look: “Data-driven” language, A/B testing and analytics infrastructure, metrics-gated launches, dashboards, vs. founder-gut, design-led or “trust your judgement” signals.\nKeep distinct: Score the basis of decisions, not their quality. A taste-led company is not worse than a data-led one; they select for different people.\nScore bands:\n  0.1 (Intuition / judgement): Taste, vision and experience lead. Founder gut or design-led; “trust your judgement.”\n  0.3 (Leaning intuition): Judgement-first, data used to confirm rather than decide.\n  0.5 (Mixed): Both judgement and data carry weight depending on the call.\n  0.7 (Leaning data): Metrics and experiments usually drive decisions; judgement fills gaps.\n  0.9 (Data / analysis): “Data-driven,” experiment-gated, metrics-first, A/B-everything, analytics-heavy.\n\nEVIDENCE PACKET:\nPACKET-TEXT-PLACEHOLDER\n\nScore the evidence packet against the rubric on these six dimensions: autonomy, pace, collaboration, feedback, innovation, decision. For each dimension, choose a score from exactly these band values: [0.1, 0.3, 0.5, 0.7, 0.9], a confidence from exactly these band values: [0.1, 0.3, 0.6, 0.9], and 1-3 short verbatim quotes from the packet supporting the score. Base your scoring only on the rubric and packet text provided. Do not use any outside knowledge, web search, or tools, even if you recognise the company from the evidence.",
+        "role": "user"
+      }
+    ],
+    "model": "gpt-5.5-2026-04-23",
+    "reasoning_effort": "medium",
+    "response_format": {
+      "json_schema": {
+        "name": "dimension_scores_v2",
+        "schema": {
+          "additionalProperties": false,
+          "properties": {
+            "autonomy": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            },
+            "collaboration": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            },
+            "decision": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            },
+            "feedback": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            },
+            "innovation": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            },
+            "pace": {
+              "additionalProperties": false,
+              "properties": {
+                "confidence": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.6,
+                    0.9
+                  ],
+                  "type": "number"
+                },
+                "evidence_quotes": {
+                  "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 3,
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "score": {
+                  "enum": [
+                    0.1,
+                    0.3,
+                    0.5,
+                    0.7,
+                    0.9
+                  ],
+                  "type": "number"
+                }
+              },
+              "required": [
+                "score",
+                "confidence",
+                "evidence_quotes"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "autonomy",
+            "pace",
+            "collaboration",
+            "feedback",
+            "innovation",
+            "decision"
+          ],
+          "type": "object"
+        },
+        "strict": true
+      },
+      "type": "json_schema"
+    },
+    "temperature": 1.0
+  },
+  "response_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "autonomy": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      },
+      "collaboration": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      },
+      "decision": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      },
+      "feedback": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      },
+      "innovation": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      },
+      "pace": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "enum": [
+              0.1,
+              0.3,
+              0.6,
+              0.9
+            ],
+            "type": "number"
+          },
+          "evidence_quotes": {
+            "description": "1-3 short verbatim phrases copied exactly from the packet that most directly support this score. Copy exactly; do not paraphrase, summarize, or combine multiple sentences.",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 3,
+            "minItems": 1,
+            "type": "array"
+          },
+          "score": {
+            "enum": [
+              0.1,
+              0.3,
+              0.5,
+              0.7,
+              0.9
+            ],
+            "type": "number"
+          }
+        },
+        "required": [
+          "score",
+          "confidence",
+          "evidence_quotes"
+        ],
+        "type": "object"
+      }
+    },
+    "required": [
+      "autonomy",
+      "pace",
+      "collaboration",
+      "feedback",
+      "innovation",
+      "decision"
+    ],
+    "type": "object"
+  },
+  "rubric_text": "SOLVERAH\nCompany Culture Rating Rubric\nGround-truth scoring instrument · v1-frozen-2026-08-15 · frozen for round 1\n\nScore each of the six dimensions independently, using ONLY the evidence packet provided. For each dimension, pick exactly one band value from [0.1, 0.3, 0.5, 0.7, 0.9] for the score, and exactly one band value from the confidence bands below for the confidence. Do not interpolate between bands. Also quote 1-3 short verbatim phrases from the packet that most directly support your score -- copy them exactly as they appear, do not paraphrase.\n\nFive gates -- read before scoring:\n1. Neither pole is better. Every dimension runs between two legitimate cultures. “Directed” is not worse than “self-directed.” If you catch yourself scoring toward the pole you personally prefer, stop — that is bias, not signal.\n2. Score the company as it is, not as you would like it. You are describing a culture, not grading it. Aspirational careers-page copy is weak evidence; how people describe daily reality is strong evidence.\n3. Kill the halo. A well-liked brand tends to drag every score toward “good.” Score each dimension only from evidence about that dimension.\n4. Evidence over gut. If you cannot point to a line in the packet that supports the number, lower your confidence. A guess dressed as a 0.9 poisons the ground truth more than an honest 0.5 at low confidence.\n5. Stale culture is wrong culture. Prefer recent evidence. Where the packet flags an evidence-age problem, let it lower your confidence.\n6. Do not search for anything in this packet. If you recognise the company, that is expected and is not a failure — tick the recognition box and keep scoring from the evidence in front of you.\n\nConfidence bands (about the EVIDENCE, not about you):\n  0.9 (High): Multiple corroborating sources of different types all point the same way.\n  0.6 (Medium): Some real evidence but from one source type, or sources partly conflict. A defensible read, not a certain one.\n  0.3 (Low): Thin or indirect evidence — a single ambiguous signal. You can defend a direction, but only weakly.\n  0.1 (Very low): Almost nothing in the packet bears on this dimension. You are close to guessing.\n\nThe six dimensions:\n\n## Autonomy (autonomy)   Directed (0.1)  →  Self-directed (0.9)\nMeasures: How much latitude individuals have to set their own approach, priorities and decisions, vs. following assigned direction, defined process and approval chains.\nWhere to look: Job-post verbs (“execute against the roadmap” vs. “own your domain end-to-end”), number of approval layers, presence of detailed SOP/process docs, review mentions of micromanagement vs. freedom, IC decision rights, remote-trust language.\nKeep distinct: Not the same as Collaboration. A person can be highly self-directed AND work collectively. Autonomy is about who decides the how; Collaboration is about alone vs. together.\nScore bands:\n  0.1 (Directed): Work is assigned and specified top-down. Most decisions need sign-off. Postings stress “follow established processes,” reviews cite micromanagement or rigid procedure.\n  0.3 (Leaning directed): Manager sets direction and priorities; individual chooses tactics inside clear guardrails. Some latitude, but the frame is given.\n  0.5 (Mixed): Direction set at team level, individuals pick the how within it. No strong signal either way, or genuinely balanced.\n  0.7 (Leaning self-directed): ICs own outcomes and choose their approach with light approval. “Ownership,” results-over-process language present.\n  0.9 (Self-directed): Individuals set their own priorities and methods with minimal approval. High-trust, flat decision rights pervade the evidence.\n\n## Pace (pace)   Steady (0.1)  →  Fast (0.9)\nMeasures: The tempo and intensity of work — deliberate, sustainable cadence vs. rapid, high-urgency, quick-turnaround.\nWhere to look: “Fast-paced” in postings, release/ship frequency, deadline and crunch culture, review mentions of hours/intensity/burnout vs. calm, on-call expectations.\nKeep distinct: Not the same as Innovation. A company can move fast while only optimizing, or invent slowly. Pace is tempo; Innovation is novelty.\nScore bands:\n  0.1 (Steady): Deliberate cadence, long planning horizons, stability and quality emphasis. Reviews describe a calm, sustainable pace.\n  0.3 (Leaning steady): Generally measured tempo with occasional pushes. Deadlines exist but rarely dominate.\n  0.5 (Mixed): Ordinary business tempo — some crunch, some calm. No dominant signal.\n  0.7 (Leaning fast): Regular urgency, frequent releases, tight-ish timelines. Energy is up but not relentless.\n  0.9 (Fast): “Move fast,” rapid iteration, aggressive deadlines. Reviews cite long hours, intensity or hypergrowth.\n\n## Collaboration (collaboration)   Solo (0.1)  →  Collective (0.9)\nMeasures: How work actually gets produced — individual, heads-down ownership vs. group, cross-functional, in-the-room problem-solving.\nWhere to look: Team structure (pods/squads vs. individual owners), meeting and pairing culture, open-plan vs. deep-work norms, “we win together” vs. “own your area” language, async-individual vs. sync-group.\nKeep distinct: Not the same as Autonomy. Collective teams can still hand individuals full ownership of the how. Score meeting and team density here, decision rights under Autonomy.\nScore bands:\n  0.1 (Solo): Individual ownership, heads-down norm, low meeting load. Async and individual contribution valued.\n  0.3 (Leaning solo): Mostly individual work with periodic syncs. Collaboration is coordination, not co-production.\n  0.5 (Mixed): Balanced individual and group work; no dominant mode.\n  0.7 (Leaning collective): Cross-functional teamwork common, meetings frequent, decisions shared.\n  0.9 (Collective): Heavy pairing, meeting and consensus culture, cross-functional pods, “we win together” throughout.\n\n## Feedback Culture (feedback)   Sparse / gentle (0.1)  →  Frequent / blunt (0.9)\nMeasures: How performance feedback flows — occasional and softened vs. frequent, direct and unfiltered.\nWhere to look: “Radical candor” or “direct communication” in values, review-cycle frequency, mentions of blunt vs. supportive delivery, debate and critique norms, conflict-avoidant vs. conflict-embracing signals.\nKeep distinct: Score the delivery style and frequency of critique, not whether feedback is “nice.” Both poles are legitimate cultures, not good and bad.\nScore bands:\n  0.1 (Sparse / gentle): Feedback is occasional and softened. Harmony valued, conflict avoided, supportive or nurturing framing.\n  0.3 (Leaning gentle): Feedback mostly on cycles, delivered with care. Directness is the exception.\n  0.5 (Mixed): Normal mix of scheduled and ad-hoc feedback, moderate directness.\n  0.7 (Leaning blunt): Frequent, fairly direct feedback; debate is normal; thicker skin helps.\n  0.9 (Frequent / blunt): Radical candor, constant unfiltered input, “we tell it straight,” critique and debate are the default.\n\n## Innovation Stance (innovation)   Execute / optimize (0.1)  →  Invent / explore (0.9)\nMeasures: Where the work sits on the create-vs-refine axis — improving and scaling what exists vs. inventing what does not exist yet.\nWhere to look: R&D emphasis, “0-to-1” vs. “operational excellence” language, product maturity, tolerance for failed bets, “experiment” vs. “scale what works.”\nKeep distinct: Not the same as Pace. Optimizing can be frantic; inventing can be slow. Score novelty of the work, not its speed.\nScore bands:\n  0.1 (Execute / optimize): Operational excellence, refine and scale existing product, efficiency focus, mature offering.\n  0.3 (Leaning optimize): Mostly improving known things; occasional new bets at the edges.\n  0.5 (Mixed): Real split between maintaining and creating; no dominant stance.\n  0.7 (Leaning invent): New-product or new-capability work is common; experimentation encouraged.\n  0.9 (Invent / explore): R&D-forward, novel products, “0-to-1,” research culture, explicit tolerance for failed experiments.\n\n## Decision Basis (decision)   Intuition / judgement (0.1)  →  Data / analysis (0.9)\nMeasures: What decisions actually rest on — experience, taste and judgement vs. metrics, experiments and analysis.\nWhere to look: “Data-driven” language, A/B testing and analytics infrastructure, metrics-gated launches, dashboards, vs. founder-gut, design-led or “trust your judgement” signals.\nKeep distinct: Score the basis of decisions, not their quality. A taste-led company is not worse than a data-led one; they select for different people.\nScore bands:\n  0.1 (Intuition / judgement): Taste, vision and experience lead. Founder gut or design-led; “trust your judgement.”\n  0.3 (Leaning intuition): Judgement-first, data used to confirm rather than decide.\n  0.5 (Mixed): Both judgement and data carry weight depending on the call.\n  0.7 (Leaning data): Metrics and experiments usually drive decisions; judgement fills gaps.\n  0.9 (Data / analysis): “Data-driven,” experiment-gated, metrics-first, A/B-everything, analytics-heavy."
+}

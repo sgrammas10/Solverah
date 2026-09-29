@@ -42,6 +42,20 @@ wording its author cannot. Julie owns the rubric and rewrites anchors.json after
 readings cannot evidence that the text is clear -- she knows what it was meant to say. The flag
 is computed over the blind raters only; her scores are carried in full, labelled, as the expert
 reference, and drive a separate diagnostic (see `expert_divergence`).
+
+INSUFFICIENT EVIDENCE (added 2026-09-29, Julie's ruling 4)
+---------------------------------------------------------
+From anchors v3.1 a rater may record no score for a dimension: `score: null` with
+`insufficient_evidence: true`. That is not 0.5, and it is not a band, so it has no band
+distance to anyone. A cell where a blind reading is a skip is neither agreement nor
+disagreement: its verdict is SKIPPED, it is excluded from AGREE / WATCH / REVIEW, and it is
+counted on its own line. Two blind skips on one cell are still SKIPPED, not agreement --
+agreeing there is nothing to say is not agreeing on what the anchor text means.
+
+A null score is accepted ONLY when the anchors file declares `insufficient_evidence` AND
+the row carries the flag. Under the frozen v1 anchors (round 1) a null is a data error,
+exactly as it was before this change; the round-1 numbers are pinned by
+test_round1_unchanged.py.
 """
 
 from __future__ import annotations
@@ -89,6 +103,12 @@ def load_band_values(anchors_path: Path | str) -> list[float]:
     return sorted(float(b) for b in bands)
 
 
+def permits_insufficient_evidence(anchors_path: Path | str) -> bool:
+    """True when the rubric lets a rater record no score (anchors v3.1 onward)."""
+    doc = json.loads(Path(anchors_path).read_text(encoding="utf-8"))
+    return "insufficient_evidence" in doc
+
+
 def band_index(score: float, band_values: list[float], *, tol: float = 1e-9) -> int:
     """Map a rater's score to its integer band index.
 
@@ -117,14 +137,49 @@ class Reading:
     rater: str
     role: str
     dimension: str
-    score: float
-    band: int
+    score: float | None   # None = insufficient evidence (a skip), never a band
+    band: int | None
     confidence: float | None
     recognition: str | None
 
+    @property
+    def skipped(self) -> bool:
+        return self.score is None
 
-def load_readings(paths, band_values: list[float]) -> list[Reading]:
-    """Read returned solverah_<PACKET>_rater<R>.json files into flat Reading rows."""
+
+def _score_of(row: dict, where: str, allow_insufficient: bool) -> float | None:
+    """A row's score, or None for a legitimate skip. Refuses every other shape."""
+    if "score" not in row:
+        raise AgreementError(f"{where}: row has no 'score' key")
+    score, flagged = row["score"], row.get("insufficient_evidence") is True
+    if flagged:
+        if score is not None:
+            raise AgreementError(
+                f"{where}: insufficient_evidence is set but score is {score!r}. A skip carries "
+                f"no score; one of the two fields is wrong and this module will not guess which."
+            )
+        if not allow_insufficient:
+            raise AgreementError(
+                f"{where}: insufficient_evidence recorded, but this anchors file declares no "
+                f"insufficient_evidence -- the rubric the rater was given did not offer a skip."
+            )
+        return None
+    if score is None:
+        raise AgreementError(
+            f"{where}: score is null without insufficient_evidence: true. A null is only a "
+            f"skip when the row says so."
+        )
+    return float(score)
+
+
+def load_readings(paths, band_values: list[float], *,
+                  allow_insufficient: bool = False) -> list[Reading]:
+    """Read returned solverah_<PACKET>_rater<R>.json files into flat Reading rows.
+
+    `allow_insufficient` must come from the anchors file the rater was given
+    (`permits_insufficient_evidence`). Left False -- the frozen v1 case -- any null score is
+    refused.
+    """
     out: list[Reading] = []
     for p in paths:
         doc = json.loads(Path(p).read_text(encoding="utf-8"))
@@ -136,14 +191,15 @@ def load_readings(paths, band_values: list[float]) -> list[Reading]:
                 f"ambiguity flag."
             )
         for row in doc.get("scores") or []:
+            score = _score_of(row, f"{p}: {row.get('dimension')}", allow_insufficient)
             out.append(
                 Reading(
                     packet_id=doc["packet_id"],
                     rater=rater,
                     role=RATER_ROLES[rater],
                     dimension=row["dimension"],
-                    score=float(row["score"]),
-                    band=band_index(float(row["score"]), band_values),
+                    score=score,
+                    band=None if score is None else band_index(score, band_values),
                     confidence=row.get("confidence"),
                     recognition=doc.get("recognition"),
                 )
@@ -161,18 +217,28 @@ class Cell:
 
     packet_id: str
     dimension: str
-    blind: dict[str, int] = field(default_factory=dict)   # rater letter -> band index
-    expert: dict[str, int] = field(default_factory=dict)
+    # rater letter -> band index, or None where that rater recorded insufficient evidence
+    blind: dict[str, int | None] = field(default_factory=dict)
+    expert: dict[str, int | None] = field(default_factory=dict)
+
+    @property
+    def skipped_by(self) -> list[str]:
+        """Every rater (blind or expert) who recorded insufficient evidence on this cell."""
+        return sorted(r for r, b in {**self.blind, **self.expert}.items() if b is None)
 
     @property
     def blind_spread(self) -> int | None:
-        if len(self.blind) < 2:
+        if len(self.blind) < 2 or any(b is None for b in self.blind.values()):
             return None
         return max(self.blind.values()) - min(self.blind.values())
 
     @property
     def verdict(self) -> str:
-        """REVIEW / WATCH / AGREE / INCOMPLETE, per the frozen rule.
+        """REVIEW / WATCH / AGREE / INCOMPLETE / SKIPPED, per the rule.
+
+        SKIPPED: both blind readings are present and at least one is insufficient evidence.
+        Neither agreement nor disagreement (anchors v3.1 agreement_rule) -- see the module
+        docstring. Checked after INCOMPLETE, so a cell still missing a rater stays INCOMPLETE.
 
         WATCH is not in anchors.json and is NOT a flag. One band apart is explicitly 'expected
         instrument resolution', so it must not trigger a rewrite. It is surfaced only because
@@ -181,9 +247,11 @@ class Cell:
         collecting them now costs nothing, whereas re-deriving them later means reopening
         returned files.
         """
+        if len(self.blind) < 2:
+            return "INCOMPLETE"
         spread = self.blind_spread
         if spread is None:
-            return "INCOMPLETE"
+            return "SKIPPED"
         if spread >= AMBIGUITY_BAND_DISTANCE:
             return "REVIEW"
         if spread == 1:
@@ -205,6 +273,8 @@ class Cell:
         if not self.expert or self.blind_spread != 0:
             return None
         expert_band = next(iter(self.expert.values()))
+        if expert_band is None:  # the expert skipped: there is no band to diverge from
+            return None
         blind_band = next(iter(self.blind.values()))
         delta = blind_band - expert_band
         return delta if abs(delta) >= AMBIGUITY_BAND_DISTANCE else None

@@ -1,0 +1,172 @@
+{
+  "packet_id": "P-01",
+  "rater": "A",
+  "rubric_version": "v3.1-PROPOSED-2026-09-29",
+  "anchors_hash": "3e270b206116",
+  "session_start": "2026-09-29T19:09:04.808Z",
+  "submitted_at": "2026-09-29T19:09:04.836Z",
+  "duration_seconds": 0,
+  "commit_order": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "recognition": "no",
+  "recognition_detail": "",
+  "searched": "no",
+  "search_detail": "",
+  "free_note": "",
+  "scores": [
+    {
+      "dimension": "autonomy",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"[The company] is the first health insurance company built",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.827Z",
+      "commit_position": 1,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1"
+      ]
+    },
+    {
+      "dimension": "pace",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"[The company] is the first health insurance company built",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.828Z",
+      "commit_position": 2,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1"
+      ]
+    },
+    {
+      "dimension": "collaboration",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"[The company] is the first health insurance company built",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.828Z",
+      "commit_position": 3,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1"
+      ]
+    },
+    {
+      "dimension": "feedback",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"[The company] is the first health insurance company built",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.829Z",
+      "commit_position": 4,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1"
+      ]
+    },
+    {
+      "dimension": "innovation",
+      "score": 0.3,
+      "confidence": 0.3,
+      "quotes": [
+        {
+          "text": "• \"[The company] is the first health insurance company built",
+          "eid": "A1",
+          "sec": "A",
+          "src": "company"
+        }
+      ],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.830Z",
+      "commit_position": 5,
+      "source_mix": {
+        "company": 1,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": [
+        "A1"
+      ]
+    },
+    {
+      "dimension": "decision",
+      "score": null,
+      "confidence": null,
+      "quotes": [],
+      "note": "",
+      "committed_at": "2026-09-29T19:09:04.833Z",
+      "commit_position": 6,
+      "insufficient_evidence": true,
+      "source_mix": {
+        "company": 0,
+        "noncompany": 0,
+        "disputed": 0,
+        "researcher": 0
+      },
+      "noncompany_support": false,
+      "excerpts_cited": []
+    }
+  ]
+}
