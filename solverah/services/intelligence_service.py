@@ -99,22 +99,27 @@ _CURRENT_ROLE_MARKERS = ("present", "current")
 #:
 #: The cost was one extra narrator completion per job -- ~1,520 tokens, about
 #: +$0.0007 -- and no wall time, because the batches run on threads
-#: (`path_narrative.generate_narratives_batched` has the measurements). Since
+#: (W-12 measured it; `path_narrative._BATCH_SIZE` has the batch numbers). Since
 #: W-16 it is also paid once per set of narrator inputs rather than once per
 #: job: every sentence is stored in `path_narratives`.
 RESERVE_DEPTH: int = 10
 
-#: W-16. How many narrations run at once in this process.
+#: W-16, re-sized by W-17. How many narrations are ORCHESTRATED at once in this
+#: process.
 #:
-#: Each narration fans out to up to four narrator calls of its own
-#: (`path_narrative._MAX_WORKERS`), so four here is at most sixteen open provider
-#: sockets -- I/O-bound threads, cheap even on a 0.5-CPU instance. A fifth user
-#: to arrive waits for a free slot with their cards ALREADY ON SCREEN, which is
-#: the point: this pool bounds the narrator's concurrency without ever standing
-#: between a user and their list. It is deliberately not the gunicorn thread
-#: pool -- holding one of those eight for the ~5 s a narration takes was the
-#: whole of Sebastian's "imagine 10 users at the same time".
-NARRATION_WORKERS: int = 4
+#: Since W-17 an orchestrating thread does no provider I/O of its own: it hands
+#: its calls to `path_narrative`'s shared priority pool (`_CALL_WORKERS`, with
+#: tails held to W-16's old ceiling of sixteen) and waits, landing each
+#: completion as it arrives. So this bound is on WAITERS, not on provider
+#: calls, and it has to be at least the number of users narrating at once --
+#: with four, a fifth user's first three sentences waited for somebody's whole
+#: narration to finish, which is exactly the unfairness W-17 removes. Sixteen
+#: idle threads are cheap; a waiting orchestrator holds no database connection
+#: (`_narration_phase` ends its read transaction before it waits). It is
+#: deliberately not the gunicorn thread pool -- holding one of those eight for
+#: the ~5 s a narration takes was the whole of Sebastian's "imagine 10 users at
+#: the same time".
+NARRATION_WORKERS: int = 16
 
 #: W-16. How long a scored list may say `narration_pending` before a read stops
 #: believing it.
@@ -144,8 +149,9 @@ class IntelligenceResult:
     #: filled, `narration_pending: false`). The caller decides when and where it
     #: runs -- `scoring_jobs.run` hands it to :func:`start_narration` only after
     #: the scored result is durably stored, so the narrated one can never be
-    #: overwritten by it.
-    narration: Optional[Callable[[], Dict[str, Any]]] = field(
+    #: overwritten by it. W-17: it takes an optional ``on_partial`` callback,
+    #: called with the job's payload each time a card on the page lands.
+    narration: Optional[Callable[..., Dict[str, Any]]] = field(
         default=None, repr=False, compare=False
     )
 
@@ -499,7 +505,11 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     fingerprints = {path.onet_code: narrative_fingerprint(path, context) for path in scored}
     stored = _read_stored_narratives(user.id, fingerprints, logger)
 
-    cards = [_card(path, stored.get(path.onet_code)) for path in page]
+    summary_of = _summary_lookup(logger)
+    cards = [
+        _card(path, stored.get(path.onet_code), summary_of(path.onet_code))
+        for path in page
+    ]
     pending = any(not card["why_text"] for card in cards)
     payload = {
         "suggestions": cards,
@@ -549,7 +559,33 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     )
 
 
-def _card(path, narrative: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _summary_lookup(logger=None) -> Callable[[str], str]:
+    """``code -> O*NET summary`` for this corpus, ``""`` for anything missing (W-18).
+
+    The summary is static per occupation, so it is filled when the card is
+    built -- which puts it on the very first poll that carries cards, seconds
+    before the narrator's sentence. It can only ever add a line: no sidecar, an
+    unloadable corpus or an unknown code all answer ``""``, and the card then
+    looks exactly as it did before W-18.
+    """
+    from backend.services import occupation_summaries
+    from backend.services.occupation_retrieval import CorpusUnavailable, get_corpus
+
+    try:
+        table = occupation_summaries.get_summaries(get_corpus())
+    except CorpusUnavailable:
+        # Only reachable where scoring ran without the real corpus (tests with
+        # a scorer double); in production scoring would have failed first.
+        table = None
+    except Exception:  # noqa: BLE001 -- a missing line, never a failed list
+        (logger or _log).warning("Card summaries unavailable", exc_info=True)
+        table = None
+    if table is None:
+        return lambda _code: ""
+    return table.for_code
+
+
+def _card(path, narrative: Optional[Dict[str, Any]], summary: str = "") -> Dict[str, Any]:
     """One card on the wire, with its sentence if there is one yet (W-16).
 
     `overlapping_skills` is on the card since W-16 because the fallback sentence
@@ -557,10 +593,15 @@ def _card(path, narrative: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     narration phase for a card the narrator could not write, or by a read past
     :data:`NARRATION_DEADLINE` when the narration never landed. Both need the
     skills the card was scored with, and the card is the one place they travel.
+
+    `summary` (W-18) is O*NET's own first sentence for the occupation. It is on
+    the card from the moment the card exists, so the pending payload and the
+    cached one carry it alike, and nothing that fills `why_text` later touches it.
     """
     return {
         "onet_code": path.onet_code,
         "title": path.title,
+        "summary": summary,
         "why_text": (narrative or {}).get("why_text") or "",
         "profile_dimensions": list((narrative or {}).get("profile_dimensions") or []),
         "match_score": path.score,
@@ -612,35 +653,48 @@ def _narration_phase(
     sentence (`PathSuggestion.is_fallback`) is shown but never stored; and
     nothing is stored for an account deleted while the narrator was out.
     """
-    from backend.services.path_narrative import generate_narratives_batched
+    from backend.services.path_narrative import _HEAD_SIZE, narrate_page_first
 
-    def run() -> Dict[str, Any]:
+    #: W-17. The cards the page shows before "Show more", narrated first.
+    head_codes = {
+        card.get("onet_code") for card in (payload.get("suggestions") or [])[:_HEAD_SIZE]
+    }
+
+    def run(
+        on_partial: Optional[Callable[[Dict[str, Any]], None]] = None
+    ) -> Dict[str, Any]:
         narratives: Dict[str, Dict[str, Any]] = dict(stored)
+        published: List[str] = [card.get("why_text") or "" for card in payload["suggestions"]]
+
+        def land(written) -> None:
+            # W-17. One completion's cards, as it lands, on this thread (the one
+            # with the app context): record them, store them, and put them on the
+            # cached list and the job's result so the next poll shows them.
+            _record_written(user_id, written, narratives, fingerprints, logger)
+            path_cache.land_partial(user_id, token, narratives, _fill_landed)
+            partial, _ = _fill_landed(payload, narratives)
+            texts = [card.get("why_text") or "" for card in partial["suggestions"]]
+            # Only when a card on the PAGE changed: a reserve batch landing
+            # changes nothing the poll serves, and is not worth a row update.
+            if on_partial is not None and texts != published:
+                published[:] = texts
+                on_partial(partial)
+
         try:
             # A narration that overlapped this one (a reload inside the window)
             # may have stored some of these already: read again, pay once.
             wanted = {path.onet_code: fingerprints[path.onet_code] for path in misses}
             landed = path_narrative_repository.read_many(user_id, wanted)
             narratives.update(landed)
+            # W-17. End the read's transaction BEFORE the narrator wait. A
+            # session holds its pooled connection until the transaction ends,
+            # and up to NARRATION_WORKERS narrations now wait at once -- more
+            # than the pool has connections to spare for the request threads.
+            db.session.rollback()
             todo = [path for path in misses if path.onet_code not in landed]
-            written = generate_narratives_batched(todo, context) if todo else []
-
-            rows = {}
-            for suggestion in written:
-                narratives[suggestion.onet_code] = {
-                    "why_text": suggestion.why_text,
-                    "profile_dimensions": list(suggestion.profile_dimensions),
-                    "fallback": suggestion.is_fallback,
-                }
-                if suggestion.why_text and not suggestion.is_fallback:
-                    rows[suggestion.onet_code] = (
-                        fingerprints[suggestion.onet_code],
-                        suggestion.why_text,
-                        list(suggestion.profile_dimensions),
-                    )
-            if rows and not _account_deleted(user_id):
-                path_narrative_repository.store_many(user_id, rows)
-                db.session.commit()
+            head = [path for path in todo if path.onet_code in head_codes]
+            tail = [path for path in todo if path.onet_code not in head_codes]
+            narrate_page_first(head, tail, context, on_landed=land)
         except Exception:  # noqa: BLE001 -- logged; the fallback covers the cards
             db.session.rollback()
             logger.exception("Path narration failed for user %s", user_id)
@@ -650,6 +704,49 @@ def _narration_phase(
         return final
 
     return run
+
+
+def _record_written(
+    user_id: int,
+    written,
+    narratives: Dict[str, Dict[str, Any]],
+    fingerprints: Dict[str, str],
+    logger,
+) -> None:
+    """Add one completion's suggestions to *narratives* and store the prose.
+
+    W-16's storage rules, applied per completion since W-17: W-13's scrub has
+    already run inside the narrator; a fallback sentence
+    (`PathSuggestion.is_fallback`) goes into *narratives* -- it is shown -- but
+    is never stored; and nothing is stored for an account deleted while the
+    narrator was out. A storage failure is logged and leaves the sentences on
+    the page: the table is an optimisation over the narrator, not a record the
+    page depends on.
+    """
+    rows = {}
+    for suggestion in written:
+        narratives[suggestion.onet_code] = {
+            "why_text": suggestion.why_text,
+            "profile_dimensions": list(suggestion.profile_dimensions),
+            "fallback": suggestion.is_fallback,
+        }
+        if suggestion.why_text and not suggestion.is_fallback:
+            rows[suggestion.onet_code] = (
+                fingerprints[suggestion.onet_code],
+                suggestion.why_text,
+                list(suggestion.profile_dimensions),
+            )
+    if not rows:
+        return
+    try:
+        if _account_deleted(user_id):
+            db.session.rollback()
+            return
+        path_narrative_repository.store_many(user_id, rows)
+        db.session.commit()
+    except Exception:  # noqa: BLE001 -- logged; the sentences are still shown
+        db.session.rollback()
+        logger.exception("Stored narrative write failed for user %s", user_id)
 
 
 def _account_deleted(user_id: int) -> bool:
@@ -695,6 +792,37 @@ def _fill_payload(
     return {**payload, "suggestions": cards, "narration_pending": False}, prose
 
 
+def _fill_landed(
+    payload: Dict[str, Any], narratives: Dict[str, Dict[str, Any]]
+) -> Tuple[Dict[str, Any], bool]:
+    """*payload* with the sentences that have landed so far, and nothing else (W-17).
+
+    The partial counterpart of :func:`_fill_payload`, for a narration still
+    running: an empty card with a sentence in *narratives* takes it, an empty
+    card without one STAYS empty (its sentence is still coming, so no fallback
+    is printed that would then change under the reader), and
+    ``narration_pending`` is left exactly as it was. Only :func:`_fill_payload`
+    ends a narration.
+
+    Pure and copying, for the same reason as :func:`_fill_payload`:
+    `path_cache.land_partial` calls it under the cache's lock.
+    """
+    prose = False
+    cards = []
+    for card in payload.get("suggestions") or []:
+        card = dict(card)
+        if not card.get("why_text"):
+            narrative = narratives.get(card.get("onet_code")) or {}
+            if narrative.get("why_text"):
+                card["why_text"] = narrative["why_text"]
+                card["profile_dimensions"] = list(narrative.get("profile_dimensions") or [])
+                prose = prose or not narrative.get("fallback")
+        else:
+            prose = True
+        cards.append(card)
+    return {**payload, "suggestions": cards}, prose
+
+
 def resolve_stale_narration(
     payload: Dict[str, Any], now: Optional[datetime.datetime] = None
 ) -> Dict[str, Any]:
@@ -722,10 +850,17 @@ def resolve_stale_narration(
 
 
 def start_narration(
-    narration: Callable[[], Dict[str, Any]],
+    narration: Callable[..., Dict[str, Any]],
     on_done: Callable[[Dict[str, Any]], None],
+    on_partial: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Optional[Future]:
     """Run *narration* off the request thread, then hand its payload to *on_done*.
+
+    *on_partial* (W-17) is passed through to the narration, which calls it --
+    on the same thread, before *on_done* -- each time a card on the page gets
+    its sentence, so the first three reach the job's result as they land. An
+    exception from it is the narration's to log (`path_narrative` catches
+    whatever a landing raises), never the job's.
 
     W-16. Celery runs eager in production, so "off the request thread" cannot be
     a second Celery task -- that would run inline too. It is this module's own
@@ -750,14 +885,14 @@ def start_narration(
     if app is None:
         # No app bound (a bare script): nothing to push a context from, so run
         # on the caller's thread and context, which is the inline path anyway.
-        final = narration()
+        final = narration(on_partial=on_partial)
         on_done(final)
         return None
 
     def run_in_context() -> None:
         with app.app_context():
             try:
-                final = narration()
+                final = narration(on_partial=on_partial)
             except Exception:  # noqa: BLE001 -- the deadline read covers the job
                 _log.exception("path_narration_crashed")
                 return
@@ -1315,6 +1450,7 @@ def _describe(
             logger or _log,
         )
 
+    summary_of = _summary_lookup(logger)
     out: List[Dict[str, Any]] = []
     narrated = False
     pending = False
@@ -1346,6 +1482,9 @@ def _describe(
             {
                 "onet_code": path.onet_code,
                 "title": path.title,
+                # W-18. Static per occupation, so read afresh like the title --
+                # a card promoted out of the reserve has one on its first tap.
+                "summary": summary_of(path.onet_code),
                 "why_text": why_text,
                 "profile_dimensions": dimensions,
                 "match_score": path.score,

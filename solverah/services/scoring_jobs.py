@@ -333,6 +333,10 @@ def _score_path_suggestions(
 def _record_narration(job_id: int, result: Dict[str, Any]) -> None:
     """Replace a succeeded job's scored result with its narrated one (W-16).
 
+    Since W-17 also with each PARTIAL result -- the page's first three filled in
+    as they land, `narration_pending` still true -- so the poll shows them
+    before the rest are written.
+
     Conditional on the row still being ``succeeded``: a job the purge deleted,
     or a row that is somehow no longer the success it was a second ago, is left
     alone rather than resurrected. Its own transaction, like :func:`_finish` --
@@ -408,8 +412,13 @@ def run(job_id: int) -> str:
         from solverah.services import intelligence_service
 
         try:
+            # W-17: the same write for a partial result as for the final one.
+            # Both run on the narration thread, partials first, so the final
+            # payload is always the last thing written.
             intelligence_service.start_narration(
-                narration, lambda final: _record_narration(job_id, final)
+                narration,
+                lambda final: _record_narration(job_id, final),
+                on_partial=lambda partial: _record_narration(job_id, partial),
             )
         except Exception:  # noqa: BLE001 -- the deadline read covers the job
             logger.exception(

@@ -770,7 +770,7 @@ export interface paths {
          * Rank companies by fit for the authenticated user
          * @description Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.
          *
-         *     Still an O(all-companies) in-process scan that can commit a backfill on the read path (P0-2). The cursor is what lets Phase 2 fix that behind an unchanged contract; it is not itself the fix.
+         *     Writes nothing. Still an O(all-companies) in-process scan (P0-2), of each company's id and eight culture columns only; names, slugs and industries are read afterwards for the returned page alone. The cursor is what lets that scan be replaced behind an unchanged contract; it is not itself the fix.
          */
         get: operations["get_companies_my_matches"];
         put?: never;
@@ -1037,7 +1037,7 @@ export interface paths {
         put?: never;
         /**
          * Submit a Pulse check-in
-         * @description The server derives both the sequence (`pulse_checkin_count`) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.
+         * @description The server derives both the sequence (`claim_checkin_sequence`, which counts the user's check-ins under a per-user lock held until the commit) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.
          */
         post: operations["post_me_post_my_pulse_checkin"];
         delete?: never;
@@ -3563,6 +3563,12 @@ export interface components {
              * @description W-4, additive. At most two plain-words phrases saying what is DISTINCTIVE about this card against the user's own job -- the line that replaces the percentage W-1 removed. Built from the measured work-conditions sidecar and nothing else: no LLM, no extra embedding. Empty is normal and carries no error: a phrase that would read the same on most of the page says nothing about any card and is dropped from all of them (design doc 8.2), and a user who has stated no wants gets no reason line at all.
              */
             reasons?: string[];
+            /**
+             * Summary
+             * @description W-18, additive. O*NET's own description of this occupation, first sentence only, capped at about 200 characters on a clause boundary. Static per occupation and filled at scoring time, so it is present on the first poll that carries cards, before any `why_text`. Empty when the server has no summaries sidecar; the SPA then shows no summary line.
+             * @default
+             */
+            summary: string;
             /**
              * Title
              * @default null

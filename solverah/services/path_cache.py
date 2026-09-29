@@ -54,6 +54,7 @@ __all__ = [
     "reserve_snapshot",
     "narration_token",
     "store_rescore",
+    "land_partial",
     "finish_narration",
 ]
 
@@ -280,6 +281,37 @@ def finish_narration(
             _reserve.popitem(last=False)
         payload, filled = fill(entry.payload, dict(narratives))
         _put(user_id, _Entry(payload, entry.narrated or filled, token, False))
+        return payload
+
+
+def land_partial(
+    user_id: int, token: str, narratives: Dict[str, dict], fill: Fill
+) -> Optional[dict]:
+    """Fill the cached list with the sentences landed SO FAR (W-17).
+
+    The first three cards are narrated ahead of the rest and land a few seconds
+    before the narration ends; this puts them on the list the page polls as
+    they arrive. Same token rule as :func:`finish_narration` -- a list that was
+    invalidated or replaced is left alone -- but nothing else about the entry
+    moves:
+
+    * ``narrated`` is NOT set. W-14's flag means "a job may serve this instead
+      of narrating", and a half-written list is not that until the narration
+      ends (:func:`finish_narration` is the only thing that sets it).
+    * ``pending`` stays True, so a tap in the meantime still leaves its
+      unwritten cards empty for the narration to fill, and keeps what landed.
+    * the reserve is untouched: every landed sentence is already stored in
+      ``path_narratives``, which the tap path reads next.
+
+    *fill* must leave ``narration_pending`` as it found it. Returns the filled
+    payload, or None when the token no longer matches.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        if entry is None or entry.token != token:
+            return None
+        payload, _ = fill(entry.payload, dict(narratives))
+        _put(user_id, _Entry(payload, entry.narrated, token, entry.pending))
         return payload
 
 

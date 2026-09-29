@@ -32,7 +32,7 @@ its section below.
 | `flask outbox sweep` | every 5 minutes (`*/5 * * * *`) | native python | Retries unpublished outbox rows, respecting attempts + backoff. |
 | `flask retention run` | daily (`30 4 * * *`) | native python | Deletes delivered outbox rows older than 72h, terminal `scoring_jobs` older than 7d, terminal `resume_parse_jobs` older than 30d. |
 | `flask backups run` | daily (`30 3 * * *`) | **docker** (`infra/docker/Dockerfile.backup`) | Dumps the database, verifies the artifact, uploads it off-platform, prunes past 30 days. |
-| `flask corpus refresh` | quarterly (`0 5 1 1,4,7,10 *`) | native python | Rebuilds the O*NET occupation corpus, writes its zone and cluster sidecars, uploads all four to S3 under a new date-stamped key. **Does not put it into service** — see its section below. |
+| `flask corpus refresh` | quarterly (`0 5 1 1,4,7,10 *`) | native python | Rebuilds the O*NET occupation corpus, writes its zone, cluster and card-summary sidecars, uploads all five to S3 under a new date-stamped key. **Does not put it into service** — see its section below. |
 
 All three print one JSON summary line and share an exit contract, but they
 divide "failure" differently and the difference is deliberate:
@@ -269,7 +269,7 @@ someone's email that failed 8 spaced tries and needs a human:
 **Workstream F-8 box 1. Not yet created in the dashboard, and not urgent.** The
 artifact only goes stale as fast as O*NET publishes, which is quarterly.
 
-`flask corpus refresh` is four steps invoked in order — it does not
+`flask corpus refresh` is five steps invoked in order — it does not
 reimplement them, it calls the same commands:
 
 | Step | Command | Cost |
@@ -277,7 +277,15 @@ reimplement them, it calls the same commands:
 | 1 | `flask corpus build` | ~3,073 O*NET requests at 4/s (~13 min), ~$0.01 of `text-embedding-3-small` |
 | 2 | `flask corpus zones` | 11 O*NET requests |
 | 3 | `flask corpus clusters` | none — reads the artifact, fits k-means locally |
-| 4 | `flask corpus publish` | 4 uploads: `.npy`, `.json`, `.zones.json`, `.clusters.json` |
+| 4 | `flask corpus summaries` | none — cuts each occupation's first O*NET sentence out of the `.documents.jsonl` step 1 wrote (W-18, added 2026-09-29) |
+| 5 | `flask corpus publish` | 5 uploads: `.npy`, `.json`, `.zones.json`, `.clusters.json`, `.summaries.json` |
+
+Step 4 is why the card summaries never need their own schedule: **they rebuild
+themselves with the corpus.** When O*NET rewrites a description, the next refresh
+picks it up. The other three optional sidecars (`.experience.json`,
+`.tasks.json`, `.fit.json`) still have to be rebuilt by hand for a new artifact
+before its key is promoted — see `RUNBOOK_DEPLOY_MAIN_MERGE.md`. A published
+corpus that carries all of them is eight objects.
 
 3,084 requests is 6% of O*NET's 50,000/day cap, and the 4/s rate is under their
 documented 5/s threshold. Every request in the run passes through one
@@ -324,8 +332,16 @@ trigger.** Nothing in this repo has ever written to S3 with this command.
     # the real thing
     flask corpus publish --corpus <dir> --prefix occupation_retrieval
 
+**Update 2026-09-29 (W-18):** that first upload has happened — a read-only
+`head_object` check found all seven objects of `onet_corpus_20260916` under the
+`corpus/` prefix. Adding the eighth (`.summaries.json`) is a re-run of
+`flask corpus publish --prefix corpus`: it uploads the one new object and skips
+the seven identical ones (`"uploaded": 1, "skipped": 7`). `--dry-run` cannot show
+the skip — it makes no `head_object` call by design, so it lists all eight as
+`planned`.
+
 `--dry-run` is available on `refresh` too, and there it also makes **no**
-network call of any kind: it reports the four keys it would write, the value
+network call of any kind: it reports the five keys it would write, the value
 `SOLVERAH_CORPUS_S3_KEY` would need afterwards, and every environment variable
 that is missing. Exit code is non-zero if the run would fail, so it is worth
 running before spending thirteen minutes of O*NET.
@@ -347,7 +363,7 @@ degrade to. Order on deploy day: **upload, set the key, verify one worker loads
 it, then merge.** The log line to look for is `occupation corpus loaded:`, which
 reports the row count, the dimensions and whether the zone sidecar came down.
 
-### Why all four files, every time
+### Why all four required files, every time
 
 `publish` refuses an incomplete set, because a partially populated bucket fails
 quietly rather than loudly:

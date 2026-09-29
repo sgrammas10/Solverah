@@ -36,6 +36,14 @@ export interface PathSuggestion {
    */
   overlapping_skills?: string[];
   /**
+   * W-18. O*NET's own description of the occupation, first sentence only
+   * (about 200 characters at most). Static per occupation and on the card from
+   * the first poll, before `why_text`, so the card is readable the moment it
+   * appears. Optional: a payload cached before W-18 lacks it, and a server with
+   * no summaries sidecar sends `""`; both render no summary line.
+   */
+  summary?: string;
+  /**
    * W-16, CLIENT-SIDE ONLY -- the server never sends it. Set by the page on a
    * card whose `why_text` is still being written, so the card shows a
    * placeholder line in its place instead of a sentence that would change

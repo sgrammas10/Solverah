@@ -1018,13 +1018,45 @@ class TestArtifactFiles:
             "p/onet_corpus_20260916.tasks.json",
         ]
 
+    def test_republishing_with_the_summaries_uploads_only_the_new_object(
+        self, artifact: Path
+    ) -> None:
+        """W-18's deploy step, modelled: the bucket already holds the seven
+        objects, the eighth is new beside them on disk, and the re-run of
+        `corpus publish` puts exactly one object and skips the seven identical
+        ones -- no refusal, because nothing in service changes bytes."""
+        stem = str(artifact.with_suffix(""))
+        for suffix, payload in (
+            (".experience.json", b'{"percentiles": {}}'),
+            (".tasks.json", b'{"tasks": {}}'),
+            (".fit.json", b'{"fits": {}}'),
+        ):
+            Path(stem + suffix).write_bytes(payload)
+        s3 = FakeS3()
+        corpus.publish_corpus(artifact, bucket="b", key_prefix="corpus", s3_client=s3)
+        assert len(s3.puts) == 7
+        s3.puts.clear()
+
+        Path(stem + ".summaries.json").write_bytes(b'{"summaries": {}}')
+        published = corpus.publish_corpus(
+            artifact, bucket="b", key_prefix="corpus", s3_client=s3
+        ).summary()
+
+        assert (published["uploaded"], published["skipped"]) == (1, 7)
+        assert s3.puts == ["corpus/onet_corpus_20260916.summaries.json"]
+
     def test_the_optional_names_match_what_the_fetch_asks_for(
         self, artifact: Path
     ) -> None:
         """`_fetch_from_s3` derives every key from the `.npy` key by string
         surgery. A name published here that the fetch does not ask for is a
         file in the bucket and a feature that still does nothing."""
-        from backend.services import occupation_conditions, occupation_fit, occupation_tasks
+        from backend.services import (
+            occupation_conditions,
+            occupation_fit,
+            occupation_summaries,
+            occupation_tasks,
+        )
 
         stem = artifact.with_suffix("")
         assert corpus.OPTIONAL_PUBLISHED_SUFFIXES == (
@@ -1034,6 +1066,12 @@ class TestArtifactFiles:
             # calls again -- correct, and slow, which is the quiet version of
             # the failure this test guards against.
             ".fit.json",
+            # W-18. Without it every card opens with no summary line.
+            ".summaries.json",
+        )
+        assert corpus._SUFFIX_COMMANDS[".summaries.json"] == "flask corpus summaries"
+        assert occupation_summaries.summaries_sidecar_path(artifact).name == (
+            stem.name + ".summaries.json"
         )
         assert occupation_conditions.conditions_sidecar_path(artifact).name == (
             stem.name + ".experience.json"
@@ -1346,13 +1384,15 @@ class TestCorpusRefreshCommand:
 
         assert result.exit_code == 0, _text(result)
         plan = json.loads(result.output.strip().splitlines()[-1])
-        assert plan["steps"] == ["build", "zones", "clusters", "publish"]
+        assert plan["steps"] == ["build", "zones", "clusters", "summaries", "publish"]
         assert plan["problems"] == []
         assert plan["would_publish"] == [
             "occupation_retrieval/onet_corpus_20261216.npy",
             "occupation_retrieval/onet_corpus_20261216.json",
             "occupation_retrieval/onet_corpus_20261216.zones.json",
             "occupation_retrieval/onet_corpus_20261216.clusters.json",
+            # W-18: built by the refresh itself (no network), so promised.
+            "occupation_retrieval/onet_corpus_20261216.summaries.json",
         ]
         assert plan["rate_limit_per_second"] == corpus.DEFAULT_REQUESTS_PER_SECOND
 
@@ -1420,12 +1460,23 @@ class TestCorpusRefreshCommand:
                 "occupation_retrieval/onet_corpus_refreshed.json",
                 "occupation_retrieval/onet_corpus_refreshed.zones.json",
                 "occupation_retrieval/onet_corpus_refreshed.clusters.json",
+                # W-18. "Will that need to be updated whenever O*NET is
+                # updated?" -- no: the refresh rebuilds it from the documents
+                # the build just wrote, and publishes it with the rest.
+                "occupation_retrieval/onet_corpus_refreshed.summaries.json",
             ]
         )
         assert (
             s3.objects["occupation_retrieval/onet_corpus_refreshed.npy"]
             == (tmp_path / "onet_corpus_refreshed.npy").read_bytes()
         )
+        summaries = json.loads(
+            s3.objects["occupation_retrieval/onet_corpus_refreshed.summaries.json"]
+        )["summaries"]
+        assert summaries == {
+            "15-2051.00": "Develop and implement a set of techniques or analytics applications.",
+            "29-1031.00": "Plan and conduct food service or nutritional programs.",
+        }
 
     def test_a_second_refresh_over_the_same_version_uploads_nothing(
         self, ctx, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, onet: FakeOnetClient

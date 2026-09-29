@@ -12,6 +12,7 @@ is in ``solverah/services/agent_service.py``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 from flask import (
@@ -22,7 +23,8 @@ from flask import (
     request,
     stream_with_context,
 )
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_limiter.util import get_remote_address
 
 from security import (
     GUEST_INSIGHTS_GLOBAL_LIMIT,
@@ -83,9 +85,21 @@ _SCOPE_PATH_FIT = "intelligence:path-fit"
 _SCOPE_PATH_FEEDBACK = "intelligence:path-feedback"
 _SCOPE_PATH_WANTS = "intelligence:path-wants"
 
-#: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
-#: global defaults, and why the day cap is restated rather than dropped.
-POLL_LIMIT = "60 per minute;2000 per day"
+#: The path-suggestion poll's limit. See ``solverah/api/v1/assessments.py`` for
+#: why a poll does not run on the global defaults, and why the day cap is
+#: restated rather than dropped.
+#:
+#: W-18 raised it from ``POLL_LIMIT``'s "60 per minute;2000 per day" (the value
+#: the assessment and resume-parse polls keep, per IP) and keyed it PER
+#: SIGNED-IN USER with :func:`_signed_in_user_key`. The SPA now polls every
+#: 0.5 s while the narrator's sentences land, for at most ~60 s: 120 a minute
+#: from one tab, 240 from two. 60 a minute was half of one tab, and a 429 is a
+#: poll error the page answers by stopping -- the limit would have ended
+#: narration on screen. 300 a minute covers two tabs with headroom; 10,000 a day
+#: is ~80 worst-case 60-second loads. Per user, so an office NAT cannot pool its
+#: people into one budget. This was this module's only poll, so the old
+#: constant went with it; the other two modules' ``POLL_LIMIT`` are untouched.
+PATH_SUGGESTION_POLL_LIMIT = "300 per minute;10000 per day"
 _SCOPE_GUEST_INSIGHTS = "intake:quiz-preview-insights"
 _SCOPE_GUEST_INSIGHTS_GLOBAL = "intake:quiz-preview-insights:global"
 
@@ -103,6 +117,28 @@ _CONNECTION_MARKERS = (
 
 def _current_user():
     return user_repository.find_by_email(get_jwt_identity())
+
+
+def _signed_in_user_key() -> str:
+    """Rate-limit key: the signed-in user, or the remote address without one (W-18).
+
+    Flask-Limiter evaluates a route's limits BEFORE the view's
+    ``@jwt_required()`` runs, so the identity is read here with
+    ``verify_jwt_in_request(optional=True)`` -- the decorator's own cookie
+    lookup and signature check. A missing, expired or forged token falls back
+    to the address; ``@jwt_required()`` then answers 401 as it always has.
+
+    The identity is hashed so the limiter's storage (Redis in production)
+    never holds an email address in a key.
+    """
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+    except Exception:  # noqa: BLE001 -- any token failure is "not signed in" here
+        identity = None
+    if not identity:
+        return get_remote_address()
+    return "user:" + hashlib.sha256(str(identity).encode("utf-8")).hexdigest()[:32]
 
 
 def _respond(result):
@@ -458,7 +494,7 @@ def post_my_path_suggestion_job():
     enforce=True,
 )
 @intelligence_bp.route("/me/path-suggestion-jobs/<job_id>", methods=["GET"])
-@limiter.limit(POLL_LIMIT)
+@limiter.limit(PATH_SUGGESTION_POLL_LIMIT, key_func=_signed_in_user_key)
 @jwt_required()
 def get_my_path_suggestion_job(job_id: str):
     """GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.

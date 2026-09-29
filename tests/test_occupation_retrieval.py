@@ -120,6 +120,18 @@ FIXTURE_FIT_BYTES = json.dumps(
     }
 ).encode("utf-8")
 
+#: W-18's sidecar, for the same reason: the fetch only has to put it on disk at
+#: the right name; its contents are asserted by `test_occupation_summaries.py`.
+FIXTURE_SUMMARIES_NAME = f"onet_corpus_{FIXTURE_VERSION}.summaries.json"
+FIXTURE_SUMMARIES_BYTES = json.dumps(
+    {
+        "schema_version": 1,
+        "matrix_filename": f"onet_corpus_{FIXTURE_VERSION}.npy",
+        "count": 1,
+        "summaries": {"29-1141.00": "Assess patient health problems and needs."},
+    }
+).encode("utf-8")
+
 FIXTURE_DIMS = 8
 
 #: (code, title, job zone, unnormalised vector).  Sorted by code on write, the
@@ -981,6 +993,7 @@ def s3_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> _FakeS3:
             f"corpus/{FIXTURE_CONDITIONS_NAME}": FIXTURE_CONDITIONS_BYTES,
             f"corpus/{FIXTURE_TASKS_NAME}": FIXTURE_TASKS_BYTES,
             f"corpus/{FIXTURE_FIT_NAME}": FIXTURE_FIT_BYTES,
+            f"corpus/{FIXTURE_SUMMARIES_NAME}": FIXTURE_SUMMARIES_BYTES,
         }
     )
     monkeypatch.setattr("solverah.infra.storage.get_s3_client", lambda: fake)
@@ -1001,6 +1014,7 @@ class TestS3Source:
             f"corpus/{FIXTURE_CONDITIONS_NAME}",
             f"corpus/{FIXTURE_TASKS_NAME}",
             f"corpus/{FIXTURE_FIT_NAME}",
+            f"corpus/{FIXTURE_SUMMARIES_NAME}",
         ]
 
 
@@ -1084,7 +1098,25 @@ class TestTheClusterSidecarComesDownToo:
         assert path.is_file(), "the tasks sidecar was not cached"
         assert occupation_tasks.get_tasks(corpus) is not None
 
-    @pytest.mark.parametrize("name", ["experience", "tasks"])
+    def test_the_summaries_sidecar_comes_down_too(self, s3_env: _FakeS3) -> None:
+        """W-18. Without it every card opens with no summary line, which looks
+        like a design choice rather than a missing object -- so it is asserted,
+        and the name the fetch writes must be the name the loader reads."""
+        from backend.services import occupation_summaries
+
+        occupation_summaries.reset_summaries_cache()
+        corpus = retrieval.get_corpus()
+        path = retrieval.summaries_sidecar_path(corpus.matrix_path)
+
+        assert path == occupation_summaries.summaries_sidecar_path(corpus.matrix_path)
+        assert path.name.endswith(".summaries.json")
+        assert path.is_file(), "the summaries sidecar was not cached"
+        assert occupation_summaries.summary_for(corpus, "29-1141.00") == (
+            "Assess patient health problems and needs."
+        )
+        occupation_summaries.reset_summaries_cache()
+
+    @pytest.mark.parametrize("name", ["experience", "tasks", "summaries"])
     def test_a_missing_wants_sidecar_is_not_fatal(self, s3_env: _FakeS3, name) -> None:
         """The upload is Sebastian's trigger and the two files are published
         separately from the matrix, so "not there yet" is a normal state and

@@ -7,16 +7,20 @@
  */
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { HttpResponse } from "msw";
 
 import { AuthProvider } from "../auth";
 import { createQueryClient } from "../../shared/api/queryClient";
 import { server, useApiMocks, recordRequests, signedIn } from "../../../tests/msw/server";
+import { mock } from "../../../tests/msw/contract";
 import {
   pathSuggestionJobAccepted,
   pathSuggestionJobProgresses,
 } from "../../../tests/msw/scoringJobHandlers";
 import {
   PATH_NARRATION_MAX_POLLS,
+  PATH_NARRATION_MAX_WAIT_MS,
+  PATH_NARRATION_POLL_INTERVAL_MS,
   usePathSuggestionJobStatus,
   useStartPathSuggestionJob,
   type PathSuggestionJobResult,
@@ -117,11 +121,53 @@ describe("usePathSuggestionJobStatus", () => {
 
     mountStatus("path-stuck");
     await waitFor(() => expect(polls()).toHaveLength(PATH_NARRATION_MAX_POLLS), {
-      timeout: 5000,
+      timeout: 15000,
     });
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
     expect(polls()).toHaveLength(PATH_NARRATION_MAX_POLLS);
+    // W-18: the cap is 120 polls now (60 s at 0.5 s), so this walk takes a
+    // few seconds even at the test's 20 ms interval -- past Vitest's 5 s
+    // default when the whole suite shares the machine.
+  }, 30_000);
+
+  it("polls for sentences every half second, for about a minute (W-18)", () => {
+    // W-17 measured the 1.5 s poll as most of the gap between a sentence
+    // landing on the server and reaching the card. The cap is bounded by TIME,
+    // matched to the server's 60 s NARRATION_DEADLINE: 60 polls at 0.5 s would
+    // have given up after 30 s.
+    expect(PATH_NARRATION_POLL_INTERVAL_MS).toBe(500);
+    expect(PATH_NARRATION_MAX_WAIT_MS).toBe(60_000);
+    expect(PATH_NARRATION_MAX_POLLS).toBe(120);
+    expect(PATH_NARRATION_MAX_POLLS * PATH_NARRATION_POLL_INTERVAL_MS).toBe(60_000);
+  });
+
+  it("stops polling on a failed poll mid-narration rather than retrying (W-16)", async () => {
+    // A 429 is the likeliest failure here: the page answers it by keeping the
+    // cards and stopping the shimmer, so the hook must stop too.
+    let call = 0;
+    server.use(
+      signedIn(),
+      mock("get", "/api/v1/me/path-suggestion-jobs/{job_id}").resolve(() => {
+        call += 1;
+        if (call === 1) {
+          return HttpResponse.json({
+            job_id: "path-429",
+            status: "succeeded",
+            result: PENDING,
+            error: null,
+          });
+        }
+        return HttpResponse.json({ error: "Too Many Requests" }, { status: 429 });
+      })
+    );
+
+    mountStatus("path-429");
+    await waitFor(() => expect(polls().length).toBeGreaterThanOrEqual(2));
+
+    const countAtError = polls().length;
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 8));
+    expect(polls()).toHaveLength(countAtError);
   });
 
   it("surfaces career_status_not_set as a failed job, not as a thrown error", async () => {

@@ -1335,3 +1335,31 @@ describe("PathIntelligencePage - cards before their sentences (W-16)", () => {
     expect(pendingSentences()).toHaveLength(1);
   });
 });
+
+// ─── W-18: an O*NET summary on every card, from the first poll ─────────────
+
+describe("PathIntelligencePage - the summary arrives with the card (W-18)", () => {
+  it("shows each card's summary with the scored result, before its sentence is written", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult(
+        [
+          { ...CARD_A, summary: "Plan and run marketing programs." },
+          { ...UNWRITTEN_B, summary: "Build and test software." },
+        ],
+        true
+      ),
+      error: null,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Plan and run marketing programs.")).toBeInTheDocument();
+    expect(screen.getByText("Build and test software.")).toBeInTheDocument();
+    const pending = pendingSentences();
+    expect(pending).toHaveLength(1);
+    const card = pending[0].closest("[data-onet-code]");
+    expect(card?.querySelector("[data-summary]")?.textContent).toBe("Build and test software.");
+  });
+});

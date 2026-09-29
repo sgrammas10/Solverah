@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import time
 from unittest.mock import MagicMock
 
 import pytest
@@ -703,7 +704,7 @@ class TestBuildPromptPreferences:
 
 
 # ---------------------------------------------------------------------------
-# generate_narratives_batched (W-12)
+# narrate_page_first (W-12, W-16, W-17)
 # ---------------------------------------------------------------------------
 
 
@@ -758,89 +759,123 @@ def _batching_client(monkeypatch, *, fail_when=None, barrier=None):
     return calls
 
 
-class TestBatchedNarratives:
-    """W-12's twenty cards, as W-16's four parallel batches of five.
+class TestPageFirstNarration:
+    """W-17's order: the visible three one card per call, then the rest in fives.
 
-    W-12 measured two batches of ten on threads against one of ten (no wall-time
-    difference) and twenty in ONE completion (17.72 / 18.58 / 18.87 s).  W-16
-    measured four of five against two of ten on twenty real scored cards, three
-    profiles x three runs: mean 4.36 s against 8.22 s.  The parallelism is the
-    whole saving and the batch size decides how much of it there is, which is
-    why both are pinned here rather than assumed.
+    W-16 narrated twenty cards as four parallel batches of five (mean 4.36 s
+    against 8.22 s for 2 x 10), so the three cards a user can see waited for the
+    five-card batch they happened to share. One card is a ~1.4 s completion
+    (W-12), so three parallel one-card calls put the visible sentences on screen
+    in about the time of one; the tail keeps W-16's batches of five.
     """
 
-    def test_twenty_candidates_go_out_as_four_batches_of_five(self, monkeypatch):
+    def test_the_head_goes_one_card_per_call_and_the_tail_in_fives(self, monkeypatch):
         calls = _batching_client(monkeypatch)
         candidates = _deep_candidates(20)
 
-        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
+        )
 
-        assert len(calls) == 4, "one completion per batch, and no more"
-        assert sorted(len(codes) for codes in calls) == [5, 5, 5, 5]
         assert sorted(calls, key=lambda codes: codes[0]) == [
-            [c.onet_code for c in candidates[start:start + 5]]
-            for start in (0, 5, 10, 15)
+            [candidates[0].onet_code],
+            [candidates[1].onet_code],
+            [candidates[2].onet_code],
+            [c.onet_code for c in candidates[3:8]],
+            [c.onet_code for c in candidates[8:13]],
+            [c.onet_code for c in candidates[13:18]],
+            [c.onet_code for c in candidates[18:20]],
         ]
         assert [s.onet_code for s in result] == [
             c.onet_code for c in candidates
         ], "the caller slices the page off the front, so order survives the fan-out"
 
-    def test_the_batch_is_five_and_the_pool_covers_twenty(self):
-        """The two numbers W-16 measured, pinned where a casual edit would show."""
+    def test_the_measured_numbers_are_pinned(self):
+        """Where a casual edit would show: W-16's batch, W-17's head and pool."""
         assert narrative_module._BATCH_SIZE == 5
-        assert narrative_module._MAX_WORKERS == 4
+        assert narrative_module._HEAD_SIZE == 3
+        assert narrative_module._CALL_WORKERS == 32
+        assert narrative_module._TAIL_LIMIT == 16
 
-    def test_the_batches_actually_run_at_the_same_time(self, monkeypatch):
-        """A barrier rather than a stopwatch.
-
-        All four calls must be in flight together for the barrier to release; if
-        any only started after another returned, it times out and this test
-        fails instead of passing slowly.
-        """
-        barrier = threading.Barrier(4, timeout=10)
+    def test_every_call_is_in_flight_at_once(self, monkeypatch):
+        """A barrier rather than a stopwatch: all seven calls must be out
+        together for it to release, or it times out and this fails."""
+        barrier = threading.Barrier(7, timeout=10)
         _batching_client(monkeypatch, barrier=barrier)
+        candidates = _deep_candidates(20)
 
-        result = narrative_module.generate_narratives_batched(
-            _deep_candidates(20), user_ctx()
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
         )
 
         assert len(result) == 20
         assert not barrier.broken
 
-    def test_failing_reserve_batches_still_land_the_page(self, monkeypatch):
-        """The reserve is a nice-to-have; the page is the product."""
+    def test_the_head_lands_before_the_tail_is_done(self, monkeypatch):
+        """The whole point: the first three reach *on_landed* -- on the calling
+        thread, which is the one with the app context -- while the tail is still
+        out."""
+        release = threading.Event()
+        candidates = _deep_candidates(8)
+        tail_codes = {c.onet_code for c in candidates[3:]}
+
+        def hold_tail(codes):
+            if codes[0] in tail_codes:
+                assert release.wait(10), "the test never released the tail"
+            return False
+
+        _batching_client(monkeypatch, fail_when=hold_tail)
+        landed: list[list[str]] = []
+        threads: set[int] = set()
+
+        def on_landed(suggestions):
+            threads.add(threading.get_ident())
+            landed.append([s.onet_code for s in suggestions])
+            if len(landed) == 3:
+                release.set()
+
+        narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx(), on_landed=on_landed
+        )
+
+        assert sorted(landed[:3]) == [[c.onet_code] for c in candidates[:3]]
+        assert landed[3] == [c.onet_code for c in candidates[3:8]]
+        assert threads == {threading.get_ident()}
+
+    def test_a_failing_tail_still_lands_the_head(self, monkeypatch):
         candidates = _deep_candidates(20)
-        reserve = {c.onet_code for c in candidates[10:]}
-        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in reserve)
+        tail = {c.onet_code for c in candidates[3:]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in tail)
 
-        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
+        )
 
-        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[:10]]
+        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[:3]]
 
-    def test_failing_page_batches_still_land_the_reserve(self, monkeypatch):
-        """This function privileges no batch.  Since W-16 nothing downstream
-        treats a missing batch as fatal either: its cards take the fallback
-        sentence in `intelligence_service._fill_payload`.
-        """
+    def test_a_failing_head_still_lands_the_tail(self, monkeypatch):
+        """No call is privileged for failure: a head card the narrator could not
+        write takes the fallback sentence in `intelligence_service._fill_payload`."""
         candidates = _deep_candidates(20)
-        page = {c.onet_code for c in candidates[:10]}
-        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in page)
+        head = {c.onet_code for c in candidates[:3]}
+        _batching_client(monkeypatch, fail_when=lambda codes: codes[0] in head)
 
-        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
+        )
 
-        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[10:]]
+        assert [s.onet_code for s in result] == [c.onet_code for c in candidates[3:]]
 
-    def test_a_malformed_batch_is_dropped_rather_than_raised(self, monkeypatch):
+    def test_a_malformed_call_is_dropped_rather_than_raised(self, monkeypatch):
         """The narrator's own retry runs first; what reaches the pool is the
-        second failure, and it must not take the other batch down with it.
-        """
+        second failure, and it must not take the other calls down with it."""
         mock_client = MagicMock()
         candidates = _deep_candidates(20)
-        second = {c.onet_code for c in candidates[15:]}
+        last = {c.onet_code for c in candidates[18:]}
 
         def create(*, model, messages, response_format, **_):
             codes = _codes_in(messages)
-            if codes[0] in second:
+            if codes[0] in last:
                 return _make_openai_response({"suggestions": "not a list"})
             return _make_openai_response(
                 {
@@ -859,50 +894,124 @@ class TestBatchedNarratives:
         mock_client.chat.completions.create.side_effect = create
         monkeypatch.setattr(narrative_module, "_get_openai_client", lambda: mock_client)
 
-        result = narrative_module.generate_narratives_batched(candidates, user_ctx())
-
-        assert len(result) == 15, "three good batches of five; the bad one dropped"
-
-    def test_five_candidates_are_one_call_with_no_pool(self, monkeypatch):
-        """A narration of five or fewer must be unchanged, not equivalent: no
-        pool, no thread, the one completion `generate_narratives` always made.
-        """
-        calls = _batching_client(monkeypatch)
-
-        result = narrative_module.generate_narratives_batched(
-            _deep_candidates(5), user_ctx()
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
         )
 
-        assert len(calls) == 1
-        assert len(result) == 5
+        assert len(result) == 18, "the two-card batch dropped, everything else kept"
 
-    def test_an_uneven_tail_is_its_own_batch(self, monkeypatch):
-        calls = _batching_client(monkeypatch)
+    def test_a_landing_that_raises_does_not_stop_the_others(self, monkeypatch):
+        _batching_client(monkeypatch)
+        candidates = _deep_candidates(8)
+        seen: list[int] = []
 
-        narrative_module.generate_narratives_batched(_deep_candidates(13), user_ctx())
+        def on_landed(suggestions):
+            seen.append(len(suggestions))
+            raise RuntimeError("the database blinked")
 
-        assert sorted(len(codes) for codes in calls) == [3, 5, 5]
-
-    def test_more_batches_than_workers_all_still_run(self, monkeypatch):
-        """Thirty cards is six batches on a pool of four: the extra two wait for
-        a thread rather than opening more sockets, and none is lost."""
-        calls = _batching_client(monkeypatch)
-
-        result = narrative_module.generate_narratives_batched(
-            _deep_candidates(30), user_ctx()
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx(), on_landed=on_landed
         )
 
-        assert len(calls) == 6
-        assert len(result) == 30
+        assert sorted(seen) == [1, 1, 1, 5]
+        assert len(result) == 8
+
+    def test_more_calls_than_threads_all_still_run(self, monkeypatch):
+        """Forty-three calls on a pool of thirty-two: the extra ones wait for a
+        thread rather than opening more sockets, and none is lost."""
+        calls = _batching_client(monkeypatch)
+        candidates = _deep_candidates(200)
+
+        result = narrative_module.narrate_page_first(
+            candidates[:3], candidates[3:], user_ctx()
+        )
+
+        assert len(calls) == 43
+        assert len(result) == 200
 
     def test_nothing_to_narrate_is_empty_rather_than_an_error(self, monkeypatch):
-        """Unlike `generate_narratives`: here the batches are derived from what
-        the scorer returned, so "none" is a state rather than a caller mistake.
-        """
         calls = _batching_client(monkeypatch)
 
-        assert narrative_module.generate_narratives_batched([], user_ctx()) == []
+        assert narrative_module.narrate_page_first([], [], user_ctx()) == []
         assert calls == []
+
+
+class TestPriorityPool:
+    """Fairness across users (W-17): anybody's head before anybody's tail."""
+
+    def test_a_head_submitted_later_runs_before_a_waiting_tail(self):
+        pool = narrative_module._PriorityPool(1, "test-pool")
+        blocker = threading.Event()
+        order: list[str] = []
+
+        first = pool.submit(0, blocker.wait, 10)  # holds the only thread
+        tail = pool.submit(narrative_module._TAIL_PRIORITY, order.append, "tail")
+        head = pool.submit(narrative_module._HEAD_PRIORITY, order.append, "head")
+        blocker.set()
+        for future in (first, tail, head):
+            future.result(timeout=10)
+
+        assert order == ["head", "tail"]
+
+    def test_equal_priorities_run_in_submission_order(self):
+        pool = narrative_module._PriorityPool(1, "test-pool")
+        blocker = threading.Event()
+        order: list[int] = []
+
+        first = pool.submit(0, blocker.wait, 10)
+        futures = [pool.submit(1, order.append, n) for n in range(5)]
+        blocker.set()
+        first.result(timeout=10)
+        for future in futures:
+            future.result(timeout=10)
+
+        assert order == [0, 1, 2, 3, 4]
+
+    def test_the_tail_limit_keeps_threads_free_for_heads(self):
+        """The measured fix (W-17): a priority queue alone did not pre-empt, so
+        a burst of users' tails took every thread and later heads waited ~3.5 s
+        behind them. With a tail limit, a head starts at once even while tails
+        are queued, and the queued tail waits for a TAIL slot, not a thread."""
+        pool = narrative_module._PriorityPool(
+            3, "test-pool", limits={narrative_module._TAIL_PRIORITY: 1}
+        )
+        release = threading.Event()
+        started: list[str] = []
+        guard = threading.Lock()
+
+        def job(name):
+            with guard:
+                started.append(name)
+            assert release.wait(10)
+            return name
+
+        tail = narrative_module._TAIL_PRIORITY
+        head = narrative_module._HEAD_PRIORITY
+        first_tail = pool.submit(tail, job, "tail-1")
+        second_tail = pool.submit(tail, job, "tail-2")
+        a_head = pool.submit(head, job, "head")
+
+        deadline = time.monotonic() + 5
+        while len(started) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        time.sleep(0.1)  # long enough for a wrongly-allowed second tail to start
+        assert sorted(started) == ["head", "tail-1"], (
+            "two threads were free, but the second tail is over its limit"
+        )
+        release.set()
+        assert [f.result(timeout=10) for f in (first_tail, second_tail, a_head)] == [
+            "tail-1", "tail-2", "head"
+        ]
+
+    def test_an_exception_reaches_the_waiter(self):
+        pool = narrative_module._PriorityPool(1, "test-pool")
+
+        def boom():
+            raise ValueError("provider said no")
+
+        with pytest.raises(ValueError, match="provider said no"):
+            pool.submit(0, boom).result(timeout=10)
+        assert pool.submit(0, lambda: 7).result(timeout=10) == 7, "the thread survived"
 
 
 # ---------------------------------------------------------------------------

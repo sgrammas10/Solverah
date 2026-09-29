@@ -843,10 +843,15 @@ PUBLISHED_SUFFIXES: tuple[str, ...] = (
 #:                     layer's FIRST signal (design doc §8.2)
 #:   .fit.json         every card a user opens costs four live O*NET calls again
 #:                     -- 2,384 ms cold, 844 ms warm (`occupation_fit`, W-9)
+#:   .summaries.json   every card opens with no summary line under its title
+#:                     (`occupation_summaries`, W-18).  Unlike the three above,
+#:                     `corpus refresh` DOES build this one (no network), so a
+#:                     refreshed corpus always carries it
 OPTIONAL_PUBLISHED_SUFFIXES: tuple[str, ...] = (
     ".experience.json",
     ".tasks.json",
     ".fit.json",
+    ".summaries.json",
 )
 
 #: Which command writes each file, named in the error when one is missing.
@@ -858,6 +863,7 @@ _SUFFIX_COMMANDS: dict[str, str] = {
     ".experience.json": "flask corpus experience",
     ".tasks.json": "flask corpus tasks",
     ".fit.json": "flask corpus fit",
+    ".summaries.json": "flask corpus summaries",
 }
 
 

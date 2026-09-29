@@ -173,3 +173,41 @@ def test_a_narration_that_lands_after_deletion_stores_nothing(user_id, monkeypat
         assert path_narrative_repository.list_for_user(user_id) == []
 
     assert final["suggestions"][0]["why_text"] == "Written.", "still shown to the page"
+
+
+def test_a_waiting_narration_holds_no_database_connection(user_id, monkeypatch):
+    """W-17: the narration ends its read transaction before it waits.
+
+    A session holds its pooled connection until its transaction ends. Since W-17
+    up to `NARRATION_WORKERS` (16) narrations wait on the narrator at once, and
+    the pool is 10 + 5 overflow shared with the 8 request threads -- so a
+    narration that waited inside its read transaction could starve the requests.
+    Checked on the orchestrating thread, at the moment it starts waiting.
+    """
+    import backend.services.path_narrative as pn
+    from app import app
+    from backend.services.path_narrative import UserContext
+    from backend.services.path_scoring import ScoredPath
+    from model import db
+    from solverah.services import intelligence_service
+
+    seen = []
+
+    def narrate_page_first(head, tail, ctx, on_landed=None):
+        seen.append(db.session().in_transaction())
+        return []
+
+    monkeypatch.setattr(pn, "narrate_page_first", narrate_page_first)
+    card = ScoredPath(onet_code="15-1252.00", title="Devs", score=0.5, overlapping_skills=["SQL"])
+    ctx = UserContext(archetype="", management_preferences={}, career_status="employed",
+                      top_skills=["SQL"])
+    payload = {"suggestions": [intelligence_service._card(card, None)], "narration_pending": True}
+
+    with app.app_context():
+        narration = intelligence_service._narration_phase(
+            user_id=user_id, token="t", context=ctx, payload=payload, misses=[card],
+            stored={}, fingerprints={"15-1252.00": "fp"}, logger=app.logger,
+        )
+        narration()
+
+    assert seen == [False]

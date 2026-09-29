@@ -660,6 +660,13 @@ _MEASURED_TASKS_MEMO_BYTES = 2_713_513
 #: -- so the response to this failing is to look at the artifact, not the panel.
 _MEASURED_FIT_MEMO_BYTES = 12_387_463
 
+#: W-18's card-summary table, measured 2026-09-29 on the built
+#: `onet_corpus_20260916.summaries.json` (125,606 bytes on disk): 941
+#: occupations, one string each, p50 112 characters and capped at 200 by
+#: `occupation_summaries.SUMMARY_MAX_CHARS`. The smallest memo by far, and the
+#: cap is what keeps it that way -- a longer summary is a product decision.
+_MEASURED_SUMMARIES_MEMO_BYTES = 220_105
+
 #: Everything above, added up, as a share of the instance. A booted worker with
 #: empty caches measures ~148 MB against 512 MB, so 364 MB is the headroom for
 #: every cache plus request handling -- and `_EMBED_CACHE_MAX_BYTES` (32 MB)
@@ -721,12 +728,18 @@ def _deep_sizeof(obj, seen=None) -> int:
 
 @pytest.fixture(autouse=True)
 def _clean_sidecar_memos():
-    from backend.services import occupation_conditions, occupation_fit, occupation_tasks
+    from backend.services import (
+        occupation_conditions,
+        occupation_fit,
+        occupation_summaries,
+        occupation_tasks,
+    )
 
     def _clear() -> None:
         occupation_conditions.reset_conditions_cache()
         occupation_tasks.reset_tasks_cache()
         occupation_fit.reset_fit_cache()
+        occupation_summaries.reset_summaries_cache()
 
     _clear()
     yield
@@ -746,6 +759,7 @@ def test_the_three_memos_and_every_cache_fit_the_one_worker_budget() -> None:
         + _MEASURED_CONDITIONS_MEMO_BYTES
         + _MEASURED_TASKS_MEMO_BYTES
         + _MEASURED_FIT_MEMO_BYTES
+        + _MEASURED_SUMMARIES_MEMO_BYTES
     )
 
     assert total <= _TOTAL_MEMORY_CEILING_BYTES, (
@@ -846,6 +860,32 @@ def test_the_fit_memo_holds_one_table_not_one_per_version(
     assert occupation_fit._TABLE is second, "the old table stayed resident"
 
 
+def test_the_summaries_memo_holds_one_table_not_one_per_version(
+    sidecar_corpus, tmp_path
+) -> None:
+    """Same property for W-18's table."""
+    import dataclasses
+
+    from backend.services import occupation_summaries
+
+    def _write(corpus, code: str) -> None:
+        occupation_summaries.write_summaries_sidecar(
+            corpus.matrix_path,
+            occupation_summaries.SummariesTable(summaries={code: "Do the work."}),
+        )
+
+    _write(sidecar_corpus, "29-1141.00")
+    first = occupation_summaries.get_summaries(sidecar_corpus)
+    assert first is not None
+
+    later = dataclasses.replace(sidecar_corpus, version="testfix-2")
+    _write(later, "15-1252.00")
+    second = occupation_summaries.get_summaries(later)
+
+    assert second is not first
+    assert occupation_summaries._TABLE is second, "the old table stayed resident"
+
+
 @pytest.mark.skipif(
     not os.environ.get("SOLVERAH_CORPUS_PATH"),
     reason="SOLVERAH_CORPUS_PATH is unset; CI has no corpus artifact",
@@ -904,4 +944,20 @@ class TestTheMemosAgainstTheRealArtifacts:
             "the fit memo is %.2f MB against a recorded %.2f MB; a rebuild "
             "grew it, or something stopped being slotted or interned"
             % (resident / 1024 / 1024, _MEASURED_FIT_MEMO_BYTES / 1024 / 1024)
+        )
+
+    def test_the_summaries_memo_is_the_size_it_is_recorded_as(self) -> None:
+        from backend.services import occupation_summaries
+        from backend.services.occupation_retrieval import get_corpus
+
+        table = occupation_summaries.get_summaries(get_corpus())
+        if table is None:
+            pytest.skip("no summaries sidecar beside the artifact")
+
+        resident = _deep_sizeof(table.summaries)
+
+        assert resident <= _MEASURED_SUMMARIES_MEMO_BYTES * 1.5, (
+            "the summaries memo is %.2f MB against a recorded %.2f MB; raising "
+            "SUMMARY_MAX_CHARS is the usual cause"
+            % (resident / 1024 / 1024, _MEASURED_SUMMARIES_MEMO_BYTES / 1024 / 1024)
         )

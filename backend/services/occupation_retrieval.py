@@ -153,6 +153,7 @@ __all__ = [
     "resolve_matrix_path",
     "retrieve",
     "soc_prefix_excluded",
+    "summaries_sidecar_path",
     "tasks_sidecar_path",
     "vector_for",
     "write_zone_sidecar",
@@ -543,6 +544,21 @@ def fit_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     return path.with_name(path.stem + ".fit.json")
 
 
+def summaries_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
+    """The ``*.summaries.json`` that belongs beside *matrix_path*.
+
+    A deliberate duplicate of ``occupation_summaries.summaries_sidecar_path``,
+    for the reason :func:`clusters_sidecar_path` gives at length: that module
+    imports from this one, so importing back would be a cycle, and
+    ``test_the_two_summaries_sidecar_path_helpers_agree`` fails if the two
+    spellings drift.  W-18's file: without it every card opens with no summary
+    line and keeps its shimmer until the narrator lands -- a degrade, never an
+    outage.
+    """
+    path = Path(matrix_path)
+    return path.with_name(path.stem + ".summaries.json")
+
+
 def tasks_sidecar_path(matrix_path: str | os.PathLike[str]) -> Path:
     """The ``*.tasks.json`` that belongs beside *matrix_path*.
 
@@ -771,12 +787,15 @@ def _fetch_from_s3() -> Path:
     #:
     #: Row five is W-9's, and its absence is louder than silent but slower than
     #: it should be: every card a user opens costs four live O*NET calls again.
+    #:
+    #: Row six is W-18's: without it every card opens with no summary line.
     optional = [
         ("zone", stem_key + ".zones.json", zone_sidecar_path(matrix_path)),
         ("cluster", stem_key + ".clusters.json", clusters_sidecar_path(matrix_path)),
         ("conditions", stem_key + ".experience.json", conditions_sidecar_path(matrix_path)),
         ("tasks", stem_key + ".tasks.json", tasks_sidecar_path(matrix_path)),
         ("fit", stem_key + ".fit.json", fit_sidecar_path(matrix_path)),
+        ("summaries", stem_key + ".summaries.json", summaries_sidecar_path(matrix_path)),
     ]
 
     from solverah.infra import storage  # noqa: PLC0415 -- see docstring

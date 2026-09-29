@@ -12,13 +12,15 @@ OPENAI_NARRATIVE_MODEL  Optional.  Defaults to "gpt-4o-mini".
 """
 from __future__ import annotations
 
+import collections
 import json
 import logging
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Callable, Literal, Optional
 
 try:
     from openai import OpenAI
@@ -617,74 +619,208 @@ def generate_narratives(
 #: dominate (one card is 1.4 s, five 3.1-3.7 s) and the header repeats again.
 _BATCH_SIZE: int = 5
 
-#: Threads per narration: enough for twenty cards (the page plus W-12's reserve)
-#: to go out at once, and no more -- a longer list waits for a free thread rather
-#: than opening more sockets from a 0.5-CPU instance.
-_MAX_WORKERS: int = 4
+#: W-17. How many cards at the top of the page are narrated one card per call,
+#: ahead of everything else.
+#:
+#: Three because ``PathSuggestionList`` shows three before "Show more": these are
+#: the only sentences a user is looking at in the first seconds. One card is a
+#: ~1.4 s completion (W-12), against 3.1-3.7 s for five, so three parallel
+#: one-card calls put the visible sentences on screen in about the time of one.
+_HEAD_SIZE: int = 3
+
+#: W-17. Narrator calls in flight at once, across the whole process.
+#:
+#: W-16 capped it indirectly: four narrations (``NARRATION_WORKERS``) x four
+#: batches each (a per-narration pool) = sixteen sockets. It is now one shared
+#: pool, so the bound is on what actually costs something -- open provider calls
+#: -- and not on the number of users waiting.
+#:
+#: Thirty-two, measured (W-17 note): ten users loading at once on the capped
+#: 8-thread server, real OpenAI, "first three sentences present" p50 / p95:
+#:
+#:     W-16 (4 narrations x 4 batches)      8.35 / 12.58 s   (rerun 9.49 / 14.37)
+#:     16 threads, no tail limit            3.98 /  5.60 s
+#:     24 threads, tail limit 12            3.27 /  4.39 s
+#:     32 threads, tail limit 16            2.69 /  3.94 s   (rerun 2.60 / 3.81)
+#:
+#: I/O-bound threads that hold no database connection; the provider calls
+#: themselves are the cost, and the tail limit keeps the bulk of them at W-16's
+#: sixteen.
+_CALL_WORKERS: int = 32
+
+#: W-17. The most TAIL calls in flight at once -- the rest of the pool is kept
+#: for heads.
+#:
+#: A priority queue alone is not enough, and the first measurement said so: the
+#: pool does not pre-empt, so when ten users arrive within a second the first few
+#: users' tails take every thread (3.5 s each) and the later users' heads, first
+#: in the queue, still wait for them. Capping the tail keeps
+#: ``_CALL_WORKERS - _TAIL_LIMIT`` threads that only a head can take, so a head
+#: waits at most for other heads (~1.4 s each), never for somebody's tail.
+#: Sixteen is W-16's whole ceiling, so bulk narration is no more parallel than it
+#: was; only the visible three got extra room.
+_TAIL_LIMIT: int = 16
+
+#: W-17. Queue priorities on the shared pool: every user's visible three go
+#: ahead of anybody's tail.
+_HEAD_PRIORITY: int = 0
+_TAIL_PRIORITY: int = 1
 
 
-def generate_narratives_batched(
-    candidates: list[ScoredPath],
-    user_context: UserContext,
-) -> list[PathSuggestion]:
-    """:func:`generate_narratives` over five-card batches, in parallel, best-effort.
+class _PriorityPool:
+    """A fixed set of daemon threads draining per-priority queues (W-17).
 
-    W-12.  The scoring job narrates twenty candidates -- the ten it shows and ten
-    held in reserve for the cards a tap promotes -- and this is how it affords
-    them.  W-16 cut the batch from ten to five: see :data:`_BATCH_SIZE`.
+    ``concurrent.futures.ThreadPoolExecutor`` is FIFO, and FIFO is the fairness
+    bug: user B's first three would queue behind user A's seventeen-card tail.
+    Here a free thread takes the lowest priority number that has work waiting
+    AND is under its limit (*limits*, ``{priority: max in flight}``; absent means
+    no limit beyond the pool itself). Equal priorities run in submission order.
 
-    **Threads, because the narrator is I/O-bound.**  W-12 measured two batches
-    of ten on a pool against one of ten and found no difference in wall time;
-    W-16 measured four of five against two of ten and found the wall time
-    halved (:data:`_BATCH_SIZE` has the numbers).  The parallelism is the whole
-    saving, and the batch size decides how much of it there is.
-
-    **Best-effort per batch, and that asymmetry is deliberate.**  A batch that
-    cannot be narrated contributes nothing and is logged; the others still land.
-    This is the only sane rule once a job narrates cards the user is not going to
-    see: failing the whole job -- and with it the ten-card shortlist, which is
-    the product -- because prose for a hypothetical eleventh card came back
-    malformed would trade the thing that matters for the thing that does not.
-    The caller decides what an empty result means; since W-16 nothing treats it
-    as fatal -- the cards are already on screen before this runs, and a card the
-    narrator could not write gets the house fallback sentence instead.
-
-    Order is preserved across batches, so the caller can still slice the page off
-    the front.  An empty *candidates* list returns empty rather than raising,
-    unlike :func:`generate_narratives`: "narrate nothing" is a coherent request
-    here, where the batches are derived rather than chosen.
+    Started lazily on the first submit, so importing this module (a CLI, a
+    migration) starts no threads. Daemon threads, because nothing here must
+    outlive the process: a narration cut off by a shutdown is covered by
+    ``intelligence_service.NARRATION_DEADLINE`` like any other dead worker.
     """
-    if not candidates:
+
+    def __init__(self, workers: int, name: str, limits: Optional[dict[int, int]] = None) -> None:
+        self._workers = workers
+        self._name = name
+        self._limits = dict(limits or {})
+        self._queues: dict[int, collections.deque] = {}
+        self._running: collections.Counter = collections.Counter()
+        self._cond = threading.Condition()
+        self._threads: list[threading.Thread] = []
+
+    def submit(self, priority: int, fn: Callable[..., Any], *args: Any) -> Future:
+        future: Future = Future()
+        with self._cond:
+            if not self._threads:
+                self._start_locked()
+            self._queues.setdefault(priority, collections.deque()).append((future, fn, args))
+            self._cond.notify()
+        return future
+
+    def _start_locked(self) -> None:
+        for index in range(self._workers):
+            thread = threading.Thread(
+                target=self._work, name="%s-%d" % (self._name, index), daemon=True
+            )
+            thread.start()
+            self._threads.append(thread)
+
+    def _take_locked(self) -> Optional[tuple]:
+        for priority in sorted(self._queues):
+            waiting = self._queues[priority]
+            limit = self._limits.get(priority)
+            if waiting and (limit is None or self._running[priority] < limit):
+                self._running[priority] += 1
+                return (priority,) + waiting.popleft()
+        return None
+
+    def _work(self) -> None:
+        while True:
+            with self._cond:
+                item = self._take_locked()
+                while item is None:
+                    self._cond.wait()
+                    item = self._take_locked()
+            priority, future, fn, args = item
+            try:
+                if future.set_running_or_notify_cancel():
+                    try:
+                        future.set_result(fn(*args))
+                    except BaseException as exc:  # noqa: BLE001 -- handed to the waiter
+                        future.set_exception(exc)
+            finally:
+                with self._cond:
+                    self._running[priority] -= 1
+                    # A capped priority may be runnable again: wake every
+                    # waiter, not one, or the one woken may find only work it
+                    # is still not allowed to take while another could.
+                    self._cond.notify_all()
+
+
+_call_pool = _PriorityPool(
+    _CALL_WORKERS, "path-narrator", limits={_TAIL_PRIORITY: _TAIL_LIMIT}
+)
+
+
+def _narrate(batch: list[ScoredPath], user_context: UserContext) -> list[PathSuggestion]:
+    """One completion. Looked up at call time, so a test double of
+    :func:`generate_narratives` is what the pool runs."""
+    return generate_narratives(batch, user_context)
+
+
+def narrate_page_first(
+    head: list[ScoredPath],
+    tail: list[ScoredPath],
+    user_context: UserContext,
+    on_landed: Optional[Callable[[list[PathSuggestion]], None]] = None,
+) -> list[PathSuggestion]:
+    """Narrate *head* one card per call, then *tail* in batches of five (W-17).
+
+    W-16 narrated all twenty cards as four batches of five, so the three cards a
+    user can see waited for the batch they happened to share: ~3.5-4.5 s. Now:
+
+    * each *head* card (the caller passes the page's first three that have no
+      stored sentence) is its own completion at head priority -- three calls in
+      parallel, ~1.4 s;
+    * *tail* goes out in :data:`_BATCH_SIZE` batches at tail priority, in order,
+      so the rest of the page is written before the reserve.
+
+    All on the process-wide :data:`_call_pool`, where every user's head goes
+    ahead of anybody's tail (see :data:`_HEAD_PRIORITY`).
+
+    *on_landed* is called with each completion's suggestions **as it lands, on
+    the calling thread** -- the caller's thread has the app context and the
+    database session, the pool's threads have neither and never need them. It
+    is how the page gets its first three sentences before the tail is done. An
+    exception from it is logged and does not stop the other completions.
+
+    **Best-effort per call**, as W-12's batching was: a call that fails (after
+    :func:`generate_narratives`' own retry) contributes nothing and is logged;
+    the caller's fallback covers its cards. Returns every suggestion that was
+    written, in *head* + *tail* order. Nothing to narrate returns [] without
+    touching the pool.
+    """
+    calls: list[tuple[int, list[ScoredPath]]] = [
+        (_HEAD_PRIORITY, [card]) for card in head
+    ] + [
+        (_TAIL_PRIORITY, tail[start:start + _BATCH_SIZE])
+        for start in range(0, len(tail), _BATCH_SIZE)
+    ]
+    if not calls:
         return []
 
-    batches = [
-        candidates[start:start + _BATCH_SIZE]
-        for start in range(0, len(candidates), _BATCH_SIZE)
-    ]
-    if len(batches) == 1:
-        # One batch: no pool, no thread, and the same single call -- so a
-        # five-card narration is unchanged rather than merely equivalent.
-        return generate_narratives(batches[0], user_context)
-
-    with ThreadPoolExecutor(max_workers=min(len(batches), _MAX_WORKERS)) as pool:
-        futures = [
-            pool.submit(generate_narratives, batch, user_context)
-            for batch in batches
-        ]
-        results = []
-        for index, future in enumerate(futures):
+    futures = {
+        _call_pool.submit(priority, _narrate, batch, user_context): index
+        for index, (priority, batch) in enumerate(calls)
+    }
+    written: dict[int, list[PathSuggestion]] = {}
+    outstanding = set(futures)
+    while outstanding:
+        done, outstanding = wait(outstanding, return_when=FIRST_COMPLETED)
+        for future in done:
+            index = futures[future]
             try:
-                results.append(future.result())
-            except Exception:  # noqa: BLE001 -- logged, and the batch is dropped
+                suggestions = future.result()
+            except Exception:  # noqa: BLE001 -- logged, and the call is dropped
                 logger.warning(
                     "path_narrative_batch_failed",
                     extra={
                         "event": "path_narrative_batch_failed",
                         "batch": index,
-                        "batch_size": len(batches[index]),
+                        "batch_size": len(calls[index][1]),
+                        "head": calls[index][0] == _HEAD_PRIORITY,
                     },
                     exc_info=True,
                 )
-                results.append([])
+                continue
+            written[index] = suggestions
+            if on_landed is not None:
+                try:
+                    on_landed(suggestions)
+                except Exception:  # noqa: BLE001 -- the other calls still land
+                    logger.exception("path_narrative_landing_failed")
 
-    return [suggestion for batch in results for suggestion in batch]
+    return [suggestion for index in sorted(written) for suggestion in written[index]]

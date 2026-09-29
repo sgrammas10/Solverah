@@ -102,6 +102,17 @@ class PathSuggestion(SolverahModel):
             "or never lands). Not rendered by the SPA."
         ),
     )
+    summary: str = Field(
+        default="",
+        description=(
+            "W-18, additive. O*NET's own description of this occupation, first "
+            "sentence only, capped at about 200 characters on a clause boundary. "
+            "Static per occupation and filled at scoring time, so it is present "
+            "on the first poll that carries cards, before any `why_text`. Empty "
+            "when the server has no summaries sidecar; the SPA then shows no "
+            "summary line."
+        ),
+    )
 
 
 class PathSuggestionsResponse(SolverahModel):

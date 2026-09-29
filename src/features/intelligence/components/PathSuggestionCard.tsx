@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { PathSuggestion, CareerStatus } from "../types";
 import type { PathVerdict } from "../usePathFeedback";
 
@@ -54,6 +54,59 @@ const VERDICT_LABELS: Record<PathVerdict, string> = {
 
 const VERDICT_ORDER: PathVerdict[] = ["interesting", "too_similar", "not_for_me"];
 
+/**
+ * W-18: the height kept for the narrator's sentence and its tags while they
+ * are being written, so that nothing below a card moves when they land.
+ *
+ * W-17 measured the shift this removes: card 1 grew 253 -> 319 px when its
+ * sentence and tags arrived, pushing every card below it down 66 px.
+ *
+ * The sentence and the tags share ONE block with one minimum height, sized for
+ * the narrator's worst case rather than its median: sentences run p50 222 /
+ * max 308 characters (four lines of `text-sm` at the page's 584 px card width,
+ * six at phone width), and the prompt asks for "2 or 3 short tags (5-8 words
+ * each)" -- three of those wrap to two rows on desktop, three at phone width.
+ * The first W-18 browser run reserved a single tag row and measured the miss:
+ * a card whose narrator wrote three tags still grew 34 px.
+ *
+ * One block rather than two slots so the slack gathers at the bottom, above
+ * the divider, instead of opening a gap between a short sentence and its tags;
+ * and so a fallback sentence with no tags still fills the same space. It is a
+ * MINIMUM inside a grid cell, so a sentence longer than any measured grows the
+ * card rather than overflowing it, and it stays after landing, because giving
+ * the space back would be the same shift in the other direction.
+ */
+const NARRATION_BLOCK_CLASS = "grid content-start min-h-[15.25rem] sm:min-h-[10.25rem]";
+
+interface FadeInProps {
+  children: ReactNode;
+  className?: string;
+}
+
+/**
+ * Mounts transparent and fades to opaque on the next frame (W-18). The
+ * narrator's sentence and tags are ADDED to a card someone is already reading;
+ * a fade says "this just arrived" without moving anything. Reduced-motion users
+ * get it at once.
+ */
+function FadeIn({ children, className = "" }: FadeInProps) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <div
+      data-fade={shown ? "in" : "pending"}
+      className={`transition-opacity duration-500 ease-out motion-reduce:transition-none ${
+        shown ? "opacity-100" : "opacity-0"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function PathSuggestionCard({
   suggestion,
   currentTitle,
@@ -70,6 +123,15 @@ export default function PathSuggestionCard({
   // `reasons`, and a user who has stated no wants gets an empty list. Both mean
   // the same thing and render the same way -- nothing.
   const reasons = suggestion.reasons ?? [];
+  // W-18. Optional for the same reason: a payload cached before W-18, or a
+  // server without the summaries sidecar, has none -- and renders no line.
+  const summary = suggestion.summary ?? "";
+  const pending = Boolean(suggestion.sentence_pending);
+  const tags = suggestion.profile_dimensions;
+  // The reserved block exists while something is coming or has come. With
+  // nothing coming (the poll gave up on a card the narrator never wrote) there
+  // is nothing to hold a place for.
+  const narrationBlock = pending || Boolean(suggestion.why_text);
 
   // The opening affordance is a button around the card's *body*, not an onClick
   // on the card itself. The feedback controls and the disabled CTA are
@@ -85,21 +147,14 @@ export default function PathSuggestionCard({
         <p className="text-xs text-ink-secondary mt-0.5">{progressionLine}</p>
       </div>
 
-      {/* W-16: the card arrives before its sentence. While the sentence is
-          being written the card holds its place with a placeholder line --
-          never a stand-in sentence, which would change under the reader when
-          the real one lands. An empty sentence with nothing coming (the poll
-          gave up) renders nothing rather than an empty paragraph. */}
-      {suggestion.sentence_pending ? (
-        <div data-sentence-pending className="space-y-2 py-0.5">
-          <span className="sr-only">Writing a short summary of this path…</span>
-          <div aria-hidden="true" className="h-3 rounded bg-cream-muted animate-pulse w-full" />
-          <div aria-hidden="true" className="h-3 rounded bg-cream-muted animate-pulse w-4/6" />
-        </div>
-      ) : (
-        suggestion.why_text && (
-          <p className="text-sm text-ink-primary leading-relaxed">{suggestion.why_text}</p>
-        )
+      {/* W-18: what the job IS, in O*NET's own words -- on the card from the
+          first poll, so the card is readable before the narrator has written
+          anything. Plain text and no label: it reads as the card's opening
+          line, and the personal sentence below it says why it is here. */}
+      {summary && (
+        <p data-summary className="text-sm text-ink-secondary leading-relaxed">
+          {summary}
+        </p>
       )}
 
       {/* W-5: the reason line, where the percentage used to be (§8.5, ⚑12).
@@ -112,7 +167,11 @@ export default function PathSuggestionCard({
           Words only, and never a graded one: W-1's correction was that "Strong
           overlap" is a percentage in a costume. These phrases are absolute or
           comparative statements about the work ("Among the most people-facing
-          jobs"), never a verdict on the user. */}
+          jobs"), never a verdict on the user.
+
+          W-18 moved it above the narrator's block: it is scored with the card
+          and present from the first poll, like the summary, so everything that
+          is already known sits together above everything still being written. */}
       {reasons.length > 0 && (
         <ul data-reasons className="space-y-1">
           {reasons.map((reason) => (
@@ -123,17 +182,49 @@ export default function PathSuggestionCard({
         </ul>
       )}
 
-      {/* No pills while the sentence is pending: the tags are written with it. */}
-      {!suggestion.sentence_pending && suggestion.profile_dimensions.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {suggestion.profile_dimensions.map((dim) => (
-            <span
-              key={dim}
-              className="rounded-full border border-forest-light bg-white px-3 py-1 text-xs font-semibold text-forest-mid"
-            >
-              {dim}
-            </span>
-          ))}
+      {/* W-16: the card arrives before its sentence. While the sentence is
+          being written the card holds its place with a placeholder line --
+          never a stand-in sentence, which would change under the reader when
+          the real one lands. No pills meanwhile: the tags are written with it.
+
+          W-18: the place is held at the sentence's and the tags' full expected
+          height (NARRATION_BLOCK_CLASS), and both fade in inside it. The
+          sentence is ADDED below the summary, never swapped for it. The
+          placeholder is shaped like what is coming -- three thin lines and two
+          tag outlines -- so the reserved space reads as "being written" rather
+          than as a gap, with or without a summary above it. */}
+      {narrationBlock && (
+        <div data-narration-block className={NARRATION_BLOCK_CLASS}>
+          {pending ? (
+            <div data-sentence-pending className="space-y-3 py-1.5">
+              <span className="sr-only">Writing why this path could suit you…</span>
+              <div aria-hidden="true" className="space-y-2.5 animate-pulse">
+                <div className="h-2.5 rounded bg-cream-muted w-full" />
+                <div className="h-2.5 rounded bg-cream-muted w-11/12" />
+                <div className="h-2.5 rounded bg-cream-muted w-3/5" />
+              </div>
+              <div aria-hidden="true" className="flex gap-2 animate-pulse">
+                <div className="h-6 w-40 rounded-full border border-cream-muted" />
+                <div className="h-6 w-32 rounded-full border border-cream-muted" />
+              </div>
+            </div>
+          ) : (
+            <FadeIn className="space-y-3">
+              <p className="text-sm text-ink-primary leading-relaxed">{suggestion.why_text}</p>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {tags.map((dim) => (
+                    <span
+                      key={dim}
+                      className="rounded-full border border-forest-light bg-white px-3 py-1 text-xs font-semibold text-forest-mid"
+                    >
+                      {dim}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </FadeIn>
+          )}
         </div>
       )}
     </>

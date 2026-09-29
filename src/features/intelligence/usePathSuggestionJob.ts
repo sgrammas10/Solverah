@@ -63,26 +63,38 @@ export { isKnownScoringPhase, type ScoringJobPhase as PathSuggestionJobPhase } f
 export const PATH_SUGGESTION_POLL_INTERVAL_MS = 3000;
 
 /**
- * W-16. The poll interval once the cards are on screen and only their
- * sentences are outstanding.
+ * The poll interval once the cards are on screen and only their sentences are
+ * outstanding.
  *
- * Faster than the queued/running poll because the wait is short and visible:
- * a narration lands in ~4-5 s, and at 3 s a sentence could sit written on the
- * server for most of another interval while the card shimmers. 1.5 s is 40
- * polls a minute, inside the poll route's 60/minute limit.
+ * W-18: 0.5 s, down from W-16's 1.5 s. Since W-17 the first three sentences
+ * land ~2 s after the cards, one at a time, and at 1.5 s a written sentence
+ * sat on the server for up to another 1.5 s while its card shimmered -- that
+ * interval was most of the visible gap. 0.5 s is 120 polls a minute from one
+ * tab, which is why the poll route's limit went to 300/minute keyed per
+ * signed-in user (`PATH_SUGGESTION_POLL_LIMIT` in `api/v1/intelligence.py`);
+ * at the old 60/minute per IP the 61st poll was a 429 and the page stopped.
  */
-export const PATH_NARRATION_POLL_INTERVAL_MS = 1500;
+export const PATH_NARRATION_POLL_INTERVAL_MS = 500;
 
 /**
- * W-16. The most polls one job gets while its result says `narration_pending`.
+ * W-18. How long one job may poll for sentences before the client gives up.
  *
  * The server already bounds the wait -- past 60 s every read of a pending
  * result answers with the fallback sentences (`resolve_stale_narration`) -- so
- * this is the client's own backstop, not the rule: 60 polls at 1.5 s is 90 s,
- * past the server's deadline. When it trips, the page stops shimmering and
- * shows the cards as they are.
+ * this is the client's own backstop, matched to that deadline. Stated as time
+ * because the interval moved: W-16's 60 polls meant 90 s at 1.5 s and would
+ * have meant 30 s at 0.5 s, cutting a slow narration off early.
  */
-export const PATH_NARRATION_MAX_POLLS = 60;
+export const PATH_NARRATION_MAX_WAIT_MS = 60_000;
+
+/**
+ * The most polls one job gets while its result says `narration_pending`:
+ * `PATH_NARRATION_MAX_WAIT_MS` at `PATH_NARRATION_POLL_INTERVAL_MS`, so 120.
+ * When it trips, the page stops shimmering and shows the cards as they are.
+ */
+export const PATH_NARRATION_MAX_POLLS = Math.ceil(
+  PATH_NARRATION_MAX_WAIT_MS / PATH_NARRATION_POLL_INTERVAL_MS,
+);
 
 /**
  * W-16. Is this job's result still waiting on sentences?
