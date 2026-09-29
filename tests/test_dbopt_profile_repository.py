@@ -13,7 +13,6 @@ delete-and-reinsert reproduces exactly -- so "was this row rewritten" is a
 question only the system column can answer for every child table alike.
 """
 
-import contextlib
 import copy
 import datetime
 import re
@@ -21,7 +20,6 @@ import threading
 
 import pytest
 import sqlalchemy as sa
-from sqlalchemy import event
 
 USER_A = 7101
 USER_B = 7102
@@ -173,31 +171,6 @@ def _version(user_id):
     return db.session.execute(
         sa.text("SELECT version FROM profiles WHERE user_id = :u"), {"u": user_id}
     ).scalar_one()
-
-
-@contextlib.contextmanager
-def _count_round_trips():
-    """``count_queries``, except an executemany counts once per parameter set.
-
-    psycopg2's ``executemany`` is one ``before_cursor_execute`` event and one
-    round trip per row, which is exactly the shape the ``_skill_ids`` finding is
-    about -- the shared counter would report it as one statement. Only a *list*
-    of parameter sets is a real executemany: an "insertmanyvalues" batch also
-    arrives flagged ``executemany`` but with one dict, and is one round trip.
-    """
-    from model import db
-
-    trips = []
-
-    def _record(conn, cursor, statement, parameters, context, executemany):
-        many = executemany and isinstance(parameters, (list, tuple))
-        trips.extend([statement] * (len(parameters) if many else 1))
-
-    event.listen(db.engine, "before_cursor_execute", _record)
-    try:
-        yield trips
-    finally:
-        event.remove(db.engine, "before_cursor_execute", _record)
 
 
 def _in_another_transaction(work):
@@ -698,11 +671,12 @@ def test_skill_aliases_are_one_statement_whatever_the_number_of_skills(users):
     """``_skill_ids``: the alias UPDATE was one round trip per skill."""
     from model import Skill, db
     from solverah.repositories import profile_repository
+    from tests.query_count import count_round_trips
 
     canonical = ["Python", "Go", "Rust", "Haskell", "Elixir", "Scala"]
 
     def alias_updates(user_id, skills):
-        with _count_round_trips() as trips:
+        with count_round_trips() as trips:
             profile_repository.update_document(user_id, lambda d: {**d, "skills": skills})
         db.session.commit()
         return [t for t in trips if " ".join(t.split()).upper().startswith("UPDATE SKILLS")]

@@ -743,9 +743,10 @@ PULSE_SUBMIT_LIMIT = "5 per minute"
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "The server derives both the sequence (`pulse_checkin_count`) and the three "
-        "dimensions it must answer (`dimensions_for_checkin`) -- the client never "
-        "chooses either. Posting a different dimension set, or a score outside 1..5, "
+        "The server derives both the sequence (`claim_checkin_sequence`, which counts "
+        "the user's check-ins under a per-user lock held until the commit) and the "
+        "three dimensions it must answer (`dimensions_for_checkin`) -- the client "
+        "never chooses either. Posting a different dimension set, or a score outside 1..5, "
         "is refused `422` in problem+json rather than accepted or 500ing."
     ),
 )

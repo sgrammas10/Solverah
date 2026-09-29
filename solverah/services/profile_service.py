@@ -377,8 +377,10 @@ def update_identity(user: User, name: Any) -> ProfileResult:
     )
     # Built before the commit, which expires `user`: read back afterwards, the
     # answer cost a SELECT of the row this request had just written. The only
-    # answer that can differ is one racing a concurrent write to the row, and
-    # when the name changed the UPDATE's version check refuses that race anyway.
+    # answer that can differ is one racing a concurrent write to the row. When
+    # the name changed, that race fails the UPDATE's version check at the commit
+    # below: SQLAlchemy raises StaleDataError, nothing handles it, and the
+    # request answers 500 -- so this stale answer is never sent.
     result = read_identity(user)
     db.session.commit()
     return result

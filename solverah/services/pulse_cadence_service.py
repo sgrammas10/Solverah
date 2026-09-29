@@ -30,7 +30,10 @@ table is small, and adding a JSONB path index for one weekly cron job would be
 optimizing a problem this codebase does not have yet. The batch only rules
 users out; a user it rules in is re-read just before the write, so each prompt
 is still decided on reads taken moments before it is recorded, as it was before
-there was a batch (see the loop).
+there was a batch (see the loop). The cost of that rule is one run of delay for a
+user who becomes due mid-run -- a cadence change to a shorter interval, say,
+landing after the batch was read: the batch already ruled them out, so this run
+skips them and the next run prompts them.
 """
 
 from __future__ import annotations
@@ -73,8 +76,9 @@ def _candidates(user_id: Optional[int] = None) -> List[Tuple[int, str, datetime.
     once per prompted user, a commit expires every ORM row in the session, and
     an expired row read on the next iteration is a SELECT per user. ``DISTINCT
     ON`` keeps each user's newest check-in -- the same row, by the same order,
-    as `pulse_store.latest_pulse_checkin` -- and that order is the one
-    `ix_pulse_checkins_user_taken` (user_id, taken_at DESC) is kept in.
+    as `pulse_store.latest_pulse_checkin`. `ix_pulse_checkins_user_taken`
+    (user_id, taken_at DESC) matches that order's first two keys only; the
+    ``id DESC`` tie-break is not in the index.
     """
     statement = (
         sa.select(PulseCheckin.user_id, User.email, PulseCheckin.taken_at)

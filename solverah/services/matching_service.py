@@ -40,11 +40,9 @@ deleted with the thing it caches.  See ``solverah/infra/cache.py``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import sqlalchemy as sa
-
-from model import AssessmentSubmission, User, db
+from model import User, db
 from packages.ml.culture import CultureValues, culture_fit_score
 from solverah import pagination
 from solverah.domain import matching as domain
@@ -151,31 +149,6 @@ def _derive_culture_preferences(answers: Any) -> Optional[dict]:
     return derive_culture_preferences(answers)
 
 
-def _work_pulse_answers(user_ids: Sequence[int]) -> Dict[int, Any]:
-    """``{user_id: answers}`` of each user's Work Pulse sitting, in one query.
-
-    Only the answers: not the result, and not the narrative. A user who has not
-    sat Work Pulse is absent. No ordering is needed to pick the *current* row --
-    ``uq_assessment_submissions_current`` holds one row per user for every kind
-    but ``core``, which is the rule ``assessment_repository.current_submission``
-    rests on for these kinds too.
-
-    The backfill's batch read. It belongs beside
-    ``assessment_repository.current_submissions``; move it there when that
-    module next changes.
-    """
-    ids = list(user_ids)
-    if not ids:
-        return {}
-    rows = db.session.execute(
-        sa.select(AssessmentSubmission.user_id, AssessmentSubmission.answers).where(
-            AssessmentSubmission.kind == "work_pulse",
-            AssessmentSubmission.user_id.in_(ids),
-        )
-    )
-    return {user_id: answers for user_id, answers in rows}
-
-
 def resolve_culture_preferences(user: User) -> Optional[dict]:
     """The user's culture preferences, deriving from Work Pulse if absent.
 
@@ -250,7 +223,7 @@ def backfill_culture_preferences(limit: int = 500) -> Dict[str, int]:
     counts = {"considered": 0, "written": 0, "underivable": 0}
 
     user_ids = profile_repository.user_ids_missing(_PREFERENCES_KEY, limit=limit)
-    answers = _work_pulse_answers(user_ids)
+    answers = assessment_repository.work_pulse_answers_for_users(user_ids)
     for user_id in user_ids:
         counts["considered"] += 1
         derived = _derive_culture_preferences(answers.get(user_id))

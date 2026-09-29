@@ -285,8 +285,10 @@ def _export_as_it_was(user_id):
     The blocks this package reads differently -- ``legacy_quiz`` and the two
     raw-answer keys -- are recomputed exactly as the code before the fix did:
     one ``current_submission`` per kind, and the whole ``user_intake`` row to
-    decide whether the block exists. Every other block is the service's own,
-    because nothing about how it is read changed.
+    decide whether the block exists. Every other block is taken from the
+    service under test, because nothing about how it is read changed -- so those
+    untouched blocks are compared against themselves, and a test built on this
+    oracle says nothing about them.
     """
     from flask import jsonify
 

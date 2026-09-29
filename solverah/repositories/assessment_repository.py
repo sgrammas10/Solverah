@@ -30,7 +30,7 @@ the same one-release stay ``users.profile_data`` is serving.
 
 from __future__ import annotations
 
-from typing import Dict, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.orm import load_only
@@ -44,6 +44,7 @@ __all__ = [
     "current_submissions",
     "delete_for_user",
     "open_current",
+    "work_pulse_answers_for_users",
 ]
 
 #: Kinds whose current sitting is one row, updated in place on a retake. ``core``
@@ -129,6 +130,29 @@ def current_submissions(
     return {row.kind: row for row in rows}
 
 
+def work_pulse_answers_for_users(user_ids: Sequence[int]) -> Dict[int, Any]:
+    """``{user_id: answers}`` of each user's Work Pulse sitting, in one query.
+
+    Only the answers: not the result, and not the narrative. A user who has not
+    sat Work Pulse is absent. No ordering is needed to pick the *current* row --
+    ``uq_assessment_submissions_current`` holds one row per user for every kind
+    but ``core``, which is the rule :func:`current_submission` rests on for these
+    kinds too. Sends nothing at all for an empty *user_ids*.
+
+    The batch read behind ``matching_service.backfill_culture_preferences``.
+    """
+    ids = list(user_ids)
+    if not ids:
+        return {}
+    rows = db.session.execute(
+        sa.select(AssessmentSubmission.user_id, AssessmentSubmission.answers).where(
+            AssessmentSubmission.kind == "work_pulse",
+            AssessmentSubmission.user_id.in_(ids),
+        )
+    )
+    return {user_id: answers for user_id, answers in rows}
+
+
 def current_result(user_id: int, kind: str) -> Optional[AssessmentSubmission]:
     """:func:`current_submission` for a caller that reads the result, not the prose.
 
@@ -165,11 +189,14 @@ def open_current(user_id: int, kind: str, form_version: str) -> AssessmentSubmis
     instrument will find it.
 
     Flushes immediately after the INSERT so a concurrent duplicate raises
-    ``IntegrityError`` here -- cheap, and before the expensive LLM call -- rather
-    than at commit, after it. On that collision the other request's row is
-    re-read and used. This is the same shape ``get_or_create_user_intake`` had,
-    and it is now enforced by ``uq_assessment_submissions_current`` rather than
-    by ``user_intake``'s one-row-per-user constraint.
+    ``IntegrityError`` here rather than at the caller's commit. On that collision
+    the other request's row is re-read and used. Callers that score or narrate
+    (Work Pulse's LLM call) do that work first and open the row only once the
+    reply is in, so no flushed INSERT is held across a provider round trip and
+    the collision, if any, is resolved at write time. This is the same shape
+    ``get_or_create_user_intake`` had, and it is now enforced by
+    ``uq_assessment_submissions_current`` rather than by ``user_intake``'s
+    one-row-per-user constraint.
 
     **The insert runs inside a SAVEPOINT, and that is not decoration.**
     ``get_or_create_user_intake`` recovered from the collision with a plain

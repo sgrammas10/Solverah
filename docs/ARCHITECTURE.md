@@ -76,6 +76,14 @@ and slices. Per request. No cache, no index, no limit.
 At 10 companies it is invisible. At 100k companies × meaningful RPS it saturates both
 the database and every worker.
 
+**Still open, narrowed 2026-09-28** (DB ledger). The route is now `GET /me/matches`
+(`matching_service.matches`), and it no longer calls `all_companies()`: the scan in
+`_score_all` reads `company_repository.culture_rows()` — the id and the eight culture
+columns of every company with a `pace`, nothing else — and the names, slugs and
+industries are fetched afterwards in one `IN` query for the page being returned. It is
+still every scoreable company scored in Python per request; the fix is precomputation
+under the model that replaces the scorer (A16, A18).
+
 #### P0-3 · Writes on the read path
 
 `GET /api/profile` writes an `AuditLog` row and calls `db.session.commit()` on every
@@ -830,7 +838,9 @@ either.** The four instruments have one current sitting each and a retake update
 it in place; `core` appends, because its raw responses are append-only so a score
 stays re-derivable. That asymmetry was going to exist either way — this makes it a
 constraint instead of a convention every reader has to remember, and it is what
-makes a concurrent double-submit collide before the LLM call rather than after it.
+makes a concurrent double-submit collide on the row rather than write two. (Since
+G1, Work Pulse makes its LLM call first and opens the row only once the reply is
+in, so the collision is resolved at write time, after the call.)
 
 **A composite foreign key `(kind, form_version) → assessment_forms (kind,
 version)`.** Implied by `UNIQUE (kind, version)` existing at all, but worth
@@ -1793,7 +1803,8 @@ constructor, and constructors key on attributes.
 - `make migrate-check` (`flask db check`) already reported drift before this
   phase: `company_slug_key` versus `ix_company_slug`, and
   `ix_resume_parse_correction_user_id`. The six tables added here contribute
-  nothing to that diff.
+  nothing to that diff. **Fixed 2026-09-28** by migration
+  `20260928_ledger_indexes`.
 
 #### Phase 2c — the `users` table · **done 2026-08-27**
 
@@ -1903,7 +1914,10 @@ one current sitting each and a retake updates it in place, which is what
 `user_intake`'s one-row-per-user and a profile-document key gave them before.
 `core` is excluded because its sittings are append-only. That index is also what
 replaced `get_or_create_user_intake`'s cheap-collision trick: a concurrent double
-submit now collides on the constraint before the LLM call rather than after it.
+submit now collides on the constraint, and `open_current` re-reads and uses the
+winner's row. Since G1 that happens after the LLM call, not before it — Work Pulse
+narrates first and opens the row only once the reply is in, so no flushed INSERT is
+held across the provider round trip.
 
 **`assessment_forms` is load-bearing, not decoration.**
 `assessment_submissions (kind, form_version)` is a composite foreign key into it,

@@ -753,6 +753,9 @@ def update_extra_key(user_id: int, key: str, mutate: Callable[[Any], Any]) -> An
             absent, as ``document.get(key)`` would give -- to the value that
             should replace it. Re-run against a fresh read after every lost
             swap, so the same rules apply as to ``update_document``'s.
+            Returning None stores JSON ``null`` under the key; it never
+            deletes the key. :func:`read_extra_key_for_users` then lists that
+            user, with value None.
 
     Returns:
         The value that was written.
@@ -828,7 +831,12 @@ def update_extra_key(user_id: int, key: str, mutate: Callable[[Any], Any]) -> An
 def find_correction(
     user_id: int, resume_key: str, field: str
 ) -> Optional[ResumeParseCorrection]:
-    """Return the existing correction row for this (user, resume, field)."""
+    """Return the existing correction row for this (user, resume, field).
+
+    No production code calls this any more: :func:`record_resume_corrections`
+    upserts in one statement and never looks a row up first. Kept as a public
+    lookup for tests and tools.
+    """
     return ResumeParseCorrection.query.filter_by(
         user_id=user_id,
         resume_key=resume_key,

@@ -93,11 +93,11 @@ def _ago_dt(**kwargs):
 
 def _seed_checkin(user_id, *, taken_at=None):
     """Complete one check-in for *user_id* via the real `pulse_store` write
-    path -- the zero-check-in gate reads `pulse_store.latest_pulse_checkin`,
-    not `pulse_settings`, so these tests need a real row, not a settings
-    fixture. `taken_at` optionally backdates the server-defaulted timestamp,
-    to control the never-prompted "one interval after the first check-in"
-    math."""
+    path -- the zero-check-in gate is `pulse_cadence_service._candidates`'
+    DISTINCT ON read of `pulse_checkins`, not `pulse_settings`, so these tests
+    need a real row, not a settings fixture. `taken_at` optionally backdates
+    the server-defaulted timestamp, to control the never-prompted "one interval
+    after the most recent check-in" math."""
     import pulse_store
     from model import db
     from work_pulse.pulse_items import FORM_VERSION, dimensions_for_checkin
