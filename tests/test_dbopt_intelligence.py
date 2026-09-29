@@ -571,12 +571,19 @@ def test_a_negative_idle_in_transaction_ceiling_is_rejected():
 
 def test_the_engine_accepts_the_options_it_builds(client):
     """The server takes the setting the options string sends (a typo in a
-    ``-c`` option fails the connection, not a test)."""
+    ``-c`` option fails the connection, not a test). The expected value comes
+    from the same Settings the app built, so a developer with the variable set
+    in their OS environment does not fail it."""
     from app import app
     from model import db
+    from solverah.config import Settings
 
     with app.app_context():
         value = db.session.execute(
-            sa.text("SHOW idle_in_transaction_session_timeout")
+            sa.text(
+                "SELECT setting::int FROM pg_settings"
+                " WHERE name = 'idle_in_transaction_session_timeout'"
+            )
         ).scalar_one()
-    assert value == "5min"
+    expected = Settings.from_env().db_idle_in_transaction_timeout_ms
+    assert value == expected

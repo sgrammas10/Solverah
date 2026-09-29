@@ -455,11 +455,14 @@ class Settings:
         # transaction (DB ledger I). 0 turns it off, which is Postgres's own
         # "disabled". The default has to clear the longest network wait still
         # made inside an open transaction, or Postgres would kill a session in
-        # the middle of legitimate work: that is intake sign-up's S3 head +
-        # fetch + resume parse (~115 s worst case, retries included), above the
-        # outbox's Resend call under its row lock (~60 s) -- the audit is in
-        # the DB-ledger Package I note. Five minutes is well clear of both and
-        # still bounds a leaked transaction, which today is bounded by nothing.
+        # the middle of legitimate work. The longest is the anonymous Work
+        # Pulse Lite teaser under eager Celery: the job's post-commit refresh
+        # opens a transaction and the OpenAI call runs inside it (60 s x 3
+        # attempts, ~180 s). Next are intake sign-up's S3 head + fetch + resume
+        # parse (~115 s, retries included), the agent chat's resume fetch
+        # (~39 s) and the outbox's Resend call under its row lock (~30 s SDK
+        # timeout). Five minutes clears all of them and still bounds a leaked
+        # transaction. Do not lower it below ~180 s without revisiting these.
         db_idle_in_transaction_timeout = _read_int(
             env, "DB_IDLE_IN_TRANSACTION_TIMEOUT_MS", 300000, problems, minimum=0
         )
