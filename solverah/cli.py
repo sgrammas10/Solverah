@@ -161,8 +161,25 @@ def outbox_sweep(limit: int) -> None:
     show_default=True,
     help="Delete dead user_sessions rows older than this many days.",
 )
+@click.option(
+    "--path-fit-days",
+    default=30,  # path_fit_repository.MAX_AGE; ditto
+    show_default=True,
+    help="Delete stored path_fits rows computed more than this many days ago.",
+)
+@click.option(
+    "--narrative-days",
+    default=30,  # path_narrative_repository.MAX_AGE; ditto
+    show_default=True,
+    help="Delete stored path_narratives rows written more than this many days ago.",
+)
 def retention_run(
-    outbox_hours: int, scoring_days: int, resume_days: int, session_days: int
+    outbox_hours: int,
+    scoring_days: int,
+    resume_days: int,
+    session_days: int,
+    path_fit_days: int,
+    narrative_days: int,
 ) -> None:
     """Purge rows whose retention window has passed.  Deletes are narrow by design:
 
@@ -175,6 +192,10 @@ def retention_run(
       ``expires_at`` -- AND older than the window.  A live session is somebody
       signed in right now, and deleting one signs them out with no event
       anywhere saying why.
+    * path_fits / path_narratives (W-19): every row older than the window,
+      with no second condition.  Both tables already refuse to serve a row past
+      their repository's thirty-day ``MAX_AGE``, so nothing this deletes was
+      still readable at the default window.
 
     The sessions pass has two steps and the order is the point.  ``expire_stale``
     stamps ``retired_reason = 'expired'`` on rows whose ``expires_at`` has passed
@@ -188,11 +209,25 @@ def retention_run(
 
     ``user_sessions`` has two self-referencing foreign keys (parent/successor),
     both ``ON DELETE SET NULL``, so deleting an old row breaks a link and takes
-    nothing with it.  No other table references any of the four.
+    nothing with it.  No other table references any of the six.
 
     Prints what it deleted; exits non-zero only if the pass itself crashed.
     """
+    import datetime
+
+    from model import db
+    from solverah.repositories import path_fit_repository, path_narrative_repository
     from solverah.services import outbox, refresh_tokens, resume_jobs, scoring_jobs
+
+    # The two Path Intelligence repositories never commit (their package's
+    # rule), so this command owns that transaction.
+    path_fits_deleted = path_fit_repository.purge_older_than(
+        datetime.timedelta(days=path_fit_days)
+    )
+    narratives_deleted = path_narrative_repository.purge_older_than(
+        datetime.timedelta(days=narrative_days)
+    )
+    db.session.commit()
 
     summary = {
         "event": "retention_run",
@@ -205,6 +240,10 @@ def retention_run(
         "sessions_expired": refresh_tokens.expire_stale(),
         "sessions_deleted": refresh_tokens.purge_terminal(older_than_days=session_days),
         "session_window_days": session_days,
+        "path_fits_deleted": path_fits_deleted,
+        "path_fit_window_days": path_fit_days,
+        "path_narratives_deleted": narratives_deleted,
+        "narrative_window_days": narrative_days,
     }
     click.echo(json.dumps(summary))
 

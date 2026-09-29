@@ -13,6 +13,7 @@ Each test here fails against the pre-fix code:
 
 import datetime
 import io
+import os
 import re
 
 import pytest
@@ -158,7 +159,14 @@ def test_oversized_body_is_rejected(client):
 
 
 def test_send_test_has_no_credential_literals():
-    """send_test.py leaked live SMTP credentials as os.environ.get defaults."""
+    """send_test.py leaked live SMTP credentials as os.environ.get defaults.
+
+    The file was deleted in 26f2d60 ("removed unused files"), which settles the
+    leak for as long as it stays deleted. The checks below still run if a file
+    by that name ever comes back, so the credentials cannot return through it.
+    """
+    if not os.path.exists("send_test.py"):
+        return
     source = io.open("send_test.py", encoding="utf-8").read()
 
     for var in ("SMTP_USER", "SMTP_PASSWORD"):

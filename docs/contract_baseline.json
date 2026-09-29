@@ -1049,5 +1049,23 @@
     "mimetype": "application/json",
     "cookies_set": [],
     "body": "{\"anchor\":null,\"conditions\":[],\"status\":\"no_anchor\",\"tasks\":[]}\n"
+  },
+  {
+    "step": "queue-path-suggestions",
+    "method": "POST",
+    "path": "/api/v1/me/path-suggestion-jobs",
+    "status": 202,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"job_id\":\"<JID>\",\"status\":\"queued\",\"status_url\":\"/me/path-suggestion-jobs/<JID>\"}\n"
+  },
+  {
+    "step": "poll-path-suggestions-job",
+    "method": "GET",
+    "path": "/api/v1/me/path-suggestion-jobs/<JID>",
+    "status": 200,
+    "mimetype": "application/json",
+    "cookies_set": [],
+    "body": "{\"error\":\"corpus_unavailable\",\"job_id\":\"<JID>\",\"status\":\"failed\"}\n"
   }
 ]

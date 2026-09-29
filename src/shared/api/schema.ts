@@ -3396,7 +3396,7 @@ export interface components {
             narrative: string | null;
             /**
              * Onet Calls
-             * @description O*NET requests this fit cost. Four unless a call failed.
+             * @description O*NET requests this fit cost. Zero when the fit sidecar has the occupation (the normal case since W-9); otherwise four, unless a call failed.
              */
             onet_calls: number;
             /** Onet Code */
@@ -3415,7 +3415,7 @@ export interface components {
             tasks?: string[];
             /**
              * Tech Stack
-             * @description Hot technologies, most in-demand first.
+             * @description Hot technologies, most in-demand first, leaving out any already listed in matched_skills or gap_skills. A name O*NET spells out in full before its acronym shows as the acronym alone (for example 'HTML').
              */
             tech_stack?: string[];
             /** Title */

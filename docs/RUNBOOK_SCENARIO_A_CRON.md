@@ -30,7 +30,7 @@ its section below.
 | Command | Suggested schedule | Runtime | What it does |
 |---|---|---|---|
 | `flask outbox sweep` | every 5 minutes (`*/5 * * * *`) | native python | Retries unpublished outbox rows, respecting attempts + backoff. |
-| `flask retention run` | daily (`30 4 * * *`) | native python | Deletes delivered outbox rows older than 72h, terminal `scoring_jobs` older than 7d, terminal `resume_parse_jobs` older than 30d. |
+| `flask retention run` | daily (`30 4 * * *`) | native python | Deletes delivered outbox rows older than 72h, terminal `scoring_jobs` older than 7d, terminal `resume_parse_jobs` older than 30d, stored `path_fits` and `path_narratives` older than 30d. |
 | `flask backups run` | daily (`30 3 * * *`) | **docker** (`infra/docker/Dockerfile.backup`) | Dumps the database, verifies the artifact, uploads it off-platform, prunes past 30 days. |
 | `flask corpus refresh` | quarterly (`0 5 1 1,4,7,10 *`) | native python | Rebuilds the O*NET occupation corpus, writes its zone, cluster and card-summary sidecars, uploads all five to S3 under a new date-stamped key. **Does not put it into service** — see its section below. |
 
@@ -74,7 +74,7 @@ old flat design parked rows after ~4 minutes of outage). After try 8 the row
 ## Retention windows (`flask retention run`)
 
 Deletion requires **both** conditions; nothing else is ever touched, and no
-foreign key references any of the three tables (verified — deletes cannot
+foreign key references any of these tables (verified — deletes cannot
 cascade).
 
 | Table | Deleted when | Window (flag) | Why this window |
@@ -82,6 +82,13 @@ cascade).
 | `outbox` | delivered AND older | 72h (`--outbox-hours`) | addresses + one-time codes; OTPs expire in 15 min; 72h keeps a few days of "did it send?" forensics on a daily cadence |
 | `scoring_jobs` | terminal AND older | 7d (`--scoring-days`) | matches `scoring_jobs.PURGE_DAYS`; results live in `assessment_submissions` |
 | `resume_parse_jobs` | terminal AND older | 30d (`--resume-days`) | SECURITY_AUDIT_2026-09 #7 (name-bearing filenames, purgeless); 30d support window |
+| `path_fits` | older (`computed_at`) | 30d (`--path-fit-days`) | W-19; matches `path_fit_repository.MAX_AGE`, past which a fit is never served; `payload.matched_skills` is the user's typed skills |
+| `path_narratives` | older (`created_at`) | 30d (`--narrative-days`) | W-19; matches `path_narrative_repository.MAX_AGE`, past which a sentence is never served; `why_text` is prose about the person |
+
+The two Path Intelligence rows have one condition, not two: age alone, because
+their read rule already refuses anything past thirty days. The JSON summary
+reports them as `path_fits_deleted` / `path_fit_window_days` and
+`path_narratives_deleted` / `narrative_window_days`.
 
 Pending and **parked** outbox rows are never purged — they are email still
 owed. Queued/running job rows are never purged — old ones are the reapers'

@@ -479,13 +479,23 @@ class PathFitResponse(SolverahModel):
         default_factory=list, description="O*NET task statements, most important first."
     )
     tech_stack: List[str] = Field(
-        default_factory=list, description="Hot technologies, most in-demand first."
+        default_factory=list,
+        description=(
+            "Hot technologies, most in-demand first, leaving out any already "
+            "listed in matched_skills or gap_skills. A name O*NET spells out "
+            "in full before its acronym shows as the acronym alone (for "
+            "example 'HTML')."
+        ),
     )
     weights: Dict[str, float] = Field(
         default_factory=dict, description="The role/coverage/zone/style split used."
     )
     onet_calls: int = Field(
-        description="O*NET requests this fit cost. Four unless a call failed."
+        description=(
+            "O*NET requests this fit cost. Zero when the fit sidecar has the "
+            "occupation (the normal case since W-9); otherwise four, unless a "
+            "call failed."
+        )
     )
     narrative: Optional[str] = Field(
         default=None,

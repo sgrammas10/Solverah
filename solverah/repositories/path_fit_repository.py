@@ -32,6 +32,7 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional
 
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from model import PathFit, db
@@ -41,6 +42,7 @@ __all__ = [
     "delete_for_user",
     "fingerprint",
     "invalidate",
+    "purge_older_than",
     "read",
     "store",
 ]
@@ -176,6 +178,22 @@ def delete_for_user(user_id: int) -> None:
     skill names, and free text is never retained de-identified.
     """
     PathFit.query.filter_by(user_id=user_id).delete()
+
+
+def purge_older_than(max_age: datetime.timedelta = MAX_AGE) -> int:
+    """Delete fits computed more than *max_age* ago, for every user.  Returns the count.
+
+    The other half of :func:`read`'s age rule: a row past :data:`MAX_AGE` is
+    never served, only overwritten if its user comes back to that card, so one
+    whose user never does is retention with no reader -- and
+    ``payload.matched_skills`` is the user's own typed skill names.  Run from
+    ``flask retention run`` (W-19).  Does not commit -- the command owns the
+    transaction.
+    """
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - max_age
+    table = PathFit.__table__
+    result = db.session.execute(sa.delete(table).where(table.c.computed_at < cutoff))
+    return result.rowcount or 0
 
 
 def list_for_user(user_id: int) -> List[PathFit]:

@@ -202,6 +202,19 @@ The last two steps are a third account with no profile, on its own client. Its
 registration and login are deliberately NOT captured -- those three responses are
 already pinned for EMAIL at the top of this scenario.
 
+**Extended for W-19 (2026-09-29): the path-suggestion job pair.** A new surface,
+not a change to any existing one -- every record above keeps its position.
+Verified after the recapture: **0 differences across 113 responses**, and the
+baseline diff is the two appended records and nothing else. `POST
+/me/path-suggestion-jobs` had no step, so DB ledger Package I's defect -- the
+eager-mode 202 reading the job's terminal status instead of `queued` -- went
+unseen here. `_remove_panel_corpus` first puts the environment back to no
+corpus, so the job reads everything, ends its read transaction (the rollback
+that expired the route's row), and fails on the corpus with the typed
+`corpus_unavailable`: deterministic, and the poll records it. Proven to catch
+the defect: with `detach_before_run` taken off `create_path_suggestions`, verify
+reports exactly one difference, `queue-path-suggestions`, `queued` -> `failed`.
+
 **Not captured, and the reason is the environment rather than the chunk:**
 `reasons` on a suggestion card. It is on `PathSuggestion` in `docs/openapi.json`,
 but reaching a non-empty `suggestions` payload here needs a scoring run and the
@@ -626,9 +639,38 @@ def _install_panel_corpus() -> None:
 
     corpus = occupation_retrieval.get_corpus()
     row = corpus.index_of(PANEL_ANCHOR_CODE)
+    _PANEL_SAVED["get_openai_client"] = llm.get_openai_client
     llm.get_openai_client = lambda: _FixedEmbedder(
         [float(value) for value in corpus.matrix[row]]
     )
+
+
+#: What `_install_panel_corpus` replaced, so `_remove_panel_corpus` can put it back.
+_PANEL_SAVED: Dict[str, Any] = {}
+
+
+def _remove_panel_corpus() -> None:
+    """Undo `_install_panel_corpus`: no corpus, and the real OpenAI factory again.
+
+    For the W-19 block, which must run in the state every step before the panel
+    block ran in -- the CI runner's state. With the panel corpus and its fixed
+    embedder still installed, a path-suggestion job would score for real, reach
+    O*NET with a placeholder key, and start the narrator on a thread, and none of
+    that produces stable bytes.
+    """
+    from backend.services import (
+        occupation_conditions,
+        occupation_retrieval,
+        occupation_tasks,
+    )
+    from solverah.infra import llm
+
+    os.environ.pop("SOLVERAH_CORPUS_PATH", None)
+    occupation_retrieval.reset_corpus_cache()
+    occupation_tasks.reset_tasks_cache()
+    occupation_conditions.reset_conditions_cache()
+    if "get_openai_client" in _PANEL_SAVED:
+        llm.get_openai_client = _PANEL_SAVED.pop("get_openai_client")
 
 
 def _seed_company(db) -> None:
@@ -1586,6 +1628,38 @@ def run_scenario() -> List[Dict[str, Any]]:
         no_job.put("/api/v1/me/path-wants", json=panel_body, headers=no_job_csrf),
         "PUT",
         "/api/v1/me/path-wants",
+    )
+
+    # -- the path-suggestion job pair (W-19) ---------------------------------
+    #
+    # Appended last, so every record above keeps its position. The only way
+    # suggestions are computed since 3c had no step until now, which is why the
+    # DB ledger Package I defect -- the eager-mode 202 saying the terminal
+    # status instead of "queued" -- was invisible here and caught only in
+    # review. EMAIL again, on `mp_csrf`'s session.
+    #
+    # Back to no corpus first, the state the CI runner is in. The job then runs
+    # past the reads -- career status set, skills on file, wants stored -- ends
+    # its read transaction (the rollback that expired the route's row), and fails
+    # on the corpus with the typed `corpus_unavailable`. That rollback is the
+    # point: a job that failed earlier would leave the row loaded and the 202
+    # would say "queued" with or without the fix.
+    #
+    # THE 202 MUST SAY "queued" EVEN THOUGH THE JOB HAS ALREADY FINISHED. Under
+    # eager execution the job runs inside the POST, so the poll that follows is
+    # already terminal: `failed`, `corpus_unavailable`, no `result`.
+    _remove_panel_corpus()
+    suggestion_job = call(
+        "queue-path-suggestions",
+        "POST",
+        "/api/v1/me/path-suggestion-jobs",
+        headers=mp_csrf,
+    )
+    suggestion_job_id = suggestion_job.get_json()["job_id"]
+    call(
+        "poll-path-suggestions-job",
+        "GET",
+        "/api/v1/me/path-suggestion-jobs/%s" % suggestion_job_id,
     )
 
     return records

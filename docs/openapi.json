@@ -3529,7 +3529,7 @@
             "title": "Narrative"
           },
           "onet_calls": {
-            "description": "O*NET requests this fit cost. Four unless a call failed.",
+            "description": "O*NET requests this fit cost. Zero when the fit sidecar has the occupation (the normal case since W-9); otherwise four, unless a call failed.",
             "title": "Onet Calls",
             "type": "integer"
           },
@@ -3555,7 +3555,7 @@
             "type": "array"
           },
           "tech_stack": {
-            "description": "Hot technologies, most in-demand first.",
+            "description": "Hot technologies, most in-demand first, leaving out any already listed in matched_skills or gap_skills. A name O*NET spells out in full before its acronym shows as the acronym alone (for example 'HTML').",
             "items": {
               "type": "string"
             },
