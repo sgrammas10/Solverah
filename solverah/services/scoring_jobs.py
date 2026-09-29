@@ -155,6 +155,7 @@ def _create(
     user_id: Optional[int],
     kind: Optional[str],
     payload: Dict[str, Any],
+    detach_before_run: bool = False,
 ) -> ScoringJob:
     """Insert the row, commit it, then ask a worker for it.
 
@@ -162,6 +163,15 @@ def _create(
     both use: a worker that receives the message before the row is visible finds
     nothing, and the answer to "what if the enqueue fails" has to be a row a
     sweep can find rather than a message that was never sent.
+
+    *detach_before_run* keeps the returned row as it was just committed. With
+    eager Celery the job runs inline in THIS session; the path-suggestion scoring
+    ends its read transaction before every network call (DB ledger Package I),
+    and that rollback expires the route's row, which would then reload after the
+    run and answer the 202 with the terminal status instead of "queued" -- an
+    extra SELECT and a changed body. Assessments do NOT pass it: their recorded
+    eager-mode 202 has always said the terminal status (contract baseline), and
+    the Package I ruling on this function keeps that as it is.
     """
     job = ScoringJob(
         user_id=user_id,
@@ -172,11 +182,14 @@ def _create(
     )
     db.session.add(job)
     db.session.commit()
+    job_id = job.id  # the post-commit refresh; loads every column
+    if detach_before_run:
+        db.session.expunge(job)
 
     from solverah.infra.queue import enqueue
     from solverah.tasks.scoring_tasks import run_scoring_job
 
-    enqueue(run_scoring_job, job.id)
+    enqueue(run_scoring_job, job_id)
     return job
 
 
@@ -200,7 +213,13 @@ def create_assessment(
 
 def create_path_suggestions(user: User) -> ScoringJob:
     """Queue one path-suggestion scoring for *user*."""
-    return _create(job_type=PATH_SUGGESTIONS, user_id=user.id, kind=None, payload={})
+    return _create(
+        job_type=PATH_SUGGESTIONS,
+        user_id=user.id,
+        kind=None,
+        payload={},
+        detach_before_run=True,
+    )
 
 
 # ---------------------------------------------------------------------------

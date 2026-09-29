@@ -299,6 +299,31 @@ def test_the_scoring_job_holds_no_transaction_across_its_network_calls(
     assert _labels_open(seen) == []
 
 
+def test_the_202_still_says_queued_and_does_not_reload_the_job(
+    client, panel, corpus, monkeypatch
+):
+    """Regression (Package I review): with eager Celery the job runs inline in
+    the route's session, and the scoring path's pre-network rollback expired the
+    route's `job`. The route then reloaded the row and answered the 202 with the
+    job's terminal status ("succeeded") instead of "queued"."""
+    _store_a_want()
+    seen = []
+    _record_corpus(monkeypatch, corpus, seen)
+    _record_scorer(monkeypatch, seen)
+    monkeypatch.setattr(ps, "resolve_anchor_code",
+                        _recording(seen, "resolve_anchor_code", DEV_CODE))
+
+    with _statements() as statements:
+        resp = client.post("/api/v1/me/path-suggestion-jobs",
+                           headers={"X-CSRF-TOKEN": panel})
+    assert resp.status_code == 202
+    assert resp.get_json()["status"] == "queued", resp.get_json()
+    assert len(_reads_of(statements, "scoring_jobs")) == 1, statements
+    # The job itself still ran to completion.
+    job = client.get("/api/v1" + resp.get_json()["status_url"]).get_json()
+    assert job["status"] == "succeeded", job
+
+
 def test_a_tap_holds_no_transaction_and_never_reloads_the_user(
     client, panel, corpus, monkeypatch
 ):
