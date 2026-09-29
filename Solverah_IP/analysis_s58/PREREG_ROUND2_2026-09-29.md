@@ -173,3 +173,96 @@ be wide. Under (a) it depends on how many packets volunteers actually complete.
 | **(a) new blind raters (volunteers)** | human-human: the standard D-12 was built for | recruiting; each packet took round-1 raters hours, and two per packet is the minimum | volunteers drop out, and a packet with one rater has no ceiling. Round 1 showed blind lawyers at Pearson -0.195, so the ceiling may be low, which makes the finish line easy to meet and weak |
 | **(b) Julie alone + test-retest** | Julie vs her own earlier reading | Julie's time: one packet per sitting, async, about 10 packets plus 3 retests weeks apart | she recognised 3 of 6 companies in round 1 and wrote the anchors, so this validates the LLM against the author's reading, not a naive reader's. Memory of her own scores inflates her consistency, which makes the finish line HARDER for the LLM. D-12(b) excludes her from the ambiguity flag on authorship grounds, and using her as the validation reference is a different use you would need to confirm |
 | **(c) defer humans; LLM only on P-07..P-13** | none | 21 calls (7 packets x 3), cost quoted before running | scores without validation. Only the section-6 LLM-only statistics (floor usage, abstention rate, dispersion) are available |
+
+---
+
+## ADDENDUM A1 -- 2026-09-29: the rater question answered (option d)
+
+**Written the same day, before any round-2 rating, scoring or call.** It records Sebastian's
+answer to the rater question and what that answer changes. Sections 1-9 stand unless this
+addendum says otherwise.
+
+**Sebastian's decision:** "I should be the rater... I can put in the necessary time and effort
+to make it as accurate as possible. We can also send Julie 1-2 out of every group to make
+sure her knowledge is still being used." He then chose 2 per group.
+
+### A1.1 Who rates
+
+| letter | who | role | rates |
+|---|---|---|---|
+| **D** | Sebastian | `reference`: not blind, not the rubric's original author | every round-2 packet |
+| **A** | Julie | `expert` (as in round 1) | 2 packets per group, drawn at random (A1.3) |
+
+`rater_agreement.RATER_ROLES` gains `"D": "reference"`. D never enters the D-12 blind flag
+or `expert_divergence`. With no blind raters in round 2, the D-12 ambiguity flag has nothing
+to compute over. Round 2 is analysed by the finish line below, not by that flag.
+
+### A1.2 What the finish line now compares
+
+- **Primary:** `D_llm` = mean over cells of d(LLM, D), over all packets.
+- **Ceiling:** `D_ceiling` = mean over cells of d(D, A), over the overlap packets only. That
+  is the only human-vs-human agreement in the design.
+- **Secondary, descriptive:** d(LLM, A) on the overlap packets, a direct LLM-vs-expert
+  reading, reported beside d(D, A).
+- The margin (+0.25 band), the coverage guard (10 points), the bootstrap and the verdict rules
+  are exactly as in section 5. `D_llm` and `D_ceiling` come from different packet sets, so
+  they are bootstrapped independently, as section 5 already specifies for (b).
+- **No Sebastian test-retest.** He chose every company and would remember his own scores, so
+  a retest would mostly measure memory. It was considered and left out, deliberately.
+
+### A1.3 Julie's packets are drawn, not chosen
+
+- **Group 1 = P-07..P-13.** Drawn 2026-09-29, before any rating:
+  `sorted(random.Random(20260929).sample(["P-07","P-08","P-09","P-10","P-11","P-12","P-13"], 2))`
+  gives **P-10 and P-11**.
+- **Group 2 = P-14..P-19.** Same rule and seed, over the six packet ids, drawn on the day all
+  six have passed `Scripts/verify_scrub.py`, and recorded here as a dated line before either
+  rater opens a group-2 packet. If fewer than six ever pass, group 2 is whatever has passed by
+  the day Sebastian starts rating it, and the draw is over that list.
+- **Limitation, recorded:** Sebastian knows which packets Julie will see. If that changes how
+  carefully he rates them, D's agreement on the overlap packets is not representative of D's
+  agreement elsewhere. Nothing here can detect that; it is stated so it is not forgotten.
+
+### A1.4 What this design can and cannot show
+
+**Sebastian is not blind, in the strongest sense available.** He chooses every company by
+hand for **pole coverage** (`ground_truth/_build_env/to_be_researched.txt`), so he knows which
+company each packet is and which pole he expected it to show when he chose it. So:
+
+- A PASS means **"the LLM agrees with the project owner's careful reading of the packet at
+  least as well as the owner and the domain expert agree with each other."** It does not mean
+  "the LLM agrees with a naive reader". Round 2 cannot measure that.
+- The reading is only as good as D's independence from his own selection priors. A1.5 is
+  the check on that.
+
+### A1.5 Expectation-leak diagnostic (pre-registered, descriptive, no verdict)
+
+For every cell on the overlap packets, take the roster's **pre-scoring expected pole** for that
+company and dimension, where the roster gives one. Report, for each of D, A and the LLM, the
+share of those cells where the reading sits on the expected side of 0.5 (band index 0-1 for a
+low-pole expectation, 3-4 for a high one).
+
+- **Reading, fixed now:** if D's share exceeds A's by **20 points or more**, the result is
+  reported as **"the reference may carry selection priors"**, and every round-2 finding is
+  presented with that caveat attached, not buried under it.
+- With 12-24 cells this is weak evidence either way, and it is described that way. It needs the
+  roster's expected poles for P-07..P-19, which Sebastian supplies. **The roster must not be
+  opened by D during rating (A1.6).**
+
+### A1.6 Independence and order: equivalence gates added to section 7
+
+5. **Neither rater sees the other's scores, or any LLM output for that packet, before
+   submitting their own.**
+6. **The LLM runs on a packet only after D's submission for it exists.** The analysis checks
+   that D's `submitted_at` is earlier than the LLM run's `run_at`. A packet that fails is
+   reported as "not comparable" and kept out of the finish line.
+7. **While rating, D does not open the roster, the research queue or `PIPELINE_LOG.md`.** This
+   cannot be verified. It is a protocol commitment, recorded as one.
+8. **Recognition is answered honestly on every sitting.** D will answer "recognised" on every
+   packet, and that is expected. A's answers are data, as in round 1 (D-09).
+
+### A1.7 Power, restated
+
+2 + 2 overlap packets gives 24 cells for the ceiling, so its CI will be very wide. **The
+expected verdict is INCONCLUSIVE.** An inconclusive round 2 is not a failed LLM. It means round
+3 needs more overlap.

@@ -128,6 +128,17 @@ def classify_source(attribution: str, byline: str = None) -> str:
             or "company careers" in a or "company code" in a or "job posting" in a
             or "company values" in a or "attributed on the page" in a):
         return "company"
+    # 2026-09-29: attribution tags from collector v4.7-v4.11 that the branches above predate.
+    # Appended AFTER every earlier branch, so they can only classify what used to be
+    # "unknown": no P-01..P-06 excerpt can move (test_scorer_pipeline pins those counts).
+    # Classes follow SOURCE_CLASS_RULING.md's table. causal_graph/scorer_pipeline.py carries
+    # the same block and must move with this one.
+    if ("company press release" in a       # executives quoted in a release, or news relaying one
+            or "company-published" in a    # corporate-voice article, no employee byline
+            or "employer response" in a):  # the table names employer responses explicitly
+        return "company"
+    if "news reporting" in a or "television news" in a or "local news" in a:
+        return "noncompany"                # independent press; see the ruling note of 2026-09-29
     return "unknown"
 
 
@@ -839,6 +850,7 @@ function payload(){
   return JSON.stringify({
     packet_id: state.packet_id, rater: state.rater,
     rubric_version: state.rubric_version, anchors_hash: CFG._anchors_hash || null,
+    packet_sha256: CFG._packet_sha256 || null,
     session_start: state.session_start, submitted_at: state.submitted_at,
     duration_seconds: state.duration_seconds, commit_order: state.commit_order,
     recognition: state.recognition, recognition_detail: state.recognition_detail,
@@ -941,6 +953,12 @@ if(!STORAGE_OK){
 """
 
 
+def packet_sha256(path: pathlib.Path) -> str:
+    """sha256 of a packet file with CRLF folded to LF. causal_graph/run_round2_scoring.py
+    computes the same value for the LLM side; the two must stay identical."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--packet", required=True, help="scrubbed packet .txt")
@@ -975,6 +993,12 @@ def main():
     _hashable = {k: v for k, v in cfg.items() if not k.startswith("_")}
     cfg["_anchors_hash"] = hashlib.sha256(
         json.dumps(_hashable, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()[:12]
+    # Which packet FILE this page was built from (round-2 equivalence gate 1: a rater reading
+    # and an LLM run are comparable only on byte-identical packets). The whole file, not the
+    # rater-facing slice, because the LLM scores a different slice of the same file; CRLF is
+    # folded because git's autocrlf makes line endings a checkout artefact on this machine.
+    # Underscore-prefixed, so the anchors hash above is unaffected.
+    cfg["_packet_sha256"] = packet_sha256(pathlib.Path(a.packet))
 
     packet_html, pstats = build_packet_markup(packet_raw)
     if pstats["unknown"]:

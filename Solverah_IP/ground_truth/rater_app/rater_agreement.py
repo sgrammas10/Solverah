@@ -74,6 +74,10 @@ RATER_ROLES: dict[str, str] = {
     "A": "expert",  # Julie -- partner, domain expert, author of anchors.json
     "B": "blind",   # Carolynn -- lawyer
     "C": "blind",   # George -- lawyer
+    # Sebastian, round 2 (PREREG_ROUND2_2026-09-29.md addendum A1). Not blind -- he chose
+    # every company for pole coverage -- and not the rubric's author, so neither 'blind' nor
+    # 'expert': he never enters the D-12 flag or expert_divergence.
+    "D": "reference",
 }
 
 AMBIGUITY_BAND_DISTANCE = 2  # from anchors.json agreement_rule: two_or_more_bands_apart
@@ -220,11 +224,15 @@ class Cell:
     # rater letter -> band index, or None where that rater recorded insufficient evidence
     blind: dict[str, int | None] = field(default_factory=dict)
     expert: dict[str, int | None] = field(default_factory=dict)
+    # Round 2's reference rater (D). Carried, never part of the flag or expert_divergence --
+    # a second non-blind rater in `expert` would make expert_divergence pick one silently.
+    reference: dict[str, int | None] = field(default_factory=dict)
 
     @property
     def skipped_by(self) -> list[str]:
-        """Every rater (blind or expert) who recorded insufficient evidence on this cell."""
-        return sorted(r for r, b in {**self.blind, **self.expert}.items() if b is None)
+        """Every rater (any role) who recorded insufficient evidence on this cell."""
+        return sorted(r for r, b in {**self.blind, **self.expert, **self.reference}.items()
+                      if b is None)
 
     @property
     def blind_spread(self) -> int | None:
@@ -286,7 +294,8 @@ def build_cells(readings: list[Reading]) -> list[Cell]:
         cell = cells.setdefault(
             (r.packet_id, r.dimension), Cell(r.packet_id, r.dimension)
         )
-        target = cell.blind if r.role == "blind" else cell.expert
+        target = {"blind": cell.blind, "expert": cell.expert,
+                  "reference": cell.reference}[r.role]
         target[r.rater] = r.band
     return [cells[k] for k in sorted(cells)]
 

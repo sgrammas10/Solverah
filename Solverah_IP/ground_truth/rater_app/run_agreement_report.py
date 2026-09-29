@@ -52,7 +52,8 @@ from rater_agreement import (
 import three_way_dispersion as twd
 
 EXPECTED_PACKETS = [f"P-0{n}" for n in range(1, 7)]
-EXPECTED_RATERS = list(RATER_ROLES)  # ["A", "B", "C"]
+# Round 1's raters. Not list(RATER_ROLES): round 2 added D, which round 1 never had.
+EXPECTED_RATERS = ["A", "B", "C"]
 
 
 def find_returned_files(returned_dir: Path) -> list[Path]:

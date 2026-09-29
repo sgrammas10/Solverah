@@ -74,6 +74,10 @@ from rater_agreement import (  # noqa: F401  (band_index re-exported for tests)
 # pair the S-15 flag computes over. Dropping any of these is a defect, not a simplification --
 # the whole point of the diagnostic is the pairs the flag cannot see.
 PAIRS: tuple[tuple[str, str], ...] = (("A", "B"), ("A", "C"), ("B", "C"))
+# The three raters this diagnostic is about -- round 1's A, B, C. Deliberately NOT
+# set(RATER_ROLES): round 2 added a reference rater (D), and "complete" must keep meaning
+# "all three round-1 readers present", or every round-1 cell turns incomplete.
+THREE_WAY_RATERS = frozenset(r for pair in PAIRS for r in pair)
 
 # Frozen output schema. Tests assert these exact key sets so that a later edit cannot quietly
 # grow a `needs_review` (or any other flag-shaped) key -- the guard as an executable test.
@@ -122,13 +126,14 @@ def split_three_way_cells(
     """
     grouped: dict[tuple[str, str], dict[str, int | None]] = {}
     for r in readings:
-        grouped.setdefault((r.packet_id, r.dimension), {})[r.rater] = r.band
+        if r.rater in THREE_WAY_RATERS:
+            grouped.setdefault((r.packet_id, r.dimension), {})[r.rater] = r.band
 
     complete: list[ThreeWayCell] = []
     incomplete = skipped = 0
     for key in sorted(grouped):  # canonical order -- guard clause 3
         bands = grouped[key]
-        if not set(bands) >= set(RATER_ROLES):
+        if not set(bands) >= THREE_WAY_RATERS:
             incomplete += 1
         elif any(b is None for b in bands.values()):
             skipped += 1

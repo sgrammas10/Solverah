@@ -3,8 +3,9 @@
   "rater": "A",
   "rubric_version": "v3.1-PROPOSED-2026-09-29",
   "anchors_hash": "3e270b206116",
-  "session_start": "2026-09-29T19:09:04.808Z",
-  "submitted_at": "2026-09-29T19:09:04.836Z",
+  "packet_sha256": "3b051b480c9d905b56fe59d5be6d8356497221d39ce9ddbd93b671a0c55c0d1d",
+  "session_start": "2026-09-29T19:43:36.857Z",
+  "submitted_at": "2026-09-29T19:43:36.894Z",
   "duration_seconds": 0,
   "commit_order": [
     "autonomy",
@@ -33,7 +34,7 @@
         }
       ],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.827Z",
+      "committed_at": "2026-09-29T19:43:36.884Z",
       "commit_position": 1,
       "source_mix": {
         "company": 1,
@@ -59,7 +60,7 @@
         }
       ],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.828Z",
+      "committed_at": "2026-09-29T19:43:36.885Z",
       "commit_position": 2,
       "source_mix": {
         "company": 1,
@@ -85,7 +86,7 @@
         }
       ],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.828Z",
+      "committed_at": "2026-09-29T19:43:36.886Z",
       "commit_position": 3,
       "source_mix": {
         "company": 1,
@@ -111,7 +112,7 @@
         }
       ],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.829Z",
+      "committed_at": "2026-09-29T19:43:36.887Z",
       "commit_position": 4,
       "source_mix": {
         "company": 1,
@@ -137,7 +138,7 @@
         }
       ],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.830Z",
+      "committed_at": "2026-09-29T19:43:36.888Z",
       "commit_position": 5,
       "source_mix": {
         "company": 1,
@@ -156,7 +157,7 @@
       "confidence": null,
       "quotes": [],
       "note": "",
-      "committed_at": "2026-09-29T19:09:04.833Z",
+      "committed_at": "2026-09-29T19:43:36.893Z",
       "commit_position": 6,
       "insufficient_evidence": true,
       "source_mix": {

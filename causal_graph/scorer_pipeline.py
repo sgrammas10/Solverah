@@ -74,6 +74,9 @@ else:
 ANCHORS_PATH = REPO_IP / "ground_truth" / "rater_app" / "anchors.json"
 
 VALID_PACKETS = ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06"]
+# Round 2 (PREREG_ROUND2_2026-09-29.md). Kept apart from VALID_PACKETS, which the round-1
+# tests parametrize over and pin to collector build v4.6.
+ROUND2_PACKETS = [f"P-{n:02d}" for n in range(7, 20)]
 DIMENSIONS = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"]
 SCORE_BAND_VALUES = [0.1, 0.3, 0.5, 0.7, 0.9]
 CONFIDENCE_BAND_VALUES = [0.1, 0.3, 0.6, 0.9]
@@ -86,8 +89,8 @@ BACKOFF_BASE_SECONDS = 2.0
 
 
 def packet_path_for(packet_id: str) -> Path:
-    if packet_id not in VALID_PACKETS:
-        raise ValueError(f"packet must be one of {VALID_PACKETS}, got {packet_id!r}")
+    if packet_id not in VALID_PACKETS + ROUND2_PACKETS:
+        raise ValueError(f"packet must be one of {VALID_PACKETS + ROUND2_PACKETS}, got {packet_id!r}")
     return REPO_IP / "ground_truth" / "anonymization" / f"{packet_id}_packet_ANON.txt"
 
 
@@ -232,6 +235,13 @@ def classify_source(attribution: str, byline: Optional[str] = None) -> str:
             or "company careers" in a or "company code" in a or "job posting" in a
             or "company values" in a or "attributed on the page" in a):
         return "company"
+    # 2026-09-29: same appended block as build_rater_page.classify_source -- v4.7-v4.11 tags.
+    # After every earlier branch, so only former "unknown" excerpts can be classified by it.
+    if ("company press release" in a or "company-published" in a
+            or "employer response" in a):
+        return "company"
+    if "news reporting" in a or "television news" in a or "local news" in a:
+        return "noncompany"
     return "unknown"
 
 

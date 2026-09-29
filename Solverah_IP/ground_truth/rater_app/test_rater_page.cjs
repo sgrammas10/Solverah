@@ -225,6 +225,8 @@ const insuffLabel=(w,key)=>w.document.querySelector("#dim_"+key+" .band.insuff")
   check("payload scored rows: numbers, no skip key",
         scored.every(r=>typeof r.score==="number" && typeof r.confidence==="number" && !("insufficient_evidence" in r)));
   check("payload carries the v3.1 hash", p.anchors_hash===w.eval("CFG._anchors_hash"));
+  check("payload carries the packet file hash (equivalence gate 1)",
+        /^[0-9a-f]{64}$/.test(p.packet_sha256) && p.packet_sha256===w.eval("CFG._packet_sha256"), p.packet_sha256);
   if(PAYLOAD_OUT){ fs.writeFileSync(PAYLOAD_OUT, JSON.stringify(p,null,2)+"\n"); }
 }
 
