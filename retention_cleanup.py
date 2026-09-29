@@ -93,16 +93,26 @@ def run_cleanup(dry_run_sweep: bool = False) -> dict:
         # intakes are governed by account deletion instead. One anti-join
         # finds them, where this used to ask `users` once per stale row, and
         # only the two columns the loop reads come back.
+        #
+        # The age filter is served by ix_intake_submissions_created_at, and the
+        # intake side of the email match is `IntakeSubmission.email_key`, the
+        # one expression every intake email lookup uses.
         cutoff = now - datetime.timedelta(days=ABANDONED_INTAKE_DAYS)
         has_account = (
             select(User.id)
-            .where(func.lower(User.email) == func.lower(IntakeSubmission.email))
+            .where(func.lower(User.email) == IntakeSubmission.email_key)
             .exists()
         )
         stale = db.session.execute(
             select(IntakeSubmission.id, IntakeSubmission.resume_key)
             .where(IntakeSubmission.created_at < cutoff, ~has_account)
         ).all()
+        # End the read's transaction before any storage call. Nothing has been
+        # written yet, so this discards nothing; it stops the connection sitting
+        # idle in a transaction through one R2 delete per stale row, which the
+        # server's idle-in-transaction timeout would kill. The DELETE below opens
+        # a fresh transaction once every object's outcome is known.
+        db.session.rollback()
 
         s3 = None
         bucket = os.environ.get("S3_BUCKET_NAME")
@@ -185,6 +195,10 @@ def _sweep_orphans(now, bucket, get_s3_client, db,
 
     referenced = _referenced_resume_keys(db, IntakeSubmission,
                                          ResumeParseCorrection, User)
+    # Every database read this rule needs is done. Close the read-only
+    # transaction before the bucket listing and its deletes, which are unbounded
+    # and would otherwise hold the connection idle in a transaction throughout.
+    db.session.rollback()
     cutoff = now - datetime.timedelta(hours=ORPHAN_GRACE_HOURS)
     s3 = get_s3_client()
 

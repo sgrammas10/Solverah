@@ -31,6 +31,46 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-28 operator note — not a harvest entry
+
+Written by hand at ~19:35 EDT, after the harvest entry below.
+
+**The P-13 Schneider National run was never dead. It was waiting on Sebastian's approval.**
+It opened its `RUN_REPORT.md` at 2026-09-23 12:22 UTC, then sat on an unanswered approval
+prompt in Claude Desktop for five days. Every harvest from 09-24 on read that correctly as
+`IN PROGRESS` and deferred; the escalating "crashed session" wording was a misreading. On
+2026-09-28 at ~19:30 EDT Sebastian moved the old report to
+`_to_delete/P-13_RUN_REPORT_ABORTED_2026-09-23.md` and accepted the prompt. The session
+resumed at 23:32 UTC and **is building P-13 now**, under v4.11. The `ABORTED` in that filename
+is wrong — the run was not aborted — but the file is kept as the only record of 09-23's start.
+
+**The resumed session's report says the harvest "does not appear to have fired" 09-23 → 09-28.
+It did** — 09-24, 09-25, 09-26 and 09-28 entries below, each correctly leaving the report
+alone. The research session cannot see this log, so it read an untouched report as a missed
+harvest.
+
+**Nothing was lost.** No evidence was collected before the wait, so resuming does not break
+Rule Zero. Both lists are unchanged, with P-13 still on top of `to_be_researched.txt` and
+`to_be_scrubbed.txt` empty.
+
+**Brief changes, made the same evening, per Sebastian: "if one has been running for that long
+it's just waiting for approval on a site; no more run until that one is done."**
+- `HARVEST_BRIEF.md` step 3: an `IN PROGRESS` report has **no age limit** and is never moved
+  for being old. Past 24h, the entry's first line is an `ACTION` line telling Sebastian to open
+  the Company Research task and answer its prompt, repeated every harvest until the report
+  changes.
+- `HARVEST_BRIEF.md` step 3: **a report with no status line is now treated as `IN PROGRESS`.**
+  The resumed P-13 report has none — it begins at an `INTERRUPTION` heading — and the old rule
+  (no status line + no packet → ABORTED, fold and delete) would have removed it mid-build.
+- `BUILD_BRIEF.md`: another session's `RUN_REPORT.md` in `packets/` means a live run waiting
+  on approval — stop, don't start a second company, don't touch the report. And the two status
+  lines stay first in the file always, including after an interruption.
+
+**Expect the next harvest to defer P-13** if the build is still running, with a flag for the
+missing status line. That is correct. If the finished session never writes a status line, the
+harvest will keep deferring. In that case a human checks the packet is there and adds
+`status  : COMPLETE` as the report's first line.
+
 ## 2026-09-28 harvest
 
 RESEARCH   deferred -- `_build_env/packets/RUN_REPORT.md` status line still reads `IN

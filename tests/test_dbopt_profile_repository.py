@@ -1087,10 +1087,11 @@ def test_has_intake_submission_is_an_exists_probe(users):
         with count_queries() as statements:
             present = profile_repository.has_intake_submission("Intake@Example.test")
         absent = profile_repository.has_intake_submission("nobody@example.test")
-        # Case-sensitive: the rule the docstring records until wave 3 normalises it.
+        # Case-insensitive since wave 3 normalised every intake email lookup to
+        # lower(email) (tests/test_dbopt_schema.py pins the expression and index).
         other_case = profile_repository.has_intake_submission("intake@example.test")
 
-    assert (present, absent, other_case) == (True, False, False)
+    assert (present, absent, other_case) == (True, False, True)
     assert len(statements) == 1
     assert "EXISTS" in statements[0].upper(), statements[0]
     assert "first_name" not in statements[0], "a whole row is loaded to test existence"

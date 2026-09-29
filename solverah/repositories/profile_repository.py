@@ -949,17 +949,21 @@ def user_ids_missing(extra_key: str, limit: int = 500) -> List[int]:
 def has_intake_submission(email: str) -> bool:
     """Whether a pre-launch intake submission exists for this address.
 
-    Case-sensitive, matching the original query.  ``IntakeSubmission.email`` is
-    stored as submitted, so an address that differs only in case reads as absent
-    -- a real bug, fixed by Phase 2's ``citext`` columns rather than by changing
-    the comparison here, since changing it would alter which dashboards show the
-    intake banner.
+    Case-insensitive, through ``IntakeSubmission.email_key`` -- the expression
+    the account export and deletion and the retention sweep compare, and the one
+    ``ix_intake_submissions_email_lower`` indexes.  ``IntakeSubmission.email`` is
+    stored as submitted, so the case-sensitive comparison this used until the DB
+    ledger's wave 3 read an address that differed only in case as absent, and
+    could use no index.  Both writers lower-case the address today, so the
+    change reaches only rows filed before they did.
 
     An ``EXISTS`` probe: the answer is one boolean, so no row is loaded to
     produce it.
     """
     return bool(
         db.session.execute(
-            sa.select(sa.exists().where(IntakeSubmission.email == email))
+            sa.select(
+                sa.exists().where(IntakeSubmission.email_key == sa.func.lower(email))
+            )
         ).scalar()
     )
