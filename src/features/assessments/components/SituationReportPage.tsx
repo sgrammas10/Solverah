@@ -41,12 +41,20 @@
  *                                 about the set of them, written once at A-7"
  *                                 (`situation_content.aligned_note_for`).
  *
- * LAYOUT (2026-09-28 redesign): summary first (`situation/ReportSummary`),
- * then each strained dimension as a compact card whose guidance sits behind
- * a disclosure (`situation/StrainCard`), in the server's order, then the
- * aligned dimensions grouped in one panel (`situation/AlignedList`). The
- * disclosure only hides; every piece of guidance stays in the DOM and a
- * printed report shows all of it.
+ * LAYOUT (2026-09-29 pass): the first screen answers "what's going on with me
+ * and this job" and nothing else -- the title, one lead line naming the most
+ * strained dimension, and every dimension as one compact row
+ * (`situation/DimensionCard`) in ONE list, in exactly the order the API sent.
+ * No grouping by bucket: a grouped rendering re-sorts the moment the server's
+ * tiers and the client's groups disagree. Depth is on demand -- a row opens
+ * to its diagnosis and its registers as tabs (`situation/RegisterTabs`), one
+ * route at a time. The disclosure only hides; every piece of guidance stays
+ * in the DOM and a printed report shows all of it.
+ *
+ * SAID ONCE. The privacy / fit-not-fault point is the server's
+ * `guidance_notice`, rendered once in the footer; "not advice to leave or
+ * stay" and the pin are one short line each beside it. Nothing else on the
+ * page restates them.
  *
  * THE PIN (⚑5) IS SURFACED, not hidden. The report reads the person side
  * through one named core sitting and stays there; a retake does not move it.
@@ -65,33 +73,32 @@ import {
   useSituationReport,
 } from "../useSituationReport";
 import type {
-  AlignedDimensionEntry,
   SituationComplete,
+  SituationDimensionEntry,
   SituationManagerSection,
   SituationReportEventSinceReport,
-  StrainDimensionEntry,
 } from "../useSituationReport";
 import { usePulseHistory } from "../usePulse";
 import type { PulseEventType } from "../usePulse";
 import { useExperiments } from "../useExperiments";
 import PulseSparkline from "./PulseSparkline";
 import { LEAD, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
-import AlignedList from "./situation/AlignedList";
+import DimensionCard from "./situation/DimensionCard";
 import { ExperimentsSection, type ExperimentsStatus } from "./situation/Experiments";
-import ReportSummary from "./situation/ReportSummary";
-import StrainCard from "./situation/StrainCard";
 import {
   BODY_MUTED,
   PANEL,
   QUIET_BUTTON,
   REPORT_H2,
   TEXT_LINK,
+  dimensionLabel,
+  splitFirstSentence,
 } from "./situation/format";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="min-h-screen bg-cream-base font-body text-ink-primary antialiased print:bg-white">
-      <div className="mx-auto w-full max-w-3xl space-y-10 px-6 pb-24 pt-10 md:pt-14 print:max-w-none print:px-0 print:pt-0">
+      <div className="mx-auto w-full max-w-3xl space-y-10 px-4 pb-24 pt-8 sm:px-6 md:pt-14 print:max-w-none print:px-0 print:pt-0">
         {children}
       </div>
     </main>
@@ -182,6 +189,10 @@ function ResubmissionBanner({ events }: { events: SituationReportEventSinceRepor
 // check-ins but a one-line invitation, a single dot at one, the line from two.
 // ---------------------------------------------------------------------------
 
+/** A small titled panel for the two side-by-side follow-ons under the list. */
+const SIDE_PANEL = `${PANEL} space-y-2.5 px-5 py-4 print:break-inside-avoid`;
+const SIDE_H2 = "font-headline text-[1.05rem] font-bold leading-snug text-ink-primary";
+
 function ExperiencedTrendSection() {
   const { data, isLoading } = usePulseHistory();
 
@@ -191,7 +202,8 @@ function ExperiencedTrendSection() {
 
   if (checkins.length === 0) {
     return (
-      <section className={`${PANEL} px-5 py-4 print:hidden`}>
+      <section className={`${SIDE_PANEL} print:hidden`}>
+        <h2 className={SIDE_H2}>How work's been working for you</h2>
         <p className={BODY_MUTED}>
           You haven't checked in on Pulse yet.{" "}
           <Link to="/pulse" className={TEXT_LINK}>
@@ -206,53 +218,41 @@ function ExperiencedTrendSection() {
   const points = [...checkins].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced }));
 
   return (
-    <section className="space-y-3 print:break-inside-avoid">
-      <h2 className={REPORT_H2}>How work's been working for you</h2>
-      <div className={`${PANEL} space-y-3 px-5 py-4`}>
-        <PulseSparkline ariaLabel="How work's working for you, over time" points={points} compact />
-        {points.length === 1 && (
-          <p className="text-[0.85rem] text-ink-secondary">
-            One check-in so far — the line fills in as you add more.
-          </p>
-        )}
-        <Link to="/pulse/trend" className={`${TEXT_LINK} text-[0.9rem] print:hidden`}>
-          See your full trend
-        </Link>
-      </div>
+    <section className={SIDE_PANEL}>
+      <h2 className={SIDE_H2}>How work's been working for you</h2>
+      <PulseSparkline ariaLabel="How work's working for you, over time" points={points} compact />
+      {points.length === 1 && (
+        <p className="text-[0.85rem] text-ink-secondary">
+          One check-in so far — the line fills in as you add more.
+        </p>
+      )}
+      <Link to="/pulse/trend" className={`${TEXT_LINK} text-[0.9rem] print:hidden`}>
+        See your full trend
+      </Link>
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// The shared tail: manager section, guidance notice, honest footer, the pin
+// The shared tail: manager section, the footer, the pin
 // ---------------------------------------------------------------------------
 
 function ManagerSection({ manager }: { manager: SituationManagerSection }) {
   return (
-    <section className="space-y-3 print:break-inside-avoid">
-      <h2 className={REPORT_H2}>The half one person enacts</h2>
-      <div className={`${PANEL} space-y-3 px-5 py-5 sm:px-6`}>
-        <p className={BODY_MUTED}>
-          {manager.has_profile
-            ? "Some of what this report calls the environment is really your manager. You have already profiled them, so that half has its own playbook — read the two together where they touch the same dimension."
-            : "Some of what this report calls the environment is really one person, and from the inside the two look identical. The Manager Decoder separates them: profile the manager you actually have, and it returns the protocol for that half."}
-        </p>
-        <Link
-          to={manager.has_profile ? "/manager-profile/playbook" : "/manager-profile"}
-          className={`${TEXT_LINK} text-[0.95rem]`}
-        >
-          {manager.has_profile ? "Open your playbook" : "Profile your manager"}
-        </Link>
-      </div>
+    <section className={SIDE_PANEL}>
+      <h2 className={SIDE_H2}>The job, or your manager?</h2>
+      <p className={BODY_MUTED}>
+        {manager.has_profile
+          ? "Some of what feels like the job may be your manager. Read your manager playbook alongside this."
+          : "Some of what feels like the job may be your manager, and from the inside the two look the same. The Manager Decoder tells them apart."}
+      </p>
+      <Link
+        to={manager.has_profile ? "/manager-profile/playbook" : "/manager-profile"}
+        className={`${TEXT_LINK} text-[0.93rem]`}
+      >
+        {manager.has_profile ? "Open your playbook" : "Profile your manager"}
+      </Link>
     </section>
-  );
-}
-
-function GuidanceNotice({ notice }: { notice: string }) {
-  return (
-    <p className="border-l-2 border-cream-muted pl-4 text-[0.92rem] leading-[1.6] text-ink-secondary">
-      {notice}
-    </p>
   );
 }
 
@@ -294,40 +294,44 @@ function PinFooter() {
   );
 }
 
-function HonestFooter() {
+/** Everything the report needs to say about itself, once each: the server's
+ *  notice (general, not a judgement of the employer, private), not advice to
+ *  leave or stay, and the pin with the control that moves it. */
+function AboutFooter({ notice }: { notice: string }) {
   const p = "text-[0.92rem] leading-[1.65] text-ink-secondary";
   return (
     <footer className="space-y-4 border-t border-cream-muted pt-8">
-      <h2 className={REPORT_H2}>What this is, and what it isn't</h2>
-      <div className="space-y-3 max-w-[64ch]">
+      <h2 className={REPORT_H2}>About this report</h2>
+      <div className="max-w-[64ch] space-y-3">
+        <p className={p}>{notice}</p>
         <p className={p}>
-          It is the distance between two things you told us: how you work, from Work
-          Pulse, and what your job offers, from your own description of it. Nothing in it
-          came from your employer, your colleagues or anyone else, and nothing in it is a
-          judgement about the place you work.
+          It isn't advice to leave or to stay. You can see things about your situation
+          that it can't, so what to do with it is your call.
         </p>
         <p className={p}>
-          It is not a score, and there is deliberately not a single number in it. You get
-          one of three words for magnitude and a direction, and no finer reading than
-          that — a finer one would be a dial, and an instrument you can optimise against
-          stops measuring the thing it was built to measure.
-        </p>
-        <p className={p}>
-          It is not advice to leave, and not advice to stay. Every suggestion in it was
-          written before we knew anything about you and chosen by a lookup, and the
-          judgement about what to do with it is yours — you can see things about your
-          situation that this report cannot.
-        </p>
-        <p className={p}>
-          It is pinned. The report reads your Work Pulse from one named sitting and stays
-          there, so retaking Work Pulse does not quietly move this page underneath you.
-          It moves when you ask it to and not before.
+          It reads one Work Pulse sitting and stays there, so retaking Work Pulse won't
+          change it until you ask.
         </p>
       </div>
       <PinFooter />
       <TrustLink />
     </footer>
   );
+}
+
+/** The one line under the title: which dimension leads, derived from the
+ *  first non-aligned row (document order IS the ranking). No count, no digit. */
+function leadLine(dimensions: SituationDimensionEntry[], past: boolean): string {
+  const lead = dimensions.find((entry) => !isAlignedEntry(entry));
+  if (!lead) {
+    return past
+      ? "Nothing about that role was straining."
+      : "Nothing is straining: on every dimension we measure, you and this job are set much the same way.";
+  }
+  const name = dimensionLabel(lead.dimension);
+  return past
+    ? `${name} was where you and that role sat furthest apart. What comes first is what to look hardest at in the next one.`
+    : `${name} is where you and this job sit furthest apart. The rest follow in order, most strain first.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -472,16 +476,14 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         ? "error"
         : "ready";
 
-  // Presentation only: which cards are open. Grouping keeps the server's
-  // order within each group -- document order IS the ranking, never re-sorted.
-  const strained = report.dimensions.filter(
-    (entry): entry is StrainDimensionEntry => !isAlignedEntry(entry),
-  );
-  const aligned = report.dimensions.filter(
-    (entry): entry is AlignedDimensionEntry => isAlignedEntry(entry),
-  );
+  // Presentation only: which rows are open. The rows themselves are
+  // `report.dimensions` as sent -- document order IS the ranking, never re-sorted.
+  const dimensions = report.dimensions;
+  const expandable = dimensions
+    .filter((entry) => !isAlignedEntry(entry) || splitFirstSentence(entry.aligned_note)[1] !== "")
+    .map((entry) => entry.dimension);
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
-  const allOpen = strained.length > 0 && strained.every((entry) => open.has(entry.dimension));
+  const allOpen = expandable.length > 0 && expandable.every((dimension) => open.has(dimension));
   const toggle = (dimension: string) =>
     setOpen((current) => {
       const next = new Set(current);
@@ -489,8 +491,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
       else next.add(dimension);
       return next;
     });
-  const toggleAll = () =>
-    setOpen(allOpen ? new Set() : new Set(strained.map((entry) => entry.dimension)));
+  const toggleAll = () => setOpen(allOpen ? new Set() : new Set(expandable));
 
   return (
     <Shell>
@@ -501,30 +502,21 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         </button>
       </div>
 
-      <article className="space-y-12">
-        <header className="max-w-[62ch] space-y-4">
+      <article className="space-y-10">
+        <header className="max-w-[62ch] space-y-3">
           <h1 className={PAGE_H1}>{past ? "What to look for next" : "You, and this job"}</h1>
-          <p className={LEAD}>
-            {past
-              ? "Ranked by how far apart you and that role sat. What comes first is what to look hardest at in the next one."
-              : "Ranked by how far apart you and the role sit. What is under most strain comes first."}
-          </p>
-          {past && (
-            <p className={LEAD}>
-              If you and that role fitted on some dimension, it is not listed below — the
-              fit was real, but this report can see that the job ended and not why, and a
-              past match turned forward would be a guess wearing the report's voice.
+          {dimensions.length > 0 && <p className={LEAD}>{leadLine(dimensions, past)}</p>}
+          {past && dimensions.length > 0 && (
+            <p className="text-[0.95rem] leading-[1.6] text-ink-secondary">
+              If you and that role fitted on some dimension, it is not listed below: the
+              report can see that the job ended, not why.
             </p>
           )}
         </header>
 
-        {report.dimensions.length > 0 && (
-          <ReportSummary dimensions={report.dimensions} past={past} />
-        )}
-
         <ResubmissionBanner events={report.events_since_report} />
 
-        {report.dimensions.length === 0 ? (
+        {dimensions.length === 0 ? (
           <section className="rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-6 py-5">
             <p className="text-[1rem] leading-[1.6] text-forest-dark">
               {past
@@ -533,58 +525,47 @@ function CompleteReport({ report }: { report: SituationComplete }) {
             </p>
           </section>
         ) : (
-          <>
-            {/* Document order IS the ranking. There is no rank number on
-                screen, and there must not be one. */}
-            {strained.length > 0 && (
-              <section aria-labelledby="situation-strained" className="space-y-4">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <h2 id="situation-strained" className={REPORT_H2}>
-                    {past ? "Where that role strained" : "Where it strains"}
-                  </h2>
-                  {strained.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={toggleAll}
-                      className="text-[0.9rem] font-semibold text-forest-dark underline decoration-forest-light/50 underline-offset-4 hover:decoration-forest-dark print:hidden"
-                    >
-                      {allOpen ? "Hide all guidance" : "Show all guidance"}
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-4">
-                  {strained.map((entry) => (
-                    <StrainCard
-                      key={entry.dimension}
-                      entry={entry}
-                      past={past}
-                      manager={report.manager}
-                      experiments={experiments}
-                      hasActiveElsewhere={hasActiveExperiment}
-                      experimentsStatus={experimentsStatus}
-                      open={open.has(entry.dimension)}
-                      onToggle={() => toggle(entry.dimension)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-            {aligned.length > 0 && (
-              <section aria-labelledby="situation-aligned" className="space-y-4">
-                <h2 id="situation-aligned" className={REPORT_H2}>
-                  What's working
-                </h2>
-                <AlignedList entries={aligned} />
-              </section>
-            )}
-          </>
+          <section aria-labelledby="situation-dimensions" className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="situation-dimensions" className={REPORT_H2}>
+                Dimension by dimension
+              </h2>
+              {expandable.length > 1 && (
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="text-[0.9rem] font-semibold text-forest-dark underline decoration-forest-light/50 underline-offset-4 hover:decoration-forest-dark print:hidden"
+                >
+                  {allOpen ? "Close all" : "Open all"}
+                </button>
+              )}
+            </div>
+            {/* ONE list, in the order the API sent it. Document order IS the
+                ranking; there is no rank number on screen, and there must not
+                be one. */}
+            <ol className="space-y-3">
+              {dimensions.map((entry) => (
+                <li key={entry.dimension}>
+                  <DimensionCard
+                    entry={entry}
+                    past={past}
+                    manager={report.manager}
+                    experiments={experiments}
+                    hasActiveElsewhere={hasActiveExperiment}
+                    experimentsStatus={experimentsStatus}
+                    open={open.has(entry.dimension)}
+                    onToggle={() => toggle(entry.dimension)}
+                  />
+                </li>
+              ))}
+            </ol>
+          </section>
         )}
 
-        <ExperiencedTrendSection />
-
-        <ManagerSection manager={report.manager} />
-
-        <GuidanceNotice notice={report.guidance_notice} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ExperiencedTrendSection />
+          <ManagerSection manager={report.manager} />
+        </div>
 
         {!past && (
           <ExperimentsSection
@@ -595,7 +576,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         )}
       </article>
 
-      <HonestFooter />
+      <AboutFooter notice={report.guidance_notice} />
     </Shell>
   );
 }

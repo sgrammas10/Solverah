@@ -32,10 +32,15 @@ export function dimensionLabel(dimension: string): string {
   return DIMENSION_LABELS[dimension] ?? dimension;
 }
 
-/** "A", "A and B", "A, B and C". */
-export function joinNames(names: string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+/** A server paragraph as [its first sentence, the rest]. Used where a row
+ *  needs a one-line takeaway and the payload carries only the paragraph (an
+ *  aligned note has no headline). A sentence ends at . ! or ? followed by
+ *  space and a capital, so a lowercase continuation ("e.g. the") never splits.
+ *  No break found means the whole text is the lead and the rest is empty. */
+export function splitFirstSentence(text: string): [string, string] {
+  const match = /^(.+?[.!?])\s+(?=[A-Z“"‘'])/s.exec(text.trim());
+  if (!match) return [text.trim(), ""];
+  return [match[1], text.trim().slice(match[0].length)];
 }
 
 /** A calendar date, never a raw ISO string (digits are fine here; it is
