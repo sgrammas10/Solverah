@@ -303,9 +303,10 @@ def patch_my_profile():
     diffed against the stored parser snapshot to record ResumeParseCorrection
     rows for anything the user changed after a resume upload.
 
-    Still a read-modify-write of a whole JSON column (P0-1), and still without a
-    version to check. Phase 2 is what fixes that; the envelope this returns is
-    where the version will go.
+    Two concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge
+    runs under a server-side compare-and-swap on the profile's version and is
+    re-applied to a fresh read when another writer got there first. The version
+    is not exposed; the envelope this returns is where it would go.
     """
     user = _current_user()
     if not user:

@@ -174,6 +174,11 @@ def _do_agent_stream():
 
     model = (data.get("model") or llm.default_agent_model()).strip()
     system_prompt = agent_service.system_prompt_for(user)
+    # DB ledger I. Every read this turn needs is done. End the transaction the
+    # user lookup opened before the provider call and the stream -- otherwise
+    # the connection sits idle in transaction until the last token, and a
+    # stream has no overall bound. Nothing was written, so this discards nothing.
+    intelligence_service.end_read_transaction()
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     # gpt-oss reasons before its first token; "low" keeps that wait short for
@@ -265,12 +270,13 @@ def put_path_preferences():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    saved = intelligence_service.save_path_preferences(
-        user, request.get_json(silent=True) or {}
+    # The service answers with the stored document itself (DB ledger I), so
+    # there is no read-back after the write.
+    return _respond(
+        intelligence_service.save_path_preferences(
+            user, request.get_json(silent=True) or {}
+        )
     )
-    if not saved.ok:
-        return _respond(saved)
-    return _respond(intelligence_service.read_path_preferences(user))
 
 
 @document(

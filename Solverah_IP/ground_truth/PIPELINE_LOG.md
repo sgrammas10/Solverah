@@ -31,6 +31,57 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-29 operator note — not a harvest entry
+
+Written by hand on the morning of 2026-09-29, after the harvest entry below.
+
+**P-13 Schneider National is scrubbed and VERIFIED.** The scrub ran at 00:16 on 09-29, after
+the harvest below, and left all four files in `_scrub_env/packets_out/`.
+`Scripts/verify_scrub.py` PASSED against `packets_out/P-13_packet_ANON.txt`:
+
+```
+python Scripts/verify_scrub.py P-13 --company "Schneider National" --company "Schneider"
+
+1. PARSE           55 raw -> 55 scrubbed, A8 B17 C12 D8 E4 F6 on both sides
+3. QUOTE FIDELITY  55 compared - 18 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in either form - 0 lookup-key tokens
+BUILD NOTES        B 17 against max 15, C 12 against max 10 -- over cap, correctly untouched
+```
+
+**So tonight's harvest must NOT write a `NOT YET VERIFIED` line for P-13.** Promote it as
+normal and write `VERIFIED 2026-09-29 (operator note above)` in its place. Every other step
+applies unchanged.
+
+**The verifier was fixed the same morning.** Check 3 used to compare a quote only when a dash
+directly followed it. That silently skipped truncated reviews (`"..." [...]  --`) and press
+quotes with their attribution after them (`"...," Name said.  --`). P-13 first "passed" with
+only 50 of 55 quotes compared, and two of the five skipped quotes carried name
+substitutions. Those shapes are now compared, and any bullet that still can't be paired is
+listed under `not compared` rather than dropped. Regression tests are in
+`causal_graph/test_verify_scrub.py`. P-07 through P-12 were re-run under the fixed script:
+all still PASS, with 0 bullets uncompared.
+
+**Open ruleset decisions the P-13 scrub flagged but could not decide (Sebastian):**
+- A section A excerpt describes the company by its fleet colour. The scrub calls it the
+  strongest identifying detail left in the packet; no rule covers colours, so it was kept.
+- The ruleset's change history mentions a "named-clients rule", but no such rule text exists.
+  A customer abbreviation was handled under A5 instead.
+
+## 2026-09-29 harvest
+
+RESEARCH   P-13 Schneider National — 55 excerpts (A 8 · B 16 reviews · C 12 from 4 postings · D 8 from 2 sources · E 4 · F 6), collector v4.11 — moved to packets/P-13_schneider_national/. Run report status was COMPLETE; the run opened 2026-09-23 and sat on an unanswered approval until Sebastian accepted it 09-28, built 09-28/29. Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
+           Flagged by the research run, not decided by the harvest: 9 build defects listed in its handback, 4 classed STRUCTURAL (retrieval-environment disconnections x4; search-stale job detail pages; a split review entity whose omission would have changed Section B; an undated first-party blog the staleness gate cannot apply to) — freeze did NOT trigger. Not retrievable: no handbook / eng blog / conference talk exist; GitHub org stale (2 repos, past 18-month gate); a 2006 "cuts 170 jobs" article caught and excluded; review-site optional source blocked by robots.txt then cut off by disconnect; Code of Conduct is an unreadable PDF (nothing quoted); CEO interview is video-only.
+           OPERATOR TO VERIFY: the BUILD RECORD model string (`claude-opus-5`) is the session-configured identifier, not a confirmed serving model.
+           CORRECTION: the research run's report says the harvest "did not fire" 09-23 → 09-28. It did (09-24, 09-25, 09-26, 09-28 entries), each time correctly deferring an IN PROGRESS report. See the 09-28 operator note.
+SCRUB      nothing to route — _scrub_env/packets_out/ and packets_raw/ were both empty at start (no scrub ran last night; P-12 was promoted 09-21).
+LISTS      to_be_researched: 6 remaining (next: P-14 Crawford & Company) · to_be_scrubbed: 1 waiting (P-13). No list edits by the harvest; research had already updated both.
+STAGED     P-13 copied to _scrub_env/packets_raw/ for tonight. Ruleset refreshed (was already byte-identical to anonymization/ copy).
+CLEANUP    RUN_REPORT.md and stray _RUN_REPORT_backup_fragment.txt moved out of _build_env/packets/ into _to_delete/ (file deletion is disabled, no one awake to approve it) — delete that pair by hand when convenient.
+REFUSED    nothing
+NOT YET VERIFIED — nothing promoted to anonymization/ this run. P-13 is a raw packet awaiting tonight's scrub; run verify_scrub.py after it is scrubbed.
+
+---
+
 ## 2026-09-28 operator note — not a harvest entry
 
 Written by hand at ~19:35 EDT, after the harvest entry below.

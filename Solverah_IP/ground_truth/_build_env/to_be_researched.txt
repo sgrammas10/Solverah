@@ -18,8 +18,6 @@
 # gap is still open, not closed by P-08. See STATE.md S-48 and AGENT_DECISION_QUEUE.md's
 # 2026-08-20 "hunt for archetype-diverse anchors" entry. Ranked by confidence -- reorder/delete
 # freely, this is not a locked pick.
-P-13	Schneider National
-P-14	Crawford & Company
 
 # Added 2026-09-22 (Claude, Cowork), second batch. All five are from Ground_Truth_Roster_v2.1_FINAL,
 # so their expected pole leans are already on the roster (Wayfair skipped -- excluded, GT-01).

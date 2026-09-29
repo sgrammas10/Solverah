@@ -237,15 +237,43 @@ def main(argv=None) -> int:
                 out.append(line.strip())
         return out
 
+    # The strict shape -- a dash straight after the closing quote -- is tried first, so every
+    # bullet it paired before is compared exactly as before, inner quotes included (the lazy
+    # match runs on to the quote mark that the dash follows).
+    #
+    # It used to be the ONLY shape, which silently dropped two common ones from the
+    # comparison: a truncated review, `"..." [...]  -- [review]`, and a press quote with its
+    # attribution after it, `"...," Name said.  -- [trade press]`. 5 of P-13's 55 bullets
+    # went unchecked that way under a PASSED verdict, and the press shape is exactly where a
+    # scrub edits names inside quotes. For those, cut the line where the attribution starts
+    # (`-- [source]`) and take the quote up to its LAST closing mark before that, so a quote
+    # with a quote inside it is compared whole. Matching to the FIRST closing mark instead
+    # hides every edit after an inner quote -- tried on 2026-09-29, and P-13's declared-edit
+    # count fell from 16 to 11 while "compared" went up. A bullet that still cannot be
+    # paired is LISTED below, never dropped without a word.
     BULLET_QUOTE = re.compile(r'^\s*[•·]\s*"(.*?)"\s*(?:—|--)')
+    ATTRIBUTION_START = re.compile(r'\s(?:—|--)\s+\[')
+    QUOTE_TO_LAST_MARK = re.compile(r'^\s*[•·]\s*"(.*)"')
+
+    def quote_of(line: str):
+        m = BULLET_QUOTE.match(line)
+        if m:
+            return m
+        cut = ATTRIBUTION_START.search(line)
+        return QUOTE_TO_LAST_MARK.match(line[:cut.start()] if cut else line)
 
     print("\n3. QUOTE FIDELITY (the em-dash defect)")
     checked = undeclared = declared = 0
+    not_compared: list[str] = []
     for sec in "ABCDEF":
         r_list, s_list = bullets_in(raw_body, sec), bullets_in(scr_body, sec)
         for lr, ls in zip(r_list, s_list):
-            mr, ms = BULLET_QUOTE.match(lr), BULLET_QUOTE.match(ls)
+            mr, ms = quote_of(lr), quote_of(ls)
             if not (mr and ms):
+                # ASCII only: the bullet carries a bullet glyph and em dashes, and a print
+                # of either dies on this machine's cp1252 console.
+                shown = norm_for_display(ls.lstrip("•· ")).encode("ascii", "replace").decode()
+                not_compared.append("section %s: %s" % (sec, shown))
                 continue
             checked += 1
             if mr.group(1) == ms.group(1):
@@ -269,6 +297,11 @@ def main(argv=None) -> int:
     print("   changed WITH a declared edit : %d  (allowed -- R2/R3/R4/R6)" % declared)
     print("   changed with NO declaration  : %d  %s"
           % (undeclared, "" if not undeclared else "<-- these are defects"))
+    print("   not compared           : %d  %s"
+          % (len(not_compared), "" if not not_compared else
+             "<-- no opening quote to pair; check these by eye"))
+    for line in not_compared:
+        print("       %s" % line)
 
     # ---- 4. identifiers actually gone -------------------------------------
     print("\n4. IDENTIFIERS")

@@ -415,10 +415,9 @@ def patch_profile(user: User, profile: Any, clean_profile_data) -> ProfileResult
     """Merge a partial profile over the stored document.
 
     Identical merge semantics to :func:`save_profile`, including the parser-
-    correction diffing -- only the envelope differs. Read that function's
-    docstring for the P0-1 caveat, which this shares in full: it is a
-    read-modify-write of a whole JSON column and the second of two concurrent
-    commits discards the first without an error.
+    correction diffing -- only the envelope differs. It shares that function's
+    P0-1 fix too: the merge runs under ``update_document``'s compare-and-swap on
+    ``profiles.version``, so neither of two concurrent saves is lost.
     """
     result = save_profile(user, profile, clean_profile_data)
     if not result.ok:

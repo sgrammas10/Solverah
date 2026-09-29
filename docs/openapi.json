@@ -8864,7 +8864,7 @@
         ]
       },
       "patch": {
-        "description": "PATCH /me/profile - merge incoming keys into the stored profile.\n\nUnknown keys are stripped by clean_profile_data rather than rejected. Quiz\nresults merge at the sub-key level so existing entries survive. Edits are\ndiffed against the stored parser snapshot to record ResumeParseCorrection\nrows for anything the user changed after a resume upload.\n\nStill a read-modify-write of a whole JSON column (P0-1), and still without a\nversion to check. Phase 2 is what fixes that; the envelope this returns is\nwhere the version will go.",
+        "description": "PATCH /me/profile - merge incoming keys into the stored profile.\n\nUnknown keys are stripped by clean_profile_data rather than rejected. Quiz\nresults merge at the sub-key level so existing entries survive. Edits are\ndiffed against the stored parser snapshot to record ResumeParseCorrection\nrows for anything the user changed after a resume upload.\n\nTwo concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge\nruns under a server-side compare-and-swap on the profile's version and is\nre-applied to a fresh read when another writer got there first. The version\nis not exposed; the envelope this returns is where it would go.",
         "operationId": "patch_me_patch_my_profile",
         "requestBody": {
           "content": {

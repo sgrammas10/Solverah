@@ -235,6 +235,7 @@ class Settings:
     db_pool_recycle_seconds: int
     db_pool_timeout_seconds: int
     db_statement_timeout_ms: int
+    db_idle_in_transaction_timeout_ms: int
 
     # -- Auth ----------------------------------------------------------------
     jwt_secret_key: str
@@ -450,6 +451,18 @@ class Settings:
         db_statement_timeout = _read_int(
             env, "DB_STATEMENT_TIMEOUT_MS", 15000, problems, minimum=100
         )
+        # Server-side ceiling on how long a session may sit idle INSIDE a
+        # transaction (DB ledger I). 0 turns it off, which is Postgres's own
+        # "disabled". The default has to clear the longest network wait still
+        # made inside an open transaction, or Postgres would kill a session in
+        # the middle of legitimate work: that is intake sign-up's S3 head +
+        # fetch + resume parse (~115 s worst case, retries included), above the
+        # outbox's Resend call under its row lock (~60 s) -- the audit is in
+        # the DB-ledger Package I note. Five minutes is well clear of both and
+        # still bounds a leaked transaction, which today is bounded by nothing.
+        db_idle_in_transaction_timeout = _read_int(
+            env, "DB_IDLE_IN_TRANSACTION_TIMEOUT_MS", 300000, problems, minimum=0
+        )
         jwt_access_minutes = _read_int(
             env, "JWT_ACCESS_TOKEN_MINUTES", 60, problems, minimum=1, maximum=1440
         )
@@ -480,6 +493,7 @@ class Settings:
             db_pool_recycle_seconds=db_pool_recycle,
             db_pool_timeout_seconds=db_pool_timeout,
             db_statement_timeout_ms=db_statement_timeout,
+            db_idle_in_transaction_timeout_ms=db_idle_in_transaction_timeout,
             jwt_secret_key=jwt_secret_key,
             jwt_access_token_minutes=jwt_access_minutes,
             jwt_cookie_secure=jwt_cookie_secure,
@@ -529,8 +543,16 @@ class Settings:
             "connect_args": {
                 # Server-side ceiling on any single statement.  Belt to the
                 # pool's braces: a runaway query is cancelled by Postgres rather
-                # than holding a connection until the worker is killed.
-                "options": "-c statement_timeout=%d" % self.db_statement_timeout_ms,
+                # than holding a connection until the worker is killed.  And on
+                # a session idle inside a transaction, so one leaked or parked
+                # across a network call is ended by Postgres (0 = off).
+                "options": (
+                    "-c statement_timeout=%d -c idle_in_transaction_session_timeout=%d"
+                    % (
+                        self.db_statement_timeout_ms,
+                        self.db_idle_in_transaction_timeout_ms,
+                    )
+                ),
             },
         }
 

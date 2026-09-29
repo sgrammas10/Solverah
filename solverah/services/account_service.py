@@ -334,6 +334,23 @@ def export_account_data(user: User) -> AccountResult:
     return AccountResult(status=200, body=payload)
 
 
+def _end_read_transaction_keeping_rows() -> None:
+    """Commit a transaction that has only read, without expiring what it loaded.
+
+    A plain commit or rollback would expire the user row and every intake, and
+    :func:`delete_account` goes on to write through the one and read the ids of
+    the others -- one reload each, for rows it already holds. Nothing is
+    pending, so the commit writes nothing; it only returns the connection.
+    """
+    session = db.session()
+    expire = session.expire_on_commit
+    session.expire_on_commit = False
+    try:
+        session.commit()
+    finally:
+        session.expire_on_commit = expire
+
+
 def delete_account(user: User, confirm: Any) -> AccountResult:
     """Erase personal data, retaining de-identified assessment rows."""
     if confirm != DELETE_CONFIRMATION:
@@ -343,10 +360,16 @@ def delete_account(user: User, confirm: Any) -> AccountResult:
         )
 
     intakes = account_repository.find_intakes_for_email(user.email)
+    resume_keys = collect_resume_keys(user, intakes)
+
+    # DB ledger I. Everything above only read, and the R2 deletes below are up
+    # to three network calls a key: end the transaction first, so the
+    # connection is not held idle in transaction across them.
+    _end_read_transaction_keeping_rows()
 
     # 1. Resume bytes out of R2 first -- object storage is the copy that would
     #    otherwise be forgotten.
-    failed_keys = delete_r2_objects(collect_resume_keys(user, intakes))
+    failed_keys = delete_r2_objects(resume_keys)
 
     # 2. Rows whose CONTENT is personal: destroy.
     account_repository.delete_personal_rows(user.id, intakes)

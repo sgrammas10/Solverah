@@ -11,3 +11,5 @@
 #
 # FORMAT: P-##<tab or spaces>Company Name<tab or spaces>researched YYYY-MM-DD (vX.Y)
 
+P-13	Schneider National	researched 2026-09-29 (v4.11)
+P-14	Crawford & Company	researched 2026-09-29 (v4.11)

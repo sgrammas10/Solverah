@@ -312,13 +312,16 @@ def test_the_cold_generation_passes_stored_judgements_to_the_scorer(client, monk
         )
         monkeypatch.setenv("ONET_API_KEY", "test-key")
 
+        user_id = user.id
+        # The service ends its read transaction before the scorer (DB ledger
+        # I), which expires `user`; the id is taken first.
         result = intelligence_service.path_suggestions(user, app.logger)
 
     assert result.status == 200, result.body
     assert scorer.call_args.kwargs["feedback"] == {"15-1252.00": "too_similar"}
     assert result.body["feedback"] == {"15-1252.00": "too_similar"}
     # And the same map reaches the cache the GET serves, so a reload sees it.
-    assert path_cache.get(user.id)["feedback"] == {"15-1252.00": "too_similar"}
+    assert path_cache.get(user_id)["feedback"] == {"15-1252.00": "too_similar"}
 
 
 # ---------------------------------------------------------------------------
