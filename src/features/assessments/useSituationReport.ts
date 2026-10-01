@@ -128,9 +128,8 @@ export interface SituationManagerSection {
 interface SituationReportCommon {
   manager: SituationManagerSection;
   /** Whether the user's one past-job environment report exists. The wire
-   *  sends it in every state; optional here only so older hand-written
-   *  fixtures still typecheck -- read a missing value as `false`. */
-  past_job_report_filed?: boolean;
+   *  sends it in every state. */
+  past_job_report_filed: boolean;
 }
 
 /** One Pulse life/work event logged after the environment report's own

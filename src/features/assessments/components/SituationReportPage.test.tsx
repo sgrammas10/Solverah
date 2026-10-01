@@ -179,6 +179,7 @@ const COMPLETE: SituationComplete = {
   dimensions: [STRAINING_AUTONOMY, NOTABLE_FEEDBACK, ALIGNED_PACE],
   guidance_notice: GUIDANCE_NOTICE,
   events_since_report: [],
+  past_job_report_filed: false,
 };
 
 /** The needs-forward slice of the autonomy row, written out in full rather
@@ -218,6 +219,7 @@ const COMPLETE_NEEDS_FORWARD: SituationComplete = {
   dimensions: [NEEDS_FORWARD_AUTONOMY],
   guidance_notice: GUIDANCE_NOTICE,
   events_since_report: [],
+  past_job_report_filed: false,
 };
 
 /** Open every strained card's guidance, the way a reader would: one click
@@ -273,6 +275,7 @@ describe("SituationReportPage", () => {
       state: "needs_core",
       manager: { has_profile: false },
       environment: null,
+      past_job_report_filed: false,
     };
 
     it("bridges to Work Pulse", async () => {
@@ -309,6 +312,7 @@ describe("SituationReportPage", () => {
       state: "needs_environment_report",
       manager: { has_profile: false },
       can_submit_environment_report: true,
+      past_job_report_filed: false,
     };
 
     it("prompts for the environment report", async () => {
@@ -668,6 +672,51 @@ describe("SituationReportPage", () => {
       expect(await screen.findByText(/Nothing is straining/)).toBeInTheDocument();
       expect(screen.queryByRole("region", { name: "Dimension by dimension" })).not.toBeInTheDocument();
       expectNoScoresLeaked();
+    });
+  });
+
+  // The one past-job report (PRODUCT_DECISIONS §2, 2026-10-01). Same gate as
+  // IntelligencePage's entry card: not yet filed, and not a `first_job`
+  // career status -- read straight off `report.career_status`, the pinned
+  // snapshot this page already has in hand for the `complete` state.
+  describe("the past-job link", () => {
+    const LINK_NAME = /Tell us about the job before this one/;
+
+    it("shows in the complete state when the flag is false", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const link = await screen.findByRole("link", { name: LINK_NAME });
+      expect(link).toHaveAttribute("href", "/environment-report/past");
+    });
+
+    it("is hidden once the past report is already filed", async () => {
+      serve({ ...COMPLETE, past_job_report_filed: true });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
+    });
+
+    it("is hidden for a first_job career status", async () => {
+      serve({ ...COMPLETE, career_status: "first_job" });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
+    });
+
+    it("is absent outside the complete state", async () => {
+      serve({
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: true,
+        past_job_report_filed: false,
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "One half to go" });
+      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
     });
   });
 

@@ -296,8 +296,20 @@ function PinFooter() {
 
 /** Everything the report needs to say about itself, once each: the server's
  *  notice (general, not a judgement of the employer, private), not advice to
- *  leave or stay, and the pin with the control that moves it. */
-function AboutFooter({ notice }: { notice: string }) {
+ *  leave or stay, and the pin with the control that moves it.
+ *
+ *  `canDescribePastJob` adds one quiet line offering the one past-job
+ *  environment report (PRODUCT_DECISIONS §2, 2026-10-01) -- the same gate
+ *  `IntelligencePage`'s entry card uses: not yet filed, and not a `first_job`
+ *  career status, which has no earlier role to describe. It sits here rather
+ *  than inside a dimension card, since it is not part of the diagnosis. */
+function AboutFooter({
+  notice,
+  canDescribePastJob,
+}: {
+  notice: string;
+  canDescribePastJob: boolean;
+}) {
   const p = "text-[0.92rem] leading-[1.65] text-ink-secondary";
   return (
     <footer className="space-y-4 border-t border-cream-muted pt-8">
@@ -314,6 +326,13 @@ function AboutFooter({ notice }: { notice: string }) {
         </p>
       </div>
       <PinFooter />
+      {canDescribePastJob && (
+        <p className="print:hidden">
+          <Link to="/environment-report/past" className="text-sm font-semibold text-forest-dark hover:underline">
+            Tell us about the job before this one →
+          </Link>
+        </p>
+      )}
       <TrustLink />
     </footer>
   );
@@ -576,7 +595,10 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         )}
       </article>
 
-      <AboutFooter notice={report.guidance_notice} />
+      <AboutFooter
+        notice={report.guidance_notice}
+        canDescribePastJob={!report.past_job_report_filed && report.career_status !== "first_job"}
+      />
     </Shell>
   );
 }

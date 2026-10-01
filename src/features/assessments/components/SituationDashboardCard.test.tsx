@@ -47,12 +47,14 @@ const NEEDS_CORE: SituationNeedsCore = {
   state: "needs_core",
   manager: { has_profile: false },
   environment: null,
+  past_job_report_filed: false,
 };
 
 const NEEDS_ENV: SituationNeedsEnvironmentReport = {
   state: "needs_environment_report",
   manager: { has_profile: false },
   can_submit_environment_report: true,
+  past_job_report_filed: false,
 };
 
 const FIRST_JOB: SituationNeedsEnvironmentReport = {
@@ -86,6 +88,7 @@ const COMPLETE: SituationComplete = {
   needs_forward: false,
   guidance_notice: "Notice",
   events_since_report: [],
+  past_job_report_filed: false,
   dimensions: [
     strain("autonomy", "straining", 1, 0.17),
     strain("feedback", "notable", 2, 0.42),
