@@ -205,9 +205,16 @@ export default function DimensionCard({
 
   return (
     <article
-      className={`rounded-[6px] border border-l-[4px] border-cream-muted bg-white ${accent.border} print:break-inside-auto`}
+      className={`overflow-hidden rounded-[6px] border border-l-[4px] border-cream-muted bg-white ${accent.border} print:break-inside-auto`}
     >
-      <div className="flex flex-col gap-2.5 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:gap-5 sm:px-5">
+      {/* The whole header is the disclosure: the button is stretched over it
+          (not wrapped around it, so the h3 keeps the dimension's name as its
+          accessible name) and the row lights up on hover. */}
+      <div
+        className={`relative px-4 py-4 sm:px-5 ${
+          hasMore ? "pr-11 transition-colors hover:bg-cream-base/60 motion-reduce:transition-none sm:pr-12 print:pr-5" : ""
+        }`}
+      >
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
             <h3 className="font-headline text-[1.15rem] font-bold leading-tight text-ink-primary">
@@ -233,17 +240,18 @@ export default function DimensionCard({
             aria-expanded={open}
             aria-controls={panelId}
             onClick={onToggle}
-            className="inline-flex shrink-0 items-center gap-1.5 self-start rounded-[4px] py-1 text-[0.88rem] font-semibold text-forest-dark underline decoration-forest-light/50 underline-offset-4 transition-colors hover:decoration-forest-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-forest-light sm:mt-0.5 print:hidden"
+            className="absolute inset-0 w-full cursor-pointer text-ink-tertiary transition-colors hover:text-forest-dark focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-forest-light print:hidden"
           >
-            {aligned ? (open ? "Show less" : "Read more") : open ? "Hide guidance" : "Show guidance"}
-            <span className="sr-only"> for {name}</span>
+            <span className="sr-only">
+              {aligned ? (open ? "Show less" : "Read more") : open ? "Hide guidance" : "Show guidance"} for {name}
+            </span>
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 14 14"
               fill="none"
               aria-hidden="true"
-              className={`transition-transform duration-200 motion-reduce:transition-none ${open ? "rotate-180" : ""}`}
+              className={`absolute right-4 top-5 transition-transform duration-200 motion-reduce:transition-none sm:right-5 ${open ? "rotate-180" : ""}`}
             >
               <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
