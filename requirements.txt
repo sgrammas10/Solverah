@@ -28,16 +28,16 @@ Flask-SQLAlchemy==3.1.1
 # 2.0.41 while CI resolved 2.0.52, and the ORM is the last place a silent
 # version split belongs. 2.0.52 is what CI resolves today, so this records the
 # state rather than changing it.
-SQLAlchemy==2.0.52
+SQLAlchemy==2.1.1
 
 Flask-Migrate==4.1.0
 flask-talisman==1.1.0
 gunicorn==26.2.0
-pandas==3.0.5
+pandas==3.0.6
 numpy==2.4.6
-scikit-learn==1.9.0
-boto3==1.43.83
-psycopg2-binary==2.9.12
+scikit-learn==1.9.1
+boto3==1.43.103
+psycopg2-binary==2.9.13
 
 # Rate-limit + cache backend. Without it Flask-Limiter falls back to memory://,
 # which counts per gunicorn worker and resets on every deploy -- so the auth
@@ -58,8 +58,8 @@ python-dotenv==1.2.3
 PyYAML==6.0.3
 pdfminer.six==20260107
 python-docx==1.2.0
-resend==2.42.0
-openai==3.6.0
+resend==2.48.0
+openai==3.19.2
 
 # Request/response schemas and the OpenAPI 3.1 document (see solverah/openapi.py).
 # v2 specifically: pydantic v2 emits JSON Schema draft 2020-12, which *is* the
@@ -68,7 +68,7 @@ openai==3.6.0
 #
 # Nothing in the tree pinned pydantic before this, yet company_culture_LLM
 # imported it -- so the installed version was whatever a transitive dependency
-# happened to drag in. openai==3.6.0 requires
+# happened to drag in. openai==3.19.2 requires
 # `pydantic!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.*,<3,>=1.10.13`, which this satisfies.
 pydantic==2.13.5
 
@@ -77,7 +77,7 @@ pydantic==2.13.5
 # set -- CI sets five variables and none of them is that one, so the suite and
 # any environment without the variable never construct a client. The [flask]
 # extra's requirements (flask, blinker, markupsafe) are all already installed.
-sentry-sdk[flask]==2.68.1
+sentry-sdk[flask]==2.70.0
 pytest==9.1.1
 pytest-cov==7.1.0
 
