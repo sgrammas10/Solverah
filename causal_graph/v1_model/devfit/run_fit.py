@@ -37,6 +37,19 @@ cutpoint spacings are left alone: the intercept is the best-identified parameter
 in the model and the cutpoint priors were never elicited in the first place, so
 widening them would change what the run means for no diagnostic gain.
 
+WHY --global-scale EXISTS (approved 2026-09-29)
+-----------------------------------------------
+Off by default; off, nothing about the model, the notes or the report changes.
+On, the twelve dimension weights become s * prior_mean + delta with ONE shared
+scale s ~ LogNormal(0, 0.5) and tight deltas ~ Normal(0, 0.10) -- see
+causal_graph/v1_model/global_scale.py for every number's reason. It answers,
+from ~50-100 rows, "do the gaps predict the rating at all, and is the expert's
+overall harshness right", which twelve independent weights cannot. The 20
+exported rows are the EFFECTIVE weights; s's posterior (mean, sd, 94% HDI) and
+the delta sd go in `notes` and the report. Not combinable with a
+--prior-sd-scale other than 1.0: that flag widens the expert's sds, which the
+reparameterized model does not use.
+
 THE DIAGNOSTIC GATE
 -------------------
 r_hat >= 1.05 or any divergence and the run is NOT saved. A report is still
@@ -126,6 +139,36 @@ def cutpoint_spacings(idata):
     ]
 
 
+def global_scale_notes(idata, settings, cfg):
+    """The `notes["global_scale"]` block: the prior used and s's posterior.
+
+    Also the largest |posterior mean| over the deltas, so a reader can see at a
+    glance whether anything beyond the common factor moved. Plain floats only.
+    """
+    from global_scale import DELTA_SUFFIX, SCALE_NAME, summarize_scale
+    from match_core import active
+
+    post = idata.posterior
+    summary = summarize_scale(np.asarray(post[SCALE_NAME].values))
+    feats = cfg["settings"]["gap_features"]
+    delta_means = {}
+    for d in active(cfg["dimensions"]):
+        for feat in feats:
+            name = "%s_%s%s" % (d["key"], feat, DELTA_SUFFIX)
+            delta_means[name] = float(np.asarray(post[name].values).mean())
+    worst = max(delta_means, key=lambda n: abs(delta_means[n]))
+    return {
+        "prior": {"dist": "LogNormal", "mu_log": 0.0,
+                  "sigma_log": float(settings["sigma_log"])},
+        "delta_sd": float(settings["delta_sd"]),
+        "posterior": {k: (round(v, 6) if isinstance(v, float) else v)
+                      for k, v in summary.items()},
+        "max_abs_delta_mean": {"name": worst, "mean": round(delta_means[worst], 6)},
+        "exported": "effective dimension weights, s * prior_mean + delta; "
+                    "intercept, confounders and cutpoints not scaled",
+    }
+
+
 def diagnostics(idata):
     """Worst r_hat, where it was, and the divergence count.
 
@@ -212,7 +255,8 @@ def _covered(prior_mean, post_mean, true_value):
 
 
 def write_report(path, *, run_id, cfg, prior_weights, post_weights, spacings,
-                 diag, rows_kept, dropped, wall, args, truth, saved):
+                 diag, rows_kept, dropped, wall, args, truth, saved,
+                 scale_notes=None):
     from match_core import flatten_weights
 
     prior_flat = {n: (m, s) for n, m, s in flatten_weights(cfg, prior_weights)}
@@ -230,6 +274,11 @@ def write_report(path, *, run_id, cfg, prior_weights, post_weights, spacings,
                  % (args.prior_sd_scale,
                     "" if args.prior_sd_scale == 1.0
                     else "  (DIMENSION weight sds widened in memory; priors.yaml untouched)"))
+    if scale_notes is not None:
+        lines.append("- `--global-scale` **on**: s ~ LogNormal(0, %.2f), delta sd %.3f "
+                     "(dimension weights = s * prior mean + delta; exported weights "
+                     "are the effective ones)"
+                     % (scale_notes["prior"]["sigma_log"], scale_notes["delta_sd"]))
     lines.append("- wall time: %.1f s" % wall)
     lines.append("- max r_hat: **%s** (%s); divergences: **%d**"
                  % (_rhat_text(diag), diag["max_rhat_on"], diag["divergences"]))
@@ -280,6 +329,22 @@ def write_report(path, *, run_id, cfg, prior_weights, post_weights, spacings,
             lines.append("| `%s` | %+.3f | %.3f | %+.3f | %.3f |"
                          % (name, p_mean, p_sd, q_mean, q_sd))
     lines.append("")
+
+    if scale_notes is not None:
+        post = scale_notes["posterior"]
+        lines.append("## Global scale s")
+        lines.append("")
+        lines.append("| | mean | sd | %d%% HDI | truth |" % round(100 * post["hdi_prob"]))
+        lines.append("|---|---|---|---|---|")
+        true_s = (truth or {}).get("planted_scale")
+        lines.append("| `global_scale` | %.3f | %.3f | [%.3f, %.3f] | %s |"
+                     % (post["mean"], post["sd"], post["hdi_low"], post["hdi_high"],
+                        "--" if true_s is None else "%.3f" % true_s))
+        lines.append("")
+        lines.append("Largest delta posterior mean: `%s` = %+.3f."
+                     % (scale_notes["max_abs_delta_mean"]["name"],
+                        scale_notes["max_abs_delta_mean"]["mean"]))
+        lines.append("")
 
     lines.append("## Cutpoint spacings")
     lines.append("")
@@ -348,6 +413,16 @@ def run(args):
 
     cfg, pri = match_core.load()
     fit_pri = scaled_priors(pri, args.prior_sd_scale)
+    scale_settings = None
+    if args.global_scale:
+        from global_scale import global_scale_settings
+        if args.prior_sd_scale != 1.0:
+            raise SystemExit(
+                "--global-scale replaces the expert's per-weight sds with --delta-sd; "
+                "combining it with --prior-sd-scale %.2f would mean nothing. Use one."
+                % args.prior_sd_scale
+            )
+        scale_settings = global_scale_settings(args.global_scale_sigma_log, args.delta_sd)
 
     with app.app_context():
         with db.engine.connect() as conn:
@@ -375,6 +450,7 @@ def run(args):
         idata = bm.fit_posterior(
             result.person, result.env, result.conf, result.outcome, cfg, fit_pri,
             head="experienced", conf_missing=result.conf_missing,
+            global_scale=scale_settings,
             draws=args.draws, tune=args.tune, chains=args.chains, cores=args.cores,
             random_seed=args.seed, progressbar=False,
             compute_convergence_checks=False,
@@ -389,6 +465,12 @@ def run(args):
         prior_weights = match_core.weights_from_priors(cfg, fit_pri)
         post_weights = posterior_weights(idata, cfg)
         spacings = cutpoint_spacings(idata)
+        scale_notes = (None if scale_settings is None
+                       else global_scale_notes(idata, scale_settings, cfg))
+        if scale_notes is not None:
+            sp = scale_notes["posterior"]
+            print("global scale s: mean %.3f sd %.3f 94%% HDI [%.3f, %.3f]"
+                  % (sp["mean"], sp["sd"], sp["hdi_low"], sp["hdi_high"]))
 
         truth = None
         truth_path = Path(args.truth)
@@ -401,7 +483,7 @@ def run(args):
         healthy = is_healthy(diag)
         run_id = None
         if healthy:
-            notes = json.dumps({
+            notes_dict = {
                 "source": "devfit",
                 "head": "experienced",
                 "prior_sd_scale": args.prior_sd_scale,
@@ -417,7 +499,12 @@ def run(args):
                              "instrument never asks it, so the five level weights "
                              "are the prior, unmoved by data"),
                 "comp_missing_rows": int(np.asarray(result.conf_missing["comp"]).sum()),
-            }, sort_keys=True)
+            }
+            # Added only when on, so a default run's notes are byte-identical
+            # to what they were before the switch existed.
+            if scale_notes is not None:
+                notes_dict["global_scale"] = scale_notes
+            notes = json.dumps(notes_dict, sort_keys=True)
             fitted = match_scoring.record_fitted_run(
                 db, cfg, post_weights, n_rows=rows_kept, notes=notes
             )
@@ -434,7 +521,7 @@ def run(args):
         REPORTS_DIR / ("fit_%s.md" % (run_id if run_id else "unsaved_%d" % int(time.time()))),
         run_id=run_id, cfg=cfg, prior_weights=prior_weights, post_weights=post_weights,
         spacings=spacings, diag=diag, rows_kept=rows_kept, dropped=result.dropped,
-        wall=wall, args=args, truth=truth, saved=healthy,
+        wall=wall, args=args, truth=truth, saved=healthy, scale_notes=scale_notes,
     )
     print("report written to %s" % report_path)
     return 0 if healthy else 1
@@ -455,12 +542,29 @@ def main(argv=None):
     parser.add_argument("--prior-sd-scale", type=float, default=1.0,
                         help="multiply every DIMENSION weight's prior sd by this, in "
                              "memory only. priors.yaml is never edited.")
+    parser.add_argument("--global-scale", action="store_true",
+                        help="reparameterize the dimension weights as s * prior_mean + "
+                             "delta with one shared scale s (default OFF)")
+    parser.add_argument("--global-scale-sigma-log", type=float, default=None,
+                        help="sigma of s's LogNormal(0, sigma) prior (default 0.5)")
+    parser.add_argument("--delta-sd", type=float, default=None,
+                        help="sd of the per-weight deviations under --global-scale "
+                             "(default 0.10)")
     parser.add_argument("--min-rows", type=int, default=50,
                         help="refuse to fit below this many assembled rows")
     parser.add_argument("--truth", default=str(DEFAULT_TRUTH_PATH),
                         help="last_truth.json from the seeder (default %s)"
                              % DEFAULT_TRUTH_PATH)
-    return run(parser.parse_args(argv))
+    args = parser.parse_args(argv)
+    from global_scale import DEFAULT_DELTA_SD, DEFAULT_SIGMA_LOG
+    if not args.global_scale and (args.global_scale_sigma_log is not None
+                                  or args.delta_sd is not None):
+        parser.error("--global-scale-sigma-log / --delta-sd need --global-scale")
+    if args.global_scale_sigma_log is None:
+        args.global_scale_sigma_log = DEFAULT_SIGMA_LOG
+    if args.delta_sd is None:
+        args.delta_sd = DEFAULT_DELTA_SD
+    return run(args)
 
 
 if __name__ == "__main__":

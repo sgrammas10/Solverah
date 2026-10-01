@@ -71,7 +71,10 @@ def p_fit(person, env, conf, cfg, weights, snap_person=True):
 # outcome_logit() works unchanged whether it's given priors.yaml's point
 # values or these RVs.
 # ---------------------------------------------------------------------------
-def sample_weights_from_priors(cfg, pri):
+def sample_weights_from_priors(cfg, pri, global_scale: Optional[Mapping[str, Any]] = None):
+    """`global_scale` None (the default) builds exactly the pre-2026-09-29 RVs.
+    A dict from global_scale.global_scale_settings() reparameterizes the
+    DIMENSION weights as s * prior_mean + delta; see global_scale.py."""
     feats = cfg["settings"]["gap_features"]
     weights = {
         "intercept": pm.Normal("intercept", mu=pri["intercept"]["mean"], sigma=pri["intercept"]["sd"]),
@@ -79,13 +82,16 @@ def sample_weights_from_priors(cfg, pri):
         "confounders": {},
     }
 
-    for d in active(cfg["dimensions"]):
-        k = d["key"]
-        p = pri["dimensions"][k]
-        weights["dimensions"][k] = {
-            feat: pm.Normal(f"{k}_{feat}", mu=p[feat]["mean"], sigma=p[feat]["sd"])
-            for feat in feats
-        }
+    if global_scale is None:
+        for d in active(cfg["dimensions"]):
+            k = d["key"]
+            p = pri["dimensions"][k]
+            weights["dimensions"][k] = {
+                feat: pm.Normal(f"{k}_{feat}", mu=p[feat]["mean"], sigma=p[feat]["sd"])
+                for feat in feats
+            }
+    else:
+        weights["dimensions"] = _globally_scaled_dimension_weights(cfg, pri, global_scale)
 
     for c in active(cfg["confounders"]):
         if not c.get("measurable"):
@@ -100,6 +106,35 @@ def sample_weights_from_priors(cfg, pri):
             weights["confounders"][k] = pm.Normal(f"w_{k}", mu=p["mean"], sigma=p["sd"])
 
     return weights
+
+
+def _globally_scaled_dimension_weights(cfg, pri, settings):
+    """weight_k = s * prior_mean_k + delta_k, one shared s  (approved 2026-09-29).
+
+    s ~ LogNormal(0, sigma_log); delta_k ~ Normal(0, delta_sd). The expert's sd
+    is NOT used: delta_sd replaces it, deliberately tighter, so that at 50-100
+    rows the single common factor does the moving. The effective weight is a
+    pm.Deterministic under the ordinary `<dim>_<feat>` name, so everything that
+    reads a posterior by weight name (run_fit.posterior_weights, the 20 flat
+    rows) sees the effective value and needs no change. Rationale for every
+    number: global_scale.py.
+    """
+    from global_scale import DELTA_SUFFIX, SCALE_NAME
+
+    feats = cfg["settings"]["gap_features"]
+    s = pm.LogNormal(SCALE_NAME, mu=0.0, sigma=float(settings["sigma_log"]))
+    out = {}
+    for d in active(cfg["dimensions"]):
+        k = d["key"]
+        p = pri["dimensions"][k]
+        out[k] = {}
+        for feat in feats:
+            delta = pm.Normal(f"{k}_{feat}{DELTA_SUFFIX}", mu=0.0,
+                              sigma=float(settings["delta_sd"]))
+            out[k][feat] = pm.Deterministic(
+                f"{k}_{feat}", s * float(p[feat]["mean"]) + delta
+            )
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +272,8 @@ def ordinal_observed(outcome: Sequence[Any], levels: int) -> np.ndarray:
 
 
 def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
-                conf_missing: Optional[Mapping[str, Any]] = None):
+                conf_missing: Optional[Mapping[str, Any]] = None,
+                global_scale: Optional[Mapping[str, Any]] = None):
     """
     person, env : dict {dim_key: array-like, length N}
     conf        : dict {confounder_key: array-like, length N} -- RAW values
@@ -259,6 +295,12 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
                   pm.Data; with nothing masked the pm.Data names and free RVs
                   are exactly what they were before conf_missing existed.
 
+    global_scale: optional, DEFAULT OFF. None builds exactly the model that
+                  existed before 2026-09-29 (same free RVs, same logp). A dict
+                  from global_scale.global_scale_settings() swaps the twelve
+                  independent dimension-weight RVs for one shared scale s plus
+                  tightly-shrunk deviations: weight = s * prior_mean + delta.
+
     `p_fit` is a pm.Deterministic on BOTH heads and means the same thing on
     both: P(this goes well). On the ordinal head that is P(rating >=
     doing_well_at), which the pinned cutpoint makes exactly sigmoid(z).
@@ -267,7 +309,7 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
     is_ordinal = head_cfg.get("type") == "ordinal"
 
     with pm.Model() as model:
-        weights = sample_weights_from_priors(cfg, pri)
+        weights = sample_weights_from_priors(cfg, pri, global_scale=global_scale)
 
         # Snap person values onto COMPANY_LATTICE in plain numpy BEFORE they become
         # pm.Data -- closest_achievable() is a numpy argmin and cannot run on a pytensor
@@ -319,29 +361,33 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
 
 def prior_predictive(person, env, conf, cfg, pri, draws=2000, random_seed=None,
                      head: str = "appeal",
-                     conf_missing: Optional[Mapping[str, Any]] = None):
+                     conf_missing: Optional[Mapping[str, Any]] = None,
+                     global_scale: Optional[Mapping[str, Any]] = None):
     """P(fit) under the expert priors alone -- no observed outcomes yet.
 
     `head` and `conf_missing` are passed through to build_model() and default to
     the pre-2026-09-17 behavior. They go LAST because recovery_multiseed.py and
     the analysis scripts call this positionally.
     """
-    model = build_model(person, env, conf, cfg, pri, head=head, conf_missing=conf_missing)
+    model = build_model(person, env, conf, cfg, pri, head=head, conf_missing=conf_missing,
+                        global_scale=global_scale)
     with model:
         idata = pm.sample_prior_predictive(draws=draws, random_seed=random_seed)
     return idata.prior["p_fit"]
 
 
 def fit_posterior(person, env, conf, outcome, cfg, pri, head: str = "appeal",
-                  conf_missing: Optional[Mapping[str, Any]] = None, **sample_kwargs):
+                  conf_missing: Optional[Mapping[str, Any]] = None,
+                  global_scale: Optional[Mapping[str, Any]] = None, **sample_kwargs):
     """Update the priors on observed (person, env, conf) -> outcome data.
 
     head="experienced" fits the 1..5 ordinal through OrderedLogistic; see
     build_model(). `outcome` is passed to the head unchanged -- nothing here
-    ever dichotomizes an experienced rating (D-20).
+    ever dichotomizes an experienced rating (D-20). `global_scale` (default
+    None = off) is passed to build_model and never reaches pm.sample.
     """
     model = build_model(person, env, conf, cfg, pri, outcome=outcome, head=head,
-                        conf_missing=conf_missing)
+                        conf_missing=conf_missing, global_scale=global_scale)
     with model:
         idata = pm.sample(**sample_kwargs)
     return idata

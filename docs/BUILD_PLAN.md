@@ -568,6 +568,17 @@ ran — no separate landing commits were needed for this section._
 - [ ] Blend expert priors toward observed outcomes (BayesianEstimator per
   cbm_notes step 4) once env-report + pulse rows cross a pre-registered
   N; S-17/S-18 discipline — pre-register the analysis, no peeking
+  _(2026-09-29, BUILT, UNCOMMITTED: an optional **global-scale** fit for the
+  low-N regime, approved by Sebastian. `run_fit --global-scale` reparameterizes
+  the twelve dimension weights as `s * prior_mean + delta`, s ~ LogNormal(0, 0.5),
+  delta ~ Normal(0, 0.10); confounders/intercept/cutpoints unscaled. Default OFF
+  and bit-identical off; same 20 exported rows (effective weights), s's posterior
+  in `notes`. No schema, serving or API change; production still reads priors.
+  Synthetic recovery of a planted s = 0.4: N=100 → 0.54 [0.28, 0.80], N=300 →
+  0.44 [0.27, 0.65], N=1200 → 0.47 [0.36, 0.59], 0 divergences. On the same 100
+  rows the default fit covers 8–15% of the way to truth, the global scale ~78%.
+  Numbers and caveats: `causal_graph/v1_model/devfit/README.md`. Whether to use it
+  for the first real fit is still a decision to take when there are real rows.)_
 - [ ] The protected-class proxy check rides the same N≥300 gate (compliance
   mirror note)
 

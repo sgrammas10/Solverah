@@ -223,6 +223,48 @@ Python 3.10. **0 rows dropped, 0 divergences on both fits.**
 Budget **~20 minutes per fit**. The pure-Python pytensor mode is the cost; set
 `PYTENSOR_FLAGS=cxx=<path to g++>` if you have a compiler.
 
+---
+
+## `--global-scale` (approved 2026-09-29, default OFF)
+
+One shared scale on the expert's whole gap cost, for the 50-300-row regime where
+twelve independent weights cannot move:
+
+    weight_k = s * prior_mean_k + delta_k
+    s ~ LogNormal(0, 0.5)        delta_k ~ Normal(0, 0.10)
+
+Dimension weights only; intercept, confounders and cutpoints are unchanged. Every
+number's reason is in `../global_scale.py`. Off, the model is bit-identical to
+before (pinned by `../test_global_scale_fit.py`). On, the 20 exported rows are
+the EFFECTIVE weights and `notes["global_scale"]` holds s's posterior (mean, sd,
+94% HDI), the prior and the delta sd. Refuses `--prior-sd-scale` other than 1.0.
+
+Recovery is measured with a planted scale -- every dimension weight = her mean x S,
+no swap:
+
+```sh
+python -m causal_graph.v1_model.devfit.seed_synthetic --database-url <...modeldev_x> \
+  --n 300 --seed 0 --planted-scale 0.4 --truth-out ../solverah-devfit/gscale_truth.json
+python -m causal_graph.v1_model.devfit.run_fit --database-url <...modeldev_x> \
+  --global-scale --truth ../solverah-devfit/gscale_truth.json
+```
+
+Use a separate `solverah_modeldev_<suffix>` database per cohort: the seeder refuses
+a database that already holds a cohort. Reports are named `fit_<run id>.md`, so two
+databases' first runs overwrite each other's report -- copy it out between fits.
+
+### Measured, 2026-09-29 (planted s = 0.4, seed 0, 2 chains, 500/500)
+
+| N | s mean | s sd | 94% HDI | covers 0.4 | max r_hat | div | wall |
+|---|---|---|---|---|---|---|---|
+| 100 | 0.535 | 0.147 | [0.280, 0.804] | yes | 1.0185 | 0 | 324 s |
+| 300 | 0.440 | 0.105 | [0.269, 0.648] | yes | 1.0111 | 0 | 514 s |
+| 1200 | 0.472 | 0.064 | [0.360, 0.593] | yes | 1.0231 | 0 | 1555 s |
+
+Same 100 rows with the switch OFF (her twelve weights at sd 0.309): the dimension
+weights cover only **8-15%** of the prior->truth distance (`pace_mag` -2.35 vs a
+true -1.01); with it on, **~78%** (`pace_mag` -1.34).
+
 Three things worth knowing before you read your own numbers:
 
 * **The order flips at scale 1.0 already.** The posterior puts `autonomy_mag`
@@ -254,3 +296,10 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 SOLVERAH_IGNORE_DOTENV=1 APP_ENV=testing \
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest \
   causal_graph/v1_model/devfit/test_devfit_fit.py -q
 ```
+
+The three cohorts share seed 0, so N=100 and N=300 are prefixes of N=1200: one
+observation, not three. At 1200 the intercept comes back +0.15 high (1.53 vs
+1.39) while s sits +1.1 sd high -- the two trade off along the same "overall
+level" direction. What the "0.2 gap on all six" example (person 0.2 below the
+role everywhere) becomes: her priors 0.33; s = 0.535 (N=100) 0.57; s = 0.44
+(N=300) 0.62; s = 0.472 (N=1200) 0.60; true s = 0.4 gives 0.64.

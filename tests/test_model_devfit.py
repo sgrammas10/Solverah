@@ -428,6 +428,44 @@ def test_the_planted_truth_is_the_priors_with_two_deviations():
             )
 
 
+def test_a_planted_scale_truth_is_the_priors_times_s_with_no_swap():
+    """--planted-scale is the global-scale recovery truth: her ordering kept
+    exactly, every dimension weight shrunk by s, and NOT the two-weight swap --
+    otherwise a scale fit would be asked to recover something it cannot express."""
+    from match_scoring import load, weights_from_priors
+
+    cfg, pri = load()
+    truth = seed_synthetic.true_weights(cfg, pri, planted_scale=0.4)
+    prior = weights_from_priors(cfg, pri)
+
+    for dim in DIMS:
+        for feat in ("mag", "dir"):
+            assert truth["dimensions"][dim][feat] == pytest.approx(
+                0.4 * prior["dimensions"][dim][feat]["mean"]
+            )
+    assert truth["intercept"] == pytest.approx(prior["intercept"]["mean"])
+    assert truth["confounders"]["comp"] == pytest.approx(prior["confounders"]["comp"]["mean"])
+
+
+def test_the_truth_record_names_a_planted_scale_only_when_there_is_one():
+    """A default cohort's last_truth.json keeps exactly its old keys."""
+    from match_scoring import load
+
+    cfg, pri = load()
+    common = dict(n=10, seed=0, aligned_rate=0.45, comp_unsure_rate=0.15,
+                  database="postgresql://x@localhost:5433/solverah_modeldev")
+    plain = seed_synthetic._truth_record(cfg, pri, **common)
+    scaled = seed_synthetic._truth_record(cfg, pri, planted_scale=0.4, **common)
+
+    assert "planted_scale" not in plain
+    assert plain["planted"] == {"autonomy_mag": -3.0, "pace_mag": -0.5}
+    assert scaled["planted_scale"] == 0.4
+    assert scaled["planted"] == {"global_scale": 0.4}
+    assert scaled["dimensions"]["pace"]["mag"] == pytest.approx(
+        0.4 * pri["dimensions"]["pace"]["mag"]["mean"]
+    )
+
+
 # ---------------------------------------------------------------------------
 # 4. Marking, and the refusal that protects a database with real rows in it
 # ---------------------------------------------------------------------------
