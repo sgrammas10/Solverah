@@ -210,6 +210,31 @@ def test_expectation_leak_flags_a_reference_that_tracks_the_selection_prior(tmp_
     assert leak["reading"] == "reference may carry selection priors"
 
 
+def _readings(tmp_path, d_pids, a_pids):
+    for p in d_pids:
+        human(tmp_path / "h", p, "D", [2] * 6)
+    for p in a_pids:
+        human(tmp_path / "h", p, "A", [2] * 6)
+    return r2.load_humans(sorted((tmp_path / "h").glob("*.json")))
+
+
+def test_julie_stopping_early_in_order_is_a_random_prefix(tmp_path):
+    # JULIE_ORDER opens P-11, P-10, P-19, P-09. P-19 was never read by anyone (say it failed
+    # the scrub), so it is not a gap she skipped.
+    check = r2.overlap_order_check(_readings(tmp_path, ["P-11", "P-10", "P-09", "P-08"],
+                                             ["P-11", "P-10", "P-09"]))
+    assert check["order"][:4] == ["P-11", "P-10", "P-09", "P-08"]
+    assert check["completed"] == ["P-11", "P-10", "P-09"]
+    assert check["is_prefix"] and check["reading"] == "random prefix of the pre-registered order"
+
+
+def test_julie_skipping_ahead_is_reported_as_self_selected(tmp_path):
+    check = r2.overlap_order_check(_readings(tmp_path, ["P-11", "P-10", "P-09"], ["P-11", "P-09"]))
+    assert not check["is_prefix"]
+    assert check["out_of_order"] == ["P-09"]
+    assert check["reading"].startswith("partly self-selected")
+
+
 def test_the_rater_pages_real_payload_loads():
     """Seam: the jsdom-captured v3.1 page payload parses as a HumanReading, skip included."""
     fx = HERE.parent / "ground_truth" / "rater_app" / "fixtures" / "v31_page_payload.json"

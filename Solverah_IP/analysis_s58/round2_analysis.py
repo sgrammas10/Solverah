@@ -1,8 +1,8 @@
 """
 round2_analysis.py -- the round-2 finish line, exactly as pre-registered.
 
-Implements PREREG_ROUND2_2026-09-29.md sections 2-7 as amended by addendum A1 (Sebastian = rater
-D, the reference; Julie = rater A on the overlap packets). Written and tested on SYNTHETIC data
+Implements PREREG_ROUND2_2026-09-29.md sections 2-7 as amended by addenda A1 and A2 (Sebastian =
+rater D, the reference; Julie = rater A on the overlap packets, worked in a fixed order). Written and tested on SYNTHETIC data
 before any round-2 reading existed; nothing here was tuned on real data. Changing a threshold
 after data exists is a new decision for a future round (prereg section 5), so the constants below
 are the pre-registered ones and are not parameters.
@@ -35,6 +35,7 @@ HERE = Path(__file__).resolve().parent
 RATER_APP = HERE.parent / "ground_truth" / "rater_app"
 sys.path.insert(0, str(RATER_APP))
 from rater_agreement import AgreementError, band_index, load_readings  # noqa: E402
+from build_round2_pages import JULIE_ORDER  # noqa: E402
 
 # ---- pre-registered constants (PREREG section 5, section 6, A1) -- NOT tunable -------------
 BANDS = [0.1, 0.3, 0.5, 0.7, 0.9]
@@ -281,6 +282,22 @@ def expectation_leak(expected: dict, readers: dict[str, dict]) -> dict:
             else ("not assessable" if d is None or a is None else "no leak signal at the pre-set gap")}
 
 
+def overlap_order_check(humans: dict) -> dict:
+    """A2.3. Julie works down JULIE_ORDER and stops when she likes. What she finished is a random
+    sample only if it is a prefix of that order. The order counts only packets someone read, so
+    a packet that never passed the scrub is not a gap. Descriptive: nothing is dropped for it."""
+    read = {p for p, _ in humans}
+    order = [p for p in JULIE_ORDER if p in read]
+    done = {p for p, r in humans if r == EXPERT}
+    out_of_order = sorted(done - set(order[:len(done)]))
+    return {
+        "order": order, "completed": [p for p in order if p in done],
+        "is_prefix": not out_of_order, "out_of_order": out_of_order,
+        "reading": "random prefix of the pre-registered order" if not out_of_order
+        else "partly self-selected: the ceiling is reported with that caveat",
+    }
+
+
 # ---------------------------------------------------------------------------------------------
 # The whole analysis
 # ---------------------------------------------------------------------------------------------
@@ -349,10 +366,11 @@ def analyse(humans: dict, llm: dict, *, expected_rubric: str, expected_hash: str
             "LLM": {k: v for k, v in cells(lambda p, d: llm_cells.get((p, d))).items()},
         })
     return {
-        "prereg": "PREREG_ROUND2_2026-09-29.md + addendum A1",
+        "prereg": "PREREG_ROUND2_2026-09-29.md + addenda A1, A2",
         "expected_rubric": expected_rubric, "expected_anchors_hash": expected_hash,
         "comparable_packets": comparable, "not_comparable": not_comparable,
         "overlap_packets": overlap, "overlap_not_comparable": overlap_bad,
+        "overlap_order": overlap_order_check(humans),
         "finish_line": finish_line(llm_pairs, ceiling_pairs, llm_cov, ref_cov, seed, n_boot),
         "secondary_llm_vs_A": {"packets": sp_, "mean_distance": float(ss.sum() / sc.sum()) if len(sc) else None},
         "floor_bias": floor_bias(llm_cells, ref_cells, draw_bands),
@@ -391,6 +409,7 @@ def main(argv=None) -> int:
     if report["not_comparable"]:
         print(f"NOT comparable: {report['not_comparable']}")
     print(f"floor bias: {report['floor_bias']['reading']}")
+    print(f"Julie's overlap: {report['overlap_order']['reading']}")
     return 0
 
 
