@@ -27,6 +27,12 @@
  * `errors[0].code === "no_core_sitting"`. Both are branched on by code and
  * never by the prose in `error.message` -- see `useManagerPlaybook`'s header
  * for the precedent and the reason.
+ *
+ * THE PAST-JOB REPORT (PRODUCT_DECISIONS §2, 2026-10-01). The same submit with
+ * `subject: "past"` files the user's one report about the job before their
+ * current or most recent one. It never changes this report beyond the
+ * `past_job_report_filed` flag every state carries, and its refusals are 409s
+ * coded `first_job_no_role`, `current_report_required` or `past_report_limit`.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -34,6 +40,7 @@ import { useAuth } from "../auth";
 import { ApiError } from "../../shared/api/apiError";
 import type { PulseEventType } from "./usePulse";
 import type { EnvIndustry } from "./data/envQuestions";
+import type { EnvReportSubject } from "./useEnvReport";
 
 /** The six model dimensions, as the server names them. */
 export type SituationDimension =
@@ -117,6 +124,15 @@ export interface SituationManagerSection {
   has_profile: boolean;
 }
 
+/** Fields every state carries. */
+interface SituationReportCommon {
+  manager: SituationManagerSection;
+  /** Whether the user's one past-job environment report exists. The wire
+   *  sends it in every state; optional here only so older hand-written
+   *  fixtures still typecheck -- read a missing value as `false`. */
+  past_job_report_filed?: boolean;
+}
+
 /** One Pulse life/work event logged after the environment report's own
  *  `submitted_at` (BUILD_PLAN B-4) -- `type` and `date` only, never `note`:
  *  `pulse_events.note` is free text a user typed, and D-15 holds here the same
@@ -129,9 +145,8 @@ export interface SituationReportEventSinceReport {
 
 /** No completed `core` sitting yet. An already-submitted environment report is
  *  echoed as bare dimension scores -- there is nothing to diff it against. */
-export interface SituationNeedsCore {
+export interface SituationNeedsCore extends SituationReportCommon {
   state: "needs_core";
-  manager: SituationManagerSection;
   environment: {
     dimensions: Array<{ dimension: SituationDimension; env_score: number }>;
     career_status: string;
@@ -142,9 +157,8 @@ export interface SituationNeedsCore {
 /** Core done, no environment report. `can_submit_environment_report` is false
  *  for a `first_job` user, who has no role to describe and never sees the
  *  form. */
-export interface SituationNeedsEnvironmentReport {
+export interface SituationNeedsEnvironmentReport extends SituationReportCommon {
   state: "needs_environment_report";
-  manager: SituationManagerSection;
   can_submit_environment_report: boolean;
 }
 
@@ -152,9 +166,8 @@ export interface SituationNeedsEnvironmentReport {
  *  `career_status` snapshot is past-tense, and the server has already sliced
  *  the payload accordingly: aligned rows dropped, `change_in_place` reduced to
  *  its signal, `negotiate` and `decoder_crossref` suppressed. */
-export interface SituationComplete {
+export interface SituationComplete extends SituationReportCommon {
   state: "complete";
-  manager: SituationManagerSection;
   career_status: string;
   needs_forward: boolean;
   dimensions: SituationDimensionEntry[];
@@ -186,6 +199,8 @@ export interface EnvironmentReportSubmission {
   /** A level key, or `null` for "not sure / rather not say". */
   industry: EnvIndustry | null;
   experienced: number;
+  /** Which job this describes; the server defaults a missing one to current. */
+  subject: EnvReportSubject;
 }
 
 /** `POST /me/environment-report`'s response -- an echo of the user's own
@@ -198,6 +213,7 @@ export interface EnvironmentReportSubmitResponse {
   experienced: number;
   career_status: string;
   version: string;
+  subject: EnvReportSubject;
 }
 
 export const situationReportKeys = {
@@ -270,6 +286,21 @@ export function isFirstJobRefusal(error: unknown): boolean {
     error instanceof ApiError &&
     error.errorFor("career_status")?.code === "first_job_no_role"
   );
+}
+
+/** True when a past-job submit was refused because no current-job report
+ *  exists yet. */
+export function isCurrentReportRequiredRefusal(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.errorFor("subject")?.code === "current_report_required"
+  );
+}
+
+/** True when a past-job submit was refused because the user's one past-job
+ *  report is already filed. */
+export function isPastReportLimitRefusal(error: unknown): boolean {
+  return error instanceof ApiError && error.errorFor("subject")?.code === "past_report_limit";
 }
 
 /** True when `error` is the 409 recalibrate returns before any core sitting. */

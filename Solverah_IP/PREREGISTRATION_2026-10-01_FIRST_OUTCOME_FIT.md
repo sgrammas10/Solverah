@@ -190,4 +190,21 @@ _To be filled before the Look 1 extract. Emails only._
 
 ## Amendments
 
-_None._
+### Amendment 1 — 2026-10-01: past-job reports
+
+Adopted by Sebastian 2026-10-01, written before any past-job row exists and before
+Look 1.
+
+From migration `20261002_envreport_subject`, a respondent may also file ONE report about
+a previous job (`environment_reports.subject = 'past'`); every earlier row is
+`'current'`. A past-job report requires an existing current report.
+
+- §0.2's "first eligible report per respondent" means the first eligible report with
+  `subject = 'current'`, using the assembler at the amending commit.
+- Past-job reports are **never** in the primary population and **never** counted toward
+  the §0.5 thresholds. A respondent with only past-job reports contributes no primary row.
+- They are exploratory under Part 3 at Look 1 and Look 2, labelled "past-job".
+
+**Why.** A past-job rating is recalled rather than current, describes a job the respondent
+has already left, and pairs a person side measured now with a job that has ended. That is
+a different population answering the same item.

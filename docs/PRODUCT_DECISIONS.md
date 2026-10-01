@@ -323,6 +323,19 @@ way comp's "not sure" does. The levels are placeholders and will grow with real
 data. The form version moved to `env-v2-2026-10-01`, so a NULL on an older
 row ("never asked") stays distinguishable from a NULL on a new one ("not sure").
 
+**A user may describe one past job, after their current one.** Sebastian,
+2026-10-01. Three rulings. (1) ONE past report per user, about the job before
+their current or most recent one, and only once a report about the current job
+exists; first_job users cannot file one (they have no job before the first).
+For a between_jobs user "past" means the job before their most recent one. (2)
+Past reports are exploratory-only in the first outcome fit's pre-registration
+(Amendment 1); they are stored and exported but never change the Situation
+Report. (3) The value exchange is a thank-you / done screen only: it says the
+answers were saved, that they do not change the Situation Report, and that they
+help Solverah learn which gaps matter. No "looking back" gap view, and no
+numbers (D-15). Stored as `environment_reports.subject = 'past'` (ARCHITECTURE
+A30); `career_status` on that row is still the filer's status that day.
+
 ### Path Intelligence / O*NET stays — backbone, not product
 Sebastian, 2026-09-10. **Closes the keep-reduce-cut question formerly in §3.**
 

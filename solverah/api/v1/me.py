@@ -474,7 +474,14 @@ SITUATION_REPORT_SUBMIT_LIMIT = "5 per minute"
         "from the caller's profile at submit time, not taken from the request body. "
         "`first_job` has no role to describe and is refused with a distinguishable "
         "`409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip "
-        "path (PRODUCT_DECISIONS.md §2, 2026-09-10)."
+        "path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default "
+        "`current`): `past` files the user's one report about the job before their "
+        "current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is "
+        "refused `409` with `errors[0].code` `first_job_no_role` for first_job, "
+        "`current_report_required` before any current report exists, and "
+        "`past_report_limit` once one is filed. A past report is stored and "
+        "exported but never changes `GET /me/situation-report` beyond its "
+        "`past_job_report_filed` flag. The response echoes `subject`."
     ),
 )
 @me_bp.route("/me/environment-report", methods=["POST"])
@@ -509,7 +516,9 @@ def post_my_environment_report():
         "Manager Decoder. `complete` additionally carries `events_since_report` "
         "(BUILD_PLAN B-4): Pulse life/work events logged after the environment "
         "report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- "
-        "what the frontend's resubmission banner reads."
+        "what the frontend's resubmission banner reads. Every state carries "
+        "`past_job_report_filed` (bool): whether the user's one past-job environment "
+        "report exists. Only reports about the current job feed the report itself."
     ),
 )
 @me_bp.route("/me/situation-report", methods=["GET"])

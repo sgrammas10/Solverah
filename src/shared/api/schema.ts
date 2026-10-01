@@ -666,7 +666,7 @@ export interface paths {
         put?: never;
         /**
          * Submit the environment-side instrument for the Situation Report
-         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10).
+         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.
          */
         post: operations["post_me_post_my_environment_report"];
         delete?: never;
@@ -1307,7 +1307,7 @@ export interface paths {
         };
         /**
          * Read the Situation Report
-         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads.
+         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
          */
         get: operations["get_me_get_my_situation_report"];
         put?: never;
@@ -2004,6 +2004,13 @@ export interface components {
              * @description 1 (seed) .. 5 (enterprise).
              */
             stage_size: number;
+            /**
+             * Subject
+             * @description Which job this report describes: 'current' (the default -- the current or most recent job) or 'past' (the one job before that). A past report is accepted once per user, only after a current report exists, and never for first_job; it never changes the Situation Report.
+             * @default current
+             * @enum {string}
+             */
+            subject: "current" | "past";
         };
         /**
          * EnvironmentReportSubmitResponse
@@ -2032,6 +2039,11 @@ export interface components {
             industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
             /** Stage Size */
             stage_size: number;
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "current" | "past";
             /** Version */
             version: string;
         };
@@ -2227,7 +2239,10 @@ export interface components {
          *     rather than a second, export-specific shape.
          */
         ExportedEnvironmentReport: {
-            /** Career Status */
+            /**
+             * Career Status
+             * @description The user's career status when they filed -- on a 'past' report, not the past job's.
+             */
             career_status: string;
             /**
              * Comp
@@ -2259,6 +2274,12 @@ export interface components {
             };
             /** Stage Size */
             stage_size: number;
+            /**
+             * Subject
+             * @description Which job the report describes: 'current' (the current or most recent job) or 'past' (the one before it).
+             * @enum {string}
+             */
+            subject: "current" | "past";
             /**
              * Submitted At
              * @description ISO 8601 timestamp.
@@ -4622,6 +4643,11 @@ export interface components {
             manager: {
                 [key: string]: unknown;
             };
+            /**
+             * Past Job Report Filed
+             * @description Whether the user has filed their one past-job environment report (subject 'past'). Present in every state; a past report never changes anything else in this response.
+             */
+            past_job_report_filed: boolean;
             /**
              * State
              * @description One of 'needs_core', 'needs_environment_report', 'complete'.

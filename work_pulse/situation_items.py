@@ -690,7 +690,7 @@ ENVIRONMENT_ITEMS: list[EnvironmentItem] = [
 STAGE_SIZE_ITEM: ContextItem = {
     "item_id": "stage_size",
     "prompt": "How big is the organization you work for — the whole organization, not your team?",
-    "prompt_past": "How big was the organization you last worked for — the whole organization, not your team?",
+    "prompt_past": "How big was the organization you worked for in that role — the whole organization, not your team?",
     "options": [
         {
             "value": 1,
@@ -792,7 +792,7 @@ INDUSTRY_LEVELS: tuple[str, ...] = ("tech", "finance", "healthcare", "retail", "
 INDUSTRY_ITEM: ContextItem = {
     "item_id": "industry",
     "prompt": "Which industry is the organization you work for in?",
-    "prompt_past": "Which industry was the organization you last worked for in?",
+    "prompt_past": "Which industry did the organization you worked for in that role belong to?",
     "options": [
         {
             "value": "tech",
@@ -894,6 +894,28 @@ def is_past_tense(career_status: str) -> bool:
             f"{', '.join(sorted(TENSE_BY_CAREER_STATUS))}"
         )
     return TENSE_BY_CAREER_STATUS[career_status]
+
+
+#: `environment_reports.subject`'s values, restated (model.ENV_REPORT_SUBJECTS pulls in
+#: Flask). `past` is the one job before the user's current or most recent one
+#: (PRODUCT_DECISIONS.md §2, 2026-10-01).
+SUBJECTS: tuple[str, ...] = ("current", "past")
+
+
+def is_past_tense_for(career_status: str, subject: str = "current") -> bool:
+    """Whether a report about *subject* renders in past tense for this user.
+
+    A `past` report describes a job the user has left, whatever their status
+    today, so it is always past tense. A `current` report follows
+    `is_past_tense(career_status)` unchanged. `career_status` is validated
+    either way, so an unknown status still raises.
+    """
+    past_by_status = is_past_tense(career_status)
+    if subject not in SUBJECTS:
+        raise ValueError(
+            f"Unknown subject {subject!r}; expected one of {', '.join(SUBJECTS)}"
+        )
+    return True if subject == "past" else past_by_status
 
 
 def option_score(item_id: str, option_key: str) -> float:

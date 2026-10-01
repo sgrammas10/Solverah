@@ -174,6 +174,8 @@ def build_recommendations(
 ) -> List[Dict[str, Any]]:
     """The user's next unfinished steps, most important first, at most three."""
     latest = {row.source: row.at for row in rows if row.source != repo.SOURCE_ASSESSMENT}
+    # Current-job reports only: the repository leaves past-job reports out of
+    # this source, so a user with only a past report is still asked for one.
     has_env_report = repo.SOURCE_ENVIRONMENT_REPORT in latest
     status = _career_status(profile)
     recs: List[Dict[str, Any]] = []

@@ -242,6 +242,24 @@ removed or reordered. Verified before the recapture, on the standing baseline:
 step byte-identical. `export` does not move because it runs before EMAIL has
 submitted an environment report, so its `environment_reports` list is empty.
 After the recapture: 0 differences across 113.
+
+**Extended and re-baselined for the past-job environment report (2026-10-01).** A
+deliberate change, and A30 (docs/ARCHITECTURE.md) is the ledger. `POST
+/me/environment-report` takes an optional `subject` ("current" by default, or
+"past") and echoes it; `GET /me/situation-report` carries `past_job_report_filed`
+in every state. Verified before the recapture, on the standing baseline: 4
+differences, all body-only and all additive -- `submit-environment-report`
+(`"subject":"current"` added) and the three situation-report reads
+(`situation-report-needs-environment-report`, `situation-report-complete`,
+`situation-report-after-pulse-event`: `"past_job_report_filed":false` added);
+every other step byte-identical. Three steps are appended at the very end so every
+record above keeps its position: `submit-past-environment-report` (EMAIL is
+employed and already has a current report), `situation-report-after-past-report`
+-- which must equal `situation-report-after-pulse-event` byte for byte except
+that the flag reads `true`, because a past report never reaches the report itself
+-- and `submit-past-environment-report-limit`, the 409 `past_report_limit` a
+second past report gets. `export` still does not move: it runs before any
+environment report exists.
 """
 
 from __future__ import annotations
@@ -1674,6 +1692,39 @@ def run_scenario() -> List[Dict[str, Any]]:
         "poll-path-suggestions-job",
         "GET",
         "/api/v1/me/path-suggestion-jobs/%s" % suggestion_job_id,
+    )
+
+    # -- the past-job environment report (A30) -------------------------------
+    #
+    # Appended last, so every record above keeps its position. EMAIL again, on
+    # `mp_csrf`'s session: employed, with a current report already filed by the
+    # Situation Report block, which is what a past report requires. The answers
+    # sit on the "high" pole, NOT the current report's "mixed", so a past report
+    # that leaked into the Situation Report would move every dimension -- and
+    # `situation-report-after-past-report` must instead equal
+    # `situation-report-after-pulse-event` except for `past_job_report_filed`.
+    past_env_answers = {
+        item["item_id"]: next(o for o in item["options"] if o["pole"] == "high")["key"]
+        for item in situation_items.ENVIRONMENT_ITEMS
+    }
+    past_env_body = {
+        "answers": past_env_answers, "stage_size": 2, "comp": 2, "industry": "retail",
+        "experienced": 2, "subject": "past",
+    }
+    call(
+        "submit-past-environment-report",
+        "POST",
+        "/api/v1/me/environment-report",
+        json=past_env_body,
+        headers=mp_csrf,
+    )
+    call("situation-report-after-past-report", "GET", "/api/v1/me/situation-report")
+    call(
+        "submit-past-environment-report-limit",
+        "POST",
+        "/api/v1/me/environment-report",
+        json=past_env_body,
+        headers=mp_csrf,
     )
 
     return records

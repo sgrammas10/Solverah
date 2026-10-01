@@ -56,6 +56,13 @@ export default function IntelligencePage() {
   const hasSituationReport = situation?.state === "complete";
   const canDescribeJob =
     situation?.state === "needs_environment_report" && situation.can_submit_environment_report;
+  // The one past-job report (PRODUCT_DECISIONS §2, 2026-10-01): offered once
+  // the current-job report exists and until the past one is filed. Hidden for
+  // a profile now reading `first_job`, which the server would refuse.
+  const canDescribePastJob =
+    hasSituationReport &&
+    !situation.past_job_report_filed &&
+    profile?.career_status !== "first_job";
 
   // The stored result, shared with WorkPulseResultsPage through one query.
   // Disabled while the sessionStorage cache already has the narrative, and
@@ -314,6 +321,25 @@ export default function IntelligencePage() {
               className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-xs hover:bg-forest-mid"
             >
               Describe your job →
+            </button>
+          </div>
+        )}
+        {canDescribePastJob && (
+          <div className="rounded-xl border border-cream-muted bg-white px-6 py-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+              ✦ Your earlier job
+            </p>
+            <p className="text-sm text-ink-primary leading-relaxed">
+              Tell us about the job before your current or most recent one. It won’t
+              change your Situation Report — it helps Solverah learn which gaps matter
+              most. About five minutes.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/environment-report/past")}
+              className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-xs hover:bg-forest-mid"
+            >
+              Describe your earlier job →
             </button>
           </div>
         )}

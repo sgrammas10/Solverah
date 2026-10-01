@@ -355,6 +355,43 @@ def test_the_endpoint_applies_the_rules_to_real_rows(client, auth):
         "environment_report", "skills", "pulse"]
 
 
+def _past_env_report(user_id, at):
+    row = _env_report(user_id, at)
+    row.subject = "past"
+    return row
+
+
+def test_a_past_only_report_changes_neither_recommendations_nor_activity(client, auth):
+    """PRODUCT_DECISIONS.md §2, 2026-10-01: a past-job report is not a report about
+    the user's job, so it neither satisfies "describe your current job" nor shows up
+    as "You described your current job"."""
+    csrf, user_id = auth
+    client.patch("/api/v1/me/career-status", json={"status": "employed"},
+                 headers={"X-CSRF-TOKEN": csrf})
+    _complete_core(client, csrf)
+    before = _dashboard(client)
+
+    _add(client, _past_env_report(user_id, _ago(minutes=1)))
+    after = _dashboard(client)
+
+    assert _ids(after["recommendations"]) == ["environment_report", "skills", "pulse"]
+    assert after["recommendations"] == before["recommendations"]
+    assert after["recentActivity"] == before["recentActivity"]
+
+
+def test_environment_activity_is_the_newest_current_report_not_a_later_past_one(client, auth):
+    from solverah.repositories import dashboard_repository as repo
+
+    _, user_id = auth
+    current_at = _ago(days=3)
+    _add(client, _env_report(user_id, current_at), _past_env_report(user_id, _ago(hours=1)))
+
+    with client.application.app_context():
+        rows = [r for r in repo.latest_activity(user_id) if r.source == repo.SOURCE_ENVIRONMENT_REPORT]
+    assert len(rows) == 1
+    assert rows[0].at == current_at
+
+
 # ── Every href and icon resolves on the frontend ────────────────────────────
 
 

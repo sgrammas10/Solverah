@@ -7,8 +7,8 @@ carries `environment`, `needs_environment_report` carries
 `guidance_notice` and `events_since_report` -- BUILD_PLAN B-4's Pulse-event
 resubmission prompt, `{'type', 'date'}` per event, never a `note`), and a closed
 model over the union would either flatten every field to `Any` or lie about
-which state guarantees which key. `state` and `manager` are the two keys every
-state carries, so they are the two this module declares.
+which state guarantees which key. `state`, `manager` and `past_job_report_filed`
+are the three keys every state carries, so they are the three this module declares.
 """
 
 from __future__ import annotations
@@ -30,6 +30,9 @@ __all__ = [
 #: carries an enum (a computed Literal is invisible to type checkers). A tripwire test
 #: asserts the two agree.
 Industry = Literal["tech", "finance", "healthcare", "retail", "other"]
+
+#: `model.ENV_REPORT_SUBJECTS` (PRODUCT_DECISIONS.md §2, 2026-10-01).
+Subject = Literal["current", "past"]
 
 
 class EnvironmentReportSubmitRequest(SolverahModel):
@@ -60,6 +63,15 @@ class EnvironmentReportSubmitRequest(SolverahModel):
         default=None,
         description="Optional, displayed nowhere at launch (⚑6) -- stored for a future aggregation lane.",
     )
+    subject: Subject = Field(
+        default="current",
+        description=(
+            "Which job this report describes: 'current' (the default -- the current or "
+            "most recent job) or 'past' (the one job before that). A past report is "
+            "accepted once per user, only after a current report exists, and never for "
+            "first_job; it never changes the Situation Report."
+        ),
+    )
 
 
 class EnvironmentReportSubmitResponse(SolverahModel):
@@ -74,6 +86,7 @@ class EnvironmentReportSubmitResponse(SolverahModel):
     experienced: int
     career_status: str
     version: str
+    subject: Subject
 
 
 class SituationReportResponse(SolverahModel):
@@ -86,6 +99,13 @@ class SituationReportResponse(SolverahModel):
     )
     manager: Dict[str, Any] = Field(
         description="{'has_profile': bool} -- link-or-prompt to the Manager Decoder."
+    )
+    past_job_report_filed: bool = Field(
+        description=(
+            "Whether the user has filed their one past-job environment report "
+            "(subject 'past'). Present in every state; a past report never changes "
+            "anything else in this response."
+        )
     )
 
 

@@ -1094,6 +1094,16 @@
             "minimum": 1,
             "title": "Stage Size",
             "type": "integer"
+          },
+          "subject": {
+            "default": "current",
+            "description": "Which job this report describes: 'current' (the default -- the current or most recent job) or 'past' (the one job before that). A past report is accepted once per user, only after a current report exists, and never for first_job; it never changes the Situation Report.",
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
           }
         },
         "required": [
@@ -1158,6 +1168,14 @@
             "title": "Stage Size",
             "type": "integer"
           },
+          "subject": {
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -1168,7 +1186,8 @@
           "stage_size",
           "experienced",
           "career_status",
-          "version"
+          "version",
+          "subject"
         ],
         "title": "EnvironmentReportSubmitResponse",
         "type": "object"
@@ -1515,6 +1534,7 @@
         "description": "One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).\n\nPassed straight through from ``environment_report_store``'s own serialization --\nthe same dict the store already hands the ``GET /me/situation-report`` read path --\nrather than a second, export-specific shape.",
         "properties": {
           "career_status": {
+            "description": "The user's career status when they filed -- on a 'past' report, not the past job's.",
             "title": "Career Status",
             "type": "string"
           },
@@ -1579,6 +1599,15 @@
             "title": "Stage Size",
             "type": "integer"
           },
+          "subject": {
+            "description": "Which job the report describes: 'current' (the current or most recent job) or 'past' (the one before it).",
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
+          },
           "submitted_at": {
             "anyOf": [
               {
@@ -1607,7 +1636,8 @@
           "stage_size",
           "experienced_outcome",
           "career_status",
-          "version"
+          "version",
+          "subject"
         ],
         "title": "ExportedEnvironmentReport",
         "type": "object"
@@ -5438,6 +5468,11 @@
             "title": "Manager",
             "type": "object"
           },
+          "past_job_report_filed": {
+            "description": "Whether the user has filed their one past-job environment report (subject 'past'). Present in every state; a past report never changes anything else in this response.",
+            "title": "Past Job Report Filed",
+            "type": "boolean"
+          },
           "state": {
             "description": "One of 'needs_core', 'needs_environment_report', 'complete'.",
             "title": "State",
@@ -5446,7 +5481,8 @@
         },
         "required": [
           "state",
-          "manager"
+          "manager",
+          "past_job_report_filed"
         ],
         "title": "SituationReportResponse",
         "type": "object"
@@ -7699,7 +7735,7 @@
     },
     "/api/v1/me/environment-report": {
       "post": {
-        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10).",
+        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md \u00a72, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.",
         "operationId": "post_me_post_my_environment_report",
         "requestBody": {
           "content": {
@@ -9832,7 +9868,7 @@
     },
     "/api/v1/me/situation-report": {
       "get": {
-        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads.",
+        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
         "operationId": "get_me_get_my_situation_report",
         "responses": {
           "200": {

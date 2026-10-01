@@ -114,7 +114,8 @@ database, and it is the app's.
 This document assumes the training pair is (person, company) with an
 `outcome_appeal`/`outcome_experienced` row behind it. BUILD_PLAN §5's E-4 says the rows that
 exist AT LAUNCH come from somewhere else entirely — A-2's `environment_reports`, where the
-env side is the user's own description of their own job and the outcome is that form's one
+env side is the user's own description of their own job (current, or since 2026-10-01
+one past job — see the 2026-10-01 section below) and the outcome is that form's one
 evaluative item. No company scoring, no recommendation, no placement required. That is what
 `assemble_environment_training_data()` assembles, and why it is a second entry point rather
 than a parameter on the first: the two sources differ in what selected the pair, not merely
@@ -271,6 +272,40 @@ unchanged on both heads, and a short NUTS fit with `industry` masked on every ro
 build_model" because `preprocess_conf` handles neither case. Both halves of that are now
 false. That file was outside this change's ownership, so the correction is recorded here
 rather than made there.
+
+## 2026-10-01 — past-job reports: `report_subject` and `current_report_ordinal`
+
+`environment_reports.subject` (migration `20261002_envreport_subject`) lets a user who has
+filed a current report file ONE more about the job before it (PRODUCT_DECISIONS.md §2).
+Same instrument, same scoring, same outcome item, so `assemble_environment_training_data`
+assembles those rows into the same arrays. It does not filter them out: choosing the sample
+is the analysis's job, and the pre-registration (Amendment 1) names past rows as
+exploratory-only. Every `EnvironmentTrainingRow` now carries two fields, both in
+`FUNNEL_FIELD_CAPTURE_NOTES`:
+
+* **`report_subject`** — `'current'` or `'past'`, straight from the column. Every row filed
+  before 2026-10-01 is `'current'` (the migration's server default).
+* **`current_report_ordinal`** — 1-based position among the user's CURRENT reports only,
+  oldest first by `(submitted_at, id)`; `None` on a past row. A past row filed between two
+  current ones does not shift them. The pre-registered primary sample, "each user's first
+  eligible current report", is `current_report_ordinal == 1`.
+  `report_ordinal` / `report_count_for_user` are unchanged in meaning: they still count ALL
+  of a user's reports, both subjects, because both kinds are non-independent rows from one
+  person.
+
+Two capture facts a past row's analysis must not lose:
+
+1. **The person side is measured now; the job ended earlier.** A past row pairs with the
+   SAME per-user pin (`_resolve_pinned_submissions`) as the user's current rows. There is no
+   person-side measurement from the time of that job, and the assembler does not pretend
+   otherwise.
+2. **`career_status` describes the filer, not the job.** It is the user's status on the day
+   they filed. `'employed'` on a past row does not mean that job is in progress; split on
+   `report_subject`, never on `career_status`, to tell the two kinds apart.
+
+A current-only dataset assembles byte-identically to before (every array, raw and after
+`preprocess_conf`); only the two new row fields are added —
+`tests/test_assemble_environment_training_data.py` asserts it.
 
 ### Pointer: condition experiments (BUILD_PLAN B-5)
 

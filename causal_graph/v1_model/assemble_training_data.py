@@ -20,8 +20,11 @@ TWO SOURCES, ONE SHAPE (BUILD_PLAN E-4)
                                          was shown and an outcome came back. The
                                          env side is a company's scored dimensions.
 `assemble_environment_training_data()`   (person, OWN JOB) pairs: the user described
-                                         their own role through A-1's instrument.
-                                         The env side is `environment_reports`.
+                                         a job of their own through A-1's
+                                         instrument -- their current one, or (since
+                                         2026-10-01, `report_subject='past'`) the
+                                         one before it. The env side is
+                                         `environment_reports`.
 
 Both return the same four arguments in the same raw units, so build_model does not
 know or care which produced a row. The second is the one that has data at launch --
@@ -335,8 +338,9 @@ def assemble_training_data(
 #
 # BUILD_PLAN §5's E-4 calls the other path "the inversion paying off": the env
 # side is the USER's own description of their own job (A-1's instrument, A-2's
-# `environment_reports`), keyed to the same `user_id` their person-side rows
-# already carry, and the outcome is that same form's one evaluative item. A
+# `environment_reports`) -- the current one, or since 2026-10-01 at most one
+# PAST job (`environment_reports.subject`, see PAST-JOB ROWS below), keyed to
+# the same `user_id` their person-side rows already carry, and the outcome is that same form's one evaluative item. A
 # training pair therefore exists the moment someone fills the Situation Report
 # in -- no company scoring, no funnel, no placement required.
 #
@@ -365,12 +369,35 @@ def assemble_training_data(
 # --------------------
 # Deliberately no `outcome_type` parameter, unlike `assemble_training_data`
 # above. `appeal` means "did this recommendation look like a fit", and there is
-# no recommendation behind an environment report -- the user already holds the
-# job. The only outcome on this path is `experienced` (1..5 ordinal, the same
-# shape as `outcome_experienced.working_scale`), so there is nothing for a
+# no recommendation behind an environment report -- the user already holds (or,
+# on a past row, already held) the job. The only outcome on this path is
+# `experienced` (1..5 ordinal, the same shape as `outcome_experienced.working_scale`), so there is nothing for a
 # caller to choose and nothing that could be blended.
 
+#
+# PAST-JOB ROWS (PRODUCT_DECISIONS.md §2, 2026-10-01)
+# ---------------------------------------------------
+# A user who has filed a current report may file ONE more about the job before
+# it (`environment_reports.subject = 'past'`). Same instrument, same scoring,
+# same outcome item -- so it assembles into the same arrays, and every row says
+# which kind it is in `report_subject`. Two things about a past row are easy to
+# get wrong, and both are why analysis must filter or stratify on
+# `report_subject` rather than on anything else:
+#   * It pairs with the SAME per-user person-side pin as the user's current
+#     rows. The person side was measured around now; the job ended earlier.
+#   * `career_status` is the user's status ON THE DAY THEY FILED, not a property
+#     of the past job. 'employed' on a past row does not mean that job is still
+#     in progress.
+# The first-outcome-fit pre-registration (Amendment 1) treats past rows as
+# exploratory only; its primary sample is `current_report_ordinal == 1`.
+
 ENVIRONMENT_OUTCOME_TYPE: OutcomeType = "experienced"
+
+#: `environment_reports.subject` values, restated from `model.ENV_REPORT_SUBJECTS`
+#: (no app on sys.path here; a test asserts the two agree).
+SUBJECT_CURRENT = "current"
+SUBJECT_PAST = "past"
+ENVIRONMENT_REPORT_SUBJECTS: tuple[str, ...] = (SUBJECT_CURRENT, SUBJECT_PAST)
 
 #: `environment_reports` columns carrying a `confounders:` key from
 #: `solverah_model_config.yaml`. The instrument asks all three active
@@ -432,6 +459,8 @@ class EnvironmentTrainingRow:
     report_ordinal: int
     report_count_for_user: int
     employer_name_normalized: Optional[str]
+    report_subject: str
+    current_report_ordinal: Optional[int]
     outcome_source: str = OUTCOME_SOURCE
     capture_path: str = CAPTURE_PATH
 
@@ -471,10 +500,13 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     ),
     "submitted_at": "environment_reports.submitted_at -- when the env side was described.",
     "career_status": (
-        "environment_reports.career_status, snapshotted at submit time. THE sample-"
-        "definition field: 'employed' describes a job in progress and 'between_jobs' "
-        "one just left, which are different populations answering the same outcome "
-        "item. 'first_job' cannot appear -- see TRAINABLE_CAREER_STATUSES."
+        "environment_reports.career_status, snapshotted at submit time: the USER's "
+        "status on the day they filed. On a current row it is THE sample-definition "
+        "field: 'employed' describes a job in progress and 'between_jobs' one just "
+        "left, which are different populations answering the same outcome item. On a "
+        "PAST row it describes the filer, NOT the job -- that job has ended whatever "
+        "this says -- so analysis must split on report_subject, never infer it from "
+        "here. 'first_job' cannot appear -- see TRAINABLE_CAREER_STATUSES."
     ),
     "env_form_version": (
         "environment_reports.version (situation_items.FORM_VERSION). Era separability "
@@ -501,12 +533,30 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
         "person side describes -- the default is deliberately the OLDEST sitting."
     ),
     "report_ordinal": (
-        "1-based position of this report among that user's reports, oldest first. "
+        "1-based position of this report among ALL that user's reports (current and "
+        "past alike), oldest first by (submitted_at, id). "
         "environment_reports is append-only, so a user contributes as many rows as they "
         "have submitted and those rows are NOT independent observations. This is what "
         "lets a fit group or weight them instead of counting one person several times."
     ),
-    "report_count_for_user": "How many reports that user has in total. See report_ordinal.",
+    "report_count_for_user": (
+        "How many reports that user has in total, both subjects. See report_ordinal."
+    ),
+    "report_subject": (
+        "environment_reports.subject: 'current' (the user's current or most recent "
+        "job -- every row filed before 2026-10-01) or 'past' (the one job before that, "
+        "at most one per user, filed after a current report). A past row pairs with the "
+        "SAME per-user person-side pin as the current rows, so its person side was "
+        "measured around now while the job it describes ended earlier; and its "
+        "career_status describes the user at filing, not that job. Pre-registration "
+        "Amendment 1: past rows are exploratory only."
+    ),
+    "current_report_ordinal": (
+        "1-based position of this report among that user's CURRENT reports only, "
+        "oldest first by (submitted_at, id); None on a past row. Past rows interleaved "
+        "in time do not shift it. 'First eligible current report' -- the "
+        "pre-registered primary sample -- is current_report_ordinal == 1."
+    ),
     "employer_name_normalized": (
         "environment_reports.employer_name_normalized (⚑6) -- optional, usually NULL, "
         "displayed nowhere. Carried, not joined: it is the future company-aggregation "
@@ -521,7 +571,8 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     "capture_path": (
         "Constant 'self_report_environment'. THE answer to 'how did this pair enter the "
         "data': it did not come through a recommendation at all -- the user already held "
-        "the job and described it. Every NULL below follows from this one value."
+        "the job (current or past, see report_subject) and described it. Every NULL "
+        "below follows from this one value."
     ),
     # --- named by the handoff, NOT suppliable from an environment report ---
     "company_id": (
@@ -561,7 +612,7 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     "match_formed": (
         "NULL: schema.sql principle 5's collider -- 'hired + accepted', the condition "
         "outcome rows are silently selected on. These rows are NOT conditioned on it "
-        "(the user is describing a job they already have, however they came by it), "
+        "(the user is describing a job they have or had, however they came by it), "
         "which is this source's real advantage over the placement path and the reason "
         "to record the absence explicitly rather than leave the column out."
     ),
@@ -688,6 +739,14 @@ def assemble_environment_rows(
         for ids in per_user.values()
         for index, report_id in enumerate(ids)
     }
+    # The same numbering over current reports alone: a past report never takes
+    # (or shifts) a current report's place.
+    current_ordinal_of: dict = {}
+    current_seen: dict = {}
+    for report in ordered:
+        if report["subject"] == SUBJECT_CURRENT:
+            current_seen[report["user_id"]] = current_seen.get(report["user_id"], 0) + 1
+            current_ordinal_of[report["id"]] = current_seen[report["user_id"]]
 
     # One sitting is shared by every report a user has written (the pin is per
     # user, not per report), so score it once. The cache also means a sitting
@@ -721,6 +780,9 @@ def assemble_environment_rows(
             # Not merely unusual -- A-5 refuses this submission with a 409, so a
             # row here means the refusal was bypassed. See TRAINABLE_CAREER_STATUSES.
             reasons.append("career_status=%r is not trainable" % report["career_status"])
+        if report["subject"] not in ENVIRONMENT_REPORT_SUBJECTS:
+            # The column's CHECK holds this vocabulary; a row here bypassed it.
+            reasons.append("subject=%r is not a known subject" % report["subject"])
 
         e_row = {}
         for key in dims:
@@ -797,6 +859,8 @@ def assemble_environment_rows(
                 report_ordinal=ordinal,
                 report_count_for_user=count,
                 employer_name_normalized=report.get("employer_name_normalized"),
+                report_subject=report["subject"],
+                current_report_ordinal=current_ordinal_of.get(report_id),
             )
         )
 
@@ -853,7 +917,7 @@ def assemble_environment_rows(
 def _fetch_environment_reports(conn: Connection) -> list[dict]:
     sql = text(
         "SELECT id, user_id, submitted_at, stage_size, comp, industry, experienced_outcome, "
-        "career_status, employer_name_normalized, version "
+        "career_status, employer_name_normalized, version, subject "
         "FROM environment_reports"
     )
     return [dict(r) for r in conn.execute(sql).mappings().all()]
@@ -1015,7 +1079,9 @@ def assemble_environment_training_data(
           `assessment_form.scoring_key_version()` -- the CURRENT key, because
           that is the one the default scorer re-derives under.
 
-    ALL of a user's reports are assembled, not just the latest.
+    ALL of a user's reports are assembled, not just the latest -- current and
+    past alike; `report_subject` says which, and `current_report_ordinal == 1`
+    selects each user's first current report.
     `environment_reports` is append-only and its history is the point (A-2's
     module docstring says so, and names this function). Repeated reports from
     one person are not independent observations, so `report_ordinal` and
@@ -1026,7 +1092,8 @@ def assemble_environment_training_data(
     THE JOIN PATH, IN ONE SENTENCE: every report a user has written pairs with
     the SAME core sitting -- their pin -- because the pin is per user, which is
     precisely what makes the person side sealed while the environment side
-    varies.
+    varies. That includes a past-job report: its person side is the same pin,
+    measured around now, not at the time of the job it describes.
     """
     form = None
     if score_person is None or scoring_key_version is None:

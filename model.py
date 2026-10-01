@@ -1284,6 +1284,13 @@ CAREER_STATUSES = ("employed", "between_jobs", "first_job")
 #: three agree.
 ENV_INDUSTRIES = ("tech", "finance", "healthcare", "retail", "other")
 
+#: `environment_reports.subject`'s vocabulary (PRODUCT_DECISIONS.md §2, Sebastian,
+#: 2026-10-01): which job a report describes. `current` is the user's current or most
+#: recent job -- every row before that date, and the only kind the Situation Report
+#: reads. `past` is the one job before that, filed at most once per user, after a
+#: current report exists.
+ENV_REPORT_SUBJECTS = ("current", "past")
+
 
 class EnvironmentReport(db.Model):
     """One submission of the environment-side instrument. Append-only: id is not a person's
@@ -1328,7 +1335,12 @@ class EnvironmentReport(db.Model):
     # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
     # same ordinal shape as `outcome_experienced.working_scale`.
     experienced_outcome = db.Column(db.SmallInteger, nullable=False)
+    #: The user's status WHEN THEY FILED. On a `subject='past'` row this is still the
+    #: filer's status that day, not a description of the past job.
     career_status = db.Column(db.Text, nullable=False)
+    #: Which job this row describes (ENV_REPORT_SUBJECTS). Every read that means "the
+    #: user's job" -- the Situation Report, the dashboard -- filters on `current`.
+    subject = db.Column(db.Text, nullable=False, server_default="current", default="current")
     #: ⚑6: optional, stored, displayed nowhere at launch -- the future company-aggregation
     #: lane's join key, not a launch feature. Pre-normalized (lowercased/trimmed) by the
     #: caller so a later aggregation query is a GROUP BY, not a fuzzy match.
@@ -1355,6 +1367,14 @@ class EnvironmentReport(db.Model):
         db.CheckConstraint(
             "career_status IN %s" % (CAREER_STATUSES,),
             name="ck_envreport_career_status_vocab",
+        ),
+        db.CheckConstraint(
+            "subject IN %s" % (ENV_REPORT_SUBJECTS,),
+            name="ck_envreport_subject_vocab",
+        ),
+        db.CheckConstraint(
+            "subject = 'current' OR career_status <> 'first_job'",
+            name="ck_envreport_past_not_first_job",
         ),
         db.Index(
             "ix_environment_reports_user_submitted",

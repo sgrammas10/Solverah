@@ -280,6 +280,41 @@ def test_unknown_career_status_raises() -> None:
         is_past_tense("retired")
 
 
+# A past-job report (PRODUCT_DECISIONS.md §2, 2026-10-01) describes a job the
+# user has left, so it is past tense even for an employed user.
+@pytest.mark.parametrize(
+    "career_status, subject, expected",
+    [
+        ("employed", "current", False),
+        ("between_jobs", "current", True),
+        ("first_job", "current", True),
+        ("employed", "past", True),
+        ("between_jobs", "past", True),
+    ],
+)
+def test_is_past_tense_for_subject(career_status, subject, expected) -> None:
+    from work_pulse.situation_items import is_past_tense_for
+
+    assert is_past_tense_for(career_status, subject) is expected
+
+
+def test_is_past_tense_for_defaults_to_current_and_validates_both_args() -> None:
+    from work_pulse.situation_items import is_past_tense_for
+
+    assert is_past_tense_for("employed") is False
+    with pytest.raises(ValueError, match="career_status"):
+        is_past_tense_for("retired", "past")
+    with pytest.raises(ValueError, match="subject"):
+        is_past_tense_for("employed", "previous")
+
+
+def test_past_context_stems_do_not_assume_the_last_job() -> None:
+    """A past-job report is about the job BEFORE the most recent one, so a stem that
+    says "the organization you last worked for" names the wrong job for it."""
+    for item in CONTEXT_ITEMS + ENVIRONMENT_ITEMS:
+        assert "last worked" not in item["prompt_past"], item["item_id"]
+
+
 def test_every_item_carries_both_tense_variants_non_empty() -> None:
     for item in ENVIRONMENT_ITEMS + CONTEXT_ITEMS:
         assert item["prompt"].strip(), item["item_id"]

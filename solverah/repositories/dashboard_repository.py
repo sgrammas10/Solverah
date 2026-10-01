@@ -88,6 +88,16 @@ def _assessments() -> sa.Select:
     )
 
 
+def _environment_reports() -> sa.Select:
+    """The newest report about the user's CURRENT job. A past-job report
+    (PRODUCT_DECISIONS.md §2, 2026-10-01) is not activity here: the card says
+    "You described your current job", and the dashboard's recommendations read
+    this source as "has a Situation Report", which a past report never gives."""
+    return _single_source(
+        SOURCE_ENVIRONMENT_REPORT, EnvironmentReport, EnvironmentReport.submitted_at
+    ).where(EnvironmentReport.subject == "current")
+
+
 def latest_activity(user_id: int) -> List[ActivityRow]:
     """The newest event per source for *user_id*, newest first. One query.
 
@@ -96,7 +106,7 @@ def latest_activity(user_id: int) -> List[ActivityRow]:
     """
     union = sa.union_all(
         _assessments(),
-        _single_source(SOURCE_ENVIRONMENT_REPORT, EnvironmentReport, EnvironmentReport.submitted_at),
+        _environment_reports(),
         _single_source(SOURCE_MANAGER_PROFILE, ManagerProfile, ManagerProfile.created_at),
         _single_source(SOURCE_PULSE_CHECKIN, PulseCheckin, PulseCheckin.taken_at),
         _single_source(SOURCE_RESUME, Resume, Resume.created_at),

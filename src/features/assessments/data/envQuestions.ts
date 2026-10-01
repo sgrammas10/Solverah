@@ -491,7 +491,7 @@ export const ENV_ITEMS: EnvItem[] = [
 export const STAGE_SIZE_ITEM: EnvContextItem = {
   itemId: "stage_size",
   prompt: "How big is the organization you work for — the whole organization, not your team?",
-  promptPast: "How big was the organization you last worked for — the whole organization, not your team?",
+  promptPast: "How big was the organization you worked for in that role — the whole organization, not your team?",
   options: [
     {
       value: 1,
@@ -562,7 +562,7 @@ export const COMP_ITEM: EnvContextItem = {
 export const INDUSTRY_ITEM: EnvContextItem = {
   itemId: "industry",
   prompt: "Which industry is the organization you work for in?",
-  promptPast: "Which industry was the organization you last worked for in?",
+  promptPast: "Which industry did the organization you worked for in that role belong to?",
   options: [
     {
       value: "tech",

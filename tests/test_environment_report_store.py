@@ -555,3 +555,177 @@ def test_environment_report_requires_a_real_user(client):
         )
         with pytest.raises(IntegrityError):
             db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# subject: current vs past (PRODUCT_DECISIONS.md §2, 2026-10-01)
+# ---------------------------------------------------------------------------
+
+
+def test_subject_defaults_to_current_and_is_serialized(client, seed_user):
+    from app import app
+    from environment_report_store import environment_report_history, latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1)
+        db.session.commit()
+
+        assert latest_environment_report(1)["subject"] == "current"
+        assert environment_report_history(1)[0]["subject"] == "current"
+
+
+def test_a_past_report_never_becomes_the_latest_report(client, seed_user):
+    """The Situation Report reads `latest_environment_report`; a past report filed
+    AFTER the current one must not take its place."""
+    from app import app
+    from environment_report_store import latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        current_id = _write(db, user_id=1, stage_size=2)
+        db.session.commit()
+        _write(db, user_id=1, stage_size=5, subject="past")
+        db.session.commit()
+
+        latest = latest_environment_report(1)
+        assert latest["id"] == current_id
+        assert latest["subject"] == "current"
+        narrowed = latest_environment_report(1, include_raw_answers=False)
+        assert narrowed["id"] == current_id
+
+
+def test_a_past_only_user_has_no_latest_report(client, seed_user):
+    from app import app
+    from environment_report_store import latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1, subject="past")
+        db.session.commit()
+
+        assert latest_environment_report(1) is None
+
+
+def test_history_includes_past_reports_with_their_subject(client, seed_user):
+    from app import app
+    from environment_report_store import environment_report_history
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        current_id = _write(db, user_id=1)
+        db.session.commit()
+        past_id = _write(db, user_id=1, subject="past")
+        db.session.commit()
+
+        history = environment_report_history(1)
+        assert [(h["id"], h["subject"]) for h in history] == [
+            (past_id, "past"),
+            (current_id, "current"),
+        ]
+
+
+def test_count_environment_reports_counts_per_subject_and_per_user(client, seed_user):
+    from app import app
+    from environment_report_store import count_environment_reports
+    from model import db
+
+    seed_user(1)
+    seed_user(2)
+    with app.app_context():
+        assert count_environment_reports(1, "current") == 0
+        assert count_environment_reports(1, "past") == 0
+        _write(db, user_id=1)
+        _write(db, user_id=1)
+        _write(db, user_id=1, subject="past")
+        _write(db, user_id=2, subject="past")
+        db.session.commit()
+
+        assert count_environment_reports(1, "current") == 2
+        assert count_environment_reports(1, "past") == 1
+        assert count_environment_reports(2, "current") == 0
+        with pytest.raises(ValueError):
+            count_environment_reports(1, "former")
+
+
+def test_write_rejects_an_unknown_subject_before_touching_the_session(client, seed_user):
+    from app import app
+    from model import EnvironmentReport, db
+
+    seed_user(1)
+    with app.app_context():
+        with pytest.raises(ValueError):
+            _write(db, user_id=1, subject="previous")
+        assert EnvironmentReport.query.filter_by(user_id=1).count() == 0
+
+
+def _raw_row(**overrides):
+    from model import EnvironmentReport
+
+    kwargs = dict(
+        user_id=1,
+        raw_answers={},
+        stage_size=3,
+        comp=3,
+        experienced_outcome=3,
+        career_status="employed",
+        version="v1",
+    )
+    kwargs.update(overrides)
+    return EnvironmentReport(**kwargs)
+
+
+@pytest.mark.parametrize("bad_subject", ["previous", "Past", ""])
+def test_subject_outside_the_vocabulary_is_rejected(client, seed_user, bad_subject):
+    """ck_envreport_subject_vocab, at the database (the ORM path skips the store's check)."""
+    from app import app
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        db.session.add(_raw_row(subject=bad_subject))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+
+
+def test_a_past_first_job_row_is_rejected(client, seed_user):
+    """ck_envreport_past_not_first_job: a never-employed user has no past job."""
+    from app import app
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        db.session.add(_raw_row(subject="past", career_status="first_job"))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+
+
+@pytest.mark.parametrize(
+    "subject, career_status",
+    [("current", "employed"), ("current", "between_jobs"), ("current", "first_job"),
+     ("past", "employed"), ("past", "between_jobs")],
+)
+def test_every_allowed_subject_and_status_pair_is_accepted(client, seed_user, subject, career_status):
+    """Sibling VALID-row test (S-40 lesson) for the two subject CHECKs."""
+    from app import app
+    from model import EnvironmentReport, db
+
+    seed_user(1)
+    with app.app_context():
+        db.session.add(_raw_row(subject=subject, career_status=career_status))
+        db.session.commit()
+        assert EnvironmentReport.query.filter_by(user_id=1).one().subject == subject
+
+
+def test_subject_vocabulary_agrees_across_orm_instrument_and_wire():
+    from typing import get_args
+
+    from model import ENV_REPORT_SUBJECTS
+    from solverah.schemas.situation_report import Subject
+    from work_pulse.situation_items import SUBJECTS
+
+    assert ENV_REPORT_SUBJECTS == SUBJECTS == get_args(Subject) == ("current", "past")

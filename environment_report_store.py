@@ -14,6 +14,12 @@ APPEND-ONLY (D-16 tradition), unlike the person-side dimension-score table. Ever
 submission from the same user is a second, independent row; history is the point (it is
 what Pulse trends and E-4's training data both read).
 
+SUBJECT (PRODUCT_DECISIONS.md §2, 2026-10-01). A row describes either the user's
+current (or most recent) job, `subject='current'`, or the one job before that,
+`subject='past'`. `latest_environment_report` -- the Situation Report's read -- only
+ever returns a current row: a past report can never become "the user's job".
+`environment_report_history` (the export) returns both, each carrying its `subject`.
+
 D-15 pinning (⚑5) is out of scope here on purpose. The Situation Report pins to a named
 person-side snapshot, not to anything in this module -- see `model.py`'s "Environment side"
 section docstring for why storing such a pin here would be the wrong place for it.
@@ -23,13 +29,18 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from model import ENV_DIMENSIONS
+from model import ENV_DIMENSIONS, ENV_REPORT_SUBJECTS
 
 __all__ = [
     "write_environment_report",
     "latest_environment_report",
     "environment_report_history",
+    "count_environment_reports",
 ]
+
+#: The subject every "the user's job" read filters on.
+CURRENT = "current"
+PAST = "past"
 
 
 def _require_all_dimensions(dimension_scores: dict[str, float]) -> None:
@@ -67,6 +78,7 @@ def write_environment_report(
     version: str,
     employer_name_normalized: Optional[str] = None,
     industry: Optional[str] = None,
+    subject: str = CURRENT,
 ) -> int:
     """Write one submission: the header row plus its six dimension-score rows.
 
@@ -91,10 +103,16 @@ def write_environment_report(
     (PRODUCT_DECISIONS.md §2, 2026-10-01). It holds a level key from
     `model.ENV_INDUSTRIES` or `None` for "not sure / prefer not to say", and the
     column's CHECK rejects anything else at flush.
+
+    `subject` is `"current"` (the default) or `"past"` (model.ENV_REPORT_SUBJECTS).
+    This function does not enforce who may file a past report -- the service does;
+    the column's CHECKs hold the vocabulary and refuse a past `first_job` row.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
     _require_all_dimensions(dimension_scores)
+    if subject not in ENV_REPORT_SUBJECTS:
+        raise ValueError("subject must be one of %r, got %r" % (ENV_REPORT_SUBJECTS, subject))
 
     report = EnvironmentReport(
         user_id=user_id,
@@ -106,6 +124,7 @@ def write_environment_report(
         career_status=career_status,
         employer_name_normalized=employer_name_normalized,
         version=version,
+        subject=subject,
     )
     db.session.add(report)
     db.session.flush()  # need report.id for the child rows below
@@ -145,6 +164,7 @@ def _serialize(
             "career_status": report.career_status,
             "employer_name_normalized": report.employer_name_normalized,
             "version": report.version,
+            "subject": report.subject,
         }
     )
     return serialized
@@ -167,12 +187,15 @@ def latest_environment_report(
     career_status snapshot and `submitted_at`, never the raw answers. Every other key
     is unchanged. The default, and `environment_report_history` (the export), still
     return them.
+
+    Current reports only: a `subject='past'` row is never "the latest report", however
+    recently it was filed.
     """
     from sqlalchemy.orm import defer
 
     from model import EnvironmentDimensionScore, EnvironmentReport
 
-    query = EnvironmentReport.query.filter_by(user_id=user_id)
+    query = EnvironmentReport.query.filter_by(user_id=user_id, subject=CURRENT)
     if not include_raw_answers:
         query = query.options(defer(EnvironmentReport.raw_answers))
     report = query.order_by(
@@ -199,6 +222,9 @@ def environment_report_history(
     "what applies right now" (`latest_environment_report`), and silently truncating it would
     be the same class of bug `assemble_training_data.py`'s module docstring warns against --
     an empty/short response read as absence rather than as a real, small answer.
+
+    Every subject: each entry carries `subject`, so a consumer that wants only the
+    current job's history filters on it.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
@@ -220,3 +246,20 @@ def environment_report_history(
         scores_by_report[s.environment_report_id][s.dimension_key] = s.score
 
     return [_serialize(r, scores_by_report[r.id]) for r in reports]
+
+
+def count_environment_reports(user_id: int, subject: str) -> int:
+    """How many reports of one `subject` this user has filed. One COUNT, no row
+    loaded -- what the past-report cap and the Situation Report's
+    `past_job_report_filed` flag read."""
+    from sqlalchemy import func, select
+
+    from model import EnvironmentReport, db
+
+    if subject not in ENV_REPORT_SUBJECTS:
+        raise ValueError("subject must be one of %r, got %r" % (ENV_REPORT_SUBJECTS, subject))
+    return db.session.execute(
+        select(func.count(EnvironmentReport.id)).where(
+            EnvironmentReport.user_id == user_id, EnvironmentReport.subject == subject
+        )
+    ).scalar_one()

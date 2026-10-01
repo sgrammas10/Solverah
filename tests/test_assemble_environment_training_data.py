@@ -720,6 +720,318 @@ def test_every_report_a_user_wrote_becomes_a_row_and_is_numbered(client, monkeyp
 
 
 # ---------------------------------------------------------------------------
+# Past-job reports (PRODUCT_DECISIONS.md §2, 2026-10-01): report_subject and
+# current_report_ordinal
+# ---------------------------------------------------------------------------
+
+
+def _write_past_report(email, *, plan=None, experienced=3, career_status="employed"):
+    """A `subject='past'` row, written straight through A-2's store. The route's
+    own eligibility rules are the service's business and tested there; this
+    file only needs the row to exist, so it does not depend on the route."""
+    from app import app
+    from environment_report_store import write_environment_report
+    from model import User, db
+    from work_pulse import situation
+
+    answers = _answers_from_plan(plan)
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        report_id = write_environment_report(
+            db,
+            user.id,
+            raw_answers=answers,
+            dimension_scores=situation.score_environment(
+                answers, situation_items.item_spec(career_status)
+            ),
+            stage_size=2,
+            comp=3,
+            experienced_outcome=experienced,
+            career_status=career_status,
+            version=situation_items.FORM_VERSION,
+            subject="past",
+        )
+        db.session.commit()
+    return report_id
+
+
+def test_subject_vocabulary_agrees_with_the_model():
+    """Restated so the model lane needs no app on sys.path; this is the tripwire."""
+    from model import ENV_REPORT_SUBJECTS
+
+    assert atd.ENVIRONMENT_REPORT_SUBJECTS == tuple(ENV_REPORT_SUBJECTS)
+    assert atd.SUBJECT_CURRENT == "current"
+    assert atd.SUBJECT_PAST == "past"
+
+
+def test_a_past_report_is_a_row_marked_past_with_no_current_ordinal(client, monkeypatch):
+    """A past row assembles like any other -- same arrays, same pin -- and says
+    what it is. It pairs with the SAME person-side sitting as the user's
+    current row (the person side is measured now, the job ended earlier)."""
+    email = "e4_past_one@example.com"
+    csrf = _register_and_login(client, monkeypatch, email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _post_env(client, csrf, experienced=5).status_code == 200
+    past_id = _write_past_report(email, experienced=2)
+
+    result = _assemble()
+
+    assert result.dropped == []
+    assert [r.report_subject for r in result.rows] == ["current", "past"]
+    current, past = result.rows
+    assert past.environment_report_id == past_id
+    assert past.current_report_ordinal is None
+    assert current.current_report_ordinal == 1
+    assert list(result.outcome) == [5, 2]
+
+    # Same pin, same person side -- by design, and the capture note says so.
+    assert past.person_submission_id == current.person_submission_id
+    for dimension in ENV_DIMENSIONS:
+        assert result.person[dimension][1] == pytest.approx(result.person[dimension][0])
+
+    # career_status is the filer's status at filing, carried as-is.
+    assert past.career_status == "employed"
+    # report_ordinal still counts every report the user wrote.
+    assert [r.report_ordinal for r in result.rows] == [1, 2]
+    assert [r.report_count_for_user for r in result.rows] == [2, 2]
+
+
+def test_current_ordinals_ignore_an_interleaved_past_report(client, monkeypatch):
+    """current, past, current, current (by submitted_at): the current rows are
+    numbered 1, 2, 3 -- the past row in between takes no place among them."""
+    email = "e4_past_interleave@example.com"
+    csrf = _register_and_login(client, monkeypatch, email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _post_env(client, csrf, experienced=1).status_code == 200
+    _write_past_report(email, experienced=2)
+    assert _post_env(client, csrf, experienced=3).status_code == 200
+    assert _post_env(client, csrf, experienced=4).status_code == 200
+
+    # A second user, so per-user numbering is exercised too.
+    other = "e4_past_interleave_other@example.com"
+    csrf_o = _register_and_login(client, monkeypatch, other)
+    _set_career_status(client, csrf_o, "between_jobs")
+    _complete_core(client, csrf_o)
+    assert _post_env(client, csrf_o, experienced=5).status_code == 200
+
+    result = _assemble()
+    assert result.dropped == []
+
+    from app import app
+    from model import User
+
+    with app.app_context():
+        uid = User.query.filter_by(email=email).first().id
+
+    mine = [(r, int(o)) for r, o in zip(result.rows, result.outcome) if r.user_id == uid]
+    assert [o for _, o in mine] == [1, 2, 3, 4]  # submitted_at order
+    assert [r.report_subject for r, _ in mine] == ["current", "past", "current", "current"]
+    assert [r.current_report_ordinal for r, _ in mine] == [1, None, 2, 3]
+    assert [r.report_ordinal for r, _ in mine] == [1, 2, 3, 4]
+
+    theirs = [r for r in result.rows if r.user_id != uid]
+    assert [(r.report_subject, r.current_report_ordinal) for r in theirs] == [("current", 1)]
+
+
+def test_first_eligible_current_report_is_current_report_ordinal_one(client, monkeypatch):
+    """The pre-registered primary sample is one line over the rows, and no past
+    report -- even one filed right after the first current one -- lands in it."""
+    import numpy as np
+
+    for email, n_current, with_past in (
+        ("e4_first_a@example.com", 2, True),
+        ("e4_first_b@example.com", 1, False),
+        ("e4_first_c@example.com", 3, True),
+    ):
+        csrf = _register_and_login(client, monkeypatch, email)
+        _set_career_status(client, csrf, "employed")
+        _complete_core(client, csrf)
+        for i in range(n_current):
+            assert _post_env(client, csrf, experienced=1 + i).status_code == 200
+            if with_past and i == 0:
+                _write_past_report(email, experienced=5)
+
+    result = _assemble()
+    assert result.dropped == []
+    assert len(result.rows) == 2 + 1 + 3 + 2
+
+    keep = np.array([r.current_report_ordinal == 1 for r in result.rows])
+    primary = [r for r, k in zip(result.rows, keep) if k]
+
+    assert len(primary) == 3
+    assert len({r.user_id for r in primary}) == 3  # exactly one per user
+    assert all(r.report_subject == "current" for r in primary)
+    # Each is that user's EARLIEST current report (experienced = 1 by construction).
+    assert result.outcome[keep].tolist() == [1, 1, 1]
+
+
+def _same_array(a, b):
+    import numpy as np
+
+    a, b = np.asarray(a), np.asarray(b)
+    assert a.dtype == b.dtype and a.shape == b.shape
+    if a.dtype == object:
+        assert list(a) == list(b)
+    else:
+        assert a.tobytes() == b.tobytes()
+
+
+def _assert_same_result(new, old, *, ignore_fields=("report_subject", "current_report_ordinal")):
+    """Every array (raw and after preprocess_conf) byte-identical; every row
+    field identical except the named ones."""
+    for group in ("person", "env", "conf", "conf_missing"):
+        assert list(getattr(new, group)) == list(getattr(old, group)), group
+        for key in getattr(new, group):
+            _same_array(getattr(new, group)[key], getattr(old, group)[key])
+    _same_array(new.outcome, old.outcome)
+    assert new.dropped == old.dropped
+    assert new.unsupplied_confounders == old.unsupplied_confounders
+    assert new.outcome_type == old.outcome_type
+
+    cfg = _cfg()
+    pre_new = _match_core().preprocess_conf(new.conf, cfg, conf_missing=new.conf_missing)
+    pre_old = _match_core().preprocess_conf(old.conf, cfg, conf_missing=old.conf_missing)
+    assert list(pre_new) == list(pre_old)
+    for key in pre_new:
+        _same_array(pre_new[key], pre_old[key])
+
+    assert len(new.rows) == len(old.rows)
+    old_fields = [f.name for f in dataclasses.fields(old.rows[0])] if old.rows else []
+    for new_row, old_row in zip(new.rows, old.rows):
+        for name in old_fields:
+            if name in ignore_fields:
+                continue
+            assert getattr(new_row, name) == getattr(old_row, name), name
+
+
+def _seed_current_only_dataset(client, monkeypatch, prefix):
+    """Several users, repeated reports, a NULL comp and a named industry -- the
+    shapes the current path already handles."""
+    for i, (status, industry, comp, n) in enumerate(
+        (
+            ("employed", None, 2, 2),
+            ("between_jobs", "healthcare", None, 1),
+            ("employed", "tech", 5, 3),
+        )
+    ):
+        csrf = _register_and_login(client, monkeypatch, "%s_%d@example.com" % (prefix, i))
+        _set_career_status(client, csrf, status)
+        _complete_core(client, csrf, _UNIFORM if i % 2 == 0 else _VARIED)
+        for k in range(n):
+            assert _post_env(
+                client, csrf, industry=industry, comp=comp, experienced=1 + (i + k) % 5
+            ).status_code == 200
+    # One env report with no core, so `dropped` is non-empty and compared too.
+    csrf = _register_and_login(client, monkeypatch, "%s_nocore@example.com" % prefix)
+    _set_career_status(client, csrf, "employed")
+    assert _post_env(client, csrf).status_code == 200
+
+
+#: The commit just before `report_subject` existed. The comparison below loads
+#: the assembler AS IT WAS there and runs it on the same database.
+_PRE_SUBJECT_COMMIT = "45de8b4"
+
+
+def _load_pre_subject_assembler():
+    import importlib.util
+    import subprocess
+
+    repo = Path(__file__).resolve().parents[1]
+    try:
+        source = subprocess.run(
+            [
+                "git", "-C", str(repo), "show",
+                "%s:causal_graph/v1_model/assemble_training_data.py" % _PRE_SUBJECT_COMMIT,
+            ],
+            check=True, capture_output=True, text=True, encoding="utf-8",
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    name = "_atd_pre_subject"
+    spec = importlib.util.spec_from_loader(name, loader=None)
+    module = importlib.util.module_from_spec(spec)
+    module.__file__ = str(_V1_MODEL / "assemble_training_data.py")
+    sys.modules[name] = module
+    exec(compile(source, "<atd@%s>" % _PRE_SUBJECT_COMMIT, "exec"), module.__dict__)
+    return module
+
+
+def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
+    client, monkeypatch
+):
+    """The subject column must not move a current-only fit. Same database,
+    assembled by today's code and by the code as it was at _PRE_SUBJECT_COMMIT:
+    every array (raw and preprocessed), `dropped`, and every pre-existing row
+    field identical. The only difference is the two new fields.
+
+    Needs git history (a shallow CI checkout lacks the commit and skips);
+    `test_past_rows_do_not_perturb_current_rows` below is the history-free
+    guard of the same property."""
+    old_atd = _load_pre_subject_assembler()
+    if old_atd is None:
+        pytest.skip("commit %s not in this checkout" % _PRE_SUBJECT_COMMIT)
+
+    _seed_current_only_dataset(client, monkeypatch, "e4_bytes")
+
+    new = _assemble()
+    from app import app
+    from model import db
+
+    with app.app_context():
+        with db.engine.connect() as conn:
+            old = old_atd.assemble_environment_training_data(conn, _cfg())
+
+    assert len(new.rows) == 6 and len(new.dropped) == 1
+    _assert_same_result(new, old)
+    old_names = {f.name for f in dataclasses.fields(old.rows[0])}
+    new_names = {f.name for f in dataclasses.fields(new.rows[0])}
+    assert new_names - old_names == {"report_subject", "current_report_ordinal"}
+    assert old_names <= new_names
+
+    # On current-only data the new fields are fully determined.
+    assert all(r.report_subject == "current" for r in new.rows)
+    assert [r.current_report_ordinal for r in new.rows] == [
+        r.report_ordinal for r in new.rows
+    ]
+
+
+def test_past_rows_do_not_perturb_current_rows(client, monkeypatch):
+    """History-free version of the byte-identity guard: add a past report for a
+    user, and the current rows -- selected on report_subject -- carry the same
+    arrays and fields they had before, current_report_ordinal included. Only
+    report_ordinal / report_count_for_user may move, because they count both
+    subjects by definition."""
+    _seed_current_only_dataset(client, monkeypatch, "e4_perturb")
+    before = _assemble()
+
+    _write_past_report("e4_perturb_2@example.com", experienced=4)
+    after = _assemble()
+
+    assert len(after.rows) == len(before.rows) + 1
+    keep = [i for i, r in enumerate(after.rows) if r.report_subject == "current"]
+    assert len(keep) == len(before.rows)
+
+    import numpy as np
+
+    idx = np.asarray(keep, dtype=int)
+    filtered = atd.EnvironmentAssembleResult(
+        person={k: v[idx] for k, v in after.person.items()},
+        env={k: v[idx] for k, v in after.env.items()},
+        conf={k: v[idx] for k, v in after.conf.items()},
+        conf_missing={k: v[idx] for k, v in after.conf_missing.items()},
+        outcome=after.outcome[idx],
+        rows=[after.rows[i] for i in keep],
+        dropped=after.dropped,
+        unsupplied_confounders=after.unsupplied_confounders,
+    )
+    _assert_same_result(
+        filtered, before, ignore_fields=("report_ordinal", "report_count_for_user")
+    )
+
+
+# ---------------------------------------------------------------------------
 # Naming and shape: assert the agreement, do not trust the comment
 # ---------------------------------------------------------------------------
 

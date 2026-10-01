@@ -20,6 +20,15 @@ recalibrate call writes. `_pinned_submission_id` below is the one place that
 resolves "override, or the first sitting" into what a read actually uses -- which is
 also what makes a plain core retake, with no recalibrate, leave `get_situation_report`
 byte-identical: nothing this function reads changes when a new sitting merely exists.
+
+PAST-JOB REPORTS (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01)
+-----------------------------------------------------------------
+`POST /me/environment-report` with `subject: "past"` files a report about the one
+job before the user's current or most recent one. At most `PAST_REPORT_LIMIT` per
+user, only after a current report exists, never for `first_job`. Such a report is
+stored and exported but never read by `get_situation_report`: the store's latest
+read filters on the current subject, and the only trace a past report leaves on
+that response is `past_job_report_filed`.
 """
 
 from __future__ import annotations
@@ -43,6 +52,12 @@ __all__ = [
 NEEDS_CORE = "needs_core"
 NEEDS_ENVIRONMENT_REPORT = "needs_environment_report"
 COMPLETE = "complete"
+
+SUBJECT_CURRENT = "current"
+SUBJECT_PAST = "past"
+
+#: How many past-job reports one user may file (Sebastian, 2026-10-01: one).
+PAST_REPORT_LIMIT = 1
 
 
 @dataclass
@@ -99,6 +114,31 @@ def _pinned_submission_id(user_id: int) -> Optional[str]:
     return assessment_store.first_completed_core_submission_id(user_id)
 
 
+def _check_past_report_allowed(user_id: int) -> None:
+    """Raise the 409 that applies when this user may not file a past report now.
+
+    Takes a row lock on the user first, so two past submits racing each other
+    (a double click) serialize here and the second one sees the first one's row
+    and refuses, rather than both reading a count of zero."""
+    import environment_report_store
+    from sqlalchemy import select
+
+    db.session.execute(select(User.id).where(User.id == user_id).with_for_update())
+    if environment_report_store.count_environment_reports(user_id, SUBJECT_CURRENT) == 0:
+        raise ConflictError(
+            detail=(
+                "Describe your current or most recent job first -- a past-job report "
+                "is accepted only after that one."
+            ),
+            errors=[{"field": "subject", "code": "current_report_required"}],
+        )
+    if environment_report_store.count_environment_reports(user_id, SUBJECT_PAST) >= PAST_REPORT_LIMIT:
+        raise ConflictError(
+            detail="You have already described a past job.",
+            errors=[{"field": "subject", "code": "past_report_limit"}],
+        )
+
+
 # ---------------------------------------------------------------------------
 # POST /me/environment-report
 # ---------------------------------------------------------------------------
@@ -112,11 +152,21 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
     `first_job` refuses with a distinguishable 409: PRODUCT_DECISIONS.md §2's
     "Environment-instrument rulings" -- a never-employed user has no role to
     describe, and forcing the form would record a decline as a real answer.
+
+    `subject` (default `"current"`): `"past"` files the user's one past-job report
+    -- see the module docstring. Its refusals are 409s with distinguishable codes:
+    `first_job_no_role` (as for a current report), `current_report_required`, and
+    `past_report_limit`. `career_status` is still the live status, stored as "the
+    filer's status that day", not as a description of the past job.
     """
     from work_pulse import situation, situation_items
 
     if not isinstance(payload, dict):
         return _error(400, "body must be an object")
+
+    subject = payload.get("subject", SUBJECT_CURRENT)
+    if subject not in (SUBJECT_CURRENT, SUBJECT_PAST):
+        return _error(400, "subject must be 'current' or 'past'")
 
     career_status = _live_career_status(user.id)
     if not career_status:
@@ -132,6 +182,9 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
             ),
             errors=[{"field": "career_status", "code": "first_job_no_role"}],
         )
+
+    if subject == SUBJECT_PAST:
+        _check_past_report_allowed(user.id)
 
     answers = payload.get("answers")
     expected_ids = {item["item_id"] for item in situation_items.item_list_in_form_order()}
@@ -178,6 +231,7 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
         career_status=career_status,
         version=situation_items.FORM_VERSION,
         employer_name_normalized=employer_name_normalized,
+        subject=subject,
     )
     db.session.commit()
 
@@ -191,6 +245,7 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
             "experienced": experienced,
             "career_status": career_status,
             "version": situation_items.FORM_VERSION,
+            "subject": subject,
         },
     )
 
@@ -345,7 +400,21 @@ def _dimension_weights() -> Dict[str, Dict[str, float]]:
 def get_situation_report(user: User) -> SituationReportResult:
     """The three states, per BUILD_PLAN §3.5. D-15 (structural, every state): no
     person-side score, no numeric gap, no per-dimension magnitude, anywhere.
+
+    Every state also carries `past_job_report_filed`. Nothing else here reads a
+    past-job report: the latest-report read is current-only by construction.
     """
+    import environment_report_store
+
+    result = _situation_report(user)
+    result.body["past_job_report_filed"] = (
+        environment_report_store.count_environment_reports(user.id, SUBJECT_PAST) > 0
+    )
+    return result
+
+
+def _situation_report(user: User) -> SituationReportResult:
+    """`get_situation_report` minus the past-report flag."""
     import assessment_store
     import environment_report_store
     from work_pulse import situation, situation_content, situation_items

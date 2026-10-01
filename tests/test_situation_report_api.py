@@ -829,3 +829,231 @@ def test_environment_report_submit_is_limited_to_five_per_minute(client, monkeyp
 
     assert statuses[:5] == [200] * 5
     assert statuses[5] == 429
+
+
+# ── Past-job report (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01) ─────────
+
+
+def _submit_past(client, csrf, pole="high", **extra):
+    body = {
+        "answers": _env_answers(pole),
+        "stage_size": 2,
+        "comp": 2,
+        "experienced": 2,
+        "subject": "past",
+    }
+    body.update(extra)
+    return client.post(
+        "/api/v1/me/environment-report", json=body, headers={"X-CSRF-TOKEN": csrf}
+    )
+
+
+def _history(email):
+    from app import app
+    from model import User
+    import environment_report_store
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        return environment_report_store.environment_report_history(user.id)
+
+
+def test_current_submit_echoes_subject_current(client, monkeypatch):
+    email = "past_current_echo@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    explicit = _post_env_with(client, csrf, subject="current")
+    implicit = _submit_env(client, csrf)
+
+    from solverah.schemas.situation_report import EnvironmentReportSubmitResponse
+
+    for res in (explicit, implicit):
+        assert res.status_code == 200, res.get_json()
+        assert res.get_json()["subject"] == "current"
+        EnvironmentReportSubmitResponse.model_validate(res.get_json())
+    assert [h["subject"] for h in _history(email)] == ["current", "current"]
+
+
+@pytest.mark.parametrize("status", ["employed", "between_jobs"])
+def test_past_submit_is_stored_as_past_with_the_filers_status(client, monkeypatch, status):
+    email = "past_happy_%s@example.com" % status
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, status)
+    assert _submit_env(client, csrf).status_code == 200
+
+    res = _submit_past(client, csrf, industry="retail")
+
+    assert res.status_code == 200, res.get_json()
+    body = res.get_json()
+    assert body["subject"] == "past"
+    assert body["career_status"] == status
+    assert body["industry"] == "retail"
+    assert body["dimension_scores"] == {d: 0.9 for d in situation_items.DIMENSIONS}
+    from solverah.schemas.situation_report import EnvironmentReportSubmitResponse
+
+    EnvironmentReportSubmitResponse.model_validate(body)
+
+    history = _history(email)
+    assert [h["subject"] for h in history] == ["past", "current"]
+    assert history[0]["career_status"] == status
+    # The latest report is still the current one.
+    assert _stored_report(email)["subject"] == "current"
+    assert _stored_report(email)["stage_size"] == 3
+
+
+def test_past_submit_for_first_job_is_409_first_job_no_role(client, monkeypatch):
+    email = "past_first_job@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "first_job")
+
+    res = _submit_past(client, csrf)
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0]["code"] == "first_job_no_role"
+    assert _history(email) == []
+
+
+def test_past_submit_before_any_current_report_is_409_current_report_required(client, monkeypatch):
+    email = "past_no_current@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _submit_past(client, csrf)
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0] == {"field": "subject", "code": "current_report_required"}
+    assert _history(email) == []
+
+
+def test_second_past_submit_is_409_past_report_limit(client, monkeypatch):
+    email = "past_limit@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf).status_code == 200
+    assert _submit_past(client, csrf).status_code == 200
+
+    res = _submit_past(client, csrf, pole="low")
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0] == {"field": "subject", "code": "past_report_limit"}
+    assert [h["subject"] for h in _history(email)] == ["past", "current"]
+    # A current resubmission is still accepted after the past cap is reached.
+    assert _submit_env(client, csrf).status_code == 200
+
+
+@pytest.mark.parametrize("bad", ["previous", "Past", None, 1])
+def test_bad_subject_is_422_and_nothing_is_stored(client, monkeypatch, bad):
+    email = "past_bad_subject_%s@example.com" % str(bad).lower()
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _post_env_with(client, csrf, subject=bad)
+
+    assert res.status_code == 422
+    assert _history(email) == []
+
+
+def test_service_refuses_a_bad_subject_even_without_the_route_validator(client, monkeypatch):
+    """The service reads the raw body; the route's schema is the first gate, this the second."""
+    from app import app
+    from model import User
+    from solverah.services import situation_report_service as service
+
+    email = "past_bad_subject_service@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        result = service.submit_environment_report(user, {"subject": "previous"})
+    assert result.status == 400
+
+
+# ── REGRESSION: a past report never changes the Situation Report ──────────────
+
+
+def _report_without_flag(client):
+    res = _get_report(client)
+    assert res.status_code == 200
+    body = res.get_json()
+    flag = body.pop("past_job_report_filed")
+    return body, flag
+
+
+@pytest.mark.parametrize("status", ["employed", "between_jobs"])
+def test_past_submit_leaves_the_situation_report_byte_identical_but_the_flag(
+    client, monkeypatch, status
+):
+    email = "past_regression_%s@example.com" % status
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, status)
+    _complete_core(client, csrf, pattern=_VARIED)
+    _submit_env(client, csrf, pole="mixed")
+
+    before_raw = _get_report(client).get_data()
+    before, before_flag = _report_without_flag(client)
+    assert before["state"] == "complete"
+    assert before_flag is False
+
+    # Deliberately a different pole everywhere, so a leak would move every dimension.
+    assert _submit_past(client, csrf, pole="low").status_code == 200
+
+    after_raw = _get_report(client).get_data()
+    after, after_flag = _report_without_flag(client)
+    assert after_flag is True
+    assert after == before
+    assert b'"past_job_report_filed":false' in before_raw
+    assert after_raw == before_raw.replace(
+        b'"past_job_report_filed":false', b'"past_job_report_filed":true'
+    )
+
+
+def test_past_job_report_filed_is_present_in_every_state(client, monkeypatch):
+    email = "past_flag_states@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and body["past_job_report_filed"] is False
+
+    _submit_env(client, csrf)
+    _submit_past(client, csrf)
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and body["past_job_report_filed"] is True
+    # needs_core echoes the CURRENT report's scores (mixed), never the past one's (high).
+    assert {d["env_score"] for d in body["environment"]["dimensions"]} == {0.5}
+
+    from solverah.schemas.situation_report import SituationReportResponse
+
+    SituationReportResponse.model_validate(body)
+
+
+def test_past_job_report_filed_in_needs_environment_report_state(client, monkeypatch):
+    email = "past_flag_needs_env@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_environment_report"
+    assert body["past_job_report_filed"] is False
+
+
+def test_export_carries_subject_on_every_environment_report(client, monkeypatch):
+    email = "past_export@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _submit_env(client, csrf)
+    _submit_past(client, csrf)
+
+    res = client.get("/api/v1/me/export")
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [r["subject"] for r in payload["environment_reports"]] == ["past", "current"]
+    from solverah.schemas.account import AccountExportResponse
+
+    AccountExportResponse.model_validate(payload)

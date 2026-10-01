@@ -19,10 +19,22 @@
  * sessionStorage, like `useMP`, so a mid-form reload does not throw sixteen
  * answers away. Nothing here is a durable record -- the append-only row the
  * server writes on submit is.
+ *
+ * ONE DRAFT PER SUBJECT. The current-job form and the past-job form
+ * (`/environment-report/past`, PRODUCT_DECISIONS §2, 2026-10-01) ask the same
+ * sixteen questions about two different jobs, so they keep separate keys: a
+ * half-finished description of one job must never resume as the other.
  */
 import { useState } from "react";
 
-const STORAGE_KEY = "env_report_answers";
+export type EnvReportSubject = "current" | "past";
+
+/** The current-job key predates the past form and is kept as-is, so a draft
+ *  saved before this change still resumes. */
+export const ENV_REPORT_DRAFT_KEYS: Record<EnvReportSubject, string> = {
+  current: "env_report_answers",
+  past: "env_report_answers_past",
+};
 
 export interface EnvReportDraft {
   /** dimension item id -> chosen option key. */
@@ -34,9 +46,9 @@ export interface EnvReportDraft {
 
 const EMPTY: EnvReportDraft = { answers: {}, context: {} };
 
-function readDraft(): EnvReportDraft {
+function readDraft(storageKey: string): EnvReportDraft {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(storageKey);
     if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Partial<EnvReportDraft>;
     return {
@@ -48,22 +60,23 @@ function readDraft(): EnvReportDraft {
   }
 }
 
-function persist(draft: EnvReportDraft) {
+function persist(storageKey: string, draft: EnvReportDraft) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    sessionStorage.setItem(storageKey, JSON.stringify(draft));
   } catch {
     // A full or disabled sessionStorage costs the reload-resume convenience
     // and nothing else -- the draft still lives in React state.
   }
 }
 
-export function useEnvReport() {
-  const [draft, setDraft] = useState<EnvReportDraft>(readDraft);
+export function useEnvReport(subject: EnvReportSubject = "current") {
+  const storageKey = ENV_REPORT_DRAFT_KEYS[subject];
+  const [draft, setDraft] = useState<EnvReportDraft>(() => readDraft(storageKey));
 
   function setAnswer(itemId: string, optionKey: string) {
     setDraft((prev) => {
       const next = { ...prev, answers: { ...prev.answers, [itemId]: optionKey } };
-      persist(next);
+      persist(storageKey, next);
       return next;
     });
   }
@@ -71,7 +84,7 @@ export function useEnvReport() {
   function setContext(itemId: string, value: number | string | null) {
     setDraft((prev) => {
       const next = { ...prev, context: { ...prev.context, [itemId]: value } };
-      persist(next);
+      persist(storageKey, next);
       return next;
     });
   }
@@ -79,7 +92,7 @@ export function useEnvReport() {
   function reset() {
     setDraft(EMPTY);
     try {
-      sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(storageKey);
     } catch {
       // Same trade as `persist`.
     }
