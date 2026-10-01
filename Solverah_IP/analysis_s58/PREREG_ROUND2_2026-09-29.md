@@ -266,3 +266,71 @@ low-pole expectation, 3-4 for a high one).
 2 + 2 overlap packets gives 24 cells for the ceiling, so its CI will be very wide. **The
 expected verdict is INCONCLUSIVE.** An inconclusive round 2 is not a failed LLM. It means round
 3 needs more overlap.
+
+---
+
+## ADDENDUM A2 -- 2026-10-01: rubric frozen; Julie offered every packet, in a fixed order
+
+**Written before any round-2 rating, scoring or call.** Sections 1-9 and A1 stand unless this
+addendum says otherwise.
+
+**Sebastian's decisions (2026-10-01):** freeze v3.1 now rather than wait for Julie's confirm
+sheet; and, once every round-2 packet is built, send Julie all of them, asking her to do as
+many as she has time for.
+
+### A2.1 The rubric is frozen for round 2
+
+- Round 2 is scored under **`v3.1-PROPOSED-2026-09-29`, page anchors hash `3e270b206116`**,
+  as committed in 54685cf. This satisfies section 2's "no round-2 score under two different
+  rubric texts".
+- **The confirm sheet does not change round 2.** Any "change this" Julie returns goes into a
+  v3.2 for round 3. Round-2 and round-3 distances are never pooled.
+- If she disputes an edit, every round-2 result on that dimension is reported with the
+  dispute named beside it. The data is not discarded.
+- **The confirm sheet goes to Julie last,** after she has finished whatever packets she is
+  going to rate. It highlights exactly what changed, and reading it first could steer how she
+  reads those passages while scoring.
+
+### A2.2 Julie's packets: all of them, worked in one fixed order (supersedes A1.3's group-2 draw)
+
+She is offered every round-2 packet that passes the scrub gate, and asked to work through
+them **in this order** and stop whenever she likes:
+
+    P-11, P-10, P-19, P-09, P-17, P-08, P-13, P-07, P-16, P-15, P-18, P-14, P-12
+
+- The first two are A1.3's group-1 draws, kept first so that commitment stands.
+- The other eleven are `random.Random(20261001).shuffle` over the remaining P-07..P-19 ids.
+- A packet that never passes the scrub is dropped from the order, and the rest keep their
+  places.
+- Her page files are numbered in this order (`for_julie/01_P-11_raterA.html`, ...), so her
+  folder lists them in the order she is asked to work.
+- **Why an order, not "pick any":** the overlap is the design's only human-vs-human ceiling.
+  If she chose which packets to do, the ceiling would be measured on the packets she found
+  easiest or most interesting. Stopping anywhere in a random order leaves her completed set a
+  random sample.
+- A1.3's group-2 draw rule is withdrawn. A1.1's "2 packets per group" becomes "as many as she
+  does, in this order".
+
+### A2.3 Order check (descriptive)
+
+- `round2_analysis.overlap_order_check` reports whether her completed packets form an unbroken
+  run from the start of the order. Packets that nobody read are not counted as gaps.
+- **If they do not, the ceiling is reported as "partly self-selected".** No packet is dropped
+  for it.
+
+### A2.4 Independence, restated for an open-ended overlap
+
+- Any round-2 packet may turn out to be an overlap packet, because nobody knows in advance how
+  far she will go. So A1 rule 5 now covers **every** round-2 packet: Sebastian and Julie do not
+  discuss any packet, score or reasoning until round 2 closes.
+- **Sebastian files Julie's returned JSONs into `returned/round2/` without opening them.** He
+  may receive her file for a packet before he has rated it himself.
+- A1.3's limitation is now partly relieved: Sebastian no longer knows which packets will be
+  compared with Julie's, beyond her first few.
+
+### A2.5 Power, restated
+
+- Every packet she completes adds 6 cells to the ceiling. The CI narrows roughly with the
+  square root of the number of overlap packets.
+- **With 4 or fewer, INCONCLUSIVE remains the expected verdict.** That is stated now, so a
+  short overlap is not later read as a failure.
