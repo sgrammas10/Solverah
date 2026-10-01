@@ -619,8 +619,13 @@ def test_rule_one_deletes_exactly_the_abandoned_intakes(client, bucket):
     assert _intake_ids() == {kept_by_account, recent, stuck}
 
 
-def test_rule_one_without_a_bucket_deletes_rows_only(client, monkeypatch):
-    from retention_cleanup import run_cleanup
+def test_rule_one_without_a_bucket_keeps_rows_and_fails(client, monkeypatch):
+    """No bucket is a failed object delete for every row: kept, counted, exit 1.
+
+    It used to delete the rows and leave their resumes in the bucket with
+    nothing pointing at them, at exit 0.
+    """
+    from retention_cleanup import exit_code, run_cleanup
 
     monkeypatch.delenv("S3_BUCKET_NAME", raising=False)
 
@@ -628,13 +633,15 @@ def test_rule_one_without_a_bucket_deletes_rows_only(client, monkeypatch):
         raise AssertionError("no bucket is configured; storage must not be touched")
 
     monkeypatch.setattr("solverah.infra.storage.get_s3_client", _no_storage)
-    gone, _ = _seed_submission("gone@example.com", age_days=100)
+    kept, _ = _seed_submission("gone@example.com", age_days=100)
 
     summary = run_cleanup(dry_run_sweep=True)
 
-    assert summary["abandoned_intakes_deleted"] == 1
+    assert summary["abandoned_intakes_deleted"] == 0
+    assert summary["r2_objects_left_unconfigured"] == 1
     assert summary["r2_objects_deleted"] == 0
-    assert _intake_ids() == set()
+    assert _intake_ids() == {kept}
+    assert exit_code(summary) == 1
 
 
 def test_rule_one_statement_count_is_flat_in_the_number_of_stale_intakes(

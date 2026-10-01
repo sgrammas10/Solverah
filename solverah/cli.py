@@ -14,6 +14,7 @@ dashboard env vars:
 
     flask outbox sweep         # suggested: every 5 minutes
     flask retention run        # suggested: daily
+    flask retention cleanup    # daily, chained after `retention run` (R2 + DB)
     flask backups run          # suggested: daily, 03:30 UTC
     flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
     flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
@@ -246,6 +247,37 @@ def retention_run(
         "narrative_window_days": narrative_days,
     }
     click.echo(json.dumps(summary))
+
+
+@retention_cli.command("cleanup")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Report what all three rules would delete or scrub (counts and up to 20 "
+    "sample ids/keys); write nothing to the database and delete nothing from R2.",
+)
+def retention_cleanup_cmd(dry_run: bool) -> None:
+    """Run retention_cleanup.py's three rules (DATA_RETENTION_SCHEDULE.md):
+
+    \b
+    1. abandoned intakes past 90 days -- row and R2 resume object deleted;
+    2. audit_log rows past 365 days -- ip_address and user_agent nulled;
+    3. R2 objects under intake/ and profile/ that no row references, past 48h.
+
+    Unlike ``retention run`` this touches object storage, so it needs the
+    app's S3_* variables.  Exits non-zero if an object delete failed, or if R2
+    is not configured while rule 1 or rule 3 had work for it -- a pass that
+    skipped the storage half of its job is not a clean pass.
+    """
+    # Repo-root module, importable because the Flask CLI puts app.py's
+    # directory on sys.path; imported here for the reason the header gives.
+    import retention_cleanup
+
+    summary = retention_cleanup.run_cleanup(dry_run=dry_run)
+    click.echo(json.dumps({"event": "retention_cleanup", **summary}))
+    code = retention_cleanup.exit_code(summary)
+    if code:
+        click.get_current_context().exit(code)
 
 
 @backups_cli.command("run")

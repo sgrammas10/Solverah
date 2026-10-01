@@ -31,14 +31,21 @@ its section below.
 |---|---|---|---|
 | `flask outbox sweep` | every 5 minutes (`*/5 * * * *`) | native python | Retries unpublished outbox rows, respecting attempts + backoff. |
 | `flask retention run` | daily (`30 4 * * *`) | native python | Deletes delivered outbox rows older than 72h, terminal `scoring_jobs` older than 7d, terminal `resume_parse_jobs` older than 30d, stored `path_fits` and `path_narratives` older than 30d. |
+| `flask retention cleanup` | same cron: the command is `flask retention run && flask retention cleanup` | native python | `retention_cleanup.py`'s three rules: abandoned intakes past 90d (row + R2 resume), audit-log IP/user-agent nulled past 365d, R2 objects no row references past 48h. **Needs the app's R2 variables** — see "Retention cleanup" below. |
 | `flask backups run` | daily (`30 3 * * *`) | **docker** (`infra/docker/Dockerfile.backup`) | Dumps the database, verifies the artifact, uploads it off-platform, prunes past 30 days. |
 | `flask corpus refresh` | quarterly (`0 5 1 1,4,7,10 *`) | native python | Rebuilds the O*NET occupation corpus, writes its zone, cluster and card-summary sidecars, uploads all five to S3 under a new date-stamped key. **Does not put it into service** — see its section below. |
 
-All three print one JSON summary line and share an exit contract, but they
-divide "failure" differently and the difference is deliberate:
+The four scheduled commands (sweep, retention run, retention cleanup, backups)
+each print one JSON summary line and share an exit contract, but they divide
+"failure" differently and the difference is deliberate. (The by-hand form
+`python retention_cleanup.py` prints a Python dict repr after
+`retention_cleanup: `, not JSON; parse the flask command's line, not that one.)
 
 - **Sweep and retention** exit **0 on a clean pass even if individual rows
   failed** — a flaky provider is normal and the rows are retried next pass.
+- **Retention cleanup** is the exception on the retention cron: it exits
+  non-zero when an R2 delete failed, **when R2 is not configured**, or when
+  rule 3 could not run (storage error, empty database) — see its section below.
 - **Backups** has no "individual row". A failed dump, a dump that will not
   verify, or a failed upload **is** the pass failing and exits non-zero. What
   does *not* fail is the prune declining to delete (see below).
@@ -94,6 +101,155 @@ Pending and **parked** outbox rows are never purged — they are email still
 owed. Queued/running job rows are never purged — old ones are the reapers'
 (`reap_stalled`) to fail first, and those reapers still have no production
 scheduler (see "Still not scheduled" below).
+
+## Retention cleanup (`flask retention cleanup`)
+
+Added 2026-10-01. Until then `retention_cleanup.py` existed but nothing in
+production ran it, so abandoned intakes, year-old audit IPs and orphaned resume
+files — including the ones account deletion leaves behind, whose only remaining
+key was in the deleted profile — were never cleaned. It runs on the existing
+**solverah-retention** cron, chained after `retention run`:
+
+    flask retention run && flask retention cleanup
+
+Still 04:30 UTC, still an hour after the 03:30 backup, so tonight's dump holds
+what tonight's cleanup removes. `&&` means a crashed `retention run` skips the
+cleanup; the cron run fails either way.
+
+The `&&` chain relies on Render running a **native-runtime** start command
+through a shell. It is not portable: as a docker exec-form `CMD` (a JSON array,
+no shell) the `&&` would be passed to `flask` as an argument and the second
+command would never run. If this cron ever moves to `runtime: docker`, wrap it
+as `sh -c "flask retention run && flask retention cleanup"`.
+
+| Rule | Deletes / scrubs | Window |
+|---|---|---|
+| 1 | `intake_submissions` rows whose email never became an account, **and** their R2 resume (object first; a failed object delete keeps the row for the next run) | 90 days |
+| 2 | `audit_log.ip_address` and `user_agent` set to NULL; the event row stays | 365 days |
+| 3 | R2 objects under `intake/` and `profile/` that no row references | 48 hours since upload |
+
+The JSON line is `{"event": "retention_cleanup", ...}` with
+`abandoned_intakes_deleted`, `r2_objects_deleted`, `r2_delete_failures`,
+`audit_rows_minimized`, `orphans_deleted`, `orphan_delete_failures`, and
+`r2_unconfigured` (null when R2 is usable, otherwise which variable is missing).
+
+### The cron needs the app's R2 variables — add them in the dashboard
+
+`retention run` touches only the database; `retention cleanup` also deletes
+from R2, so **the solverah-retention cron service needs these four, with the
+same values as the web service** (Render dashboard → solverah-retention →
+Environment):
+
+| Variable | Read by | Required |
+|---|---|---|
+| `S3_BUCKET_NAME` | `retention_cleanup.py` | yes |
+| `S3_ENDPOINT_URL` | `solverah/infra/storage.py` `get_s3_client()` | yes |
+| `S3_ACCESS_KEY_ID` | same | yes |
+| `S3_SECRET_ACCESS_KEY` | same | yes |
+| `S3_REGION` | same | no — defaults to `"auto"`, which is right for R2 |
+
+**Until they are added, `flask retention cleanup` exits non-zero every night,
+by design.** Rule 2 still runs; rules 1 and 3 change nothing. Rule 1 treats an
+object it cannot delete as a failed delete and **keeps the row**: with no
+`S3_BUCKET_NAME` it counts them in `r2_objects_left_unconfigured`, with the
+bucket set but a credential missing in `r2_delete_failures`. Rule 3 reports
+`orphan_sweep_skipped: "R2 not configured: ..."`. So an unconfigured cron is a
+loud no-op, never a clean pass that skipped the storage half of its job, and
+the first night the variables are present does all of it.
+
+### Before the first real run: one dry run
+
+**The safe order, and it is the order that matters.** `render.yaml` is
+documentation only (no Blueprint), so the cron's command is changed by hand in
+the dashboard, last:
+
+1. **Deploy** the code that has `flask retention cleanup`.
+2. **Dry run** it once from the **solverah-api web service's Shell** (it
+   already has the production `DATABASE_URL` and `S3_*`), and go through the
+   checks below.
+3. **Add the four `S3_*` variables** (table above) to the solverah-retention
+   cron service.
+4. **Only then** change the solverah-retention cron's Command to
+   `flask retention run && flask retention cleanup`.
+
+Doing 4 before 3 is safe — the cleanup fails loudly and changes nothing but
+rule 2 — but doing 4 before 2 lets the first real deletion happen unreviewed.
+
+`--dry-run` runs all three rules and changes nothing: no database write, no R2
+delete. It does **list** the bucket, read-only, because the listing is the only
+way to know what rule 3 would delete.
+
+    flask retention cleanup --dry-run; echo "exit=$?"
+
+Check, in this order, before letting the cron's first real run happen:
+
+1. `exit=0`, `"r2_unconfigured": null`, `"r2_work_blocked": false`.
+2. No `"orphan_sweep_skipped"` key. `"empty database"` there means the command
+   is pointed at the wrong database; `"storage error: ..."` means R2 did not
+   answer — stop either way.
+3. `would.orphans`: `count` against `listed` (the objects under `intake/` and
+   `profile/`). Orphans that are most of the bucket mean a reference the sweep
+   does not know about — stop and report, do not run. Then spot-check two or
+   three of `sample_keys`. For **every** sample key, both of these must return
+   nothing:
+
+       SELECT 1 FROM resume_parse_correction WHERE resume_key = '<key>';
+       SELECT 1 FROM resume_parse_jobs WHERE object_key = '<key>';
+
+   For `intake/<uuid>/...`: `SELECT 1 FROM intake_submissions WHERE id = '<uuid>'`
+   must return nothing.
+
+   For `profile/<user_id>/<id>/...`: `SELECT email FROM users WHERE id = <user_id>`,
+   then read the answer:
+   - `deleted-<id>@...` — a deleted account's tombstone. Expected garbage.
+   - a live user whose `SELECT object_key FROM resumes WHERE user_id = <user_id>`
+     returns a **different** key — a replaced upload. Expected garbage.
+   - a live user with **no** `resumes` row and no `_parsedResumeSnapshot` in
+     `SELECT extra FROM profiles WHERE user_id = <user_id>`, but a resume that
+     shows in the product for them — **a missed reference. STOP; do not
+     schedule the cleanup.**
+4. `would.abandoned_intakes.count` and `would.intake_objects.count` should be
+   intakes older than 90 days with no account — plausible against
+   `SELECT count(*) FROM intake_submissions WHERE created_at < now() - interval '90 days'`.
+5. `would.audit_rows_minimized.count`: rows older than 365 days still holding
+   an IP or user agent; 0 is normal while the table is under a year old.
+
+Samples are capped at 20 per rule. Keys are `intake/<uuid>/resume.<ext>` and
+`profile/<user_id>/<uuid>/resume.<ext>` — no filenames, so printing them into
+the log is safe.
+
+### What rule 3 counts as referenced
+
+A key missed here is a live resume deleted, so the set is pinned by tests
+(`tests/test_retention_cleanup.py`):
+
+- `intake_submissions.resume_key`
+- `resume_parse_correction.resume_key` (retained parser training data)
+- the `resumes` row's `object_key`, and `resumeKey` /
+  `_parsedResumeSnapshot.resumeKey` inside `profiles.extra`
+- `resume_parse_jobs.object_key` of **queued or running** jobs — added
+  2026-10-01: the parse-jobs route queues the key before any profile row holds
+  it, so a newer upload replacing the `resumes` row would otherwise leave an
+  in-flight job's object unreferenced
+
+Audited and deliberately NOT in the set: the `email.intake_notification` outbox
+payload carries an intake's `object_key`, but it is written in the same
+transaction as the `intake_submissions` row that already references it, and it
+is an email body for ops, not something the app reads back. `scoring_jobs.payload`
+is assessment answers (or `{}` for path suggestions) and is emptied on a
+terminal state. The account export returns `resume_key` in its response and
+stores nothing; no code path writes an object of its own to the resume bucket
+(browsers upload through presigned URLs).
+
+### Running it locally
+
+Same `.env` trap as everything here, with real teeth: a populated `.env` has
+the real `S3_*`, so a local `flask retention cleanup` deletes from the
+**production bucket**. Use `FLASK_SKIP_DOTENV=1` (`SOLVERAH_IGNORE_DOTENV=1` for the
+`python` form), an explicit local
+`DATABASE_URL`, and `--dry-run`. `python retention_cleanup.py [--dry-run]
+[--skip-sweep]` still works and follows the same exit rule, but prints a Python
+dict repr rather than a JSON line.
 
 ## Backups (`flask backups run`)
 
@@ -428,9 +584,6 @@ production refresh.
 - `reap_stalled` for resume/scoring jobs: in Scenario A jobs run inline, so a
   stuck `queued`/`running` row takes a process death mid-request. Rare, but a
   row like that polls forever until someone reaps it by hand.
-- `retention_cleanup.py` (abandoned intakes, audit-log PII minimization, R2
-  orphan sweep): a further cron candidate — it needs the app's S3 credentials
-  and was out of scope here.
 - Anything Redis/worker-shaped: out of scope by decision — Scenario A stays.
 - **`solverah-corpus-refresh` itself.** Codified in `render.yaml` and
   documented above, but not created in the dashboard — and it cannot

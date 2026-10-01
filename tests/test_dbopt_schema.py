@@ -198,6 +198,17 @@ def test_job_recommendation_reads_are_served_by_a_user_index(people):
         assert "ix_job_recommendation_user_id" in plan, plan
 
 
+def _stub_bucket(monkeypatch):
+    """A configured bucket that accepts every delete, so rule 1 deletes its rows.
+
+    Without a bucket rule 1 keeps every stale row, which would leave the
+    statements below untested for the case that actually deletes.
+    """
+    monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
+    monkeypatch.setattr("solverah.infra.storage.get_s3_client",
+                        lambda: _WatchingBucket({}))
+
+
 def test_every_intake_email_lookup_spells_the_same_expression(client, monkeypatch):
     """One expression, so one index serves all three readers.
 
@@ -207,7 +218,7 @@ def test_every_intake_email_lookup_spells_the_same_expression(client, monkeypatc
     from retention_cleanup import run_cleanup
     from solverah.repositories import account_repository, profile_repository
 
-    monkeypatch.delenv("S3_BUCKET_NAME", raising=False)
+    _stub_bucket(monkeypatch)
     expression = "lower(intake_submissions.email)"
 
     with _app().app_context():
@@ -276,7 +287,7 @@ def test_retention_age_filter_is_served_by_the_created_at_index(client, monkeypa
     """Ledger ``retention_cleanup``:87: the stale-intake read, as sent."""
     from retention_cleanup import run_cleanup
 
-    monkeypatch.delenv("S3_BUCKET_NAME", raising=False)
+    _stub_bucket(monkeypatch)
 
     with _app().app_context():
         _add_intake("dbopt-h-old", "old@example.test", age_days=120)
