@@ -769,7 +769,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"career_status\":\"employed\",\"comp\":3,\"dimension_scores\":{\"autonomy\":0.5,\"collaboration\":0.5,\"decision\":0.5,\"feedback\":0.5,\"innovation\":0.5,\"pace\":0.5},\"experienced\":3,\"stage_size\":3,\"version\":\"env-v1-2026-09-10\"}\n"
+    "body": "{\"career_status\":\"employed\",\"comp\":3,\"dimension_scores\":{\"autonomy\":0.5,\"collaboration\":0.5,\"decision\":0.5,\"feedback\":0.5,\"innovation\":0.5,\"pace\":0.5},\"experienced\":3,\"industry\":\"tech\",\"stage_size\":3,\"version\":\"env-v2-2026-10-01\"}\n"
   },
   {
     "step": "situation-report-complete",

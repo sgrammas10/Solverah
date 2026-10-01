@@ -1,17 +1,19 @@
 /**
- * The environment-side instrument: fifteen questions about the user's ROLE
+ * The environment-side instrument: sixteen questions about the user's ROLE
  * (BUILD_PLAN A-1 / A-7).
  *
  * Mirrors `work_pulse/situation_items.py` verbatim -- same item ids, same
  * option keys, same prompts, same option text in both tenses. That module is
  * the scoring authority; this is its client-rendered twin, exactly the
  * relationship `mpQuestions.ts` has to `manager_match/manager_profile.py`.
- * This file was generated from it rather than transcribed by hand.
+ * No generator script exists in the repo (checked 2026-09-11 and 2026-10-01).
+ * `tests/test_question_data_parity.py` is the guard: it fails on any drift
+ * between this file and the Python module.
  *
  * TWO ORDERINGS ARE LOAD-BEARING AND NEITHER IS A PRESENTATION CHOICE.
  *
- *  1. `ENV_FORM_STEPS` is the form order: the two neutral context facts
- *     (stage/size, then pay posture), then the twelve descriptive dimension
+ *  1. `ENV_FORM_STEPS` is the form order: the three neutral context facts
+ *     (stage/size, pay posture, industry), then the twelve descriptive dimension
  *     items, then the single evaluative item. `experienced` is last on
  *     purpose -- it is the model's outcome node and the only evaluative item
  *     in the instrument, so its verdict must not colour the twelve
@@ -47,7 +49,10 @@ export type EnvDimension =
 /** Positional option key. The server maps key -> pole -> score; the client never does. */
 export type EnvOptionKey = "a" | "b" | "c" | "d" | "e";
 
-export type EnvContextItemId = "stage_size" | "comp" | "experienced";
+export type EnvContextItemId = "stage_size" | "comp" | "industry" | "experienced";
+
+/** `situation_items.INDUSTRY_LEVELS`: the causal model's `industry` levels, in config order. */
+export type EnvIndustry = "tech" | "finance" | "healthcare" | "retail" | "other";
 
 export interface EnvOption {
   key: EnvOptionKey;
@@ -65,8 +70,9 @@ export interface EnvItem {
 }
 
 export interface EnvContextOption {
-  /** 1..5, stored raw. `null` is comp's "not sure" and exists nowhere else. */
-  value: number | null;
+  /** 1..5 stored raw, or a level key for `industry` (the one categorical item).
+   *  `null` is the "not sure" option, which only comp and industry carry. */
+  value: number | string | null;
   text: string;
   textPast: string;
 }
@@ -79,7 +85,7 @@ export interface EnvContextItem {
 }
 
 /** `EnvironmentReport.version` -- which item set produced a stored answer blob. */
-export const ENV_FORM_VERSION = "env-v1-2026-09-10";
+export const ENV_FORM_VERSION = "env-v2-2026-10-01";
 
 
 /** The twelve dimension items, in `item_list_in_form_order()` order. */
@@ -553,6 +559,44 @@ export const COMP_ITEM: EnvContextItem = {
   ],
 };
 
+export const INDUSTRY_ITEM: EnvContextItem = {
+  itemId: "industry",
+  prompt: "Which industry is the organization you work for in?",
+  promptPast: "Which industry was the organization you last worked for in?",
+  options: [
+    {
+      value: "tech",
+      text: "Technology — software, hardware, internet or IT services.",
+      textPast: "Technology — software, hardware, internet or IT services.",
+    },
+    {
+      value: "finance",
+      text: "Finance — banking, insurance, investment or accounting.",
+      textPast: "Finance — banking, insurance, investment or accounting.",
+    },
+    {
+      value: "healthcare",
+      text: "Healthcare — hospitals, clinics, pharma or health services.",
+      textPast: "Healthcare — hospitals, clinics, pharma or health services.",
+    },
+    {
+      value: "retail",
+      text: "Retail — shops, e-commerce or consumer goods.",
+      textPast: "Retail — shops, e-commerce or consumer goods.",
+    },
+    {
+      value: "other",
+      text: "Something else.",
+      textPast: "Something else.",
+    },
+    {
+      value: null,
+      text: "Not sure, or I’d rather not say.",
+      textPast: "Not sure, or I’d rather not say.",
+    },
+  ],
+};
+
 export const EXPERIENCED_ITEM: EnvContextItem = {
   itemId: "experienced",
   prompt: "Overall, how well is this role working for you?",
@@ -592,13 +636,14 @@ export type EnvStep =
   | { kind: "dimension"; item: EnvItem };
 
 /**
- * The fifteen steps in form order -- `work_pulse.situation_items`' own
+ * The sixteen steps in form order -- `work_pulse.situation_items`' own
  * ordering comment, made executable. See the header's point 1 for why this
  * order is a correctness requirement rather than a layout decision.
  */
 export const ENV_FORM_STEPS: EnvStep[] = [
   { kind: "context", item: STAGE_SIZE_ITEM },
   { kind: "context", item: COMP_ITEM },
+  { kind: "context", item: INDUSTRY_ITEM },
   ...ENV_ITEMS.map((item) => ({ kind: "dimension" as const, item })),
   { kind: "context", item: EXPERIENCED_ITEM },
 ];

@@ -66,6 +66,7 @@ def write_environment_report(
     career_status: str,
     version: str,
     employer_name_normalized: Optional[str] = None,
+    industry: Optional[str] = None,
 ) -> int:
     """Write one submission: the header row plus its six dimension-score rows.
 
@@ -85,6 +86,11 @@ def write_environment_report(
     nullable to hold it. `dimension_scores` still must cover all six dimensions -- comp
     is a confounder, not a dimension, and this function's completeness guarantee is about
     the dimensions only.
+
+    `industry` is `Optional` on the same terms, and defaults to `None` as well
+    (PRODUCT_DECISIONS.md §2, 2026-10-01). It holds a level key from
+    `model.ENV_INDUSTRIES` or `None` for "not sure / prefer not to say", and the
+    column's CHECK rejects anything else at flush.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
@@ -95,6 +101,7 @@ def write_environment_report(
         raw_answers=raw_answers,
         stage_size=stage_size,
         comp=comp,
+        industry=industry,
         experienced_outcome=experienced_outcome,
         career_status=career_status,
         employer_name_normalized=employer_name_normalized,
@@ -133,6 +140,7 @@ def _serialize(
             "dimension_scores": scores_by_dim,
             "stage_size": report.stage_size,
             "comp": report.comp,
+            "industry": report.industry,
             "experienced_outcome": report.experienced_outcome,
             "career_status": report.career_status,
             "employer_name_normalized": report.employer_name_normalized,

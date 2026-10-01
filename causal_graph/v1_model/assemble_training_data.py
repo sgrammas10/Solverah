@@ -373,8 +373,10 @@ def assemble_training_data(
 ENVIRONMENT_OUTCOME_TYPE: OutcomeType = "experienced"
 
 #: `environment_reports` columns carrying a `confounders:` key from
-#: `solverah_model_config.yaml`. The instrument asks two of the three active
-#: measurable confounders; `industry` it does not ask at all.
+#: `solverah_model_config.yaml`. The instrument asks all three active
+#: measurable confounders. `industry` joined on 2026-10-01 (PRODUCT_DECISIONS.md
+#: §2). It is optional, so a NULL row (pre-2026-10-01 "never asked", or "not
+#: sure / prefer not to say" since) stays masked exactly as every row was before.
 #:
 #: This IS `work_pulse.situation_items.CONTEXT_COLUMNS` minus `experienced`
 #: (the outcome, not a confounder). Restated rather than imported so this
@@ -383,6 +385,7 @@ ENVIRONMENT_OUTCOME_TYPE: OutcomeType = "experienced"
 ENVIRONMENT_CONFOUNDER_COLUMNS: dict[str, str] = {
     "stage_size": "stage_size",
     "comp": "comp",
+    "industry": "industry",
 }
 
 #: A-1's single evaluative item, "Overall, how well is this role working for
@@ -593,11 +596,12 @@ class EnvironmentAssembleResult:
     four arguments, plus what it takes to audit them.
 
     `conf_missing` is not decoration. `comp` is nullable by a signed ruling
-    ("not sure", PRODUCT_DECISIONS.md §2, 2026-09-10) and `industry` is not
-    asked at all, so a confounder column can legitimately carry no value for a
-    row that is otherwise complete. NaN carries that through a float array
-    honestly, but NaN cannot do the same job for a categorical column, and no
-    array shape distinguishes "missing" from "happened to be NaN". The mask
+    ("not sure", PRODUCT_DECISIONS.md §2, 2026-09-10) and so is `industry`
+    (asked since 2026-10-01, optional, NULL on "not sure / prefer not to say";
+    NULL on every older row, which was never asked), so a confounder column
+    can legitimately carry no value for a row that is otherwise complete. NaN
+    carries that through a float array honestly, but NaN cannot do the same
+    job for a categorical column, and no array shape distinguishes "missing" from "happened to be NaN". The mask
     does, for every kind, which is what lets the model config -- not this
     function -- decide whether to exclude the column, model the missingness, or
     impute. Imputing or dropping HERE would make that decision unrecoverable.
@@ -607,8 +611,9 @@ class EnvironmentAssembleResult:
     this loader: EXCLUDE THE TERM for a masked row, for both kinds.
     `match_core.preprocess_conf(conf, cfg, conf_missing=...)` zeroes a masked
     continuous value (a "not sure" comp) and gives a masked categorical one
-    (`industry`, which this source never asks) a `<key>__present` flag that
-    drops its per-level weight from the logit. Without the mask both still
+    (a NULL `industry`) a `<key>__present` flag that drops its per-level
+    weight from the logit, while a row that names its industry keeps
+    `__present` = 1 and indexes its own level. Without the mask both still
     fail loudly -- a NaN or a None raises, naming the confounder -- so a caller
     that forgets `conf_missing` cannot get a silently wrong fit. The
     OrderedLogistic head the 1-5 outcome needs landed 2026-09-17
@@ -847,7 +852,7 @@ def assemble_environment_rows(
 # ---------------------------------------------------------------------------
 def _fetch_environment_reports(conn: Connection) -> list[dict]:
     sql = text(
-        "SELECT id, user_id, submitted_at, stage_size, comp, experienced_outcome, "
+        "SELECT id, user_id, submitted_at, stage_size, comp, industry, experienced_outcome, "
         "career_status, employer_name_normalized, version "
         "FROM environment_reports"
     )

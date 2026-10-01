@@ -9,10 +9,11 @@
  * changed under an open form. The 409 carries `errors[0].code`, never a
  * matching message, because that is what the page branches on.
  *
- * FORM ORDER IS ASSERTED, not assumed. `experienced` last and `comp` at
- * position two are anti-halo decisions in `work_pulse/situation_items.py`, and
- * a reorder that "tidied" the form would silently change what the instrument
- * measures. The test walks the whole fifteen and checks the ends.
+ * FORM ORDER IS ASSERTED, not assumed. `experienced` last, and `comp` and
+ * `industry` at positions two and three, are anti-halo decisions in
+ * `work_pulse/situation_items.py`, and a reorder that "tidied" the form would
+ * silently change what the instrument measures. The test walks all sixteen
+ * steps and checks the ends.
  */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -26,6 +27,7 @@ import {
   ENV_FORM_STEPS,
   ENV_ITEMS,
   EXPERIENCED_ITEM,
+  INDUSTRY_ITEM,
   STAGE_SIZE_ITEM,
 } from "../data/envQuestions";
 
@@ -66,9 +68,10 @@ function serve({ careerStatus = "employed", report = NEEDS_ENV, submit }: ServeO
             dimension_scores: {},
             stage_size: 3,
             comp: null,
+            industry: null,
             experienced: 3,
             career_status: careerStatus,
-            version: "env-v1-2026-09-10",
+            version: "env-v2-2026-10-01",
           });
     }
     return Promise.reject(new Error(`unexpected path ${path}`));
@@ -119,7 +122,7 @@ describe("EnvironmentReportPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Now the other half — your job" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Twelve questions about the work, plus three about the setup/)).toBeInTheDocument();
+    expect(screen.getByText(/Twelve questions about the work, plus four about the setup/)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /How this works, and what we hold back/ }),
     ).toHaveAttribute("href", "/trust");
@@ -149,12 +152,16 @@ describe("EnvironmentReportPage", () => {
     renderPage();
     await start();
 
-    // Position one and two: the two neutral context facts.
+    // Positions one to three: the three neutral context facts.
     expect(await screen.findByText(STAGE_SIZE_ITEM.prompt)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("radio")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByText(COMP_ITEM.prompt)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("radio")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText(INDUSTRY_ITEM.prompt)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("radio")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
@@ -191,6 +198,39 @@ describe("EnvironmentReportPage", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(COMP_ITEM.options.length);
   });
 
+  it("renders industry in the past tense for a user between jobs", async () => {
+    serve({ careerStatus: "between_jobs" });
+    renderPage();
+    await start(true);
+
+    for (let i = 0; i < 2; i += 1) {
+      await screen.findByText(`Question ${i + 1} of ${ENV_FORM_STEPS.length}`);
+      fireEvent.click(screen.getAllByRole("radio")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    expect(await screen.findByText(INDUSTRY_ITEM.promptPast)).toBeInTheDocument();
+    expect(screen.queryByText(INDUSTRY_ITEM.prompt)).not.toBeInTheDocument();
+  });
+
+  it("offers industry's levels plus a 'not sure / rather not say' option", async () => {
+    serve();
+    renderPage();
+    await start();
+
+    for (let i = 0; i < 2; i += 1) {
+      await screen.findByText(`Question ${i + 1} of ${ENV_FORM_STEPS.length}`);
+      fireEvent.click(screen.getAllByRole("radio")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    expect(await screen.findByText(INDUSTRY_ITEM.prompt)).toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(INDUSTRY_ITEM.options.length);
+    expect(screen.getByText("Not sure, or I’d rather not say.")).toBeInTheDocument();
+    // Required like every step: a deliberate "not sure" is an answer, silence is not.
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
   it("lets the user go back and change an answer", async () => {
     serve();
     renderPage();
@@ -208,7 +248,7 @@ describe("EnvironmentReportPage", () => {
     expect(screen.getAllByRole("radio")[0]).toHaveAttribute("aria-checked", "true");
   });
 
-  it("submits the twelve item keys and the three raw context values", async () => {
+  it("submits the twelve item keys and the four raw context values", async () => {
     serve();
     renderPage();
     await start();
@@ -229,7 +269,44 @@ describe("EnvironmentReportPage", () => {
     Object.values(body.answers).forEach((choice) => expect(choice).toBe("a"));
     expect(body.stage_size).toBe(STAGE_SIZE_ITEM.options[0].value);
     expect(body.comp).toBe(COMP_ITEM.options[0].value);
+    expect(body.industry).toBe("tech");
     expect(body.experienced).toBe(EXPERIENCED_ITEM.options[0].value);
+  });
+
+  it("submits the industry level the user picked", async () => {
+    serve();
+    renderPage();
+    await start();
+    // industry is step three; option 2 is healthcare.
+    await answerAll((i) => (i === 2 ? 2 : 0));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/environment-report",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+    const body = JSON.parse(call![1].body as string);
+    expect(body.industry).toBe("healthcare");
+  });
+
+  it("sends null for industry when the user is not sure or would rather not say", async () => {
+    serve();
+    renderPage();
+    await start();
+    // industry is step three; its "not sure" option is last.
+    await answerAll((i) => (i === 2 ? INDUSTRY_ITEM.options.length - 1 : 0));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/environment-report",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+    const body = JSON.parse(call![1].body as string);
+    expect(body).toHaveProperty("industry", null);
   });
 
   it("sends null for comp when the user says they are not sure", async () => {

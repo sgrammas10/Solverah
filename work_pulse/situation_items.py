@@ -1,7 +1,7 @@
 """Environment-side instrument: what the user's ROLE offers (BUILD_PLAN A-1).
 
 The other half of the Situation Report. Core asks twenty-four questions about
-the person; this asks twelve about the job, plus three context items, and the
+the person; this asks twelve about the job, plus four context items, and the
 report is the gap between the two. `work_pulse/situation.py` (A-3) turns the
 answers here into 0–1 dimension scores and diffs them against the sealed
 person-side snapshot; `work_pulse/situation_content.py` (A-6) holds the words
@@ -77,7 +77,12 @@ DIMENSIONS: tuple[str, ...] = (
 
 #: `EnvironmentReport.version` — which item set produced a stored answer blob.
 #: Same role as `assessment_response.form_version`, same naming shape.
-FORM_VERSION = "env-v1-2026-09-10"
+#:
+#: Bumped from `env-v1-2026-09-10` when `industry` joined the context items
+#: (PRODUCT_DECISIONS.md §2, 2026-10-01). A NULL `industry` on a v1 row means
+#: "never asked"; on a v2 row it means "not sure / prefer not to say". This
+#: stamp is the only thing that tells the two apart.
+FORM_VERSION = "env-v2-2026-10-01"
 
 #: Option pole name -> 0–1 score. Five bands, not two: the rubric anchors on
 #: five and the person-side scale is continuous in [0, 1], so collapsing to a
@@ -142,7 +147,10 @@ class EnvironmentItem(TypedDict):
 
 
 class ContextOption(TypedDict):
-    value: int | None  # 1..5, stored raw; this IS the answer. None == "not sure" (comp only).
+    # 1..5 stored raw for an ordinal item; a level key from INDUSTRY_LEVELS for
+    # the one categorical item. This IS the answer. None == "not sure" (comp
+    # and industry only).
+    value: int | str | None
     text: str
     text_past: str
 
@@ -666,17 +674,19 @@ ENVIRONMENT_ITEMS: list[EnvironmentItem] = [
 
 
 # ---------------------------------------------------------------------------
-# The three non-dimension items
+# The four non-dimension items
 # ---------------------------------------------------------------------------
 # These are NOT scored into any dimension and never reach A-3's mean. Two are
-# the model's continuous confounders and one is its outcome node; all three are
-# stored raw, 1..5, exactly as `causal_graph/v1_model/schema.sql` encodes them
-# on the company side, so the two sides are directly comparable.
+# the model's continuous confounders, one its categorical confounder
+# (`industry`), and one its outcome node. All four are stored raw, exactly as
+# `causal_graph/v1_model/schema.sql` encodes them on the company side (1..5
+# integers, or the level key for `industry`), so the two sides compare directly.
 #
-# Presented in natural 1->5 order, with no anchor-order alternation: reversing
-# a numeric ordinal scale confuses far more than it defends, and none of the
-# three is averaged with anything, so a straight-lined position cannot be
-# laundered into a dimension score the way it could on the twelve.
+# The three ordinal items are presented in natural 1->5 order, with no
+# anchor-order alternation: reversing a numeric ordinal scale confuses far
+# more than it defends, and none of them is averaged with anything, so a
+# straight-lined position cannot be laundered into a dimension score the way
+# it could on the twelve.
 STAGE_SIZE_ITEM: ContextItem = {
     "item_id": "stage_size",
     "prompt": "How big is the organization you work for — the whole organization, not your team?",
@@ -762,6 +772,61 @@ COMP_ITEM: ContextItem = {
     ],
 }
 
+#: `solverah_model_config.yaml`'s `industry` levels, in config order. The model
+#: indexes a per-level weight by position in that list, so these keys must be
+#: the config's exactly; a tripwire test asserts it rather than trusting this
+#: comment. Restated rather than read from the YAML because this module does
+#: no I/O.
+INDUSTRY_LEVELS: tuple[str, ...] = ("tech", "finance", "healthcare", "retail", "other")
+
+#: The model's categorical confounder (`industry`, biasing `decision` and
+#: `feedback`). Until 2026-10-01 the instrument never asked it, so every
+#: training row was masked and its five weights only ever came back at their
+#: prior. Optional by ruling (PRODUCT_DECISIONS.md §2, 2026-10-01): the last
+#: option stores `None`, the same way `comp`'s "not sure" does, and the model
+#: masks that row's term rather than guessing a sector. "Something else" is
+#: NOT that option. It is a real level (`other`) with its own weight.
+#:
+#: The options are category labels, and those don't change with tense, so
+#: both variants of each are identical. Only the stem is tensed.
+INDUSTRY_ITEM: ContextItem = {
+    "item_id": "industry",
+    "prompt": "Which industry is the organization you work for in?",
+    "prompt_past": "Which industry was the organization you last worked for in?",
+    "options": [
+        {
+            "value": "tech",
+            "text": "Technology — software, hardware, internet or IT services.",
+            "text_past": "Technology — software, hardware, internet or IT services.",
+        },
+        {
+            "value": "finance",
+            "text": "Finance — banking, insurance, investment or accounting.",
+            "text_past": "Finance — banking, insurance, investment or accounting.",
+        },
+        {
+            "value": "healthcare",
+            "text": "Healthcare — hospitals, clinics, pharma or health services.",
+            "text_past": "Healthcare — hospitals, clinics, pharma or health services.",
+        },
+        {
+            "value": "retail",
+            "text": "Retail — shops, e-commerce or consumer goods.",
+            "text_past": "Retail — shops, e-commerce or consumer goods.",
+        },
+        {
+            "value": "other",
+            "text": "Something else.",
+            "text_past": "Something else.",
+        },
+        {
+            "value": None,
+            "text": "Not sure, or I’d rather not say.",
+            "text_past": "Not sure, or I’d rather not say.",
+        },
+    ],
+}
+
 #: The model's outcome node — `outcome_experienced.working_scale`'s question,
 #: asked of the user about their own role. The only evaluative item in the
 #: instrument, and last in the form so its verdict cannot prime the twelve
@@ -779,18 +844,26 @@ EXPERIENCED_ITEM: ContextItem = {
     ],
 }
 
-#: Form order: the two neutral context facts, then the twelve descriptive
+#: Form order: the three neutral context facts, then the twelve descriptive
 #: items, then the one evaluative item. `comp` sits at position two rather than
 #: next to `experienced` on purpose — adjacency between a pay question and the
 #: outcome question would inflate their correlation, and that correlation is a
-#: weight the causal model is later asked to estimate.
-CONTEXT_ITEMS: list[ContextItem] = [STAGE_SIZE_ITEM, COMP_ITEM, EXPERIENCED_ITEM]
+#: weight the causal model is later asked to estimate. `industry` joins the
+#: facts at position three for the same reason: it is a confounder too, and it
+#: belongs far from the outcome.
+CONTEXT_ITEMS: list[ContextItem] = [
+    STAGE_SIZE_ITEM,
+    COMP_ITEM,
+    INDUSTRY_ITEM,
+    EXPERIENCED_ITEM,
+]
 
 #: `ContextItem.item_id` -> its `environment_reports` column (A-2). `experienced`
 #: is the only one whose names differ.
 CONTEXT_COLUMNS: dict[str, str] = {
     "stage_size": "stage_size",
     "comp": "comp",
+    "industry": "industry",
     "experienced": "experienced_outcome",
 }
 
@@ -841,7 +914,7 @@ def option_score(item_id: str, option_key: str) -> float:
 
 
 def context_value(item_id: str, value: int | None) -> int | None:
-    """Validate a 1..5 answer to a context item and return it unchanged.
+    """Validate a 1..5 answer to an ordinal context item and return it unchanged.
 
     A pass-through with a guard, not a transform: `stage_size`, `comp` and
     `experienced` are stored RAW and unscaled (`schema.sql`: "stored RAW /
@@ -855,9 +928,9 @@ def context_value(item_id: str, value: int | None) -> int | None:
     non-int does, so `stage_size`/`experienced` stay non-nullable without a
     second code path.
     """
-    item = _CONTEXT_BY_ID.get(item_id)
-    if item is None:
-        raise ValueError(f"Unknown context item id {item_id!r}")
+    item = _context_item(item_id)
+    if is_categorical(item):
+        raise ValueError(f"{item_id} is categorical; validate it with context_level")
     valid_values = {o["value"] for o in item["options"]}
     if value is None and None in valid_values:
         return value
@@ -866,6 +939,42 @@ def context_value(item_id: str, value: int | None) -> int | None:
     if value not in valid_values:
         raise ValueError(f"{item_id} has no option with value {value!r}")
     return value
+
+
+def context_level(item_id: str, value: str | None) -> str | None:
+    """Validate an answer to a CATEGORICAL context item (today only
+    `industry`) and return it unchanged: a level key, or `None` for the item's
+    "not sure / prefer not to say" option.
+
+    This is `context_value`'s twin, split off so each keeps an honest return
+    type. The answer is stored raw as the level key, which is how `schema.sql`
+    encodes the company side (`value_cat`). `match_core.preprocess_conf` turns
+    the key into the model's level index, so this function doesn't.
+    """
+    item = _context_item(item_id)
+    if not is_categorical(item):
+        raise ValueError(f"{item_id} is ordinal; validate it with context_value")
+    valid_values = {o["value"] for o in item["options"]}
+    if value is None and None in valid_values:
+        return value
+    if not isinstance(value, str):
+        raise ValueError(f"{item_id} answer must be a string, got {value!r}")
+    if value not in valid_values:
+        raise ValueError(f"{item_id} has no option with value {value!r}")
+    return value
+
+
+def is_categorical(item: ContextItem) -> bool:
+    """Whether a context item answers with a level key rather than a 1..5 int.
+    Read off the options themselves, so a new item cannot forget a flag."""
+    return any(isinstance(o["value"], str) for o in item["options"])
+
+
+def _context_item(item_id: str) -> ContextItem:
+    item = _CONTEXT_BY_ID.get(item_id)
+    if item is None:
+        raise ValueError(f"Unknown context item id {item_id!r}")
+    return item
 
 
 def render_items(career_status: str) -> list[dict]:
@@ -895,7 +1004,7 @@ def render_items(career_status: str) -> list[dict]:
 
 
 def render_context_items(career_status: str) -> list[dict]:
-    """The three non-dimension items with one tense resolved, in form order."""
+    """The four non-dimension items with one tense resolved, in form order."""
     past = is_past_tense(career_status)
     return [
         {

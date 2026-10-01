@@ -549,6 +549,68 @@ def test_comp_not_sure_round_trips_as_null(client, monkeypatch):
         assert stored["comp"] is None
 
 
+# ── industry (PRODUCT_DECISIONS.md §2, 2026-10-01) ───────────────────────────
+
+
+def _post_env_with(client, csrf, **extra):
+    body = {"answers": _env_answers("mixed"), "stage_size": 3, "comp": 3, "experienced": 3}
+    body.update(extra)
+    return client.post(
+        "/api/v1/me/environment-report", json=body, headers={"X-CSRF-TOKEN": csrf}
+    )
+
+
+def _stored_report(email):
+    from app import app
+    from model import User
+    import environment_report_store
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        return environment_report_store.latest_environment_report(user.id)
+
+
+def test_industry_is_stored_and_echoed(client, monkeypatch):
+    email = "a5_industry@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf, industry="finance")
+
+    assert submit.status_code == 200
+    assert submit.get_json()["industry"] == "finance"
+    assert submit.get_json()["version"] == situation_items.FORM_VERSION
+    stored = _stored_report(email)
+    assert stored["industry"] == "finance"
+    assert stored["version"] == situation_items.FORM_VERSION
+
+
+@pytest.mark.parametrize("omit", [True, False], ids=["absent", "explicit-null"])
+def test_industry_not_sure_stores_null(client, monkeypatch, omit):
+    """An explicit null (the form's "not sure / prefer not to say") and an
+    absent key both store NULL, the same way comp's "not sure" does."""
+    email = "a5_industry_null_%s@example.com" % ("absent" if omit else "null")
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf) if omit else _post_env_with(client, csrf, industry=None)
+
+    assert submit.status_code == 200
+    assert submit.get_json()["industry"] is None
+    assert _stored_report(email)["industry"] is None
+
+
+@pytest.mark.parametrize("bad", ["crypto", "Tech", 3])
+def test_industry_outside_the_levels_is_rejected_and_nothing_is_stored(client, monkeypatch, bad):
+    email = "a5_industry_bad_%s@example.com" % str(bad).lower()
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _post_env_with(client, csrf, industry=bad)
+
+    assert res.status_code in (400, 422)
+    assert _stored_report(email) is None
+
+
 # ── Pulse-event resubmission prompt (BUILD_PLAN B-4) ─────────────────────────
 
 

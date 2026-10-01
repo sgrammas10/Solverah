@@ -198,6 +198,8 @@ file's two:
    weight out of a per-level vector. That is a config decision -- add an `unknown` level,
    or deactivate the confounder for runs off this source -- and it is unmade.
    *(Made on 2026-09-21 -- see the next section. Item 1 is closed; 2 and 3 stand.)*
+   *(2026-10-01: the instrument now ASKS `industry`, optionally. A row that names its
+   industry is unmasked; a NULL row is masked exactly as above.)*
 2. **There is no volume yet.** `assemble_environment_training_data` is verified against
    sqlite and against `build_model`'s real contract, not against a populated production
    database.

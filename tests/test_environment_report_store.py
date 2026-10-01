@@ -80,6 +80,114 @@ def test_write_accepts_comp_none_for_not_sure(client, seed_user):
         assert result["comp"] is None
 
 
+# ---------------------------------------------------------------------------
+# industry (PRODUCT_DECISIONS.md §2, 2026-10-01)
+# ---------------------------------------------------------------------------
+
+
+def test_industry_round_trips_through_latest_and_history(client, seed_user):
+    from app import app
+    from environment_report_store import environment_report_history, latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1, industry="healthcare")
+        db.session.commit()
+
+        assert latest_environment_report(1)["industry"] == "healthcare"
+        assert latest_environment_report(1, include_raw_answers=False)["industry"] == "healthcare"
+        assert environment_report_history(1)[0]["industry"] == "healthcare"
+
+
+def test_industry_defaults_to_null_and_serializes_as_none(client, seed_user):
+    """An omitted industry (every caller written before 2026-10-01) is NULL,
+    the instrument's "not sure / prefer not to say" -- and the key is still
+    present on the read, never silently absent."""
+    from app import app
+    from environment_report_store import latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1)
+        db.session.commit()
+
+        result = latest_environment_report(1)
+        assert "industry" in result
+        assert result["industry"] is None
+
+
+@pytest.mark.parametrize("bad_industry", ["crypto", "Tech", ""])
+def test_industry_outside_the_level_vocabulary_is_rejected(client, seed_user, bad_industry):
+    """ck_envreport_industry_vocab: the model indexes a per-level weight, so a key
+    outside the config's levels would have no weight to use."""
+    from app import app
+    from model import EnvironmentReport, db
+
+    seed_user(1)
+    with app.app_context():
+        db.session.add(
+            EnvironmentReport(
+                user_id=1,
+                raw_answers={},
+                stage_size=3,
+                comp=3,
+                industry=bad_industry,
+                experienced_outcome=3,
+                career_status="employed",
+                version="v1",
+            )
+        )
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+
+
+@pytest.mark.parametrize("industry", [None, "tech", "finance", "healthcare", "retail", "other"])
+def test_industry_check_accepts_every_level_and_null(client, seed_user, industry):
+    """Sibling VALID-row test (S-40 lesson) for the CHECK above."""
+    from app import app
+    from model import EnvironmentReport, db
+
+    seed_user(1)
+    with app.app_context():
+        db.session.add(
+            EnvironmentReport(
+                user_id=1,
+                raw_answers={},
+                stage_size=3,
+                comp=3,
+                industry=industry,
+                experienced_outcome=3,
+                career_status="employed",
+                version="v1",
+            )
+        )
+        db.session.commit()
+        assert EnvironmentReport.query.filter_by(user_id=1).one().industry == industry
+
+
+def test_industry_levels_agree_across_instrument_orm_wire_and_model_config():
+    """Four restatements of one vocabulary: the model config (the authority),
+    the instrument, the ORM CHECK and the request/response schema's Literal."""
+    from pathlib import Path
+    from typing import get_args
+
+    import yaml
+
+    from model import ENV_INDUSTRIES
+    from solverah.schemas.situation_report import Industry
+    from work_pulse.situation_items import INDUSTRY_LEVELS
+
+    config = Path(__file__).resolve().parents[1] / "causal_graph" / "v1_model" / "solverah_model_config.yaml"
+    cfg = yaml.safe_load(config.read_text(encoding="utf-8"))
+    levels = tuple(next(c for c in cfg["confounders"] if c["key"] == "industry")["levels"])
+
+    assert INDUSTRY_LEVELS == levels
+    assert ENV_INDUSTRIES == levels
+    assert get_args(Industry) == levels
+
+
 def test_second_submission_is_a_second_row_not_an_update(client, seed_user):
     """The append-only precedent (D-16): a resubmission never overwrites the first."""
     from app import app

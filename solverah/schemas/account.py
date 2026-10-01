@@ -104,6 +104,10 @@ class ExportedEnvironmentReport(SolverahModel):
     dimension_scores: Dict[str, float] = Field(default_factory=dict)
     stage_size: int
     comp: Optional[int] = None
+    industry: Optional[str] = Field(
+        default=None,
+        description="Industry level key, or null: 'not sure' or, before env-v2, never asked.",
+    )
     experienced_outcome: int
     career_status: str
     employer_name_normalized: Optional[str] = None

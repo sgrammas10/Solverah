@@ -312,6 +312,17 @@ answer (the same failure shape as core-items ratification D1). They get the
 needs-forward-only report built from their person-side scores — the same
 rendering the plan already gives any user without an environment report.
 
+**industry is asked, optional, NULL on not-sure, 5 placeholder levels.**
+Sebastian, 2026-10-01. The match model has carried `industry` as an active
+categorical confounder (it biases decision and feedback), but the form never
+asked it, so every training row masked it and its weights stayed at their
+prior. It is now a context item after comp, with options exactly the model
+config's levels (tech, finance, healthcare, retail, other) plus "not sure /
+prefer not to say", which stores NULL and leaves that row masked, the same
+way comp's "not sure" does. The levels are placeholders and will grow with real
+data. The form version moved to `env-v2-2026-10-01`, so a NULL on an older
+row ("never asked") stays distinguishable from a NULL on a new one ("not sure").
+
 ### Path Intelligence / O*NET stays — backbone, not product
 Sebastian, 2026-09-10. **Closes the keep-reduce-cut question formerly in §3.**
 

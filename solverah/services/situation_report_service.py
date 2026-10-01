@@ -150,6 +150,9 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
         )
         stage_size = situation_items.context_value("stage_size", payload.get("stage_size"))
         comp = situation_items.context_value("comp", payload.get("comp"))
+        # Optional (PRODUCT_DECISIONS.md §2, 2026-10-01): an absent key and an
+        # explicit null both mean "not sure / prefer not to say".
+        industry = situation_items.context_level("industry", payload.get("industry"))
         experienced = situation_items.context_value("experienced", payload.get("experienced"))
     except ValueError as exc:
         return _error(400, str(exc))
@@ -170,6 +173,7 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
         dimension_scores=dimension_scores,
         stage_size=stage_size,
         comp=comp,
+        industry=industry,
         experienced_outcome=experienced,
         career_status=career_status,
         version=situation_items.FORM_VERSION,
@@ -183,6 +187,7 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
             "dimension_scores": dimension_scores,
             "stage_size": stage_size,
             "comp": comp,
+            "industry": industry,
             "experienced": experienced,
             "career_status": career_status,
             "version": situation_items.FORM_VERSION,

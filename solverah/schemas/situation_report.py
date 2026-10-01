@@ -13,7 +13,7 @@ state carries, so they are the two this module declares.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -25,6 +25,11 @@ __all__ = [
     "SituationReportRecalibrateResponse",
     "SituationReportResponse",
 ]
+
+#: `work_pulse.situation_items.INDUSTRY_LEVELS`, spelled out so the OpenAPI document
+#: carries an enum (a computed Literal is invisible to type checkers). A tripwire test
+#: asserts the two agree.
+Industry = Literal["tech", "finance", "healthcare", "retail", "other"]
 
 
 class EnvironmentReportSubmitRequest(SolverahModel):
@@ -40,6 +45,13 @@ class EnvironmentReportSubmitRequest(SolverahModel):
         ge=1,
         le=5,
         description="1..5 market-relative pay posture, or null for 'not sure'.",
+    )
+    industry: Optional[Industry] = Field(
+        default=None,
+        description=(
+            "The organization's industry, one of the causal model's `industry` levels, "
+            "or null (or absent) for 'not sure / prefer not to say'."
+        ),
     )
     experienced: int = Field(
         ge=1, le=5, description="Overall, how well is this role working for you?"
@@ -58,6 +70,7 @@ class EnvironmentReportSubmitResponse(SolverahModel):
     dimension_scores: Dict[str, float]
     stage_size: int
     comp: Optional[int] = None
+    industry: Optional[Industry] = None
     experienced: int
     career_status: str
     version: str

@@ -1278,6 +1278,12 @@ ENV_DIMENSIONS = ("autonomy", "pace", "collaboration", "feedback", "innovation",
 #: their job, not on whatever the profile says later.
 CAREER_STATUSES = ("employed", "between_jobs", "first_job")
 
+#: `environment_reports.industry`'s vocabulary: the `industry` confounder's levels
+#: in causal_graph/v1_model/solverah_model_config.yaml, which
+#: `work_pulse.situation_items.INDUSTRY_LEVELS` restates. A tripwire test asserts all
+#: three agree.
+ENV_INDUSTRIES = ("tech", "finance", "healthcare", "retail", "other")
+
 
 class EnvironmentReport(db.Model):
     """One submission of the environment-side instrument. Append-only: id is not a person's
@@ -1314,6 +1320,11 @@ class EnvironmentReport(db.Model):
     # so a forced 1..5 answer would under-report underpayment exactly where it
     # is worst.
     comp = db.Column(db.SmallInteger, nullable=True)
+    # The model's categorical `industry` confounder, stored as the level key (ENV_INDUSTRIES),
+    # the way schema.sql's `value_cat` carries it on the company side. NULLable twice over:
+    # rows written before 2026-10-01 were never asked (version env-v1-...), and from then on
+    # NULL is the "not sure / prefer not to say" option (PRODUCT_DECISIONS.md §2, 2026-10-01).
+    industry = db.Column(db.Text, nullable=True)
     # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
     # same ordinal shape as `outcome_experienced.working_scale`.
     experienced_outcome = db.Column(db.SmallInteger, nullable=False)
@@ -1332,6 +1343,10 @@ class EnvironmentReport(db.Model):
         ),
         db.CheckConstraint(
             "comp IS NULL OR (comp >= 1 AND comp <= 5)", name="ck_envreport_comp_range"
+        ),
+        db.CheckConstraint(
+            "industry IS NULL OR industry IN %s" % (ENV_INDUSTRIES,),
+            name="ck_envreport_industry_vocab",
         ),
         db.CheckConstraint(
             "experienced_outcome >= 1 AND experienced_outcome <= 5",

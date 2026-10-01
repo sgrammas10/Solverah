@@ -204,11 +204,13 @@ def _post_env(
     comp=2,
     experienced=5,
     employer_name=None,
+    industry=None,
 ):
     payload = {
         "answers": _answers_from_plan(plan),
         "stage_size": stage_size,
         "comp": comp,
+        "industry": industry,
         "experienced": experienced,
     }
     if employer_name is not None:
@@ -288,11 +290,10 @@ def test_one_report_becomes_one_row_with_hand_computed_values(client, monkeypatc
     assert not result.conf_missing["stage_size"][0]
     assert not result.conf_missing["comp"][0]
 
-    # `industry` is active and measurable in the config and the environment
-    # instrument does not ask it. An explicit all-NULL column, not a silent
-    # omission -- a consumer must be able to see that the model config names a
-    # term this source cannot fill.
-    assert result.unsupplied_confounders == ("industry",)
+    # `industry` is asked since 2026-10-01 but optional; this row answered
+    # "not sure" (NULL), so the column carries an explicit None with its mask
+    # set -- never a silent omission, and never a guessed level.
+    assert result.unsupplied_confounders == ()
     assert result.conf["industry"][0] is None
     assert bool(result.conf_missing["industry"][0]) is True
 
@@ -313,6 +314,92 @@ def test_one_report_becomes_one_row_with_hand_computed_values(client, monkeypatc
     assert row.person_submission_id and len(row.person_submission_id) == 32
     assert row.person_form_version
     assert row.person_scoring_key_version
+
+
+# ---------------------------------------------------------------------------
+# industry: unmasked when answered, masked exactly as before when NULL
+# ---------------------------------------------------------------------------
+
+
+def _match_core():
+    import match_core  # causal_graph/v1_model is on sys.path (see the import above)
+
+    return match_core
+
+
+def test_an_answered_industry_is_unmasked_at_its_own_level(client, monkeypatch):
+    """PRODUCT_DECISIONS.md §2, 2026-10-01. A row that names its industry
+    carries the RAW level key (preprocess_conf owns the indexing), its mask is
+    clear, and after preprocessing it indexes its own level with
+    `industry__present` = 1 -- while a NULL row beside it stays masked at the
+    placeholder with `industry__present` = 0."""
+    for email, industry in (
+        ("e4_ind_health@example.com", "healthcare"),
+        ("e4_ind_null@example.com", None),
+        ("e4_ind_retail@example.com", "retail"),
+    ):
+        csrf = _register_and_login(client, monkeypatch, email)
+        _set_career_status(client, csrf, "employed")
+        _complete_core(client, csrf)
+        assert _post_env(client, csrf, industry=industry).status_code == 200
+
+    result = _assemble()
+    assert result.dropped == []
+    assert len(result.rows) == 3
+    assert result.unsupplied_confounders == ()
+
+    assert list(result.conf["industry"]) == ["healthcare", None, "retail"]
+    assert result.conf_missing["industry"].tolist() == [False, True, False]
+
+    cfg = _cfg()
+    levels = next(c for c in cfg["confounders"] if c["key"] == "industry")["levels"]
+    out = _match_core().preprocess_conf(result.conf, cfg, conf_missing=result.conf_missing)
+    assert out["industry"].tolist() == [levels.index("healthcare"), 0, levels.index("retail")]
+    assert out["industry__present"].tolist() == [1.0, 0.0, 1.0]
+
+
+def test_a_null_industry_row_is_bit_identical_to_the_never_asked_path(client, monkeypatch):
+    """The masked path must not move. Assemble the same NULL-industry rows
+    twice: once as the code is, once with `industry` taken back out of
+    ENVIRONMENT_CONFOUNDER_COLUMNS (the pre-2026-10-01 'never asked' path).
+    Every array, raw and preprocessed, must be byte-for-byte the same. Only
+    `unsupplied_confounders` may differ, because the instrument now asks it."""
+    import numpy as np
+
+    for email in ("e4_bit_a@example.com", "e4_bit_b@example.com"):
+        csrf = _register_and_login(client, monkeypatch, email)
+        _set_career_status(client, csrf, "employed")
+        _complete_core(client, csrf)
+        assert _post_env(client, csrf, industry=None).status_code == 200
+
+    now = _assemble()
+    old_columns = {k: v for k, v in atd.ENVIRONMENT_CONFOUNDER_COLUMNS.items() if k != "industry"}
+    monkeypatch.setattr(atd, "ENVIRONMENT_CONFOUNDER_COLUMNS", old_columns)
+    before = _assemble()
+
+    assert now.unsupplied_confounders == ()
+    assert before.unsupplied_confounders == ("industry",)
+
+    def _same(a, b):
+        assert a.dtype == b.dtype and a.shape == b.shape
+        if a.dtype == object:
+            assert list(a) == list(b)
+        else:
+            assert a.tobytes() == b.tobytes()
+
+    for group in ("person", "env", "conf", "conf_missing"):
+        assert list(getattr(now, group)) == list(getattr(before, group)), group
+        for key in getattr(now, group):
+            _same(getattr(now, group)[key], getattr(before, group)[key])
+    _same(now.outcome, before.outcome)
+
+    cfg = _cfg()
+    pre_now = _match_core().preprocess_conf(now.conf, cfg, conf_missing=now.conf_missing)
+    pre_before = _match_core().preprocess_conf(before.conf, cfg, conf_missing=before.conf_missing)
+    assert list(pre_now) == list(pre_before)
+    for key in pre_now:
+        _same(np.asarray(pre_now[key]), np.asarray(pre_before[key]))
+    assert pre_now["industry__present"].tolist() == [0.0, 0.0]
 
 
 def test_every_unsuppliable_funnel_field_is_an_explicit_null(client, monkeypatch):

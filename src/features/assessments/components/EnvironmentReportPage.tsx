@@ -56,7 +56,7 @@ import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 import type { EnvReportDraft } from "../useEnvReport";
-import type { EnvStep } from "../data/envQuestions";
+import type { EnvIndustry, EnvStep } from "../data/envQuestions";
 
 /** `work_pulse.situation_items.TENSE_BY_CAREER_STATUS`, client side. Unknown
  *  or unset statuses render present tense -- the common case by far, and the
@@ -67,7 +67,7 @@ function isPastTense(careerStatus: string | undefined): boolean {
 
 type Phase = "intro" | "questions";
 
-/** Answered = key PRESENCE (see useEnvReport: comp's "not sure" is a stored null). */
+/** Answered = key PRESENCE (see useEnvReport: comp's and industry's "not sure" is a stored null). */
 function isStepAnswered(draft: EnvReportDraft, step: EnvStep): boolean {
   return step.kind === "dimension"
     ? draft.answers[step.item.itemId] !== undefined
@@ -165,8 +165,8 @@ function Intro({ past, onStart }: { past: boolean; onStart: () => void }) {
       </h1>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
-          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus three about the setup. About five minutes."
-          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus three about the setup. About five minutes."}
+          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus four about the setup. About five minutes."
+          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus four about the setup. About five minutes."}
       </p>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
@@ -265,7 +265,8 @@ export default function EnvironmentReportPage() {
         ENV_ITEMS.map((item) => [item.itemId, draft.answers[item.itemId]]),
       ) as Record<string, string>,
       stage_size: draft.context.stage_size as number,
-      comp: draft.context.comp ?? null,
+      comp: (draft.context.comp as number | null | undefined) ?? null,
+      industry: (draft.context.industry as EnvIndustry | null | undefined) ?? null,
       experienced: draft.context.experienced as number,
     };
     submitMutation.mutate(body, {

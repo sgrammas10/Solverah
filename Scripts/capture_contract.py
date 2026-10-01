@@ -231,6 +231,17 @@ builders are still *called* with whatever the handler passes them, so a handler
 that stopped being able to read its inputs still fails here; what those inputs
 contain is not on the wire and is asserted in `tests/test_assessment_storage.py`
 instead.
+
+**Re-baselined for the environment report's `industry` item (2026-10-01).** A
+deliberate change, and A29 (docs/ARCHITECTURE.md) is the ledger. The
+`submit-environment-report` step now sends `"industry": "tech"`, so the new field
+is pinned with a real value rather than its null default. No step was added,
+removed or reordered. Verified before the recapture, on the standing baseline:
+1 difference, `submit-environment-report`, body only (`"industry":"tech"` added,
+`version` moved from `env-v1-2026-09-10` to `env-v2-2026-10-01`); every other
+step byte-identical. `export` does not move because it runs before EMAIL has
+submitted an environment report, so its `environment_reports` list is empty.
+After the recapture: 0 differences across 113.
 """
 
 from __future__ import annotations
@@ -1331,7 +1342,10 @@ def run_scenario() -> List[Dict[str, Any]]:
         "submit-environment-report",
         "POST",
         "/api/v1/me/environment-report",
-        json={"answers": env_answers, "stage_size": 3, "comp": 3, "experienced": 3},
+        json={
+            "answers": env_answers, "stage_size": 3, "comp": 3, "industry": "tech",
+            "experienced": 3,
+        },
         headers=mp_csrf,
     )
     call("situation-report-complete", "GET", "/api/v1/me/situation-report")

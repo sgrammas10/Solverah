@@ -26,8 +26,12 @@ from work_pulse.situation_items import (
     OPTION_KEYS,
     POLE_VALUES,
     POLES_LOW_TO_HIGH,
+    INDUSTRY_ITEM,
+    INDUSTRY_LEVELS,
     TENSE_BY_CAREER_STATUS,
+    context_level,
     context_value,
+    is_categorical,
     is_past_tense,
     item_spec,
     item_list_in_form_order,
@@ -343,16 +347,24 @@ def test_render_items_rejects_an_unknown_career_status() -> None:
 
 
 # ---------------------------------------------------------------------------
-# The three non-dimension items
+# The four non-dimension items
 # ---------------------------------------------------------------------------
 
-def test_context_items_are_the_three_the_model_lane_expects() -> None:
-    assert [i["item_id"] for i in CONTEXT_ITEMS] == ["stage_size", "comp", "experienced"]
-    assert EXPECTED_CONTEXT_ITEM_COUNT == 3
+def test_context_items_are_the_four_the_model_lane_expects() -> None:
+    """Order is load-bearing: `industry` sits with the context facts, after
+    `comp`, and `experienced` (the outcome) stays last."""
+    assert [i["item_id"] for i in CONTEXT_ITEMS] == [
+        "stage_size", "comp", "industry", "experienced",
+    ]
+    assert EXPECTED_CONTEXT_ITEM_COUNT == 4
+
+
+def _ordinal_context_items() -> list:
+    return [i for i in CONTEXT_ITEMS if not is_categorical(i)]
 
 
 def test_context_items_are_one_to_five_in_natural_order() -> None:
-    for item in CONTEXT_ITEMS:
+    for item in _ordinal_context_items():
         values = [o["value"] for o in item["options"]]
         if item["item_id"] == "comp":
             # comp's sixth option is "not sure" -> None, kept last so the 1..5
@@ -370,7 +382,7 @@ def test_context_columns_cover_every_context_item() -> None:
 
 
 def test_context_value_accepts_the_whole_scale() -> None:
-    for item in CONTEXT_ITEMS:
+    for item in _ordinal_context_items():
         for value in (1, 2, 3, 4, 5):
             assert context_value(item["item_id"], value) == value
 
@@ -389,7 +401,64 @@ def test_context_value_rejects_non_ints(value: object) -> None:
 
 def test_context_value_rejects_an_unknown_item() -> None:
     with pytest.raises(ValueError, match="Unknown context item"):
-        context_value("industry", 3)
+        context_value("tenure", 3)
+    with pytest.raises(ValueError, match="Unknown context item"):
+        context_level("tenure", "tech")
+
+
+# -- industry: the one categorical context item (PRODUCT_DECISIONS.md §2, 2026-10-01)
+
+def _model_config_industry_levels() -> list[str]:
+    import yaml
+
+    cfg = yaml.safe_load(
+        (REPO_ROOT / "causal_graph" / "v1_model" / "solverah_model_config.yaml").read_text(
+            encoding="utf-8"
+        )
+    )
+    return next(c for c in cfg["confounders"] if c["key"] == "industry")["levels"]
+
+
+def test_industry_options_are_exactly_the_model_config_levels_then_not_sure() -> None:
+    """The model indexes a per-level weight by position in the config's list,
+    so the stored keys must be the config's keys, in its order. "Not sure"
+    (None) is last and is NOT the `other` level."""
+    values = [o["value"] for o in INDUSTRY_ITEM["options"]]
+    assert values[:-1] == _model_config_industry_levels()
+    assert values[-1] is None
+    assert tuple(values[:-1]) == INDUSTRY_LEVELS
+
+
+def test_industry_is_categorical_and_the_others_are_not() -> None:
+    assert [i["item_id"] for i in CONTEXT_ITEMS if is_categorical(i)] == ["industry"]
+
+
+@pytest.mark.parametrize("level", ["tech", "finance", "healthcare", "retail", "other"])
+def test_context_level_accepts_every_industry_level(level: str) -> None:
+    assert context_level("industry", level) == level
+
+
+def test_industry_accepts_not_sure_as_none() -> None:
+    assert context_level("industry", None) is None
+
+
+@pytest.mark.parametrize("value", ["Tech", "crypto", "", 1, True])
+def test_context_level_rejects_anything_but_a_level(value: object) -> None:
+    with pytest.raises(ValueError, match="industry"):
+        context_level("industry", value)  # type: ignore[arg-type]
+
+
+def test_the_two_validators_refuse_each_others_items() -> None:
+    with pytest.raises(ValueError, match="categorical"):
+        context_value("industry", None)
+    with pytest.raises(ValueError, match="ordinal"):
+        context_level("comp", None)
+
+
+def test_industry_sits_with_the_context_facts_far_from_the_outcome() -> None:
+    ids = [i["item_id"] for i in CONTEXT_ITEMS]
+    assert ids.index("industry") == ids.index("comp") + 1
+    assert ids[-1] == "experienced"
 
 
 def test_comp_accepts_not_sure_as_none() -> None:

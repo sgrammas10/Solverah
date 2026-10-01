@@ -39,6 +39,7 @@ from work_pulse.situation_items import (
     COMP_ITEM,
     EXPECTED_DIMENSION_ITEM_COUNT,
     EXPERIENCED_ITEM,
+    INDUSTRY_ITEM,
     OPTION_KEYS,
     STAGE_SIZE_ITEM,
     item_list_in_form_order,
@@ -127,7 +128,8 @@ def test_env_context_items_match_situation_items_py():
 
     for py_item, start_marker, end_marker in [
         (STAGE_SIZE_ITEM, "export const STAGE_SIZE_ITEM", "export const COMP_ITEM"),
-        (COMP_ITEM, "export const COMP_ITEM", "export const EXPERIENCED_ITEM"),
+        (COMP_ITEM, "export const COMP_ITEM", "export const INDUSTRY_ITEM"),
+        (INDUSTRY_ITEM, "export const INDUSTRY_ITEM", "export const EXPERIENCED_ITEM"),
         (EXPERIENCED_ITEM, "export const EXPERIENCED_ITEM", "export type EnvStep"),
     ]:
         block = _section(text, start_marker, end_marker)
@@ -135,7 +137,8 @@ def test_env_context_items_match_situation_items_py():
         item_ids = _field(r'\bitemId:\s*"([^"]*)"', block)
         prompts = _field(r'\bprompt:\s*"([^"]*)"', block)
         prompts_past = _field(r'\bpromptPast:\s*"([^"]*)"', block)
-        raw_values = _field(r'\bvalue:\s*(-?\d+|null)', block)
+        # An int, null, or (industry only) a quoted level key.
+        raw_values = _field(r'\bvalue:\s*(-?\d+|null|"[^"]*")', block)
         texts = _field(r'\btext:\s*"([^"]*)"', block)
         texts_past = _field(r'\btextPast:\s*"([^"]*)"', block)
 
@@ -147,10 +150,33 @@ def test_env_context_items_match_situation_items_py():
         assert len(texts) == expected_option_count, py_item["item_id"]
         assert len(texts_past) == expected_option_count, py_item["item_id"]
 
-        values = [None if v == "null" else int(v) for v in raw_values]
+        values = [
+            None if v == "null" else v.strip('"') if v.startswith('"') else int(v)
+            for v in raw_values
+        ]
         assert values == [o["value"] for o in py_item["options"]], py_item["item_id"]
         assert texts == [o["text"] for o in py_item["options"]], py_item["item_id"]
         assert texts_past == [o["text_past"] for o in py_item["options"]], py_item["item_id"]
+
+
+def test_env_form_steps_order_and_version_match_situation_items_py():
+    """The form order is load-bearing (context facts first, `experienced`
+    last), and the TS stamps the same FORM_VERSION the server writes."""
+    from work_pulse.situation_items import CONTEXT_ITEMS, FORM_VERSION
+
+    text = _read(ENV_TS)
+    steps = _section(text, "export const ENV_FORM_STEPS: EnvStep[] = [", "\n];")
+    names = re.findall(r'\{ kind: "context", item: (\w+) \}|(\.\.\.ENV_ITEMS)', steps)
+    order = [a or b for a, b in names]
+    ts_ids = {
+        "STAGE_SIZE_ITEM": "stage_size", "COMP_ITEM": "comp",
+        "INDUSTRY_ITEM": "industry", "EXPERIENCED_ITEM": "experienced",
+        "...ENV_ITEMS": "<twelve>",
+    }
+    py_ids = [i["item_id"] for i in CONTEXT_ITEMS]
+    assert [ts_ids[n] for n in order] == py_ids[:-1] + ["<twelve>", py_ids[-1]]
+
+    assert re.search(r'ENV_FORM_VERSION = "([^"]*)"', text).group(1) == FORM_VERSION
 
 
 # ---------------------------------------------------------------------------

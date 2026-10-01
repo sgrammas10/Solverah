@@ -367,9 +367,11 @@ def test_a_seeded_cohort_assembles_with_no_drops_and_every_z_finite(client):
     assert result.outcome_type == "experienced"
     assert set(result.outcome.tolist()) <= {1, 2, 3, 4, 5}
 
-    # `industry` is never asked by the instrument, so every row is masked -- the
-    # exact case match_core.preprocess_conf's categorical mask exists for.
-    assert result.unsupplied_confounders == ("industry",)
+    # The instrument asks `industry` since 2026-10-01 (so it is no longer
+    # "unsupplied"), but the synthetic seeder writes no industry, so every row
+    # is NULL and masked -- the exact case match_core.preprocess_conf's
+    # categorical mask exists for.
+    assert result.unsupplied_confounders == ()
     assert np.asarray(result.conf_missing["industry"]).all()
 
     conf = match_core.preprocess_conf(

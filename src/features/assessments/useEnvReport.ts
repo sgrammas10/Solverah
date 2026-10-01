@@ -4,17 +4,19 @@
  * `useMP`'s shape, with one difference that matters: this instrument has two
  * kinds of answer. The twelve dimension items store an option KEY ("a".."e"),
  * because the server owns the key -> pole -> score mapping and the client must
- * never learn it. The three context items store a RAW value, 1..5, which is
- * itself the answer (`work_pulse.situation_items.context_value` is a
- * pass-through with a guard, deliberately).
+ * never learn it. The four context items store a RAW value (1..5, or a level
+ * key for `industry`), which is itself the answer
+ * (`work_pulse.situation_items.context_value` / `context_level` are
+ * pass-throughs with a guard, deliberately).
  *
  * `comp` can legitimately be answered `null` -- the "not sure" option, which
  * exists because a forced 1..5 guess at your own market rate is wrong in a
- * non-random direction (PRODUCT_DECISIONS §2, 2026-09-10). So "answered" is
- * key PRESENCE in `context`, never a truthiness or null check: an unanswered
- * `comp` is a missing key and an answered one may hold `null`.
+ * non-random direction (PRODUCT_DECISIONS §2, 2026-09-10). `industry` has the
+ * same kind of option ("not sure, or I'd rather not say", 2026-10-01). So
+ * "answered" is key PRESENCE in `context`, never a truthiness or null check:
+ * an unanswered item is a missing key and an answered one may hold `null`.
  *
- * sessionStorage, like `useMP`, so a mid-form reload does not throw fifteen
+ * sessionStorage, like `useMP`, so a mid-form reload does not throw sixteen
  * answers away. Nothing here is a durable record -- the append-only row the
  * server writes on submit is.
  */
@@ -25,8 +27,9 @@ const STORAGE_KEY = "env_report_answers";
 export interface EnvReportDraft {
   /** dimension item id -> chosen option key. */
   answers: Record<string, string>;
-  /** context item id -> raw 1..5, or null for comp's "not sure". */
-  context: Record<string, number | null>;
+  /** context item id -> raw 1..5 (or industry's level key), or null for
+   *  comp's / industry's "not sure". */
+  context: Record<string, number | string | null>;
 }
 
 const EMPTY: EnvReportDraft = { answers: {}, context: {} };
@@ -65,7 +68,7 @@ export function useEnvReport() {
     });
   }
 
-  function setContext(itemId: string, value: number | null) {
+  function setContext(itemId: string, value: number | string | null) {
     setDraft((prev) => {
       const next = { ...prev, context: { ...prev.context, [itemId]: value } };
       persist(next);

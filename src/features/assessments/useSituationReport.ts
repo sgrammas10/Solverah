@@ -33,6 +33,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth";
 import { ApiError } from "../../shared/api/apiError";
 import type { PulseEventType } from "./usePulse";
+import type { EnvIndustry } from "./data/envQuestions";
 
 /** The six model dimensions, as the server names them. */
 export type SituationDimension =
@@ -182,6 +183,8 @@ export interface EnvironmentReportSubmission {
   stage_size: number;
   /** `null` is the deliberate "not sure" answer, never a missing one. */
   comp: number | null;
+  /** A level key, or `null` for "not sure / rather not say". */
+  industry: EnvIndustry | null;
   experienced: number;
 }
 
@@ -191,6 +194,7 @@ export interface EnvironmentReportSubmitResponse {
   dimension_scores: Record<string, number>;
   stage_size: number;
   comp: number | null;
+  industry: EnvIndustry | null;
   experienced: number;
   career_status: string;
   version: string;

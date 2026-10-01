@@ -1019,9 +1019,10 @@ export interface paths {
          *     diffed against the stored parser snapshot to record ResumeParseCorrection
          *     rows for anything the user changed after a resume upload.
          *
-         *     Still a read-modify-write of a whole JSON column (P0-1), and still without a
-         *     version to check. Phase 2 is what fixes that; the envelope this returns is
-         *     where the version will go.
+         *     Two concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge
+         *     runs under a server-side compare-and-swap on the profile's version and is
+         *     re-applied to a fresh read when another writer got there first. The version
+         *     is not exposed; the envelope this returns is where it would go.
          */
         patch: operations["patch_me_patch_my_profile"];
         trace?: never;
@@ -1993,6 +1994,12 @@ export interface components {
              */
             experienced: number;
             /**
+             * Industry
+             * @description The organization's industry, one of the causal model's `industry` levels, or null (or absent) for 'not sure / prefer not to say'.
+             * @default null
+             */
+            industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
+            /**
              * Stage Size
              * @description 1 (seed) .. 5 (enterprise).
              */
@@ -2018,6 +2025,11 @@ export interface components {
             };
             /** Experienced */
             experienced: number;
+            /**
+             * Industry
+             * @default null
+             */
+            industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
             /** Stage Size */
             stage_size: number;
             /** Version */
@@ -2235,6 +2247,12 @@ export interface components {
             experienced_outcome: number;
             /** Id */
             id: number;
+            /**
+             * Industry
+             * @description Industry level key, or null: 'not sure' or, before env-v2, never asked.
+             * @default null
+             */
+            industry: string | null;
             /** Raw Answers */
             raw_answers?: {
                 [key: string]: unknown;
