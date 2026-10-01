@@ -31,6 +31,23 @@ packet it has been run against so far.
 
 ---
 
+## 2026-09-30 harvest
+
+RESEARCH   P-14 Crawford & Company — 50 excerpts (A 8 · B 15 reviews · C 10 from 4 postings · D 7 from 5 sources · E 4 · F 6), collector v4.11 — moved to packets/P-14_crawford_and_company/. Run report status was COMPLETE (2026-09-29 12:31–13:15 UTC). Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
+           Flagged by the research run, not decided by the harvest: 9 build defects, 4 STRUCTURAL — (1) no B0 rule for a subject-company review sitting on a third party's pooled profile (a 2026-08-19 "Property Adjuster — Remote" review excluded); (2) no test for whether a subsidiary brand's review profile is an entity of the company — 7 of 15 reviews come from the reading taken, a narrower reading gives a different, older section B; (3) D0's two voice categories cannot classify what the D ladder yielded; (4) Section A's core value framework is published as an image, recoverable only via the 10-K. 5 cosmetic (inert Indeed fcountry filter, browse-edgar robots refusal, renderer element search truncates at ~100 chars, E company-quote-in-reporting rule, one more in the packet's Step 5 list).
+           Not retrievable / stale: no handbook, no long-form press profile, no conference talk, no layoff/RTO event in 12 months; GitHub org stale (one repo, last touched 2017); code of conduct is PDF-only (nothing quoted); a 10-K/A (accession 0001193125-26-116011) exists and was not opened. Review-site truncation: 7 of 15 reviews cut off. Reviews are mostly claims-facing roles; the packet carries a SCOPE note.
+           OPERATOR TO VERIFY: BUILD RECORD model string (`claude-opus-5`) is the session-configured identifier, not a confirmed serving model.
+           OPERATOR TO EYE: the comment block in to_be_researched.txt still says "P-13/P-14 above"; research left it untouched.
+SCRUB      P-13 Schneider National — promoted to anonymization/P-13_packet_ANON.txt; content_defects to packets/P-13_schneider_national/; all four files at _scrub_env_runs/P-13_run1/ (diff stays in the run record only). Scrub run report: all 13 self-checks PASS; 55 excerpts in, 55 out; B 17 (max 15) and C 12 (max 10) over cap, correctly untouched (CD-4). Flagged, not decided: fleet-colour self-description left as the strongest remaining fingerprint (no rule covers colours); ruleset change history mentions a "named-clients rule" with no text (a customer abbreviation handled under A5); "operating center" vocabulary left; reviewer-level re-identification left per the OPEN item.
+LISTS      to_be_researched: 5 remaining (next: P-15 Hudson River Trading) · to_be_scrubbed: 1 waiting (P-14). Harvest struck the P-13 line from to_be_scrubbed.txt after promotion; research had already updated both lists for P-14.
+STAGED     P-14 copied to _scrub_env/packets_raw/ for tonight. Ruleset refreshed (was already byte-identical).
+CLEANUP    File deletion is disabled and nobody was awake to approve it, so consumed files were moved to _to_delete/ rather than deleted: P-13_scrubout_* (packet_ANON, scrub_diff, run_report copies from packets_out — the diff copy must not be left where a rater could read it; delete it by hand) and the raw P-13 scratch packet from packets_raw, plus P-14's RUN_REPORT.md. Delete when convenient.
+REFUSED    nothing
+VERIFIED 2026-09-29 (operator note above) — P-13 Schneider National, verify_scrub.py PASSED (55 compared, 0 undeclared, 0 identifiers).
+NOT YET VERIFIED — nothing new promoted except P-13 (verified above). P-14 is a raw packet awaiting tonight's scrub; run verify_scrub.py after it is scrubbed.
+
+---
+
 ## 2026-09-29 operator note — not a harvest entry
 
 Written by hand on the morning of 2026-09-29, after the harvest entry below.

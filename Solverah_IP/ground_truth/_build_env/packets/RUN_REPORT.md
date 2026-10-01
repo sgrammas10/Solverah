@@ -1,167 +1,168 @@
 status  : COMPLETE
-company : P-14  Crawford & Company   (started 2026-09-29 12:31 UTC, finished 2026-09-29 13:15 UTC)
+company : P-15  Hudson River Trading   (started 2026-09-30 12:24 UTC · finished 2026-09-30 17:35 UTC)
 
 ## Selection
-
-Took the topmost non-comment line of `to_be_researched.txt`: `P-14	Crawford & Company`.
-Nobody named a company — this was a scheduled run with no operator awake — so the top line was
-taken without asking, per the brief.
-
-Remaining on `to_be_researched.txt` after this run, in order:
-P-15 Hudson River Trading · P-16 Smartsheet · P-17 HCA Healthcare · P-18 Fifth Third Bank ·
-P-19 Centene.
-
-## Pre-flight
-
-`packets/` was EMPTY at 12:30 UTC — verified with a recursive listing before anything else was
-read. The harvest had cleared the previous night's P-13 packet. The connected folder held only
-`BUILD_BRIEF.md`, one collector prompt, `README.txt`, `to_be_researched.txt`,
-`to_be_scrubbed.txt` and the empty `packets/`. No other packet, handoff, decisions file or defect
-log was present or read.
+- `packets/` verified EMPTY before start.
+- Took the topmost non-comment line of `to_be_researched.txt`: `P-15	Hudson River Trading`.
+- Remaining on `to_be_researched.txt` after this run: P-16 Smartsheet, P-17 HCA Healthcare,
+  P-18 Fifth Third Bank, P-19 Centene.
+- Collector prompt used: **v4.11** (`Company_Culture_Evidence_Collector_v4.11.md`, the only
+  `v*.md` file in the folder, as the README requires).
 
 ## Packet
+- Path: `packets/P-15_hudson_river_trading/P-15_packet.txt` (59,085 bytes, 693 lines)
+- Excerpts by section: **A 8 · B 5 · C 10 · D 4 · E 4 · F 0 — 31 total**
+- Structural checks run against the built file: 31 bullets, **0** not preceded by a blank
+  line (citation-harness requirement); terminal marker `########## END OF PACKET ##########`
+  present as the last line; no Section 1 text points at a Section 2/3/4 artifact.
 
-Path            : `packets/P-14_crawford_and_company/P-14_packet.txt`  (87,718 bytes)
-Collector       : `Company_Culture_Evidence_Collector_v4.11.md` — the only `v*.md` file in the
-                  folder, read in full including the defect register (D1–D30) and the change
-                  history.
-Terminal marker : present as the last line (`########## END OF PACKET ##########`), as v4.11 now
-                  requires.
+## Yield against the prompt's minimums
+| section | minimum | got | verdict |
+|---|---|---|---|
+| A careers/values | 5 (max 8) | 8 | PASS (at cap) |
+| B employee reviews | 12 | 5 | **FAIL — unreachable, see below** |
+| C job-post excerpts | 6 (target 10) | 10 | PASS |
+| C open postings | 3 | 4 | PASS |
+| C outside engineering | 1 | 3 | PASS |
+| D first-person | target 3 | 4 passages from 1 source | PASS on count, 1 voice only |
+| E recent news | target 2 (max 4) | 4 from 2 sources | PASS |
+| F human capital | attempt | N/A — private | correct absence |
 
-Section-by-section excerpt counts, counted the way the citation harness counts them — a bullet is
-only found when a blank line precedes it — by re-parsing the finished file:
+**Why B cannot be fixed by collecting more.** The required review source holds **two**
+reviews for this company worldwide. Tested three ways — the US profile, the same profile
+with the country filter set to ALL, and the regional mirror — all return the identical two,
+dated 2022-10-13 and 2017-12-13, and every count element on every page says 2. The recency
+cross-check fired **materially** under B1a-REMEDY (optional source's newest review is 47.6
+months newer; 0 of the 12-review minimum inside the 24-month gate), so up to 5 labelled
+Pros/Cons fragments were admissible — but the optional source displays only **3 of its 119**
+reviews to an anonymous reader and redirects page 2 onward to a sign-in with
+`reason=bot-detection` in the query string. No sign-in was used, per the parity rule. Section
+B is therefore 2 + 3 = 5, and the prompt's own remedy cannot reach the prompt's own gate.
 
-| section | parsed excerpts | prompt minimum / target |
-|---|---|---|
-| A. careers / values | 8 | min 5, max 8 — AT CAP |
-| B. employee reviews | 15 | min 12, target 15 — AT TARGET |
-| C. job postings | 10 | min 6, target 10 — AT TARGET (4 postings, 4 distinct functions, min 3/1) |
-| D. first-person | 7 (from 5 sources) | target 3 — 2.3x target |
-| E. recent news | 4 (3 counted + 1 tagged company-authored) | target 2, max 4 — AT CAP |
-| F. human capital | 6 | target 3, max 6 — AT CAP |
-| **total** | **50** | |
+## Could not retrieve — and which kind of finding each is
+- **Existed but could not be reached:** the 2026-09-10 long-form founder profile (renderer
+  returns headline, byline, date and two paragraphs, then a paywall; plain fetch refused by
+  robots.txt). The 2025-10-31 leadership podcast transcript (gated behind registration). Pages
+  2-40 of the optional review source (bot-detection sign-in wall). The European subsidiary's
+  2022 regulatory PDF (not renderable, and stale anyway).
+- **Existed but was stale:** the two blog posts that describe team practice directly, dated
+  2022-08-02 and 2022-02-01 — precisely the on-axis material sections D and the
+  collaboration/decision dimensions want. Recorded as found-and-rejected-on-age, not quoted.
+  Note the 2022-08-02 post is *currently featured* as the "CULTURAL SPOTLIGHT" item on the
+  company's live culture page.
+- **Did not exist:** no public handbook or employee manual (site navigation and footer
+  surveyed, not guessed). No company-attributed conference talk with retrievable text. No
+  contribution guidelines or RFC threads on the confirmed code-repository organisation.
+  No annual report with an Item 1 Human Capital disclosure — the company is private.
+- **Reached by the other method after the first failed:** the trade-press article that carries
+  three of four Section E excerpts would not render on the `.de` domain (returned a "System
+  Maintenance" page) and rendered in full on `.com`. The four job-posting bodies were absent
+  from plain fetch *and* from the rendered company page, and were only obtained by reading the
+  ATS iframe `src` off the DOM.
 
-All 50 parse. Nothing is lost to the stacked-bullet defect (v4.9 / D-item on P-08). Verified
-programmatically, not by eye.
+## Defects in my own build
+1. I cited the ATS embed URL for all 10 Section C excerpts rather than the company job page a
+   human reader navigates to. The embed URL is where I confirmed the wording and it carries
+   the text; the company page serves the same text inside an iframe. Defensible, but it puts
+   a board slug and four numeric job tokens into Section 1's citation surface — the sharpest
+   identifiers in the file. Flagged in Section 4. A later build may prefer the reverse.
+2. Section A is at its cap of 8 and every one of the 8 is access-dated, because no page on
+   this company's site publishes a date by either method. The rater learns nothing about
+   Section A's vintage from Section A. Stated in 2f as the finding it is, but it does mean
+   a third of the packet's excerpts have no source date at all.
+3. Section D is 4 passages from a single voice. I worked five further rungs looking for a
+   second in-date first-person account and found none. The concentration is real and is
+   flagged to the rater in the Section 1 header, but a rater could reasonably call D a
+   one-source section rather than a yielding one.
+4. Three of four Section E excerpts come from one article. Flagged in 2e; the target of 2 is
+   met on excerpts but only 2 independent sources exist behind them.
 
-Every gate in the required-to-yield audit passed. 15 of 15 reviews sit inside the 24-month gate.
+## Defects in the COLLECTOR PROMPT (v4.11) — structural first
+### STRUCTURAL
+- **S1 · Section B's minimum is unreachable when the required source holds fewer reviews than
+  the minimum, and the prompt has no rule for that state.** B is [YIELD] tier: "A shortfall
+  here is a research failure. Go back and collect more." Here the entire global population on
+  the required source is 2, and B1a-REMEDY caps the supplement at 5, so the maximum Section B
+  this prompt permits is 7 against a minimum of 12. The prompt's own remedy cannot satisfy the
+  prompt's own gate, and nothing says whether such a packet ships, gets re-scoped, or is
+  rejected. This determined what reached Section 1.
+- **S2 · B1a-REMEDY's cap of 5 assumes the optional site will yield 5.** Anonymously it yields
+  3 of 119 and walls the rest behind bot detection. The prompt gives no instruction for
+  "remedy fires materially but the optional site yields fewer than the cap", and does not say
+  whether to keep paginating (I did; walled at page 2). The binding constraint turned out to
+  be the site's anonymous page-1 size, which the remedy never mentions.
+- **S3 · Section C has no defined citation form when the posting body lives in a third-party
+  ATS iframe.** The fallback chain's route 4 assumes the ATS board page renders the body. Here
+  the board job URL *redirects back* to the company page, and the body is extractable only
+  from an embed URL that is not a page anyone navigates to. Three URLs were defensible and the
+  choice decides whether a citation harness can verify 10 of 31 excerpts. I chose and recorded
+  it; the prompt should choose.
+- **S4 · D0's trigger is undecidable when a first-person author's title is not published.**
+  D0 mandates a bounded extra rung "if section D comes back 100% executive", and rule 3 wants
+  "WHO is speaking" — but this blog names its authors and states no titles. Whether the
+  trigger fired cannot be evaluated from the source. I recorded 0-confirmed-executive /
+  1-employee-no-title and worked the extra rungs regardless, which is the safe reading, but
+  the prompt makes a mandatory search conditional on a fact its own sources often omit.
+- **S5 · The staleness gate is defined per RUNG; the problem on this build was a stale ITEM
+  inside a current rung.** Rung 2 is current (newest post 2026-09), so the rung is not stale —
+  yet the only two posts on it that describe working practice are from 2022. The gate's text
+  ("if the newest available material on a rung is more than about 18 months old, treat that
+  rung as stale and continue down the ladder") does not cover per-item rejection inside a live
+  rung. I applied it per item by reading across from a different sentence elsewhere ("Check the
+  publication date before quoting anything"). That call kept two rich collaboration and
+  decision-basis passages out of Section 1, so it is structural either way it is resolved.
 
-## What could not be retrieved, and what was done instead
+### COSMETIC
+- **C1** 2a has no field for a Section B shortfall *reason*, nor for the optional source's
+  anonymous-visibility limit, though B1a-REMEDY makes both load-bearing. Added as prose.
+- **C2** 2c's ladder checklist has no field for "rung current but yields nothing on working
+  practice" — an outcome the D-section prose explicitly names as a distinct finding. The free
+  text `outcome:` absorbed it, so the distinction is invisible to a structured reader.
+- **C3** 2f asks for "Newest careers-page modification date" as though a date will exist, in
+  the same version whose rule-3 amendment establishes that it usually will not. The field
+  should ask for a date *or* an access-dated count.
+- **C4** The BUILD RECORD offers exactly two options — the exact model string, or
+  `UNKNOWN — operator to fill`. This environment supplies a configured identifier and warns
+  that the serving model may differ, which is a third state and more informative than either.
+  I wrote the identifier with the qualification attached.
+- **C5** The excerpt template has one URL field, but v4.11 requires recording the *confirming*
+  route per excerpt, and on this build the discovery URL and the confirming URL differ for 14
+  excerpts. `needed JS: Y/N` carries the method but not the route.
+- **C6** 2f wants claimed/unclaimed per review entity; the required source does not display it
+  on the rendered review page at all. Recorded NOT STATED.
+- **C7** Section E bans "job aggregators" by site category rather than by content test. The
+  only non-paywalled trade reporting on this company with substantive quotes runs under a news
+  masthead that is also a job board — bylined reporter, date, original executive quotes. I
+  treated it as reporting and recorded the call in 2e; a builder reading the category ban
+  literally would have shipped a zero-yield Section E on a company that is actively covered.
+- **C8** B2c steps 5-6 and B3b still read as live instructions to collect per-title subratings
+  and run rating-block checks, in the same document that twice says they are no longer
+  collected. "Retained only for the case in B2 above" is easy to read past.
 
-Distinguishing the three cases the brief asks to be kept apart:
+**Freeze status: NOT triggered.** Five structural defects on this build.
 
-**EXISTED BUT COULD NOT BE REACHED**
-- Glassdoor's date-sorted review listing. Plain fetch was refused by robots.txt; the renderer was
-  bot-walled to a Cloudflare interstitial within two minutes of the renderer working fine on
-  Indeed. Both halves of defect D13 in one source. Worked around: the UNSORTED Glassdoor reviews
-  path *is* allowed by robots and returned the newest review date (2026-07-05) and a count by
-  plain fetch, which is all the optional recency cross-check needs. Nothing from Glassdoor
-  entered Section 1 and the plain-fetch-only status is flagged in 2f.
-- Glassdoor's work-life-balance subscore — not retrievable by either method, so cross-site
-  work/life divergence could not be recorded this build. Said so in 2f rather than leaving the
-  line blank.
-- The company's global code of business conduct. PDF only; the renderer exposes no text for PDFs
-  and no HTML rendition exists. Nothing was load-bearing in it, so option two of v4.11's
-  three-option fallback was taken: recorded as *found but not quotably retrievable*, quoted
-  nowhere. Same outcome the prompt records for P-11, reached the same way.
-- `sec.gov/cgi-bin/browse-edgar` — dead, as the register says, but by a different failure mode
-  (robots refusal, not an empty document). Logged as a cosmetic defect. Worked around with the
-  route the prompt prescribes: resolve the document URL by search, fetch the archive document
-  directly. That worked first try.
+## Environment / pipeline observations (not prompt defects)
+- The browser required a **fresh site-access grant for essentially every page load** — a
+  `scope: "site"` request was granted "for one use" each time — which roughly doubled the call
+  count for a browsing-heavy build. Worth knowing before the next scheduled run.
+- The MCP bridge to this device disconnected and reconnected around twenty times mid-run. No
+  work was lost; every affected call succeeded on retry.
+- **`packets/` was empty but `to_be_scrubbed.txt` still carried P-14's line.** Per that file's
+  own header the harvest consumes the line *and* stages the packet, so the two signals
+  disagree: the packet folder had been cleared while the line had not. Not a blocker under
+  BUILD_BRIEF (which gates only on `packets/` being empty) and I proceeded, but flagging it in
+  case the harvest half-completed on 2026-09-29.
+- v4.11's D26 warning was confirmed twice on this build, both times on sources I would have
+  quoted. On the trade-press article, plain fetch reported a pay figure of "£945,500" that
+  appears nowhere on the rendered page (which says "over £900k"). On the blog post behind all
+  four Section D passages, plain fetch returned three quotation-marked passages, two of which
+  do not match the page — sentences merged, a capital introduced, a clause dropped. Both are
+  written up in 2e with the rendered text alongside. **The renderer-confirmation rule earned
+  its place on this build.**
 
-**EXISTED BUT WAS STALE**
-- The public repository organisation at the obvious handle: one repository, last touched
-  2017-03-13, no bio, no public members — so it also cannot be confirmed as the subject rather
-  than a name collision. Recorded as found-but-stale-and-unconfirmed, not as absent.
-- The blog's employee-spotlight strand carries 2018-dated items, surfaced only via the site's
-  "related posts" rails. Rejected on age and recorded as rejected, per D0(3) — "the company
-  publishes exactly this material and some of it is eight years old" is a different finding from
-  "no employee stories exist". The strand also carries current items, which is what yielded.
+## List updates — both confirmed done, in the prescribed order
+1. Appended to `to_be_scrubbed.txt`: `P-15	Hudson River Trading	researched 2026-09-30 (v4.11)` ✔
+2. *Then* removed `P-15	Hudson River Trading` from `to_be_researched.txt` ✔
+Both performed only after the packet existed on disk.
 
-**DID NOT EXIST**
-- No public employee handbook, manual or "how we work" documentation, after a navigation survey
-  of the About and all four careers pages plus two searches.
-- No long-form press profile with direct employee or executive quotes beyond the trade interview
-  already credited to ladder rung 4. Searches returned company-profile databases, review sites
-  and an encyclopedia entry — none of which is reporting and none of which may be quoted.
-- No published conference talk, session or transcript. The company maintains current event pages,
-  but they describe *exhibiting*: "Crawford is exhibiting at the NAMIC Claims Conference". Rung
-  found, current, yields nothing — a third distinct outcome, recorded as such.
-- No layoff, site-closure or return-to-office event in twelve months, across five logged searches
-  with different phrasings.
-
-One retrieval finding worth carrying forward, because it is the reverse of what the prompt's prior
-predicts: **the renderer was not walled on the review aggregator at all.** It returned every review
-page in full, including the literal `...Show more` markers, which is the only reason truncation
-could be measured. Plain fetch also worked, and the two methods agreed on the review list, dates,
-titles and locations. Two independent renderer passes over the same page were byte-equivalent
-including every truncation marker — unlike P-11 (D28), the two passes agreed. And on the one source
-where plain fetch and the renderer could be compared sentence-for-sentence (the 10-K human-capital
-section), plain fetch's rendition matched the rendered text except for a dropped trademark symbol
-and normalised apostrophes. **No fabricated quotation marks on this build.** That is a negative
-result on D26, not a refutation of it: the renderer was still the confirming route for all 50
-excerpts.
-
-## Defects noticed in this build
-
-Four structural, five cosmetic. Full text with reasoning is in the packet's Step 5 list; the
-headlines:
-
-STRUCTURAL
-1. B0 has no rule for a review that may belong to the SUBJECT but sits on a third party's pooled
-   profile — the mirror image of D23. Found one: a 2026-08-19 "Property Adjuster — Remote" review
-   on a profile otherwise belonging to an Illinois mechanical contractor. Had it been collectable
-   it would have been the second-newest review in the merged set. Excluded and recorded.
-2. B0's "collect from all entities" and B2's "company-wide" frame give no test for whether a
-   subsidiary brand's profile is an entity OF the company. Reading it inclusively put 7 of the 15
-   reviews in Section 1 and moved the oldest review used forward by five months. Reading it
-   narrowly would have produced a different, older section B that still passed every gate.
-3. D0's two voice categories cannot classify what this ladder yielded — unsigned corporate voice,
-   unsigned practitioner voice, and company-written third-person profiles of named non-executive
-   employees. The 2a audit line has two boxes; the number that goes in them is a judgment the
-   packet cannot show, so a four-way split was recorded alongside it.
-4. Section A's required source publishes the company's core value framework as an IMAGE, and the
-   prompt has no instruction for dimension-bearing content that exists only as non-text. The
-   framework was recoverable only because the 10-K spells it out — i.e. via section F, which
-   exists only for public companies. A private company with the same site design would have this
-   recorded as absent.
-
-COSMETIC
-5. Indeed's `fcountry=US` parameter is inert on these profiles — filtered and unfiltered pages
-   returned identical sets including a Chile review. B2c hands the builder that URL as if it
-   filtered.
-6. `browse-edgar`'s failure mode differs from the register's description (robots refusal vs empty
-   document).
-7. The renderer's element-search tool truncates node text at ~100 characters, so v4.11's
-   phrase-by-phrase renderer confirmation cannot be done that way on a large document; the
-   renderer's full page text had to be extracted instead. Called cosmetic because it changed no
-   evidence, but flagged as a judgment.
-8. Section E's company-authored rule does not say how to treat a company statement quoted inside
-   independent reporting. Tagged and not counted; another builder could reasonably count it.
-9. Section C's "do NOT quote or report job titles as a group" is ambiguous about single titles.
-   Function labels only were used.
-
-The freeze does not trigger: four structural defects.
-
-## Decisions made without asking, per Step 3
-
-Recorded here as well as in the packet, because each is a place the prompt did not decide:
-the entity set treated as "the company" (defect 2); excluding the confirmed off-company review
-and taking the next in date order (D23, applied as written); retaining-but-not-collecting the
-possibly-subject review on a third party's profile (defect 1); the D voice classification
-(defect 3); four job postings rather than the minimum three; and mapping the industry bucket,
-which is flagged in Section 3 as a genuine mapping problem rather than resolved.
-
-## List updates — both confirmed done, in the required order
-
-1. `to_be_scrubbed.txt` — APPENDED, first:
-   `P-14	Crawford & Company	researched 2026-09-29 (v4.11)`
-   (tab-delimited, matching the P-13 line's convention; verified with `cat -A`)
-2. `to_be_researched.txt` — the `P-14	Crawford & Company` line REMOVED, second, and verified
-   absent afterwards. The five later entries are intact and unreordered.
-
-Both steps ran only after the packet file was confirmed on disk at its final size.
-
-The comment block above the removed line still refers to "P-13/P-14 above" and is now stale in
-that respect. It was left untouched: the brief says to remove the company's line, and rewriting
-the operator's own hand-maintained commentary is not this task's job. Worth a human's eye.
+One company built. Open a fresh session for the next.

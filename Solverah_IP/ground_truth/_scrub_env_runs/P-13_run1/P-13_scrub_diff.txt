@@ -1,0 +1,241 @@
+P-13 SCRUB DIFF — raw line above (-), scrubbed line below (+); raw line numbers refer to P-13_packet.txt
+
+NOT CARRIED: raw lines 190-622 (sections 2, 3 and 4: researcher QA, roster block, pre-flags) and the raw BUILD RECORD block (lines 1-17), replaced by the scrubbed header.
+
+@@ raw line 44
+-    • "Safe, courteous, hustling associates delivering superior experiences that excite our customers."  — [careers site, company-authored] — Schneider, stated as the company mission — https://schneiderjobs.com/ — accessed 2026-09-28
++    • "Safe, courteous, hustling associates delivering superior experiences that excite our customers."  — [careers site, company-authored] — stated as the company mission — accessed 2026-09-28
+
+@@ raw line 46
+-    • "Schneider associates enjoy a strong work culture, award-winning benefits and endless career opportunities.  Wherever you want to take your career, Schneider will provide you with the options —and the resources—to help you get there."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
++    • "[The company] associates enjoy a strong work culture, award-winning benefits and endless career opportunities.  Wherever you want to take your career, [the company] will provide you with the options —and the resources—to help you get there."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 48
+-    • "Schneider was built on four core values that remain in place today: Excellence, integrity, safety, respect. Our core values not only matter—they deliver."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
++    • "[The company] was built on four core values that remain in place today: Excellence, integrity, safety, respect. Our core values not only matter—they deliver."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 50
+-    • "Schneider is so much more than orange trucks. We're a team of dynamic individuals working together to make a difference in an essential industry that impacts the world."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
++    • "[The company] is so much more than orange trucks. We're a team of dynamic individuals working together to make a difference in an essential industry that impacts the world."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 52
+-    • "At Schneider, we're committed to doing the right thing, the right way, and we're purposeful in our approach."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about/our-values — accessed 2026-09-28
++    • "At [the company], we're committed to doing the right thing, the right way, and we're purposeful in our approach."  — [corporate site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 54
+-    • "Through training, technology and enterprise-wide processes, we foster a safety culture focused on reducing risk and promoting awareness—helping to support the well-being of our drivers, customers, and the communities we serve."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about/our-values — accessed 2026-09-28
++    • "Through training, technology and enterprise-wide processes, we foster a safety culture focused on reducing risk and promoting awareness—helping to support the well-being of our drivers, customers, and the communities we serve."  — [corporate site, company-authored] — accessed 2026-09-28
+
+@@ raw line 56
+-    • "At Schneider, we're a diverse, innovative and energetic community. This is where you can be yourself, and be appreciated for what you do — whether on the road, in the office, at the warehouse or in maintenance."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about — accessed 2026-09-28
++    • "At [the company], we're a diverse, innovative and energetic community. This is where you can be yourself, and be appreciated for what you do — whether on the road, in the office, at the warehouse or in maintenance."  — [corporate site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 58
+-    • "When you join Schneider, you become part of a company culture that encourages career exploration, leadership involvement and individual development. Take control of your career path with endless opportunities to advance in your field or explore different jobs within the organization."  — [careers site, company-authored] — Schneider, office careers page — https://schneiderjobs.com/office-careers — accessed 2026-09-28
++    • "When you join [the company], you become part of a company culture that encourages career exploration, leadership involvement and individual development. Take control of your career path with endless opportunities to advance in your field or explore different jobs within the organization."  — [careers site, company-authored] — office careers page — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 67
+-    • "Dedicated route- pickup loaded or empty trailer deliver to warehouse 800-450 miles a day give or take and come back to terminal. It's a no brainer job drop and hook, I enjoy it no stree do your job and go home. Someone is always available to help you throughout your day. Maintenance is awesome Schneider" [...]  — [employee review] — "CDL Class A Driver", Savannah Georgia; review headline "Good and fair company"; "no stree" [sic] — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-25
++    • "Dedicated route- pickup loaded or empty trailer deliver to warehouse 800-450 miles a day give or take and come back to terminal. It's a no brainer job drop and hook, I enjoy it no stree do your job and go home. Someone is always available to help you throughout your day. Maintenance is awesome [the company]" [...]  — [employee review] — "CDL Class A Driver", [Site A]; review headline "Good and fair company"; "no stree" [sic] — rev-01 — 2026-09-25 — [company name rewritten as "[the company]"; place name in attribution replaced with a token; clause otherwise verbatim]
+
+@@ raw line 69
+-    • "I've had a good experience with Schneider overall. The biggest things I appreciate are the consistent freight, newer equipment, benefits, and having terminals and operating centers all over the country. As an OTR driver, having access to showers, laundry, parking and maintenance while you're out makes" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Decent" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-23
++    • "I've had a good experience with [the company] overall. The biggest things I appreciate are the consistent freight, newer equipment, benefits, and having terminals and operating centers all over the country. As an OTR driver, having access to showers, laundry, parking and maintenance while you're out makes" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Decent" — rev-02 — 2026-09-23 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 71
+-    • "Good place to start out pay could be better but overall decent place to get some miles under your belt." [...]  — [employee review] — "Truck Driver Class A", Conway, AR; review headline "Decent starter" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-20
++    • "Good place to start out pay could be better but overall decent place to get some miles under your belt." [...]  — [employee review] — "Truck Driver Class A", [Site B]; review headline "Decent starter" — rev-03 — 2026-09-20 — [place name in attribution replaced with a token]
+
+@@ raw line 73
+-    • "Company is very modern and inclusive. So much culture depends on which operating center you work for. The people communicate and mesh well when problem solving. Lots of extra activities within divisions, ie potluck and after work/weekend shenanigans." [...]  — [employee review] — "Driver Leader", West Memphis, AR; review headline "Great company, retirement job" — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-09-20
++    • "Company is very modern and inclusive. So much culture depends on which operating center you work for. The people communicate and mesh well when problem solving. Lots of extra activities within divisions, ie potluck and after work/weekend shenanigans." [...]  — [employee review] — "Driver Leader", [Site C]; review headline "Great company, retirement job" — rev-04 — 2026-09-20 — [place name in attribution replaced with a token]
+
+@@ raw line 75
+-    • "Thank you for your outstanding review! We aim to ensure our associates are supported and find fulfillment in their work. Thanks for being an important part of our team."  — [employer response] — Schneider, replying beneath the 2026-09-20 "Driver Leader" review; response dated separately from the review — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — response 2026-09-25
++    • "Thank you for your outstanding review! We aim to ensure our associates are supported and find fulfillment in their work. Thanks for being an important part of our team."  — [employer response] — replying beneath the 2026-09-20 "Driver Leader" review; response dated separately from the review — reply to rev-04 — response 2026-09-25
+
+@@ raw line 77
+-    • "Great people to work with, and felt like a family in some aspects. Had good times with the company and wouldn't mind still working there if not for the schedule."  — [employee review] — "Diesel Technician", location not stated; review headline "Good place you can call home" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-12
++    • "Great people to work with, and felt like a family in some aspects. Had good times with the company and wouldn't mind still working there if not for the schedule."  — [employee review] — "Diesel Technician", location not stated; review headline "Good place you can call home" — rev-05 — 2026-09-12
+
+@@ raw line 79
+-    • "Safety constantly on your butt for bs, pay not holding up to work done, equipment long overdue for replacement you name it they do it. Dispatch could care less about you over the freight"  — [employee review] — "Regional", location not stated; review headline "Awful pay horrid safety" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-08
++    • "Safety constantly on your butt for bs, pay not holding up to work done, equipment long overdue for replacement you name it they do it. Dispatch could care less about you over the freight"  — [employee review] — "Regional", location not stated; review headline "Awful pay horrid safety" — rev-06 — 2026-09-08
+
+@@ raw line 81
+-    • "Good starter company. Stay for good befits. Managers are non drivers and at time seem to not understand the limitations of driving. Maintance is good at certain locations depends on what needed. Services have been cut at many locations. They think drivers only work 7-4, then put more on others to help."  — [employee review] — "Driver", location not stated; review headline "Decent place"; "befits" and "Maintance" [sic] — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-06
++    • "Good starter company. Stay for good befits. Managers are non drivers and at time seem to not understand the limitations of driving. Maintance is good at certain locations depends on what needed. Services have been cut at many locations. They think drivers only work 7-4, then put more on others to help."  — [employee review] — "Driver", location not stated; review headline "Decent place"; "befits" and "Maintance" [sic] — rev-07 — 2026-09-06
+
+@@ raw line 83
+-    • "My time during orientation was great, All the instructors at the operating center were great teachers and were very patient. They were always kind and respectful and understood that we were inexperienced and were willing to help guide us whenever we needed it. After I had completed the first part of" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Started off great then went downhill extremely fast." — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-09-06
++    • "My time during orientation was great, All the instructors at the operating center were great teachers and were very patient. They were always kind and respectful and understood that we were inexperienced and were willing to help guide us whenever we needed it. After I had completed the first part of" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Started off great then went downhill extremely fast." — rev-08 — 2026-09-06
+
+@@ raw line 85
+-    • "All tanker jobs pay more, even other local. Long hours every single day, but the pay doesn't reflect that. You will be on the brink of running over your clock everyday doing wild unload appointments. You will definitely run over your clock if you dont stand your ground."  — [employee review] — "Local Bulk Intermodal", Gary, IN; review headline "Horrible Pay, Terribly Unorganized" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-03
++    • "All tanker jobs pay more, even other local. Long hours every single day, but the pay doesn't reflect that. You will be on the brink of running over your clock everyday doing wild unload appointments. You will definitely run over your clock if you dont stand your ground."  — [employee review] — "Local Bulk Intermodal", [Site D]; review headline "Horrible Pay, Terribly Unorganized" — rev-09 — 2026-09-03 — [place name in attribution replaced with a token]
+
+@@ raw line 87
+-    • "Dispatch was always available to take care of any issues immediately. Work/ home balance was tough, but that's a truckers life. All around good company to work for if you're just starting."  — [employee review] — title: not stated ("Anonymous"), location field reads "Jet set"; review headline "Good Job" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-28
++    • "Dispatch was always available to take care of any issues immediately. Work/ home balance was tough, but that's a truckers life. All around good company to work for if you're just starting."  — [employee review] — title: not stated ("Anonymous"), location field reads "Jet set"; review headline "Good Job" — rev-10 — 2026-08-28
+
+@@ raw line 89
+-    • "Too much going on but nothing really going. I work for DG account, its decent but the pay isn't worth it to me. Unorganized. The work is easy though, you really learn how to back and drive in tight areas. Its more of a learning experience to me until able to spread my wings and find something better"  — [employee review] — "Driver", South Boston, VA; review headline "Its Ok for start up" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-27
++    • "Too much going on but nothing really going. I work for [name stripped] account, its decent but the pay isn't worth it to me. Unorganized. The work is easy though, you really learn how to back and drive in tight areas. Its more of a learning experience to me until able to spread my wings and find something better"  — [employee review] — "Driver", [Site E]; review headline "Its Ok for start up" — rev-11 — 2026-08-27 — [branded customer name rewritten as "[name stripped]"; place name in attribution replaced with a token; clause otherwise verbatim]
+
+@@ raw line 91
+-    • "Great entry level driving job let down by poor management of certain accounts and very hit-or-miss maintenance. Some shops treat drivers like they know nothing and blow off even safety-critical maintenance/repairs."  — [employee review] — "Driver", location not stated; review headline "Good entry level job with poor management" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-25
++    • "Great entry level driving job let down by poor management of certain accounts and very hit-or-miss maintenance. Some shops treat drivers like they know nothing and blow off even safety-critical maintenance/repairs."  — [employee review] — "Driver", location not stated; review headline "Good entry level job with poor management" — rev-12 — 2026-08-25
+
+@@ raw line 93
+-    • "The most enjoyable part of the job ! I do well paking and shipping . En hard work discipline responsibility respect for all the people end grateful job" [...]  — [employee review] — job-title field reads "Shipping end parking", location field reads "112 versaillais"; review headline "Shipping"; "paking", "En", "end" [sic]. The job-title and location fields on this entry do not resolve to any location or role this employer is known to operate; it is retained because nothing external confirmed it describes a different company, and it is flagged here so a rater does not read it as a confirmed account of this workplace — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-08-23
++    • "The most enjoyable part of the job ! I do well paking and shipping . En hard work discipline responsibility respect for all the people end grateful job" [...]  — [employee review] — job-title field reads "Shipping end parking", location field reads [Site F]; review headline "Shipping"; "paking", "En", "end" [sic]. The job-title and location fields on this entry do not resolve to any location or role this employer is known to operate; it is retained because nothing external confirmed it describes a different company, and it is flagged here so a rater does not read it as a confirmed account of this workplace — rev-13 — 2026-08-23 — [place-like string in location field replaced with a token]
+
+@@ raw line 95
+-    • "As a regional driver I had some down time and also made a decent paycheck. They didn't really call unless something was going on and they let you run how you want. Pay was okay for me but could've been better. Some people were rude within the company but it was never the main dispatch."  — [employee review] — "Truck Driver Class A", Birmingham, AL; review headline "Didn't micro manage and pretty laid back" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-22
++    • "As a regional driver I had some down time and also made a decent paycheck. They didn't really call unless something was going on and they let you run how you want. Pay was okay for me but could've been better. Some people were rude within the company but it was never the main dispatch."  — [employee review] — "Truck Driver Class A", [Site G]; review headline "Didn't micro manage and pretty laid back" — rev-14 — 2026-08-22 — [place name in attribution replaced with a token]
+
+@@ raw line 97
+-    • "Inconsistent pay and horrible trucks. The trucks are raggedy and disgusting and on top of that you will not have consistent miles so do not plan on having a budget"  — [employee review] — "Driver", London, KY; review headline "No miles" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-20
++    • "Inconsistent pay and horrible trucks. The trucks are raggedy and disgusting and on top of that you will not have consistent miles so do not plan on having a budget"  — [employee review] — "Driver", [Site H]; review headline "No miles" — rev-15 — 2026-08-20 — [place name in attribution replaced with a token]
+
+@@ raw line 99
+-    • "They want you to log off duty while getting unloaded but can't return to the cab! Home time sucks. I don't see how getting home at 6/7 pm is decent trying to raise a family"  — [employee review] — "Driver", location not stated; review headline "No home time" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-20
++    • "They want you to log off duty while getting unloaded but can't return to the cab! Home time sucks. I don't see how getting home at 6/7 pm is decent trying to raise a family"  — [employee review] — "Driver", location not stated; review headline "No home time" — rev-16 — 2026-08-20
+
+@@ raw line 107
+-    • "Work independently on complex work and projects."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
++    • "Work independently on complex work and projects."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+@@ raw line 109
+-    • "Act as a subject matter expert in one or more specialties."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
++    • "Act as a subject matter expert in one or more specialties."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+@@ raw line 111
+-    • "Perform complex tasks relating to the design and development of solutions requiring design patterns, performance considerations and supportability by others."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
++    • "Perform complex tasks relating to the design and development of solutions requiring design patterns, performance considerations and supportability by others."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+@@ raw line 113
+-    • "Coach and lead less experienced IT associates."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
++    • "Coach and lead less experienced IT associates."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+@@ raw line 115
+-    • "Make safety-conscious decisions that ensure compliance with all policies and procedures."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
++    • "Make safety-conscious decisions that ensure compliance with all policies and procedures."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+@@ raw line 117
+-    • "Provide continuous, structured and proactive performance management and coaching to drivers."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
++    • "Provide continuous, structured and proactive performance management and coaching to drivers."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+@@ raw line 119
+-    • "Collaborate with various teams to identify and implement creative solutions to improve retention and drive business."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
++    • "Collaborate with various teams to identify and implement creative solutions to improve retention and drive business."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+@@ raw line 121
+-    • "Able to take initiative."  — [job posting] — field sales function, manager without direct reports, remote work model — https://schneiderjobs.com/search-office-jobs/details/262033 — confirmed open 2026-09-28
++    • "Able to take initiative."  — [job posting] — field sales function, manager without direct reports, remote work model — [posting 3] — confirmed open 2026-09-28
+
+@@ raw line 123
+-    • "Coordinate development of client solutions with solution design team, relationship managers and service offering owners."  — [job posting] — field sales function, manager without direct reports, remote work model — https://schneiderjobs.com/search-office-jobs/details/262033 — confirmed open 2026-09-28
++    • "Coordinate development of client solutions with solution design team, relationship managers and service offering owners."  — [job posting] — field sales function, manager without direct reports, remote work model — [posting 3] — confirmed open 2026-09-28
+
+@@ raw line 125
+-    • "Participate in discovery sessions and assist in defining business requirements. Use data to interpret user goals and priorities to substantiate campaign direction."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
++    • "Participate in discovery sessions and assist in defining business requirements. Use data to interpret user goals and priorities to substantiate campaign direction."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+@@ raw line 127
+-    • "Run tests and experiments to increase conversion rates."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
++    • "Run tests and experiments to increase conversion rates."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+@@ raw line 129
+-    • "Monitor trends in paid digital advertising tools and applications and appropriately apply that knowledge to effectively increase ROI while experimenting with new and alternative ways to leverage paid activities."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
++    • "Monitor trends in paid digital advertising tools and applications and appropriately apply that knowledge to effectively increase ROI while experimenting with new and alternative ways to leverage paid activities."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+@@ raw line 142
+-    • "I like referring to my career path as a jungle gym, which emphasizes the flexibility and variety of paths we can take," she said. "It's inspiring to me how Schneider supports associates in leveraging our strengths to find roles that fit in our business."  — [company careers blog, first-person] — a director of operations, quoted — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
++    • "I like referring to my career path as a jungle gym, which emphasizes the flexibility and variety of paths we can take," she said. "It's inspiring to me how [the company] supports associates in leveraging our strengths to find roles that fit in our business."  — [company careers blog, first-person] — a director of operations, quoted — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+@@ raw line 144
+-    • "The depth of situational leadership I get to experience – you can't make some of these stories up," she said. "It can be difficult at times, but I've learned how to lead through many scenarios. We always need strong leaders who have that desire to make decisions every day."  — [company careers blog, first-person] — a director of operations, quoted — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
++    • "The depth of situational leadership I get to experience – you can't make some of these stories up," she said. "It can be difficult at times, but I've learned how to lead through many scenarios. We always need strong leaders who have that desire to make decisions every day."  — [company careers blog, first-person] — a director of operations, quoted — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+@@ raw line 146
+-    • "I like to tell them, 'Here's my perspective; take it or leave it,'" she said. "I empower them to build the solution. I give them the support they need, but I let them get to the answer."  — [company careers blog, first-person] — a director of operations, describing how she leads her team — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
++    • "I like to tell them, 'Here's my perspective; take it or leave it,'" she said. "I empower them to build the solution. I give them the support they need, but I let them get to the answer."  — [company careers blog, first-person] — a director of operations, describing how she leads her team — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+@@ raw line 148
+-    • "The most humbling thing is taking that feedback and putting it to work. You have to own it and let it shape you."  — [company careers blog, first-person] — a director of operations — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
++    • "The most humbling thing is taking that feedback and putting it to work. You have to own it and let it shape you."  — [company careers blog, first-person] — a director of operations — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+@@ raw line 150
+-    • "The guys you work with will teach you more just by watching them," Andrew said. "Don't stay in that book all the time; use it as a reference but be ready to learn different ways to complete jobs safely."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
++    • "The guys you work with will teach you more just by watching them," [the technician] said. "Don't stay in that book all the time; use it as a reference but be ready to learn different ways to complete jobs safely."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 152
+-    • "It's really based on you," Andrew said. "If you want to go and get it done you can. The sky's the limit. You can go as far as you want as fast as you want."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
++    • "It's really based on you," [the technician] said. "If you want to go and get it done you can. The sky's the limit. You can go as far as you want as fast as you want."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 154
+-    • "I like helping people," Andrew said. "When I can share what I've learned to make someone else better, they make me better too."  — [company careers blog, first-person] — a senior diesel technician, on training newer technicians at his shop — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
++    • "I like helping people," [the technician] said. "When I can share what I've learned to make someone else better, they make me better too."  — [company careers blog, first-person] — a senior diesel technician, on training newer technicians at his shop — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 156
+-    • "It's a family here, we all know each other," Andrew said. "We all work together as a team. We work safely to go home at night, to succeed at a goal and then return home at night, happy that you know what we've done."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
++    • "It's a family here, we all know each other," [the technician] said. "We all work together as a team. We work safely to go home at night, to succeed at a goal and then return home at night, happy that you know what we've done."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 164
+-    • "Schneider National announced Wednesday that Jim Filter, EVP and group president of transportation and logistics, will be promoted to president and CEO on July 1."  — [trade press reporting] — Larry Avila, Trucking Dive — https://www.truckingdive.com/news/schneider-national-jim-filter-new-ceo-mark-rourke/810802/ — 2026-01-29
++    • "[The company] announced Wednesday that [the executive], EVP and group president of transportation and logistics, will be promoted to president and CEO on July 1."  — [trade press reporting] — trade press — 2026-01-29 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 166
+-    • "Schneider's strength has always been its ability to adapt and lead in a constantly changing environment," Rourke said.  — [trade press reporting, quoting the outgoing chief executive] — Larry Avila, Trucking Dive — https://www.truckingdive.com/news/schneider-national-jim-filter-new-ceo-mark-rourke/810802/ — 2026-01-29
++    • "[The company]'s strength has always been its ability to adapt and lead in a constantly changing environment," [the outgoing chief executive] said.  — [trade press reporting, quoting the outgoing chief executive] — trade press — 2026-01-29 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 168
+-    • "Embracing digital transformation is key to our mission of providing solutions for our customer and drivers," Mike Kukiela, SVP of operations supply chain and distribution management at Schneider, said in the release.  — [trade press reporting, quoting a company executive from a release] — Alejandra Carranza, Trucking Dive — https://www.truckingdive.com/news/schneider-national-ai-technology-exl-streamline-logistics-workflows/804016/ — 2025-11-18
++    • "Embracing digital transformation is key to our mission of providing solutions for our customer and drivers," [the executive], SVP of operations supply chain and distribution management at [the company], said in the release.  — [trade press reporting, quoting a company executive from a release] — trade press — 2025-11-18 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 170
+-    • "We don't necessarily need more demand," Filter said, explaining that capacity reductions have already created additional opportunities for Schneider. The company's immediate challenge is improving driver productivity and determining where to invest in additional capacity.  — [trade press reporting] — trucknews.com, reporting remarks made at an investor conference on 2026-09-15 — https://www.trucknews.com/business-management/schneider-sees-tighter-trucking-capacity-rising-rates-and-autonomous-opportunities-ahead/1003222237/ — 2026-09-25
++    • "We don't necessarily need more demand," [the chief executive] said, explaining that capacity reductions have already created additional opportunities for [the company]. The company's immediate challenge is improving driver productivity and determining where to invest in additional capacity.  — [trade press reporting] — trade press, reporting remarks made at an investor conference on 2026-09-15 — 2026-09-25 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+@@ raw line 178
+-    • "We have a highly engaged workforce deployed over a diverse set of positions across our segments, geographies, and businesses. Where consistent with our operational needs, we offer a variety of flexible working arrangements to associates, including remote and blended work configurations."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "We have a highly engaged workforce deployed over a diverse set of positions across our segments, geographies, and businesses. Where consistent with our operational needs, we offer a variety of flexible working arrangements to associates, including remote and blended work configurations."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+@@ raw line 180
+-    • "We utilize a performance management system that incorporates goals and development plans that are assessed semiannually to better position associates for future career growth."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "We utilize a performance management system that incorporates goals and development plans that are assessed semiannually to better position associates for future career growth."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+@@ raw line 182
+-    • "Succession planning is regularly performed to help identify and develop a pipeline of talent in critical roles within our organization. We further our talent development through a comprehensive learning program that offers associates classroom, virtual, and web-based training options."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "Succession planning is regularly performed to help identify and develop a pipeline of talent in critical roles within our organization. We further our talent development through a comprehensive learning program that offers associates classroom, virtual, and web-based training options."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+@@ raw line 184
+-    • "We promote associate engagement across our organization by conducting annual surveys to assess satisfaction and gather ideas for improvement. Insights from these surveys guide programs that strengthen associates' connection to the Company, which we believe drives greater innovation, productivity, and profitability."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "We promote associate engagement across our organization by conducting annual surveys to assess satisfaction and gather ideas for improvement. Insights from these surveys guide programs that strengthen associates' connection to the Company, which we believe drives greater innovation, productivity, and profitability."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+@@ raw line 186
+-    • "Our non-driver pay varies by job, is market competitive, and includes short and long-term incentive programs that motivate associates and reward high performance."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "Our non-driver pay varies by job, is market competitive, and includes short and long-term incentive programs that motivate associates and reward high performance."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+@@ raw line 188
+-    • "We nurture an environment where associates feel safe, supported, and empowered to share their creativity, experiences, and ideas throughout our hiring processes, training and development programs, performance management, and community giving programs."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
++    • "We nurture an environment where associates feel safe, supported, and empowered to share their creativity, experiences, and ideas throughout our hiring processes, training and development programs, performance management, and community giving programs."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+MINTED PLACE TOKENS (string -> token):
+  Savannah Georgia -> [Site A]
+  Conway, AR -> [Site B]
+  West Memphis, AR -> [Site C]
+  Gary, IN -> [Site D]
+  South Boston, VA -> [Site E]
+  112 versaillais -> [Site F]
+  Birmingham, AL -> [Site G]
+  London, KY -> [Site H]
+
+POSTING IDS (id -> token):
+  262200 -> [posting 1]
+  263116 -> [posting 2]
+  262033 -> [posting 3]
+  263004 -> [posting 4]
+
+REVIEW ID KEY: rev-NN numbers the sixteen employee reviews in packet order (raw source URLs are listing pages, not per-review slugs); the employer response is keyed "reply to rev-04".

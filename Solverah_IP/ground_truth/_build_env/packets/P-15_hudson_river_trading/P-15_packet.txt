@@ -1,0 +1,693 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5  (session-configured model identifier; this execution
+                   environment withholds the exact serving model string and states it may
+                   differ from the configured one, so this is the most precise string
+                   available rather than a guess)
+  built          : 2026-09-30
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE OF THIS PACKET. The employee reviews in this packet come from five reviewers: two on
+the required review source (one people-operations role and one systems-administration role,
+both at the company's New York site, dated 2022 and 2017), plus three short-form entries
+from quantitative-research and algorithmic-development roles across three of the company's
+sites. Other parts of this company — core software engineering, hardware and chip design,
+trading-systems support, data-centre operations, accounting and tax, recruiting, compliance,
+communications and real estate — are not represented in them. Company-authored sources
+(careers pages and job postings) describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "Collaboration sets HRT apart within our industry. We count among us many brilliant minds, but we’ve learned that the best ideas are born in a shared research and development environment."  — [careers/values page, "Core Values"] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/life-at-hrt/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "We are disciples of automation and efficiency, trading millions of times a day in markets around the globe. At its core, HRT is a small tech company with a big impact."  — [careers/values page, "Core Values"] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/life-at-hrt/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "Both as individuals and as a company we are tenacious. We are insatiable innovators looking to improve every aspect of our business. We don’t settle until we make it better."  — [careers/values page, "Core Values"] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/life-at-hrt/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "We have a meritocratic, low-politics culture, where our researchers spend nearly all of their time on research and innovation is rewarded."  — [careers page, "AI & Machine Learning at HRT" block] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/careers/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "Hudson River Trading stands apart in the industry due to our extremely open, collaborative environment and strong common technological platform that allows us to innovate rapidly."  — [careers page, "AI & Machine Learning at HRT" block] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/careers/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "Algo Software Engineers (AEs) are programmers that work hand-in-hand with Algo Developers (ADs). As focus on the software that powers trading and research, and tend to be the type of engineers who thrive on constant interaction and discussion."  [sic — "As focus on" is the source's own wording; no verb subject is supplied] — [careers page, role description] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/work-at-hrt/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "AEs are engineers who don’t mind juggling a few projects at once and have a varied portfolio of projects, from long-term ambitious new systems to fire-fighting live issues."  — [careers page, role description] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/work-at-hrt/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "Idea sharing and collaboration is built on trust, respect, and hard work."  — [company home page, "TRUST" value tile] — Hudson River Trading, company-authored — https://www.hudsonrivertrading.com/ — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+
+--- B. EMPLOYEE REVIEWS (12-15, most recent first) ---
+
+NOTE TO RATER. Read this section against three facts about its sources. First, the required
+review source holds only two reviews for this company worldwide, dated 2022 and 2017; both
+are older than 24 months, so the section falls well short of the twelve-review minimum and
+nothing in it is a sample of anything. Second, the three entries labelled
+"[FRAGMENT — Pros/Cons format]" come from a second review site that holds 119 reviews and
+whose newest is one day old; they are included precisely because the required source's
+population is tiny and old, but that site publishes them as short Pros/Cons bullet
+fragments rather than prose, it displays only three of its 119 reviews to a reader who is
+not signed in, and no sign-in was used. Third, every one of the five entries below carried
+a "Show more" control at the point its visible text ends, so every one may be cut short;
+long, detailed reviews are the ones that get cut, so what survives here is the brief
+material. Several company events reported publicly during 2025 and 2026 — two record
+quarterly revenue figures, a senior appointment in the Asia business, a debt raise, and a
+public shift toward longer-horizon and AI-driven strategies — all postdate both reviews on
+the required source.
+
+   • "[FRAGMENT — Pros/Cons format] Good culture with no significant downsides"  Pros: "Good culture and very good pay"  Cons: "Not really any cons I can think of" […]  — [employee review, optional/second review site, short-form] — Quantitative researcher, current employee, New York, NY — https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937.htm?sort.sortType=RD&sort.ascending=false — 2026-09-29 — needed JS: Y
+
+   • "[FRAGMENT — Pros/Cons format] Good culture, but high-pressure challenges"  Pros: "Good culture and fun problems"  Cons: "High pressure and difficult problems" […]  — [employee review, optional/second review site, short-form] — Junior algo developer, current employee, London, England — https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937.htm?sort.sortType=RD&sort.ascending=false — 2026-09-21 — needed JS: Y
+
+   • "[FRAGMENT — Pros/Cons format] Great pay and job opportunity with no drawbacks"  Pros: "great / gave me job / pays a lot"  Cons: "great, can't think if any cons" [sic — "if" appears where "of" is evidently intended] […]  — [employee review, optional/second review site, short-form] — Trading algo developer, current employee less than 1 year, Singapore — https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937.htm?sort.sortType=RD&sort.ascending=false — 2026-08-26 — needed JS: Y
+
+   • "HRT has some of the best culture and coworkers I've worked with in my career. The work can be stressful on high volume days, but the work-life balance always stays very reasonable. They have really fun events and great food too." […]  — [employee review, required review source] — People Operations Specialist, New York, NY — https://www.indeed.com/cmp/Hudson-River-Trading/reviews?fcountry=ALL&sort=date — 2022-10-13 — needed JS: Y
+
+   • "Minimum supervision, if you take the initiative and push yourself you can learn(take on a mentor) else it will not happen. Be aware of the 8quarter pay outs when it comes to bonuses. 20 vacation days and 5 sick days." [sic — "learn(take" and "8quarter" are the source's own spellings] […]  — [employee review, required review source] — Systems Administrator, New York, NY — https://www.indeed.com/cmp/Hudson-River-Trading/reviews?fcountry=ALL&sort=date — 2017-12-13 — needed JS: Y
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   • "Our non-siloed, collaborative coding environment empowers talented engineers to make significant contributions and see their impact daily."  — [job posting, research-engineering function, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — accessed 2026-09-30 (posting last updated 2026-02-02 per the board API) — needed JS: Y
+
+   • "These roles require exceptional programming fundamentals, a strong user focus, and the ability to thrive in a fast-paced environment with constantly evolving requirements. Multitasking and context switching are inherent aspects of this role, through which you will gain insight into the ideation and execution of some of the world's most sophisticated trading strategies."  — [job posting, research-engineering function, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — accessed 2026-09-30 — needed JS: Y
+
+   • "Balance the short term goals of individual trading teams with the longer term goals of HRT’s generalized trading platforms across trading teams. Because we don’t work in a pod environment, REs on different trading teams are expected to share technology and ideas."  — [job posting, research-engineering function, responsibilities block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — accessed 2026-09-30 — needed JS: Y
+
+   • "Kindness and empathy is a real requirement. No “smart jerks” at HRT."  — [job posting, research-engineering function, qualifications block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — accessed 2026-09-30 — needed JS: Y
+
+   • "HRT ships every day. The ability to thoughtfully, methodically, and reliably deploy new software and features is a critical skill."  — [job posting, research-engineering function, qualifications block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — accessed 2026-09-30 — needed JS: Y
+
+   • "Elevate the quality of feedback within the technical org, guiding managers through performance evaluations and fostering a culture of continuous development"  — [job posting, people-operations function, responsibilities block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=8068289 — accessed 2026-09-30 (posting last updated 2026-07-15 per the board API) — needed JS: Y
+
+   • "Partner with technical leads to evaluate team health, identify friction points, and optimize structures to drive team effectiveness and long-term engagement"  — [job posting, people-operations function, responsibilities block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=8068289 — accessed 2026-09-30 — needed JS: Y
+
+   • "A natural bias toward simplicity and high-impact solutions over bureaucracy"  — [job posting, people-operations function, qualifications block, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=8068289 — accessed 2026-09-30 — needed JS: Y
+
+   • "HRT employees enjoy a collegial and non-siloed environment; candidates will work closely with other researchers to develop new ideas and refine existing trading models."  — [job posting, quantitative-research function, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=3903145 — accessed 2026-09-30 (posting last updated 2026-02-04 per the board API) — needed JS: Y
+
+   • "You thrive in a fast-moving, highly collaborative environment and can manage multiple projects without missing a detail."  — [job posting, communications function, confirmed open 2026-09-30] — Hudson River Trading, company-authored — https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7980396 — accessed 2026-09-30 (posting last updated 2026-06-04 per the board API) — needed JS: Y
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 passages from 1 source · ladder fully attempted) ---
+
+NOTE TO RATER ON VOICE. All four passages below come from one person writing in the first
+person on the company's own engineering blog. He states he has been with the company about
+thirteen years and writes as someone who interviews candidates; the page states no job
+title, so whether this is a management voice or an individual-contributor voice cannot be
+established from the source. No second in-date first-person account of how the company works
+was found: the company's blog is active and current, but its other recent posts are
+technical project write-ups that describe models and code rather than working practice, and
+the two posts on the blog that do describe team practice directly are dated 2022. Read this
+section as one voice from the engineering organisation, not as a cross-section.
+
+   • "One very important thing to note about Algo: it is not a “pod” system where trading teams are siloed with IP barriers. This is especially important for engineers because it means you can work across all trading at the firm rather than being contained to some specific group."  — [company engineering blog, first-person account] — Joe Smith, employee (approx. 13 years' tenure per the post; no title stated) — https://www.hudsonrivertrading.com/hrtbeat/engineering-and-interviewing-at-hrt/ — 2025-10-02 — needed JS: Y
+
+   • "One thing to note that may be different from other companies, especially other trading firms: our platform engineers interact with Algo on a daily basis. The intention is not to put Platform behind a layer, it’s more about project focus."  — [company engineering blog, first-person account] — Joe Smith, employee (no title stated) — https://www.hudsonrivertrading.com/hrtbeat/engineering-and-interviewing-at-hrt/ — 2025-10-02 — needed JS: Y
+
+   • "Communication issues. If you think that software engineering isn’t just as much about communicating to your peers and your users as it is about writing code, then HRT is not the right place for you. We rate our engineers as much on communication as we do on technical ability."  — [company engineering blog, first-person account] — Joe Smith, employee (no title stated) — https://www.hudsonrivertrading.com/hrtbeat/engineering-and-interviewing-at-hrt/ — 2025-10-02 — needed JS: Y
+
+   • "At HRT we value individual contribution. We expect engineers and engineering managers to make individual contributions on a quarterly basis. This is why we administer the same technical tests to candidates at all levels, even if you were the CTO of your last company."  — [company engineering blog, first-person account] — Joe Smith, employee (no title stated) — https://www.hudsonrivertrading.com/hrtbeat/engineering-and-interviewing-at-hrt/ — 2025-10-02 — needed JS: Y
+
+
+--- E. RECENT NEWS (yield: 4 · searches logged: 4) ---
+
+   • "“We’re essentially asking people to be both good researchers and engineers,” said Iain Dunning, head of AI research at Hudson River Trading. “In this age of AI, the distinction is pretty blurry.”"  — [trade-press reporting] — Alex McMurray, reporter, eFinancialCareers, quoting a named company executive — https://www.efinancialcareers.com/news/hudson-river-trading-s-head-of-ai-said-the-era-of-whiteboard-quants-is-over — 2025-11-04 — needed JS: Y
+
+   • "In the past, Dunning said quants could “just whiteboard, then the coding [came] a little bit afterwards.” Today, he said that “any kind of research idea you have is intimately connected to how you implement it.”"  — [trade-press reporting] — Alex McMurray, reporter, eFinancialCareers, reporting a named company executive — https://www.efinancialcareers.com/news/hudson-river-trading-s-head-of-ai-said-the-era-of-whiteboard-quants-is-over — 2025-11-04 — needed JS: Y
+
+   • "Dunning said that his team, which is focused on training Hudson River’s models, would be “dead in the water without the teams at HRT who get the data to these systems and then the decisions to the markets.”"  — [trade-press reporting] — Alex McMurray, reporter, eFinancialCareers, reporting a named company executive — https://www.efinancialcareers.com/news/hudson-river-trading-s-head-of-ai-said-the-era-of-whiteboard-quants-is-over — 2025-11-04 — needed JS: Y
+
+   • "In recent years, the firm has expanded beyond its traditional high-frequency trading roots by adding strategies with longer investment horizons and increasing investment in artificial intelligence-driven trading models."  — [trade-press reporting] — Hedgeweek newsroom — https://hedgeweek.com/news/hudson-river-trading-reports-record-q1-revenue — 2026-05-12 — needed JS: N (plain fetch reached it; wording confirmed on a rendered copy)
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+N/A — PRIVATE. This company files no annual report containing an Item 1 Human Capital
+disclosure, so this source class does not exist for it. This is a fact about the company's
+ownership, not a gap in the research.
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5      B reviews: 5/12  ** SHORTFALL — see note below **
+       C excerpts: 10/6
+       C postings: 4/3      C outside engineering: 3/1
+       B reviews within 24 months: 3/5   (0 of the 2 required-source reviews; 3 of 3 optional-source)
+
+    B SHORTFALL — why more collection cannot fix it. The required review source holds TWO
+    reviews for this company worldwide. That was tested, not assumed: the US profile, the
+    same profile with the country filter set to ALL, and the regional (Singapore) mirror of
+    the same profile all render the identical two reviews, and every count element on every
+    one of those pages says 2. There is no third review to collect. The optional source
+    holds 119 but shows only 3 to an anonymous reader and walls page 2 onward behind a
+    sign-in (redirect carries reason=bot-detection); no sign-in was used, per the parity
+    rule. Section B is therefore 5 entries and cannot be raised without authenticating.
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Not applicable — the company's own careers page rendered a list of roughly one
+       hundred open roles, and the live ATS board API returned 83 open jobs.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 4 (from 1 source)    ladder rungs logged: 7/7
+       D voice composition: 0 confirmed executive / 1 employee, title not stated on the page
+                            (extra rungs worked? YES — rungs 3, 4, 5, 6 and 7 were all worked
+                            beyond the point the target was met, specifically looking for a
+                            second first-person voice · stale non-executive material found
+                            and rejected? YES — two blog posts dated 2022-08-02 and
+                            2022-02-01, both describing working practice directly)
+       E excerpts: 4 (from 2 sources)   searches logged: 4
+       F excerpts: 0    public? NO — N/A PRIVATE     10-K filing date: n/a
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED         collaboration: COVERED
+       feedback: THIN      innovation: COVERED   decision: COVERED
+
+       THIN/NONE reasons:
+         feedback: needed a non-company account of how feedback is actually delivered —
+           review-cycle cadence, blunt versus supportive delivery, debate and critique norms;
+           searched sections A, B, C, D and E, the full careers and values estate, all
+           in-date blog posts, and both review sites; optional source checked? YES — its
+           three anonymously-visible entries are one-line Pros/Cons fragments carrying no
+           feedback content at all, and the remaining 116 sit behind the sign-in wall, so
+           the check could not be extended; found only company-authored statements (a
+           people-operations posting asking its hire to "Elevate the quality of feedback
+           within the technical org, guiding managers through performance evaluations") and
+           one employee statement that "We rate our engineers as much on communication as we
+           do on technical ability" — both describe how feedback is VALUED, neither
+           describes how it is DELIVERED, which is the axis.
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: site navigation and footer surveyed at
+                            https://www.hudsonrivertrading.com/ plus a site-scoped search
+                            outcome: no public handbook or employee manual exists. Site
+                            navigation exposes About, Offices, Diversity & Inclusion,
+                            Contact, Tech Blog, Liquidity, Client Market Making, Ventures,
+                            Disclosures, Job Openings, Work at HRT, Life at HRT, Student
+                            Opportunities, AI & Machine Learning, Talent Community — and no
+                            handbook among them. Genuine absence.
+       D2 eng/product blog  attempted Y   URL: https://www.hudsonrivertrading.com/hrtbeat/
+                            newest post date: 2026-09 (index lists three posts under
+                            "LATEST"; the newest individual post whose date was read on the
+                            page itself is dated 2025-10-02)
+                            outcome: YIELDED all 4 section D passages. Rung is current and
+                            passes the staleness gate. Index was opened first, not a topic
+                            search.
+       D3 culture microsite attempted Y   URL: https://www.hudsonrivertrading.com/life-at-hrt/
+                            and https://www.hudsonrivertrading.com/work-at-hrt/ and
+                            https://www.hudsonrivertrading.com/deib/
+                            outcome: narrative text found, but it is the same careers/values
+                            material already quoted in section A. Does NOT count toward D per
+                            the double-counting rule. Continued down the ladder.
+       D4 leader interview  attempted Y   URL: https://podcasts.apple.com/ca/podcast/inside-hudson-river-tradings-blistering-token-burn/id1056200096
+                            and https://podscan.fm/podcasts/odd-lots/episodes/how-hudson-river-trading-actually-uses-ai-1
+                            date: 2025-10-31   outcome: EXISTS and is in date — the company's
+                            head of AI research appeared on a major financial podcast. The
+                            episode page carries audio, not text; the third-party transcript
+                            mirror shows roughly twenty lines and gates the full transcript
+                            behind registration. Not quoted, because quoting it would have
+                            required registering. Its substance reached the packet through
+                            independent reporting instead (section E).
+       D5 public repos      attempted Y   URL: https://github.com/hudson-trading and
+                            https://github.com/orgs/hudson-trading/repositories
+                            outcome: organisation CONFIRMED as this company (bio matches the
+                            company's own self-description verbatim), 20 repositories, seven
+                            updated between 2026-05 and 2026-09, so active and current. No
+                            contribution guidelines, RFC documents or discussion threads are
+                            published. Yields code, not a first-person account of working
+                            practice. Name-collision check done: an unrelated 2017 student
+                            hackathon repository shares the company name and was excluded.
+       D6 press profile     attempted Y   URL: https://www.bloomberg.com/news/features/2026-09-10/how-jason-carroll-built-hudson-river-trading-and-a-27-billion-fortune
+                            date: 2026-09-10   outcome: EXISTS, current, long-form, and NOT
+                            quotably retrievable — the renderer returns the headline, byline,
+                            date and first two paragraphs, then a paywall; plain fetch is
+                            refused by the site's robots.txt. The visible portion is
+                            narrative history of 2001 and carries nothing on working
+                            practice. No sign-in attempted. This is "existed but could not be
+                            reached", not an absence.
+       D7 conference talk   attempted Y   URL: search of conference programmes and talk
+                            archives in the company's technical domain (C++ / Python / HFT
+                            systems), plus https://hftadvisory.substack.com/p/cppcon-2026-for-high-frequency-trading
+                            date: n/a   outcome: no company-attributed conference talk with a
+                            retrievable transcript or text was found. The company does publish
+                            open-source tooling and sponsors a language foundation, but neither
+                            is a talk. Zero yield on this rung.
+       Rungs rejected as stale (>18 months): 2 items within rung 2 — "The Communication
+                            Habits That Help HRT's Engineering Teams Thrive" (2022-08-02) and
+                            "How HRT Thinks About Data" (2022-02-01). Both are exactly the
+                            on-axis material sections D and the collaboration/decision
+                            dimensions want, and both are four years old. Note that the
+                            2022-08-02 post is CURRENTLY FEATURED as the "CULTURAL SPOTLIGHT"
+                            item on the company's live Life-at-HRT page, so a reader of that
+                            page today is being shown 2022 material as current culture.
+                            Recorded, not quoted.
+       C fallbacks tried: reviews-site job view NOT NEEDED (first-party board rendered)
+                          ATS param found YES — a gh_jid parameter on the company's own
+                            careers URLs named the ATS system, and the board slug was then
+                            read off the iframe src on a company job page rather than guessed
+                          greenhouse YES — list API returned 83 open jobs and settled the
+                            open/closed question directly; three guessed slugs (wearehrt,
+                            hudsonrivertrading, hrt, hudsontrading) all returned 404 before
+                            the real slug was read from the page
+                          lever N/A   workday N/A   ashby N/A
+                          aggregator NOT NEEDED
+                          D24 decoy-board check: PASSED. The board trusted here is the one a
+                            company-issued apply link resolves to — the iframe embedded in the
+                            company's own job page points at it, and the board's own job URL
+                            redirects back to the company careers page.
+       E news searches run: 4   queries used:
+                            (1) "Hudson River Trading" news 2026 hiring expansion Bloomberg
+                                Reuters Financial Times
+                            (2) "Hudson River Trading" 2026 "return to office" OR
+                                reorganisation OR layoffs OR "new head" efinancialcareers
+                            (3) "Hudson River Trading" 2026 AI researchers pay culture
+                                eFinancialCareers OR businessinsider OR "Financial News"
+                            (4) "Hudson River Trading" conference talk 2026 CppCon OR
+                                "PyData" OR SIGCOMM OR "Odd Lots" Iain Dunning podcast
+
+2d. SOURCE ACCESS LOG  (every URL opened or attempted; JS = JavaScript renderer)
+
+    FIRST-PARTY
+    https://www.hudsonrivertrading.com/life-at-hrt/ — JS: OK, full core-values text. Plain
+      fetch not separately run on this page; the renderer succeeded first.
+    https://www.hudsonrivertrading.com/ — JS: OK, full value tiles and self-description.
+    https://www.hudsonrivertrading.com/careers/ — JS: OK, rendered a live list of roughly
+      100 open roles plus the AI/ML culture block. Plain fetch not run on this page.
+    https://www.hudsonrivertrading.com/work-at-hrt/ — JS: OK, three role descriptions.
+    https://www.hudsonrivertrading.com/hrt-job/research-engineer/ — PLAIN FETCH: returned
+      only metadata (title, location, job id) and a truncated meta description; the body was
+      absent. JS: the page chrome rendered but the posting body did NOT appear in extracted
+      text either, because it lives in a third-party ATS iframe. Resolved by reading the
+      iframe src off the DOM and opening the embed directly. This is the JS-gated
+      first-party page failure mode with an extra layer.
+    https://www.hudsonrivertrading.com/hrtbeat/ — JS: OK, full post index. Index carries no
+      dates; dates had to be read on each post.
+    https://www.hudsonrivertrading.com/hrtbeat/engineering-and-interviewing-at-hrt/ —
+      PLAIN FETCH: returned a date, an author and three "quotations" (see 2e). JS: the text
+      extractor first returned a neighbouring related-posts card instead of the article;
+      resolved by reading the document body directly. Full article then confirmed, with the
+      published date on the page.
+    https://www.hudsonrivertrading.com/hrtbeat/communication-habits-that-help-teams-thrive/ —
+      JS: OK. Published 2022-08-02. Rejected on age.
+    https://www.hudsonrivertrading.com/hrtbeat/how-hrt-thinks-about-data/ — PLAIN FETCH: OK
+      for the date only. Published 2022-02-01. Rejected on age; not rendered.
+    https://www.hudsonrivertrading.com/hrtbeat/ml-benchmarks-dont-track-what-you-care-about/ —
+      PLAIN FETCH: 404. Guessed slug, wrong. Not an absence; the post exists on the index.
+    https://www.hudsonrivertrading.com/?p=278623 — JS: OK but resolved to
+      .../hrtbeat/intern-spotlight-hrt-ai-labs-project/ published 2025-06-20 by a DIFFERENT
+      author from the 2026-09 post of the identical title listed on the index. Content is a
+      technical research write-up and yields nothing on working practice.
+    https://www.hudsonrivertrading.com/deib/ — surveyed via site navigation; not separately
+      quoted (same material class as section A, already at cap).
+    https://www.hudsonrivertrading.com/wp-content/uploads/2024/04/HRTE-IFPR-Disclosures-2022.pdf —
+      NOT retrieved. A regulatory capital disclosure for a European subsidiary, dated 2022,
+      in PDF. Not a human-capital disclosure, not renderable, and stale. Logged, not used.
+
+    ATS / JOB BOARD
+    https://boards-api.greenhouse.io/v1/boards/wearehrt/jobs — PLAIN FETCH: 404
+    https://boards-api.greenhouse.io/v1/boards/hudsonrivertrading/jobs — PLAIN FETCH: 404
+    https://boards-api.greenhouse.io/v1/boards/hrt/jobs — PLAIN FETCH: 404
+    https://boards-api.greenhouse.io/v1/boards/hudsontrading/jobs — PLAIN FETCH: 404
+    https://boards-api.greenhouse.io/v1/boards/wehrtyou/jobs — PLAIN FETCH: OK, 83 open jobs
+      with ids, urls and updated_at. Metadata only, as the prompt says. Slug obtained from
+      the iframe src, not guessed.
+    https://job-boards.greenhouse.io/wehrtyou/jobs/7583922 — JS: redirects to the company's
+      own job page. Useful as the D24 live-board confirmation.
+    https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7583922 — JS: OK, full
+      posting body, research-engineering function.
+    https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=8068289 — JS: OK, full
+      posting body, people-operations function.
+    https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=3903145 — JS: OK, full
+      posting body, quantitative-research function.
+    https://job-boards.greenhouse.io/embed/job_app?for=wehrtyou&token=7980396 — JS: OK, full
+      posting body, communications function.
+      (Each of the four also renders inside the company's own /hrt-job/<slug>/ page, which is
+      where a human reader sees it; the embed URL is cited in section 1 because that is where
+      the wording was confirmed.)
+
+    REVIEW SITES
+    https://www.indeed.com/cmp/Hudson-River-Trading/reviews?sort=date — PLAIN FETCH: OK, 2
+      reviews with full bodies, dates, titles, locations.
+    https://www.indeed.com/cmp/Hudson-River-Trading/reviews?fcountry=ALL&sort=date — PLAIN
+      FETCH: OK, same 2 reviews; both "Show more" markers reported on this pass. JS: OK — the
+      renderer was NOT walled on this aggregator; it returned the full page including both
+      "...Show more" markers and the detailed rating block. Section 1 wording confirmed here.
+    https://sg.indeed.com/cmp/Hudson-River-Trading/reviews?fcountry=ALL&sort=date — PLAIN
+      FETCH: OK, identical 2 reviews. Regional mirror, same entity.
+    https://www.indeed.com/cmp/Hudson-River-Trading/job-titles — PLAIN FETCH: OK. Only two
+      titles indexed. Not used as a sampling frame (recency frame applies).
+    https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937.htm?sort.sortType=RD&sort.ascending=false —
+      PLAIN FETCH: refused by robots.txt. JS: OK — 3 of 119 reviews rendered with dates,
+      titles, employment status and locations, plus the site's rating and FAQ blocks.
+    https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937_P2.htm?sort.sortType=RD&sort.ascending=false —
+      JS: WALLED. Redirected to /member/profile/login with reason=bot-detection in the query
+      string. No sign-in attempted. Pages 2-40 therefore not collected.
+
+    NEWS / TRADE PRESS
+    https://www.hedgeweek.com/hudson-river-trading-reports-record-q1-revenue/ — PLAIN FETCH:
+      OK. JS: OK at the canonical path https://hedgeweek.com/news/hudson-river-trading-reports-record-q1-revenue
+      Wording confirmed on the rendered copy. A cookie banner was present and was not
+      interacted with.
+    https://www.efinancialcareers.de/en/news/hudson-river-trading-s-head-of-ai-said-the-era-of-whiteboard-quants-is-over —
+      PLAIN FETCH: OK but returned a rewritten summary (see 2e). JS: returned a "System
+      Maintenance" page — not an absence.
+    https://www.efinancialcareers.com/news/hudson-river-trading-s-head-of-ai-said-the-era-of-whiteboard-quants-is-over —
+      JS: OK, full article with byline and date. All section E eFinancialCareers wording
+      confirmed here, quotation marks included. The same article on the .de domain would not
+      render; the .com domain did.
+    https://www.bloomberg.com/news/features/2026-09-10/how-jason-carroll-built-hudson-river-trading-and-a-27-billion-fortune —
+      PLAIN FETCH: refused by robots.txt. JS: headline, byline, date and two paragraphs, then
+      paywalled.
+    https://podscan.fm/podcasts/odd-lots/episodes/how-hudson-river-trading-actually-uses-ai-1 —
+      PLAIN FETCH: OK for date and partial transcript; full transcript behind registration.
+    https://github.com/orgs/hudson-trading/repositories — PLAIN FETCH: OK.
+
+2e. FIDELITY NOTE
+
+    NO [PARAPHRASE] MARKERS WERE NEEDED. Every excerpt in section 1 was confirmed on a
+    rendered copy of its source page, quotation marks included. Where a source could not be
+    rendered (the paywalled press profile, the PDF disclosure, the gated podcast transcript)
+    nothing was quoted from it.
+
+    PLAIN-FETCH REWRITING AND FABRICATION — MEASURED TWICE ON THIS BUILD. The retrieval
+    layer's plain-fetch route produced text presented as source text that the rendered page
+    does not contain:
+      (i) On the eFinancialCareers article, plain fetch reported that the company "paid UK
+          employees in trading, research, and technology roles an average of £945,500 in
+          2024." The rendered page says "over £900k ($1.2m) on average". The figure £945,500
+          appears nowhere on the page. A precise statistic was invented. Had it been quoted
+          it would have passed a URL-level check on topic and failed on fact.
+      (ii) On the company blog post used for section D, plain fetch returned three passages
+          wrapped in quotation marks. Two of the three do not match the page: it rendered
+          "It is not a 'pod' system where trading teams are siloed with IP barriers...you can
+          work across all trading at the firm" where the page reads "One very important thing
+          to note about Algo: it is not a "pod" system where trading teams are siloed with IP
+          barriers. This is especially important for engineers because it means you can work
+          across all trading at the firm rather than being contained to some specific group."
+          — two sentences merged, a capital introduced, a clause removed. Likewise it
+          returned "Many people are capable of performing multiple jobs..." where the page
+          reads "...these dimensions describe jobs at HRT, but many people are capable of
+          performing multiple jobs...". Every section 1 quote was taken from the rendered
+          copy instead.
+      (iii) Milder form on the four job postings: plain fetch returned the bodies of none of
+          them (metadata only), so the renderer was the only route regardless.
+    Assume this behaviour on the next build. It was present on every source class tested here.
+
+    POSTING OPEN/CLOSED STATUS. All four quoted postings confirmed open two ways: each is
+    present in the live board API's 83-job response, and each rendered its own application
+    form with no removal notice. No posting of unconfirmed status was quoted.
+
+    PRESERVED SOURCE TYPOS (all three are unique-string identifiers; see section 4):
+      - "As focus on the software that powers trading and research" — a careers page role
+        description, missing its subject. Marked [sic] in section A.
+      - "learn(take on a mentor)" and "8quarter pay outs" — the 2017 review's own spellings.
+        Marked [sic] in section B.
+      - "can't think if any cons" — the 2026-08-26 fragment's own wording. Marked [sic].
+
+    ENTITY-CHECK RESULT. One employer entity on the required review source, tested against
+    five name variants plus the regional mirror; no split profile and no second entity. The
+    review count is implausibly low on its face — two reviews for an employer of more than a
+    thousand people — and that is stated plainly rather than worked around. No pooled
+    homonym was detected: both required-source reviews describe New York roles consistent
+    with the subject company, and neither triggered the off-company test. The optional source
+    holds 119 reviews under one entity, marked "Engaged Employer".
+
+    SOURCE-CLASS JUDGEMENT CALL, RECORDED RATHER THAN RESOLVED. Section E's three-excerpt
+    source is a trade publication that also operates as a job board. The prompt bans
+    "recruiting-SEO pages, interview-prep sites, job aggregators, content farms" from section
+    E. This item is a bylined news report with a named reporter, a date, and original quotes
+    from a named executive, published under a news masthead — so it was treated as reporting.
+    A rater who disagrees should read section E as one source (the trade newsroom item) plus
+    that one, not as four independent voices: three of the four excerpts come from the same
+    article.
+
+    GLASSDOOR AGGREGATED SNIPPETS NOT USED. The optional source prints site-assembled
+    "Users say..." strings quoting fragments of reviews in its FAQ block. They carry no date
+    and no attributable speaker, so they fail the sourcing rule and were excluded, even
+    though they are the only critical material visible on that site without signing in.
+
+2f. VINTAGE BLOCK  (computed, not judged)
+
+       Review entities found: 1 on the required source, 1 on the optional source.
+          Required source: https://www.indeed.com/cmp/Hudson-River-Trading — 2 reviews,
+            overall 4.5, claimed/unclaimed NOT STATED on the rendered page.
+          Same profile, country filter ALL: identical 2 reviews.
+          Regional mirror https://sg.indeed.com/cmp/Hudson-River-Trading — identical 2 reviews.
+          Optional source: https://www.glassdoor.com/Reviews/Hudson-River-Trading-Reviews-E470937.htm
+            — 119 reviews, overall 4.2, marked "Engaged Employer".
+          Variants searched and found to be the same or nothing: "Hudson River Trading LLC",
+            "HRT Financial", "Hudson River Trading Careers Page", "HRT", plus the regional mirror.
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Required source: "Working at Hudson River Trading: 2 Reviews" (page heading);
+            "Based on 2 reviews" (overall-rating block); "2 reviews" (filter/sort element);
+            "[2 Reviews]" (navigation tab); "2 Reviews" (nav tab on the job-titles page).
+          Optional source: "Hudson River Trading Reviews (119)" (page title);
+            "(119 total reviews)" (header rating block); "119 reviews" (sort element);
+            "Viewing 1 - 3 of 119 Reviews" (pagination element); "Glassdoor has 119 Hudson
+            River Trading reviews submitted anonymously" (footer FAQ prose).
+       Conflicting counts observed on a single page: NONE on either site. Every element on
+          each page agreed. This is the first build in my knowledge of this instrument's
+          register where that check came back clean, and it is worth noting that it came back
+          clean on a 2-review profile and a 119-review profile alike.
+       Headline ratings BY SITE: required source overall 4.5, work-life balance 4.0.
+          Optional source overall 4.2, work-life balance 3.1 (FAQ element), culture and
+          values 3.8, career opportunities 3.9, compensation and benefits 4.4.
+          DIVERGENCE: overall differs by 0.3; work-life balance differs by 0.9, and in
+          opposite directions relative to each site's own overall. Recorded, not reconciled.
+       Job titles sampled, each with review count and the element the count came from:
+          NOT APPLICABLE — the frame is recency, company-wide, and the entire required-source
+          population (2) was taken. Titles recorded per review as metadata.
+          Title index (https://www.indeed.com/cmp/Hudson-River-Trading/job-titles) holds only
+          two entries: "Systems Administrator" 1 review, 4.0, under "IT Operations &
+          Helpdesk"; "Operations Associate" 1 review, 5.0, under "Administrative Assistance".
+          INDEX/STREAM DISAGREEMENT: the index calls the second title "Operations Associate"
+          while the review stream attributes that same review to "People Operations
+          Specialist". The index is not authoritative, again.
+          Optional source's top-reviewed-jobs FAQ block rendered 15 entries: Algorithm
+          Developer 15, Core Developer 11, Software Engineer 9, Algo Developer Intern 4,
+          Algorithm Engineer 4, Core Engineer 3, Intern 3, People Operations 3, Trading Algo
+          Developer 3, Algo Developer 2, Anonymous 2, Director 2, Engineer 2, Quant Researcher
+          2, Quantitative Analyst 2. Note the same role family split across "Algorithm
+          Developer" (15), "Algo Developer" (2) and "Trading Algo Developer" (3).
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B.
+       Achievability gate run on every percentage recorded anywhere in the packet: Y
+       Percentages struck for failing the gate: NONE.
+          Gate results, for the record. Optional source, n=119: "74% would recommend" —
+          88/119 = 73.95%, reachable, PASS. "81% positive business outlook" — 96/119 =
+          80.67%, reachable, PASS; note the n printed beside it is the review total, not a
+          stated outlook denominator. Trade-press "approximately 135% year-on-year" revenue
+          rise is a growth rate, not a proportion of a sample; gate not applicable.
+          Required source's means at n=2 (4.5, 4.0, 4.5, 4.5, 4.0 and overall 4.5) all land
+          on the 0.5 grid that n=2 permits, PASS. Optional source's demographic subratings
+          (one at n=8, one at n=7) are evaluative and demographic and were NOT collected; for
+          completeness, both are reachable under one-decimal rounding.
+          None of these figures appears in section 1 — all are evaluative (hard rule 8).
+       Titles present but NOT sampled, with counts: none on the required source; the whole
+          population was taken.
+       Interview write-ups excluded from review lists: 0. Neither required-source review is
+          an interview write-up.
+       Newest review date BY SITE: required source 2022-10-13; optional source 2026-09-29.
+          DIVERGENCE: 47.6 months. This is the P-03/P-04 failure signature, at the largest
+          magnitude the register records, and it fired MATERIALLY under B1a-REMEDY: the
+          optional site's newest review is 47.6 months newer than the required source's
+          (threshold 12), and 0 of the 12-review minimum falls inside the 24-month gate
+          (threshold: fewer than half, i.e. fewer than 6). The remedy was applied — 3
+          fragments admitted, cap 5, each labelled, with the note to the rater.
+       Oldest review used: 2017-12-13.
+       Median age of reviews used: 1.2 months across all five entries; 76.6 months across the
+          two required-source reviews alone. Both figures are reported because the mixture is
+          what the section actually is.
+       Reviews truncated at source: 5/5 = 100%. Both required-source reviews carried
+          "...Show more" and all three optional-source fragments carried "Show more".
+          Far above the one-third threshold; NOTE TO RATER written at the head of section B.
+          Measured on three passes (two plain fetch, one rendered) — the first plain-fetch
+          pass reported no markers and the second reported both, and the rendered pass
+          confirmed both. A single pass would have understated this.
+       Source-site duplicates retained: 0.
+       Newest careers-page modification date: NOT PUBLISHED. No careers, values or role page
+          on this company's site carries a publication or modification date by either
+          retrieval method. All 8 section A excerpts are therefore access-dated —
+          8 of 8. The rater learns nothing about section A's vintage from inside section A,
+          and that is itself the finding.
+       Structural events found and their dates:
+          2025-10-31 head of AI research speaks publicly on the merging of research and
+            engineering roles (podcast)
+          2025-11-04 the same, reported in trade press
+          2026-02-05 new head of Asia business development appointed (reported)
+          2026-05-11/12 record first-quarter trading revenue reported; approx. 135% year-on-year
+          2026-05 return to debt markets seeking a further USD600 million (reported)
+          2026-08-19 record second-quarter trading revenue reported
+          2026-09-10 long-form founder profile published
+       Does any structural event postdate the newest review? Against the newest review on the
+          required source (2022-10-13): YES — every event listed above. Against the newest
+          review in the packet overall (2026-09-29, optional source): NO.
+
+2g. SCOPE BLOCK  (recorded, not corrected)
+
+       A careers / values     population: company-wide, plus three named engineering/research
+                              role families described individually
+       B employee reviews     population: 5 reviewers — one people-operations role and one
+                              systems-administration role at the New York site (required
+                              source, 2022 and 2017); one quantitative researcher (New York),
+                              one junior algo developer (London) and one trading algo
+                              developer (Singapore) (optional source, all 2026)
+       C job postings         population: four functions — research engineering, people
+                              operations, quantitative research, communications
+       D first-person         population: the engineering organisation, one voice
+       E news                 population: company-wide, with the AI research function
+                              over-represented (three of four excerpts)
+       F human capital        population: n/a — private company
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: on the evidence of its own live job board — hardware and chip design
+       (physical design, design verification, signal/power integrity, ASIC project
+       management), data-centre and warehouse operations, network and site-reliability
+       engineering, trading-systems support, middle office, treasury, post-trade strategy,
+       accounting and tax, immigration, real estate, compliance, recruiting and campus
+       sourcing. The company posts openly for all of these and none of them appears among the
+       five reviewers. The corporate and infrastructure organisation is invisible in the
+       review population, and at n=2 on the required source so is almost everything else.
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES — overwhelmingly so, and by the largest margin the
+       instrument can produce, since the experiential evidence is five people.
+
+       One-line scope declaration for the head of the packet: written at the top of section 1.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: "more than 1,000 staff globally" — Hedgeweek, 2026-05-12,
+  https://hedgeweek.com/news/hudson-river-trading-reports-record-q1-revenue
+  CONFIDENCE: LOW-MEDIUM. This is a third-party trade publication's figure in a story
+  sourced to another outlet's reporting, not a company-published number. The company
+  publishes no headcount anywhere on its own site. Treat as an order of magnitude, not a
+  count. For contrast, the company's own live job board carried 83 open roles on the
+  build date, which is a large fraction of a thousand-person firm and suggests either
+  rapid growth or a stale third-party figure.
+
+- Stage / size cues: PRIVATE, founder-led, founded 2002 (copyright line on the company's own
+  site reads "© 2002-2026"), no external investors identified. Offices in six countries;
+  the site lists 16 locations across North America, Asia-Pacific and Europe. Revenue is not
+  company-disclosed but is reported: record first-quarter 2026 trading revenue of $6.4bn,
+  up approximately 135% year-on-year, with profit around $4.2bn and roughly $20bn of net
+  trading capital deployed (Hedgeweek 2026-05-12, sourced to Bloomberg); record
+  second-quarter 2026 revenue of $11.4bn (Bloomberg headline, 2026-08-19, body paywalled).
+  Returned to debt markets in 2026 seeking a further USD600m. Founder's personal wealth put
+  at $27bn in a 2026-09-10 profile. Sources: as listed in 2d.
+
+- Pay-posture EVIDENCE (no band assigned):
+  · Posted US base ranges on the four postings sampled: research engineering 200-300k;
+    people operations 200-250k; quantitative research 175-300k; communications 110-160k.
+    All four state eligibility for "discretionary performance-based bonuses".
+  · Trade press reports an average above £900k for UK staff in trading, research and
+    technology roles in 2024, attributed to filed accounts (eFinancialCareers, 2025-11-04).
+  · The company's own careers material states company-paid medical and dental with no
+    premiums, employer-funded health savings accounts, and uncapped sick days.
+  · CORRECT REFERENCE CLASS: quantitative proprietary trading and market-making firms, not
+    general technology employers and not general finance. Against that class these figures
+    are unremarkable-to-strong; against a general tech or general finance class they would
+    read as extreme and would be the wrong comparison.
+
+- Industry: FINANCE. Multi-asset-class quantitative proprietary trading and market making,
+  by its own description a liquidity provider on global markets. Justification: the company
+  self-describes as "a multi-asset class quantitative trading firm that provides liquidity
+  on global markets and directly to our clients", and its revenue is trading revenue.
+  NOTE FOR THE MODEL, NOT A SCORE: this firm also self-describes as "first and foremost a
+  math and technology company" and "a small tech company with a big impact". Whichever
+  industry label is assigned, the technology-firm self-presentation is a property of the
+  evidence and will show up in the careers and posting language.
+
+- Archetype note for pole coverage, offered as fact not judgement: this is the same
+  prop-shop / quant-trading archetype as at least one company already in the set. The
+  required review source holds 2 reviews. Anyone relying on this packet to anchor a pole
+  should know that its experiential evidence is five people, three of them one-line
+  fragments, and that no amount of further collection changes that.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME AND ITS FORMS
+  "Hudson River Trading" — throughout sections 1-3, in prose, in URLs and in attributions.
+  "HRT" — very high frequency; appears inside quoted text in sections A, B, C, D and E, so
+    it cannot be removed without editing quotes.
+  "HRT®" and "Hudson River Trading®" — registered-mark forms on the company's own pages.
+  "HRTer" / "HRTers" — the company's own term for its employees, on the values page.
+  "The HRT Beat" — the engineering blog's name, in section D URLs.
+  "HRT AI Labs" / "HAIL" — internal team names appearing in blog titles and postings.
+  "Inside@HRT" — an event name, on the public code repositories.
+
+URL-EMBEDDED IDENTIFIERS
+  hudsonrivertrading.com (all section A, D paths); /hrtbeat/ path segment;
+  /hrt-job/ path segment; the ATS board slug "wehrtyou" and the four numeric job tokens
+  7583922, 8068289, 3903145, 7980396 in every section C citation; the review-site slug
+  "Hudson-River-Trading"; the review-site employer id E470937; the code-repository
+  organisation "hudson-trading".
+
+PERSON NAMES
+  Joe Smith — author of all four section D passages, named in each attribution.
+  Iain Dunning — named executive quoted three times in section E, with his title
+    ("head of AI research") stated in the quote itself.
+  Alex McMurray — reporter, section E attributions.
+  Taylor Legg, Yigit Efe Erginbas, Sean Li, Victoria Ma, Josh Liu, Hadrian Reppas,
+    Andrew Nolte, Francisco Rivera, Ray Zhang — blog authors named in section 2 only.
+  Jason Carroll, Alex Morcos, Tom Maloney — named in section 2/3 only (press profile).
+  First names on the company's team page (Francisco, Pranav, Agnes, Bati, Noel, Raghu,
+    Cindy, Joseph, Amy, Kevin) — not quoted, flagged because they sit on a page cited in
+    section A.
+
+OFFICE LOCATIONS
+  In section B attributions: New York NY (three entries), London England, Singapore. Per the
+  location rule these are replaced with generic site tokens, not deleted — the two
+  required-source reviews and one fragment are the same city and must stay distinguishable
+  from the other two sites.
+  In section 2/3 only: Chicago, Austin, Boulder, Boston, Seattle, Miami, Carteret, Dublin,
+  Hong Kong, Shanghai, Mumbai, Seoul, Norway.
+
+PRODUCT, TOOL AND PROGRAMME NAMES
+  Named internal/external tools in quoted or cited material: Slack, Confluence, Jira,
+  Phabricator, Zoom (all in the 2022 post, which is NOT quoted — flagged in case a later
+  build uses it); Greenhouse (the ATS, implicit in every section C URL); Modern Health (a
+  benefit named on the values page, not quoted).
+  Public repository names, section 2 only: slang-server, slang-format, slang-server.nvim,
+  wavetools, corral, heracles-ql, inside-at-hrt.
+  Internal role abbreviations used inside quotes and therefore unremovable: "Algo", "AD",
+  "AE", "RE", "Algo Developer", "Algo Software Engineer", "Research Engineer",
+  "Trading Tech", "Research & Development", "Acceleration", "Platform".
+
+DISTINCTIVE SELF-DESCRIPTIONS — SEARCHABLE EVEN AFTER THE NAME IS REMOVED
+  These are verbatim strings that will locate this company in one search. Flagged separately
+  because de-identifying the name does not de-identify them:
+  · "No “smart jerks” at HRT."
+  · "We are disciples of automation and efficiency"
+  · "At its core, HRT is a small tech company with a big impact."
+  · "We have a meritocratic, low-politics culture"
+  · "HRT ships every day."
+  · "it is not a “pod” system where trading teams are siloed with IP barriers"
+  · "We rate our engineers as much on communication as we do on technical ability."
+  · "dead in the water without the teams at HRT who get the data to these systems"
+  · "the era of whiteboard quants is over" (headline phrasing, section E citation)
+  · "THINK / TRUST / TINKER / TRADE" — the home page's four-word value set.
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS
+  · "As focus on the software that powers trading and research" (section A, marked [sic])
+  · "learn(take on a mentor)" and "8quarter pay outs" (section B, marked [sic])
+  · "can't think if any cons" (section B, marked [sic])
+  Each of these is a one-hit search string. They are also the only typos in the packet, so
+  if any one of them has to go, the loss to the evidence is small.
+
+FIGURES THAT RE-IDENTIFY
+  The four posted salary ranges and the reported UK average pay figure are in section 3 only
+  and must not migrate into section 1. The revenue, profit, trading-capital and founder-wealth
+  figures are in section 3 only. The employer id, board slug and job tokens listed above are
+  the sharpest identifiers in the file.
+
+
+########## END OF PACKET ##########
