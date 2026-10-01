@@ -1,0 +1,19 @@
+CONTENT DEFECTS  P-14   (recorded, not fixed)
+
+CD-1  Section B is declared "most recent first" but is not. The review dated 2026-04-15 (Senior Workers' Compensation Adjuster, rev-09) sits directly above the review dated 2026-04-17 (Adjuster, rev-10). Reproduced as found.
+
+CD-2  The scope note at the head of Section 1 lists "workers' compensation and disability examining, medical and nurse case management" among the reviewed roles. No review title in Section B says disability examiner or nurse; the nearest are a workers' compensation claims examiner and a case-management employment title. The note describes roles the section does not visibly contain. Reproduced as found.
+
+CD-3  Section 4 pre-flag block vs full-text sweep (build defect, both directions):
+  - MISSED (block silent): the section B quote body naming Houston, Texas (2026-06-16 review). The block lists Houston only as a review location, so a scrubber working from the list would leave the city in the body while tokenising it in the attribution.
+  - MISSED: the trade-press publication name "Claims Journal" in a section E attribution. The block flags the Coverager editor but not this one.
+  - OVERCOUNT/INACCURATE: "Broadspire ... appears INSIDE two Section 1 excerpt bodies". It appears in one body (2026-02-20); the second body carries the initialism only, which the block lists separately.
+  - INACCURATE: "not stated (x4)". Section B holds five locations marked not stated.
+  - INACCURATE: "Every URL in the packet names the company or its brand." The trade-press, SEC and news URLs carry other identifiers (slugs, filing ids, a ticker-style filename) rather than the brand.
+  - Direction of failure: the omissions would have shipped an identifier; the miscounts would have cost time only.
+
+CD-4  Every excerpt attribution in Section 1 (A, C, D, E, F) carried a URL and, for A and F, a page or document title that contains or implies the company name. Section 4 flags URLs generally but does not mention the SEC filing URL, which carries the company's registrant id and ticker-style filename. All removed.
+
+CD-5  Section 4 recommends rendering the RESTORE value framework as a seven-value framework "whose initials spell the company's own purpose verb". That description would itself tell a rater the acronym's shape. Not used; see run report.
+
+No other content defects found: section counts match their headers (see run report), stated dates and the 7-of-15 truncation count agree with the excerpts.

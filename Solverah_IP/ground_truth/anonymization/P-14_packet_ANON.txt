@@ -1,0 +1,178 @@
+PACKET P-14   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-14_packet.txt (build v4.11, model claude-opus-5, built 2026-09-29)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-30
+  status        : DRAFT
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE OF THIS PACKET: The employee reviews in this packet come from claims-facing roles — claims
+processing and adjusting, workers' compensation and disability examining, medical and nurse case
+management, and customer service — plus one software engineer and one offshore analyst. Other
+parts of this company — its corporate, technology, finance, human-resources, legal and marketing
+organisations, and the large offshore business-service centre workforce that its own job postings
+show it is hiring for — are not represented in them. Company-authored sources describe the whole
+organisation.
+
+NOTE TO RATER (review length): Roughly half of the employee reviews quoted below — 7 of 15 — were
+cut off by the review site before the reviewer's text ended, and are marked […]. The reviews that
+survived intact are systematically the shorter ones, so the longer and more detailed accounts are
+the ones you are reading only the beginning of.
+
+NOTE TO RATER (review sources): The reviews below were merged, newest-first, across three separate
+review-site profiles that the site holds for this same company and its main operating brand. One
+review found inside the company's own profile was confirmed by outside evidence to describe a
+different, unrelated business that shares part of the name, and it has been left out.
+
+NOTE TO RATER (company-page dates): None of the company's own careers and values pages carry a
+publication or last-modified date by any retrieval method. Excerpts from them are marked with the
+date they were read ("accessed"), not a publication date, so their actual age is unknown.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "As a long‑standing global organization, we've learned that people do their best work when expectations are clear, support is consistent and careers are allowed to develop at a steady, sustainable pace."  — [company careers page] — company-authored — accessed 2026-09-29
+
+   • "Teams are built on trust, collaboration and accountability, creating an environment where people feel safe, included and valued for who they are."  — [company careers page] — company-authored — accessed 2026-09-29
+
+   • "Support shows up in our everyday interactions: how leaders listen, how teams work together and how colleagues support one another through both professional and personal moments. It's a culture shaped by people, not programs."  — [company careers page] — company-authored — accessed 2026-09-29
+
+   • "At [the company], respect means people are treated with dignity, listened to and valued for who they are. It means creating safe spaces where differences are acknowledged and voices are heard, without people having to explain or defend themselves to belong."  — [company careers page] — company-authored — accessed 2026-09-29 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "We develop leaders at all levels through targeted programs that build coaching, decision-making and business leadership capabilities."  — [company careers page] — company-authored — accessed 2026-09-29
+
+   • "[The company] offers opportunities to grow across disciplines, business lines and regions. Whether you're building new skills, deepening expertise or stepping into leadership, you'll find the support and flexibility to move forward at a pace that works for you."  — [company careers page] — company-authored — accessed 2026-09-29 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "Here, careers are built over time. You'll gain experience that moves you forward, opportunities to grow in different directions and the support to build a career that fits alongside your life."  — [company careers page] — company-authored — accessed 2026-09-29
+
+   • "I've been able to grow my career here without having to sacrifice stability or my life outside of work. I trust the company, I see where I'm going, and I'm proud of the work we do for people every day."  — [company careers page — testimonial attributed on the page to a named employee, "[company name] Employee Since 2014"] — company-authored — accessed 2026-09-29 — [company name in the page’s own employee label replaced in brackets; tenure kept]
+
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+   • "Poor workplace. Company has no integrity. You are over worked and unpaid. You do your workload and others. Mangers [sic] or supervisors does not communicate with you about anything. […]"  — [employee review] — reviewer's job title as written: "Customer Service Representative III"; location: [Site A] — rev-01 — 2026-09-13
+
+   • "Overall good environment and benefits for employees. Some people from management micromanage really hard but that does not apply to all of them. Some positions are underpaid based on all the workload assigned and the anual [sic] "increase" is not much."  — [employee review] — reviewer's job title as written: "Claims Processor"; location: [Site B] — rev-02 — 2026-08-13
+
+   • "You put in the work to get to know the job and continue to train outside of the job, you'll do great. Management was supportive, and supervisors were, for the most part, very supportive as well."  — [employee review] — reviewer's job title as written: "Medical Only Claims Adjuster"; location: not stated — rev-03 — 2026-08-12
+
+   • "They are a fully remote work environment, and are flexible with actual time worked from a day to day standpoint. But the pay is lower than the industry average, and you don't receive much support from upper management, until things are a real problem."  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — rev-04 — 2026-07-13
+
+   • "My boss in [Site C] is very, very, very supportive, love him so much! He is very considerate, not condescending and very respectful, he listens to each employee, and if any concerns he has a listening ears, not judgmental. His goal is to earn good camaraderie not to lose any employee at all means, […]"  — [employee review] — reviewer's job title as written: "Quite Satisfying Case Management Employment"; location: [Site C] — rev-05 — 2026-06-16 — [place name replaced with a site token; clause otherwise verbatim]
+
+   • "Pros: Solid benefits: The benefits package is actually really good. PH management is awesome: Leadership in the Philippines is great and super easy to work with. Shoutout to my manager: My direct manager was amazing, though your mileage may vary depending on the team. Cons: US side disconnect: Management […]"  — [employee review — reviewer wrote in a Pros/Cons layout] — reviewer's job title as written: "Consultative Analyst"; location: [Site D] — rev-06 — 2026-06-03
+
+   • "[The company] is a solid company choice if you are looking for Job Security. It's strong standing in the industry helps you stay employed even during the difficult times. Only cons that I have experience here is that the prioritization of task is very indecisive as the management wanted to work […]"  — [employee review] — reviewer's job title as written: "Sr. RPA Software Engineer"; location: not stated — rev-07 — 2026-05-22 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "[The company] had always been fair. The training is sparse. At [the company] nothing is free. You have to sign up and attend one of their classes and pay a fee and for all travel expenses. You are treated as an employee and paid and hourly rate not a per file fee."  — [employee review] — reviewer's job title as written: "CAT Adjuster"; location: [Site E] — rev-08 — 2026-05-03 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "What is the best part of working at the company? Working remote. That's about it / What is the most stressful part about working at the company? Ignorant and disrespectful management. / What is the work environment and culture like at the company? Hostile. If you ask any question...you get thrown under […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Senior Workers' Compensation Adjuster"; location: Remote — rev-09 — 2026-04-15
+
+   • "Pay is ok when busy but management is a nightmare. Highly focused on metrics and couldn't care less about their employees. Don't speak your mind on anything and hit your metrics and you should be fine."  — [employee review] — reviewer's job title as written: "Adjuster"; location: not stated — rev-10 — 2026-04-17
+
+   • "The CEO [name stripped] shares all his success throughout the week and forgets that we don't make the same salary. Such a huge disconnect with management. Worked their [sic] for 4 years in two different roles, but I just couldn't take it anymore."  — [employee review] — reviewer's job title as written: "Claims Adjuster"; location: Remote — rev-11 — 2026-03-06 — [named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+   • "Company is a decent place to work but managers are micromanaging employees if you're not a favorite - ans [sic] the rules do not apply to the favorites at [name stripped] …Promotions are based on popularity and who you know- definitely not what you know! There are people that gets promoted who barely know what […]"  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — rev-12 — 2026-02-20 — [branded name replaced in brackets; clause otherwise verbatim]
+
+   • "What is the best part of working at the company? Flexibility because you are salaried, but that's where the "best part" stops. / What is the most stressful part about working at the company? micromanagement leadership, retaliation against the "little people" employees, leadership lacks accountability, […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Client LIAISON Manager"; location: Remote — rev-13 — 2026-01-30
+
+   • "What is the best part of working at the company? Everyone is really helpful. Our managers are more than willing to coach you when something new pops up. / What is the most stressful part about working at the company? You have to be on top of your deadlines. So long as you do that, it's smooth sailing."  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Multi-Line Adjuster"; location: [Site F] — rev-14 — 2025-12-14
+
+   • "I was hired with an expectation that my incredible skills and knowledge would be valued. [name stripped] gives no autonomy in claims and questions labor codes that are fact. Management spends more time having adjusters justify their job rather than trusting us to do it."  — [employee review] — reviewer's job title as written: "Workers' Compensation Claims Examiner"; location: Remote — rev-15 — 2025-11-26 — [branded name replaced in brackets; clause otherwise verbatim]
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+   • "Keeps supervisor informed verbally and in writing of activities and problems within areas of responsibility, refers matters beyond limits of authority and expertise to supervisor for direction."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+   • "Ability to initiate independent action to resolve problems and issues and to achieve desired results."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+   • "Analytical ability to gather and study facts and data and draw correct inferences from the data: identify root causes of problems and create solutions; identify inefficient business processes and recommends technological or process improvements."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+   • "Under minimal to intermediate direction, adjusters determine coverage, investigate and evaluate losses, negotiate settlements, and maintain complete, accurate, high-quality claim files."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+   • "Willingness to work long hours and prolonged schedules away from home during significant catastrophe events."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+   • "Professional, dependable, responsive, service-oriented, adaptable, and receptive to coaching and change."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+   • "Demonstrates ability to meet administrative requirements, including productivity, time management and QA standards, with a minimum of supervisory intervention."  — [job posting — medical case management function; confirmed open] — company applicant-tracking system — [posting 3] — posted 2026-09-28
+
+   • "Reviews cases with supervisor monthly to evaluate files and obtain directions."  — [job posting — medical case management function; confirmed open] — company applicant-tracking system — [posting 3] — posted 2026-09-28
+
+   • "Establish business performance metrics and dashboards that provide clear visibility into financial, operational, quality, service, client, and growth performance."  — [job posting — executive leadership of a claims business line; confirmed open] — company applicant-tracking system — [posting 4] — posted 2026-09-28
+
+   • "Monitor competitive offerings, industry developments, emerging technologies, and changing employer and claimant expectations to identify opportunities for innovation and differentiation."  — [job posting — executive leadership of a claims business line; confirmed open] — company applicant-tracking system — [posting 4] — posted 2026-09-28
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 7 passages from 5 sources · ladder fully attempted) ---
+
+NOTE TO RATER: This section is not a single voice. Two passages are a named technology executive
+speaking to a trade reporter; two are an unnamed practitioner writing in the first person on the
+company's own blog; one is a named business-line leader quoted on that blog; one is the company's
+blog writing in the third person about a named non-executive employee; one is the company's own
+unsigned corporate voice. Where a passage is the company describing an employee rather than the
+employee speaking, that is marked on the excerpt line.
+
+   • "We give them a prototype of a new interaction – different from how they've been doing it – and say: if AI were to help you on this interaction, is this good for you?"  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — 2026-09-02
+
+   • "What we really want is to enable hundreds and hundreds of workers to be the sources of ideas and innovation," he said. "Getting tools in their hands and getting them into a mindset of experimenting and trying things is one of the most important things I work on, because over time that will multiply our innovation capacity."  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — 2026-09-02
+
+   • "That's why I push disciplined triage right away: preserve what matters, establish clear authority, and decide who can approve containment steps and communications. I also want legal, forensics, communications, and finance/operations aligned early so we work from one set of facts."  — [company blog — unsigned first-person practitioner account] — no author named on the page — 2026-05-08
+
+   • "What I value most is a steady, claims‑led approach: keep the response moving while maintaining insurer visibility on coverage, reserves, and strategy. Cyber claims reward readiness over perfection, and speed only helps when it's deliberate."  — [company blog — unsigned first-person practitioner account] — no author named on the page — 2026-05-08
+
+   • "For me, good loss adjusting begins with clarity — understanding the facts, applying sound judgement, and maintaining balance. By keeping the insurer's perspective in mind, we can help clients reach solutions that are fair, practical and built on trust."  — [company blog — employee profile] — named head of a country business line, quoted directly — 2026-08-11
+
+   • "While he sees real value in AI when applied thoughtfully, he cautions against overdependence without fully understanding the models being used. In his view, technology should support subrogation, not replace the critical thinking and conversations that lead to the best outcomes."  — [company blog — employee profile; this is the company's own wording ABOUT a named account executive, not his words] — 2026-04-21
+
+   • "At [the company], digital transformation efforts have focused on simplifying the claims journey through automation, analytics, AI and modernized platforms that enhance speed, accuracy and transparency."  — [company blog — unsigned corporate voice] — no author named on the page — 2026-09-23 — [company name substituted in brackets; clause otherwise verbatim]
+
+
+--- E. RECENT NEWS (yield: 3 counted excerpts + 1 tagged company-authored · searches logged) ---
+
+   • "[The company] CEO [name stripped] is stepping down at the end of the year to take the helm of another firm, and the company has named [the company] veteran [name stripped] interim president CEO."  — [trade press reporting] — trade-press staff — 2025-11-24 — [company name substituted in brackets; named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+   • "[The company]  is rolling out a new global operating structure, splitting the business into US Operations and International Operations as it looks to simplify execution and accelerate a more client-centric model."  — [trade press reporting] — named trade-press editor — 2026-01-25 — [company name substituted in brackets; clause otherwise verbatim]
+
+   • "[The company]  appointed [name stripped] as President and CEO, effective immediately, following his time serving in the interim role since January 1, 2026."  — [trade press reporting] — named trade-press editor — 2026-03-28 — [company name substituted in brackets; named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+   • "By aligning our businesses under two global divisions and elevating proven leaders, we are clarifying accountability, strengthening collaboration across geographies and positioning [the company] to move at the speed our markets demand."  — [company-authored] — interim president and CEO, statement carried inside the trade article above; does not count toward this section's yield — 2026-01-25 — [company name substituted in brackets; clause otherwise verbatim]
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+All six excerpts below are company-authored: they are the company's own words in its annual report
+on Form 10-K for the fiscal year ended 2025-12-31, filed 2026-03-02. Every headcount, dollar
+figure and percentage in this section of the filing has been left out.
+
+   • "Human Capital is a key component to our success. Our people-first culture is reflected in our [name stripped] values of Respect, Empowerment, Sustainability, Training, One [the company], Recognition and Entrepreneurial Spirit which are supported in our workforce programs."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02 — [branded value-framework name and company name replaced in brackets; value names and clause otherwise verbatim]
+
+   • "In September 2025, we conducted our annual [name stripped] survey for all our global workforce to measure their sentiment on our employee experience and culture."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02 — [branded programme name replaced in brackets; clause otherwise verbatim]
+
+   • "We saw encouraging gains in areas like team collaboration and leadership support. Notably, the most significant improvement was in employees' feeling supported in balancing their health and well-being, and in experiencing stronger cooperation across teams."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+   • "Employees reported the highest scores in having a clear understanding of what is expected of them in their role, a strong sense of purpose in their job and alignment of their work with business strategy."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+   • "They also feel safe to speak up and feel that the Company is committed to fair treatment of our employees."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+   • "Through these classes, adjusters were not only exposed to the technical aspect of claims handling but also trained on critical success behaviors such as empathy and customer service – attributes we consider to be core and crucial for becoming a world-class claims professional."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+########## END OF PACKET ##########
+
+
+--- SCRUB LOG (not part of the scored packet) ---
+Rules applied: R1 attribution lines rewritten on 50 excerpt lines (company name and URL removed; class and date kept; page and article titles removed with the URL).
+  R1/A8 review ids: 15 review URLs replaced with rev-01 to rev-15, one id per review, in packet order.
+  R1/A8 posting ids: 4 distinct posting ids replaced with [posting 1] to [posting 4]; applicant-tracking hostname removed with the URL.
+  R2 company name replaced inside quote bodies: 12 substitutions.
+  R3 named humans replaced inside quote bodies: 4 substitutions (role kept).
+  R4/A5 branded names replaced inside quote bodies: 4 substitutions.
+  R5/A6 place names replaced: 1 in a quote body, 6 in attributions; 6 site tokens minted ([Site A] to [Site F]), reused between attribution and body where the same place appeared.
+  R6/A1 identifying figures: none found in any section; no edits.
+  Publication names removed from trade-press attributions (R3, publication class only).
+Deliberately left alone: job titles and sector language (industry is not scrubbed); source typos (R7); "Remote" and "not stated" literal (R5); review headlines/titles as written (A7); country-level references and offshore-team references inside review bodies (work-mode signal, not identifying of the company); distinctive self-descriptions in company-authored text (JC-1).
+Every quote-body edit is declared on its own excerpt line. The mapping of removed strings is kept in the diff file, not here (A6(a)).
