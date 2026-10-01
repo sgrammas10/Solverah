@@ -4,5 +4,5 @@
 # Currently: Scripts/load_baseline.py (httpx drives the load; psycopg reads
 # OTPs / seeds culture prefs; redis flushes the dashboard cache for cold runs).
 httpx==0.28.1
-psycopg[binary]==3.3.4
+psycopg[binary]==3.3.6
 redis==8.1.0
