@@ -2,10 +2,11 @@
 
 Round 2 · rubric v3.1 (`v3.1-PROPOSED-2026-09-29`, page anchors `3e270b206116`) · issued 2026-09-29
 
-For **Sebastian (rater D)**, who rates every round-2 packet, and **Julie (rater A)**, who rates two
-per group. The round-1 instructions (`RATER_INSTRUCTIONS.md`) stay as the record of what round 1
-was told. Most of it still holds, and this file says where round 2 differs. The design is in
-`Solverah_IP/analysis_s58/PREREG_ROUND2_2026-09-29.md`, addendum A1.
+For **Sebastian (rater D)**, who rates every round-2 packet, and **Julie (rater A)**, who rates as
+many as she has time for, in a fixed order. The round-1 instructions (`RATER_INSTRUCTIONS.md`)
+stay as the record of what round 1 was told. Most of it still holds, and this file says where
+round 2 differs. The design is in `Solverah_IP/analysis_s58/PREREG_ROUND2_2026-09-29.md`,
+addenda A1 and A2.
 
 Each file is a self-contained web page: the evidence about one company and the scoring form, side
 by side. Open it in a browser. Your answers save in the page as you go, so you can close it and
@@ -41,10 +42,11 @@ page, not your memory of it.**
 3. **One packet per sitting, no going back.** Each dimension locks when you commit it, and the
    packet locks when you submit. Never have two packets open at once, and don't compare companies
    with each other. Score against the scale.
-4. **Work alone, and don't talk about the overlap packets.** Julie's two packets are also
-   Sebastian's. Please **don't discuss those packets, your scores or your reasoning with each
-   other**, before or after, until both files are in. Two readings that compared notes become one
-   reading with two names, and nothing afterwards can detect or undo that.
+4. **Work alone, and don't talk about any round-2 packet.** Any packet Julie rates is also
+   Sebastian's, and nobody knows in advance how far she will get. Please **don't discuss any
+   packet, your scores or your reasoning with each other** until round 2 is closed. Two readings
+   that compared notes become one reading with two names, and nothing afterwards can detect or
+   undo that.
 5. **Read the whole packet before you score anything.**
 
 ### Sebastian only (rater D)
@@ -59,12 +61,25 @@ page, not your memory of it.**
 
    | 1st | 2nd | 3rd | 4th | 5th | 6th | then |
    |---|---|---|---|---|---|---|
-   | P-07 | P-11 | P-09 | P-08 | P-12 | P-10 | P-13 once it is in `anonymization/` |
+   | P-07 | P-11 | P-09 | P-08 | P-12 | P-10 | P-13 |
+
+   P-14..P-19 get their own draw when they are built.
+9. **File Julie's returned JSONs without opening them.** Hers may arrive before you have rated
+   that packet.
+
+Pages: `out/round2/P-XX_raterD.html`. Rebuild everything with `build_round2_pages.py`, which
+runs the scrub check first and skips any packet that fails it.
 
 ### Julie only (rater A)
 
-Two packets, **P-11 then P-10**, one per sitting, whenever suits you. A half-finished sitting is
-fine: the page keeps your place.
+Your packets are in one folder, numbered **01, 02, 03 ...**. Please **do them in that order and
+stop whenever you like**: one, three or all of them are all useful. The order was drawn at random.
+Working down it, rather than picking, keeps whatever you do a fair sample. One packet per sitting,
+whenever suits you. A half-finished sitting is fine, because the page keeps your place.
+
+When you have done as many as you are going to, there is one last short item, the rubric confirm
+sheet. It comes last on purpose, because it highlights what changed in the rubric and is best seen
+after you have scored.
 
 ---
 
