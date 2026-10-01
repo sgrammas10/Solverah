@@ -231,7 +231,7 @@ describe("IntelligencePage - completed without a narrative", () => {
     };
     renderIntelligencePage();
 
-    expect(screen.getByText(/fifteen questions about the role/i)).toBeInTheDocument();
+    expect(screen.getByText(/sixteen questions about the role/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
   });

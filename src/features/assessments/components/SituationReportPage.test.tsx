@@ -316,7 +316,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       expect(await screen.findByRole("heading", { name: "One half to go" })).toBeInTheDocument();
-      expect(screen.getByText(/fifteen questions about your job/)).toBeInTheDocument();
+      expect(screen.getByText(/sixteen questions about your job/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
       expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
     });

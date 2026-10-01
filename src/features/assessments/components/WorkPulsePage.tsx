@@ -230,7 +230,7 @@ export default function WorkPulsePage() {
                 primary and the FocusType / ManagerMatch CTAs step down to
                 secondary rather than disappearing. */}
             <p className="text-sm text-ink-primary font-medium">
-              24 questions about you. Now 15 about your job.
+              24 questions about you. Now 16 about your job.
             </p>
             <p className="text-sm text-ink-secondary">
               Work Pulse is half of your Situation Report. The other half is your own

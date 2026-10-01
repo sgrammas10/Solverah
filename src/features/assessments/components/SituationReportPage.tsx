@@ -409,7 +409,7 @@ export default function SituationReportPage() {
           <p className={LEAD}>
             Work Pulse is done, and it holds. The other half is a job to measure it
             against, and you haven't started one yet — so there is nothing to report,
-            and we won't invent one. Once you're in a role, fifteen questions about it
+            and we won't invent one. Once you're in a role, sixteen questions about it
             bring the report back the same day.
           </p>
           <p className={LEAD}>
@@ -434,7 +434,7 @@ export default function SituationReportPage() {
     return (
       <Gate title="One half to go">
         <p className={LEAD}>
-          Work Pulse told us how you work. Now fifteen questions about your job, in your
+          Work Pulse told us how you work. Now sixteen questions about your job, in your
           own words. About five minutes, and the report comes back straight away.
         </p>
         <div className="pt-2">
