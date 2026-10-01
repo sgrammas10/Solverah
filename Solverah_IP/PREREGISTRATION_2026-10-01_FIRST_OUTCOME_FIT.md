@@ -4,7 +4,7 @@
 environment reports from real users yet; every number below comes from the synthetic
 devfit harness (`causal_graph/v1_model/devfit/`), not from respondents.
 
-**Status: PROPOSED. Not adopted until Sebastian signs off** (sign-off section at the end).
+**Status: ADOPTED 2026-10-01 by Sebastian.** Append-only from here (see below).
 
 **Amendment convention.** Same as `PREREGISTRATION_2026-08-19_S17_S18.md`: once adopted
 this document is append-only. An amendment is a dated section at the end saying what
@@ -186,7 +186,7 @@ _To be filled before the Look 1 extract. Emails only._
 
 ## Sign-off
 
-- [ ] Adopted by Sebastian — date: ______
+- [x] Adopted by Sebastian — date: 2026-10-01 ("that doc looks good")
 
 ## Amendments
 
