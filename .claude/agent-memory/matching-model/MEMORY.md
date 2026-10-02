@@ -1,0 +1,1 @@
+- [Pilot form pipeline](project_pilot_form.md) — 2026-10-01 UNCOMMITTED: Google Form generator + CSV import into local solverah_pilot + report-back; respondent_source provenance; design choices

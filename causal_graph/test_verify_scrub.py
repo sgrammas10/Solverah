@@ -29,26 +29,29 @@ FILLER = [
 ] * 10
 
 
-def _packet(header: str, bullets: list[str]) -> str:
+def _packet(header: str, bullets: list[str], extra: str = "") -> str:
     body = "\n\n".join("   • " + b for b in bullets)
     return (
         header
         + "\n########## SECTION 1 — EVIDENCE PACKET ##########\n\n"
         + "--- A. CAREERS / VALUES PAGE (5–20 excerpts) ---\n\n"
         + body
+        + "\n\n" + extra
         + "\n\n########## END OF PACKET ##########\n"
     )
 
 
-def _write(tmp_path: Path, raw_bullets: list[str], scr_bullets: list[str]) -> Path:
+def _write(tmp_path: Path, raw_bullets: list[str], scr_bullets: list[str],
+           extra: str = "") -> Path:
     gt = tmp_path / "ground_truth"
     (gt / "packets" / "P-99_testco").mkdir(parents=True)
     (gt / "anonymization").mkdir(parents=True)
     (gt / "packets" / "P-99_testco" / "P-99_packet.txt").write_text(
-        _packet("BUILD RECORD\n  prompt version : v4.11\n", raw_bullets), encoding="utf-8")
+        _packet("BUILD RECORD\n  prompt version : v4.11\n", raw_bullets, extra),
+        encoding="utf-8")
     (gt / "anonymization" / "P-99_packet_ANON.txt").write_text(
         _packet("PACKET P-99\n  scrubbed from : P-99_packet.txt (build v4.11, model x, "
-                "built 2026-09-29)\n", scr_bullets), encoding="utf-8")
+                "built 2026-09-29)\n", scr_bullets, extra), encoding="utf-8")
     return tmp_path
 
 
@@ -81,6 +84,28 @@ def test_undeclared_edit_after_an_inner_quote_fails(verify_scrub, tmp_path, caps
     rc, out = _run(verify_scrub, _write(tmp_path, raw, scr), capsys)
     assert rc == 1, out
     assert "NO bracketed declaration" in out
+
+
+# Found 2026-10-02 on P-15 (a private company): section F declared "yield: 0" because no
+# human-capital disclosure exists, and the verifier failed it as "declared non-empty, parses
+# ZERO". An empty section the builder SAYS is empty is a match, not a vanished section.
+PRIVATE_F = (
+    "--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---\n\n"
+    "N/A — PRIVATE. This company files no annual report, so this source class does not "
+    "exist for it."
+)
+
+
+def test_section_declared_empty_that_parses_empty_passes(verify_scrub, tmp_path, capsys):
+    rc, out = _run(verify_scrub, _write(tmp_path, FILLER, FILLER, PRIVATE_F), capsys)
+    assert rc == 0, out
+
+
+def test_section_declared_nonempty_that_parses_empty_still_fails(verify_scrub, tmp_path, capsys):
+    vanished = PRIVATE_F.replace("yield: 0", "yield: 4")
+    rc, out = _run(verify_scrub, _write(tmp_path, FILLER, FILLER, vanished), capsys)
+    assert rc == 1, out
+    assert "parses ZERO" in out
 
 
 def test_clean_packet_compares_every_quoted_bullet_and_lists_unquoted(verify_scrub, tmp_path, capsys):

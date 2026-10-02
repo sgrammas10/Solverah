@@ -191,7 +191,11 @@ def main(argv=None) -> int:
         else:
             kind, lo, hi = entry
             says = "yield %d" % lo if kind == "yield" else "range %d-%d" % (lo, hi)
-            if got == 0:
+            # A header that declares 0 ("yield: 0" -- a private company has no human-capital
+            # disclosure) and parses 0 is a match, not a vanished section. P-15 failed here
+            # on 2026-10-02 for exactly that, and P-03/P-04/P-05 carry the same kind of
+            # header. Only a section declared NON-empty that parses empty is the defect.
+            if got == 0 and hi > 0:
                 note = "NONE PARSED -- invisible to the scorer"
                 failures.append(
                     "section %s is declared non-empty and the harness parses ZERO excerpts. "

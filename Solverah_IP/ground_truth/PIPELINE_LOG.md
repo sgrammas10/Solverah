@@ -31,6 +31,71 @@ packet it has been run against so far.
 
 ---
 
+## 2026-10-02 operator note — not a harvest entry
+
+Written by hand on the afternoon of 2026-10-02, after the harvest entry below.
+
+**The entry below says research and scrub did not run. Both ran, after it.** It was written
+at 21:02 on 10-01. The scrub produced P-15's four files at 00:16 on 10-02, and research
+built P-16 Smartsheet between 12:25 and 16:55 UTC on 10-02 (run report `COMPLETE`).
+
+**P-14 Crawford & Company is VERIFIED.** It was promoted on the harvest before this one with a
+`NOT YET VERIFIED` line. `Scripts/verify_scrub.py` PASSED on 2026-10-02:
+
+```
+python Scripts/verify_scrub.py P-14 --company "Crawford & Company" --company "Crawford"
+
+1. PARSE           50 raw -> 50 scrubbed, A8 B15 C10 D7 E4 F6
+3. QUOTE FIDELITY  50 compared - 15 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in either form - 0 lookup-key tokens
+BUILD NOTES        section E header says yield 3, the harness parses 4
+```
+
+**P-15 Hudson River Trading is VERIFIED.** It is in `_scrub_env/packets_out/`, so tonight's
+harvest promotes it. **That harvest must NOT write a `NOT YET VERIFIED` line for P-15**; write
+`VERIFIED 2026-10-02 (operator note above)` in its place. Every other step applies unchanged.
+
+```
+python Scripts/verify_scrub.py P-15 --company "Hudson River Trading" --company "Hudson River" --company "HRT"
+
+1. PARSE           31 raw -> 31 scrubbed, A8 B5 C10 D4 E4 (F legitimately empty: private)
+3. QUOTE FIDELITY  31 compared - 13 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in any form - 0 lookup-key tokens
+BUILD NOTES        section B holds 5 against a required minimum of 12
+```
+
+The job-board tokens the research run flagged as the sharpest identifiers in P-15 are gone.
+
+**The verifier was fixed first.** P-15 originally FAILED on section F: "declared non-empty and
+the harness parses ZERO". But F's header says `yield: 0`. The company is private, so there is no
+human-capital disclosure to quote. The check failed any section that parsed zero, without
+looking at what the header declared. A declared-0 section that parses 0 now counts as a match;
+a section declared non-empty that parses empty still fails. Regression tests are in
+`causal_graph/test_verify_scrub.py`. P-07 to P-15 all PASS under the fixed script. P-01 to
+P-06 fail exactly as they did under the original script (round 1 is frozen, never re-scrubbed),
+minus the declared-empty false positives, which also hit P-03, P-04 and P-05. One more false
+alarm to know about: the name check matches substrings, so `--company RGA` on P-04 hits
+"organisation". Use whole names, or read the hit before believing it.
+
+**Two decisions for Sebastian, flagged rather than decided:**
+- **P-15 is thin:** 31 excerpts against ~50 for the others. B has 5 reviews against a minimum
+  of 12: the required source has 2 worldwide, and the optional one sign-in-walled after 3.
+  F is empty (private), D is one voice, 3 of the 4 E excerpts come from one article, and all
+  of A is access-dated. Rate it as-is (the packet carries a NOTE TO RATER) or replace the
+  company.
+- **P-14 acrostic:** the scrub flagged that the initials of the seven stripped value names
+  still spell the company's acronym. No string check can catch that; it needs a reorder or a
+  reword ruling.
+
+## 2026-10-02 harvest
+
+RESEARCH   Research never started: no RUN_REPORT.md and no packet in _build_env/packets/ (empty). P-16 Smartsheet is still the top line of to_be_researched.txt. This is "did not run", not "empty queue" -- 4 companies are still waiting.
+SCRUB      Scrub did not produce output: _scrub_env/packets_out/ is empty (no ANON, diff, content_defects or run_report). The P-15 Hudson River Trading packet staged on 2026-10-01 is still sitting unconsumed in _scrub_env/packets_raw/ (byte-identical to packets/P-15_hudson_river_trading/P-15_packet.txt). Nothing promoted, no run folder created, no failed-run folder created (there was no partial set to preserve).
+LISTS      to_be_researched: 4 remaining (P-16 Smartsheet, P-17 HCA Healthcare, P-18 Fifth Third Bank, P-19 Centene) · to_be_scrubbed: 1 waiting (P-15). No lines changed.
+STAGED     Nothing new. packets_raw/ already holds exactly one packet (P-15), so step 4 was skipped. ANONYMIZATION_RULES_DRAFT.md in _scrub_env/ is byte-identical to anonymization/ -- no refresh needed.
+REFUSED    nothing
+NOT YET VERIFIED -- nothing promoted this harvest. (P-14 from the 2026-10-01 harvest is still unverified unless noted elsewhere: python Scripts/verify_scrub.py P-14 --company "Crawford & Company")
+
 ## 2026-10-01 harvest
 
 RESEARCH   P-15 Hudson River Trading — 31 excerpts (A 8 · B 5 · C 10 · D 4 from 1 source · E 4 from 2 sources · F 0, private), collector v4.11 — moved to packets/P-15_hudson_river_trading/. Run report status was COMPLETE (2026-09-30 12:24–17:35 UTC; report mtime 17:33 UTC, so >24h old but not waiting on anyone). Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
