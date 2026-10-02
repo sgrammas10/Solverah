@@ -16,16 +16,21 @@ import { MemoryRouter } from "react-router-dom";
 import ManagerMatchPage from "./ManagerMatchPage";
 import { MM_QUESTIONS } from "../data/mmQuestions";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   reset: vi.fn(),
+  clearAnswers: vi.fn(),
   setAnswer: vi.fn(),
   setCachedResult: vi.fn(),
   startScoringMutate: vi.fn(),
   mmState: { answers: [] as any[], cachedResult: null as any },
   /** What `useScoringJobStatus` reports on the next render. */
   job: { data: undefined as any, error: null as Error | null },
+  /** What `useManagerMatchResult` reports, and the `enabled` it was last given. */
+  storedResult: { data: undefined as unknown, error: null as unknown },
+  storedResultEnabled: undefined as boolean | undefined,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -38,9 +43,23 @@ vi.mock("../useMM", () => ({
     state: mocks.mmState,
     setAnswer: mocks.setAnswer,
     setCachedResult: mocks.setCachedResult,
+    clearAnswers: mocks.clearAnswers,
     reset: mocks.reset,
   }),
 }));
+
+// The stored-result check on mount. `isNoManagerMatchResult` stays real: the
+// 404-by-status decision is part of what these cases test.
+vi.mock("../useManagerMatchResult", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useManagerMatchResult")>();
+  return {
+    ...actual,
+    useManagerMatchResult: (options: { enabled?: boolean } = {}) => {
+      mocks.storedResultEnabled = options.enabled;
+      return mocks.storedResult;
+    },
+  };
+});
 
 vi.mock("../useScoringJob", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../useScoringJob")>();
@@ -84,6 +103,8 @@ beforeEach(() => {
   mocks.mmState = { answers: [], cachedResult: null };
   mocks.job.data = undefined;
   mocks.job.error = null;
+  mocks.storedResult = { data: undefined, error: null };
+  mocks.storedResultEnabled = undefined;
 });
 
 /**
@@ -218,6 +239,54 @@ describe("ManagerMatchPage - submitting phase", () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: ["profile", "document"],
     });
+  });
+
+  it("clears the draft once the job succeeds", async () => {
+    // Regression (audit 2026-10-02, F2): the 15-answer draft stayed in
+    // sessionStorage after scoring, and the next visit re-scored it.
+    scoringSettlesAs({
+      job_id: "mm-job-1",
+      status: "succeeded",
+      result: { archetype: "The Autonomist", dimension_scores: {} },
+      error: null,
+    });
+    renderPage();
+    await answerEveryQuestion();
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/manager-match/results'));
+    expect(mocks.clearAnswers).toHaveBeenCalled();
+    // A draft clear, not a reset: the result just cached must survive.
+    expect(mocks.reset).not.toHaveBeenCalled();
+  });
+
+  it("invalidates the manager playbook when the job succeeds", async () => {
+    // Regression (F3): the playbook diffs against these needs, so a retake
+    // left a stale cached playbook for up to the 60 s staleTime.
+    scoringSettlesAs({
+      job_id: "mm-job-1",
+      status: "succeeded",
+      result: { archetype: "The Autonomist", dimension_scores: {} },
+      error: null,
+    });
+    renderPage();
+    await answerEveryQuestion();
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith('/manager-match/results'));
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["managerPlaybook"],
+    });
+  });
+
+  it("does not clear the draft while the job is still queued", async () => {
+    // A reload mid-scoring needs the draft: it is the only copy of the answers.
+    scoringStaysQueued();
+    renderPage();
+    await answerEveryQuestion();
+
+    await waitFor(() =>
+      expect(screen.getByText(/Analysing your management preferences/i)).toBeInTheDocument()
+    );
+    expect(mocks.clearAnswers).not.toHaveBeenCalled();
   });
 
   it("does not invalidate the profile document while the job is still queued", async () => {
@@ -364,5 +433,106 @@ describe("ManagerMatchPage - resume prompt for a saved draft", () => {
     mocks.mmState = { answers: draftOf(4), cachedResult: null };
     renderPage({ retake: true });
     expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
+  });
+});
+
+
+// ── a complete draft on mount ─────────────────────────────────────────────────
+
+describe("ManagerMatchPage - complete draft found on mount", () => {
+  const completeDraft = () =>
+    MM_QUESTIONS.map((q) => ({ questionId: q.id, choice: "a" as const }));
+
+  it("sends the user to their stored result instead of re-scoring", async () => {
+    // Regression (audit 2026-10-02, F2): a complete draft with an empty query
+    // cache (any reload) was re-enqueued on mount, re-scoring a finished
+    // sitting -- an LLM call and a replaced narrative on every visit.
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    mocks.storedResult = { data: { archetype: "The Autonomist" }, error: null };
+    renderPage();
+
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith('/manager-match/results', { replace: true })
+    );
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
+    expect(mocks.clearAnswers).toHaveBeenCalled();
+  });
+
+  it("asks the server only when the draft at mount is complete", () => {
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    mocks.storedResult = { data: undefined, error: null }; // still in flight
+    renderPage();
+
+    expect(mocks.storedResultEnabled).toBe(true);
+    expect(screen.getByText(/Checking for your results/i)).toBeInTheDocument();
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
+  });
+
+  it("does not ask the server for a fresh sitting", () => {
+    renderPage();
+    expect(mocks.storedResultEnabled).toBe(false);
+    expect(screen.getByRole("button", { name: /Start ManagerMatch™/i })).toBeInTheDocument();
+  });
+
+  it("scores the draft when the server has no result (404)", async () => {
+    // The reload landed before the job finished: the draft is the only copy.
+    scoringStaysQueued();
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    mocks.storedResult = {
+      data: undefined,
+      error: new ApiError("No ManagerMatch result found", { status: 404 }),
+    };
+    renderPage();
+
+    await waitFor(() => expect(mocks.startScoringMutate).toHaveBeenCalledTimes(1));
+    expect(mocks.startScoringMutate.mock.calls[0][0].answers).toHaveLength(15);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("does not act on a cached 404 while the fresh check is still in flight", () => {
+    // A 404 cached by an earlier visit survives the refetch this mount starts.
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    mocks.storedResult = {
+      data: undefined,
+      error: new ApiError("No ManagerMatch result found", { status: 404 }),
+      isFetching: true,
+    } as typeof mocks.storedResult;
+    renderPage();
+
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
+    expect(screen.getByText(/Checking for your results/i)).toBeInTheDocument();
+  });
+
+  it("never re-scores on an error that is not the 404", async () => {
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    mocks.storedResult = {
+      data: undefined,
+      error: new ApiError("Service unavailable", { status: 503 }),
+    };
+    renderPage();
+
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith('/manager-match/results', { replace: true })
+    );
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
+  });
+
+  it("goes straight to results, and drops the draft, when the result is already cached", () => {
+    mocks.mmState = { answers: completeDraft(), cachedResult: { archetype: "The Autonomist" } };
+    renderPage();
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/manager-match/results', { replace: true });
+    expect(mocks.clearAnswers).toHaveBeenCalled();
+    expect(mocks.storedResultEnabled).toBe(false);
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
+  });
+
+  it("a retake with a complete draft resets instead of checking or scoring", () => {
+    mocks.mmState = { answers: completeDraft(), cachedResult: null };
+    renderPage({ retake: true });
+
+    expect(mocks.reset).toHaveBeenCalledTimes(1);
+    expect(mocks.storedResultEnabled).toBe(false);
+    expect(mocks.startScoringMutate).not.toHaveBeenCalled();
   });
 });

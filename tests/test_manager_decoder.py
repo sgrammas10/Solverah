@@ -606,6 +606,26 @@ def test_decoder_dimensions_match_both_instruments_exactly() -> None:
     assert set(DIMENSIONS) == {q["dimension"] for q in MANAGER_PROFILE_QUESTIONS}
 
 
+def test_module_docstring_names_every_item_off_the_shared_anchors() -> None:
+    """Regression (audit 2026-10-02, F8): the docstring claimed both
+    instruments share the 0.25/0.80 anchors, which `mm-q10` and `mm-q14` do
+    not. Any item off those anchors must be named there with its own pair, so
+    the threshold derivation a reader checks is the true one."""
+    import manager_match.decoder as decoder_module
+
+    doc = decoder_module.__doc__ or ""
+    off_anchor = [
+        q
+        for q in [*QUESTIONS, *MANAGER_PROFILE_QUESTIONS]
+        if sorted((q["score_a"], q["score_b"])) != [0.25, 0.80]
+    ]
+    assert off_anchor, "no off-anchor items left: simplify the docstring and this test"
+    for q in off_anchor:
+        hi, lo = max(q["score_a"], q["score_b"]), min(q["score_a"], q["score_b"])
+        assert f"`{q['question_id']}`" in doc, q["question_id"]
+        assert f"{hi:.2f}/{lo:.2f}" in doc, q["question_id"]
+
+
 def test_decode_runs_from_raw_answers_through_both_scorers() -> None:
     user_answers = _answers(QUESTIONS, {q["question_id"] for q in QUESTIONS})
     manager_answers = _answers(MANAGER_PROFILE_QUESTIONS, set())

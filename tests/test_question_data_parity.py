@@ -35,6 +35,7 @@ import re
 from pathlib import Path
 
 from manager_match.manager_profile import EXPECTED_ANSWER_COUNT, MANAGER_PROFILE_QUESTIONS
+from manager_match.questions import QUESTIONS as MANAGER_MATCH_QUESTIONS
 from work_pulse.situation_items import (
     COMP_ITEM,
     EXPECTED_DIMENSION_ITEM_COUNT,
@@ -49,6 +50,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "src" / "features" / "assessments" / "data"
 ENV_TS = DATA_DIR / "envQuestions.ts"
 MP_TS = DATA_DIR / "mpQuestions.ts"
+MM_TS = DATA_DIR / "mmQuestions.ts"
 
 
 def _read(path: Path) -> str:
@@ -208,3 +210,44 @@ def test_mp_questions_match_manager_profile_py():
     assert option_a == [q["option_a_text"] for q in MANAGER_PROFILE_QUESTIONS]
     assert option_b == [q["option_b_text"] for q in MANAGER_PROFILE_QUESTIONS]
     assert dimensions == [q["dimension"] for q in MANAGER_PROFILE_QUESTIONS]
+
+
+# ---------------------------------------------------------------------------
+# mmQuestions.ts vs manager_match/questions.py
+# ---------------------------------------------------------------------------
+
+#: Pinned here rather than taken from `len(MANAGER_MATCH_QUESTIONS)`: the
+#: scorer (`score_manager_match`) and the API precheck both hard-code 15, so a
+#: Python list that grew or shrank must fail this file too, not re-scale it.
+EXPECTED_MM_QUESTION_COUNT = 15
+
+
+def test_mm_questions_match_questions_py():
+    """Added 2026-10-02 (manager-match audit, F5). Before it, mmQuestions.ts had
+    no guard and had drifted: eight option texts carried straight apostrophes
+    where `questions.py` (the scoring authority, and the text the LLM narrative
+    prompt quotes) has curly ones."""
+    text = _read(MM_TS)
+    block = _section(text, "export const MM_QUESTIONS: MMQuestion[] = [", "\n];")
+
+    ids = _field(r'\bid:\s*"([^"]*)"', block)
+    option_a = _field(r'\boptionA:\s*"([^"]*)"', block)
+    option_b = _field(r'\boptionB:\s*"([^"]*)"', block)
+    dimensions = _field(r'\bdimension:\s*"([^"]*)"', block)
+
+    assert len(MANAGER_MATCH_QUESTIONS) == EXPECTED_MM_QUESTION_COUNT
+    for name, values in [
+        ("id", ids),
+        ("optionA", option_a),
+        ("optionB", option_b),
+        ("dimension", dimensions),
+    ]:
+        assert len(values) == EXPECTED_MM_QUESTION_COUNT, (
+            f"{name}: expected {EXPECTED_MM_QUESTION_COUNT} in mmQuestions.ts, found {len(values)} "
+            "-- the field scan may have stopped matching"
+        )
+
+    assert ids == [q["question_id"] for q in MANAGER_MATCH_QUESTIONS]
+    assert option_a == [q["option_a_text"] for q in MANAGER_MATCH_QUESTIONS]
+    assert option_b == [q["option_b_text"] for q in MANAGER_MATCH_QUESTIONS]
+    assert dimensions == [q["dimension"] for q in MANAGER_MATCH_QUESTIONS]

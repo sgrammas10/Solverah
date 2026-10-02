@@ -2,9 +2,21 @@
 
 `questions.py`/`score.py` measure what the user needs from a manager.
 `manager_profile.py` measures what their actual manager observably does. Both
-run the same four dimensions on the same 0–1 scale with the same 0.25/0.80
-anchors, which is what makes them subtractable. This module does the
-subtraction and turns the result into a private managing-up playbook.
+run the same four dimensions on the same 0–1 scale, which is what makes them
+subtractable. This module does the subtraction and turns the result into a
+private managing-up playbook.
+
+**The anchors are not identical across the two instruments.** Every
+manager-profile item scores 0.25/0.80, and so do thirteen of the fifteen
+ManagerMatch items. The two exceptions are `mm-q10` (relationship, 0.70/0.30,
+a 0.40 spread) and `mm-q14` (growth_focus, 0.75/0.25, a 0.50 spread). Both are
+narrower than the 0.55 spread, so they move a dimension mean less than any
+other item. That shrinks the user-side range on those two dimensions slightly
+(relationship reaches only 0.2667–0.7667, growth_focus 0.25–0.7875) but leaves
+the largest single-item step unchanged, and that step is what the thresholds
+below are derived from. (Corrected 2026-10-02: this paragraph used to claim
+"the same 0.25/0.80 anchors" for both instruments. Doc only; no anchor or
+threshold changed.)
 
 Pure: no Flask, no DB, no provider call, no clock, no randomness. Storage and
 the API are C-3; rendering is C-4. Assembly here is a lookup over the static
@@ -27,13 +39,17 @@ copy is written to hold that line — see `playbook_content.py`.
 **Where the thresholds come from.** They are calibrated so that a single item
 answered differently can never on its own manufacture a grind, because on a
 forced-choice instrument with no pilot data that is the smallest movement that
-is plainly noise. One item's worth of movement is the anchor spread divided by
-the number of items on that dimension's *shorter* side:
+is plainly noise. The largest single item's worth of movement is the widest
+anchor spread on the dimension (0.55 everywhere; `mm-q10` and `mm-q14` are
+narrower, see above) divided by the number of items on that dimension's
+*shorter* side:
 
     autonomy        4 user items,  4 manager items  → 0.55/4 = 0.1375
     feedback_style  4 user items,  4 manager items  → 0.55/4 = 0.1375
-    growth_focus    4 user items,  4 manager items  → 0.55/4 ≈ 0.1375
+    growth_focus    4 user items,  4 manager items  → 0.55/4 = 0.1375
+                                                      (mm-q14: 0.50/4 = 0.125)
     relationship    3 user items,  4 manager items  → 0.55/3 ≈ 0.1833
+                                                      (mm-q10: 0.40/3 ≈ 0.1333)
 
 so `relationship` needs a wider mesh band than the other three purely on
 arithmetic.
