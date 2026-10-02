@@ -1057,3 +1057,235 @@ def test_export_carries_subject_on_every_environment_report(client, monkeypatch)
     from solverah.schemas.account import AccountExportResponse
 
     AccountExportResponse.model_validate(payload)
+
+
+# -- F1 (audit 2026-10-02): a career-status change after filing reaches the user --
+
+
+@pytest.mark.parametrize(
+    "filed_as, now, flagged",
+    [
+        ("employed", "between_jobs", True),
+        ("between_jobs", "employed", True),
+        # first_job maps to the past tense, but it has no role to describe: the
+        # form gates it and the submit 409s, so a banner would be a dead end
+        # that could never clear. Not flagged.
+        ("employed", "first_job", False),
+    ],
+)
+def test_career_status_tense_change_after_filing_is_flagged(
+    client, monkeypatch, filed_as, now, flagged
+):
+    """The report renders from the career_status snapshot, so a status change in
+    either tense direction was invisible. The flag reaches the payload; the
+    report itself is NOT re-sliced (banner-only, 2026-10-02)."""
+    email = "f1_%s_to_%s@example.com" % (filed_as, now)
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, filed_as)
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf, pole="low").status_code == 200
+
+    before = _get_report(client).get_json()
+    assert before["career_status_changed"] is False
+
+    _set_career_status(client, csrf, now)
+    after = _get_report(client).get_json()
+
+    assert after["state"] == "complete"
+    assert after["career_status_changed"] is flagged
+    # Banner only: the old report still renders from its own snapshot.
+    assert after["career_status"] == filed_as
+    assert after["needs_forward"] == before["needs_forward"]
+    assert after["dimensions"] == before["dimensions"]
+
+
+def test_resubmitting_after_a_career_status_change_clears_the_flag(client, monkeypatch):
+    email = "f1_resubmit@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+    _set_career_status(client, csrf, "between_jobs")
+    assert _get_report(client).get_json()["career_status_changed"] is True
+
+    assert _submit_env(client, csrf).status_code == 200
+
+    body = _get_report(client).get_json()
+    assert body["career_status_changed"] is False
+    assert body["career_status"] == "between_jobs"
+    assert body["needs_forward"] is True
+
+
+# -- F2 (audit 2026-10-02): an unreadable pinned sitting is a state, not a 500 --
+
+
+def test_pin_to_a_sitting_with_no_responses_is_needs_core_unreadable_not_500(
+    client, monkeypatch
+):
+    email = "f2_unknown_pin@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+
+    from app import app
+    from model import User, db
+    import situation_report_pin_store
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        situation_report_pin_store.set_pin(db, user.id, "0" * 32)
+        db.session.commit()
+
+    res = _get_report(client)
+
+    assert res.status_code == 200, res.get_data()
+    body = res.get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+    assert {d["env_score"] for d in body["environment"]["dimensions"]} == {0.5}
+    from solverah.schemas.situation_report import SituationReportResponse
+
+    SituationReportResponse.model_validate(body)
+
+
+def test_scores_with_no_core_submission_row_is_needs_core_unreadable_not_500(
+    client, monkeypatch
+):
+    """Person-side scores of the current instrument with no `core` submission row
+    behind them, so the default pin resolves to None -- e.g. a sitting recorded
+    before submission rows existed."""
+    email = "f2_no_submission@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+
+    from app import app
+    from model import AssessmentSubmission, User, db
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        AssessmentSubmission.query.filter_by(user_id=user.id, kind="core").delete()
+        db.session.commit()
+
+    res = _get_report(client)
+
+    assert res.status_code == 200, res.get_data()
+    body = res.get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+
+
+def test_plain_needs_core_carries_no_core_unreadable_flag(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch, email="f2_plain@example.com")
+    _set_career_status(client, csrf, "employed")
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and "core_unreadable" not in body
+
+
+# -- F9 (audit 2026-10-02): two racing past submits file exactly one report --
+
+
+def _someone_waits_on_a_lock(engine):
+    import sqlalchemy as sa
+
+    with engine.connect() as connection:
+        return (
+            connection.execute(
+                sa.text(
+                    # Joined through pg_stat_activity: a row-lock waiter waits on a
+                    # `transactionid` lock, whose `database` column is NULL.
+                    "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+                    "WHERE NOT l.granted AND a.datname = current_database()"
+                )
+            ).scalar()
+            > 0
+        )
+
+
+def test_two_interleaved_past_submits_file_exactly_one_past_report(client, monkeypatch):
+    """`_check_past_report_allowed` takes a row lock on the user before counting.
+    The first submit is held open after its INSERT, before its commit; the second
+    then runs. Without the lock the second counts zero past reports (the first is
+    uncommitted), writes, and the user ends with two. With it, the second waits
+    at the lock, then counts the first and refuses with `past_report_limit`. The
+    interleaving is driven, not raced: the first is released only once the second
+    has finished or is seen waiting in `pg_locks`."""
+    import threading
+    import time
+
+    import environment_report_store
+    from app import app
+    from model import User, db
+    from solverah.errors import ConflictError
+    from solverah.services import situation_report_service
+
+    email = "f9_race@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf).status_code == 200
+    with app.app_context():
+        user_id = User.query.filter_by(email=email).first().id
+        engine = db.engine
+
+    real_write = environment_report_store.write_environment_report
+    first_wrote = threading.Event()
+    release_first = threading.Event()
+
+    def write_then_hold_the_first(*args, **kwargs):
+        real_write(*args, **kwargs)
+        if threading.current_thread().name == "first":
+            first_wrote.set()
+            release_first.wait(30)
+
+    monkeypatch.setattr(
+        environment_report_store, "write_environment_report", write_then_hold_the_first
+    )
+
+    payload = {
+        "answers": _env_answers("high"),
+        "stage_size": 2,
+        "comp": 2,
+        "experienced": 2,
+        "subject": "past",
+    }
+    results, errors = {}, {}
+
+    def submit():
+        name = threading.current_thread().name
+        try:
+            with app.app_context():
+                user = db.session.get(User, user_id)
+                try:
+                    results[name] = situation_report_service.submit_environment_report(
+                        user, payload
+                    )
+                finally:
+                    db.session.rollback()
+                    db.session.remove()
+        except Exception as exc:  # noqa: BLE001 -- asserted below
+            errors[name] = exc
+
+    first = threading.Thread(target=submit, name="first")
+    second = threading.Thread(target=submit, name="second")
+    first.start()
+    try:
+        assert first_wrote.wait(30), "the first past submit never reached its commit"
+        second.start()
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if "second" in results or "second" in errors or _someone_waits_on_a_lock(engine):
+                break
+            time.sleep(0.02)
+    finally:
+        release_first.set()
+        first.join(30)
+        if second.ident is not None:
+            second.join(30)
+
+    assert "first" not in errors, errors
+    assert results["first"].status == 200
+    assert isinstance(errors.get("second"), ConflictError), (results, errors)
+    assert errors["second"].errors[0]["code"] == "past_report_limit"
+    assert [h["subject"] for h in _history(email)] == ["past", "current"]

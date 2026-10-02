@@ -174,7 +174,7 @@ function NoRoleToDescribe({ pastSubject }: { pastSubject: boolean }) {
  * reads experience), so the client cannot decide this up front without
  * duplicating that derivation.
  */
-function CareerStatusNeeded({ returnPath }: { returnPath: string }) {
+function CareerStatusNeeded({ returnTo }: { returnTo: { path: string; label: string } }) {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
@@ -196,7 +196,7 @@ function CareerStatusNeeded({ returnPath }: { returnPath: string }) {
               // once the status is saved (shared/lib/careerStatusReturn).
               state: {
                 showCareerStatusModal: true,
-                returnTo: { path: returnPath, label: "your Situation Report" },
+                returnTo,
               },
             })
           }
@@ -424,7 +424,14 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
   if (isCareerStatusNotSet(submitMutation.error)) {
     return (
       <CareerStatusNeeded
-        returnPath={pastSubject ? "/environment-report/past" : "/environment-report"}
+        returnTo={
+          // The label names where the path actually goes back to: in past mode
+          // that is this form about the earlier job, not the Situation Report
+          // (which a past report never changes) -- audit 2026-10-02, F7.
+          pastSubject
+            ? { path: "/environment-report/past", label: "the form about your earlier job" }
+            : { path: "/environment-report", label: "your Situation Report" }
+        }
       />
     );
   }

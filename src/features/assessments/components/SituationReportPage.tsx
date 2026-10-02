@@ -182,6 +182,31 @@ function ResubmissionBanner({ events }: { events: SituationReportEventSinceRepor
 }
 
 // ---------------------------------------------------------------------------
+// Career-status prompt (audit 2026-10-02, F1). The report renders from the
+// career status it was filed under; when the live status now reads in the
+// other tense (left the job, or started a new one) the server sets
+// `career_status_changed`. Banner only -- the old report is not re-rendered
+// forward-facing (or back) on the client. Describing the job again is what
+// clears it, the same as the resubmission banner above.
+// ---------------------------------------------------------------------------
+
+function CareerStatusChangedBanner({ changed, past }: { changed: boolean; past: boolean }) {
+  if (!changed) return null;
+  return (
+    <section className="flex flex-col gap-3 rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      <p className="text-[0.98rem] leading-[1.55] text-forest-dark">
+        {past
+          ? "Your career status says you're in a job now, but this report is about the one you left. Describe where you are now and the report will be about this job."
+          : "Your career status says you've moved on from this job since this report. Describe it again and the report will turn to what to look for next."}
+      </p>
+      <Link to="/environment-report" className={`${SECONDARY} shrink-0 bg-white`}>
+        {past ? "Describe your job" : "Describe it again"}
+      </Link>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // The experienced trend, beside the diagnosis (BUILD_PLAN B-4). Sourced from
 // the same `usePulseHistory` hook B-3's trend view uses -- no situation-report
 // payload field for this, since the raw check-ins already reached the wire
@@ -194,9 +219,30 @@ const SIDE_PANEL = `${PANEL} space-y-2.5 px-5 py-4 print:break-inside-avoid`;
 const SIDE_H2 = "font-headline text-[1.05rem] font-bold leading-snug text-ink-primary";
 
 function ExperiencedTrendSection() {
-  const { data, isLoading } = usePulseHistory();
+  const { data, isLoading, isError, isFetching, refetch } = usePulseHistory();
 
   if (isLoading) return null;
+
+  // A failed fetch is not "no check-ins": telling someone who has checked in
+  // that they haven't would be false (audit 2026-10-02, F5).
+  if (isError) {
+    return (
+      <section className={`${SIDE_PANEL} print:hidden`}>
+        <h2 className={SIDE_H2}>How work's been working for you</h2>
+        <p className={BODY_MUTED} role="alert">
+          We couldn't load your Pulse check-ins just now.{" "}
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={TEXT_LINK}
+          >
+            {isFetching ? "Trying again…" : "Try again"}
+          </button>
+        </p>
+      </section>
+    );
+  }
 
   const checkins = data?.checkins ?? [];
 
@@ -299,10 +345,13 @@ function PinFooter() {
  *  leave or stay, and the pin with the control that moves it.
  *
  *  `canDescribePastJob` adds one quiet line offering the one past-job
- *  environment report (PRODUCT_DECISIONS §2, 2026-10-01) -- the same gate
- *  `IntelligencePage`'s entry card uses: not yet filed, and not a `first_job`
- *  career status, which has no earlier role to describe. It sits here rather
- *  than inside a dimension card, since it is not part of the diagnosis. */
+ *  environment report (PRODUCT_DECISIONS §2, 2026-10-01): shown until it is
+ *  filed. There is no `first_job` check here: `report.career_status` is the
+ *  snapshot of a current report, and the server never files one for
+ *  `first_job`, so that check could never fire. A user whose LIVE status has
+ *  since become `first_job` is refused by the server and gated by the past
+ *  form itself (`NoRoleToDescribe`). It sits here rather than inside a
+ *  dimension card, since it is not part of the diagnosis. */
 function AboutFooter({
   notice,
   canDescribePastJob,
@@ -394,6 +443,28 @@ export default function SituationReportPage() {
   // ── needs_core ────────────────────────────────────────────────────────────
   if (report.state === "needs_core") {
     const hasEnvironment = report.environment !== null;
+    if (report.core_unreadable) {
+      // A sitting exists, but not one this report can read (audit 2026-10-02,
+      // F2) -- so "you haven't finished it" would be false.
+      return (
+        <Gate title="We couldn't read your side">
+          <p className={LEAD}>
+            The Situation Report compares how you work with what your job asks of you,
+            and we couldn't read the Work Pulse sitting it's built on.
+          </p>
+          <p className={LEAD}>
+            {hasEnvironment
+              ? "Your description of the job is saved. Taking Work Pulse again — about eight minutes — brings the report back."
+              : "Taking Work Pulse again — about eight minutes — brings the report back."}
+          </p>
+          <div className="pt-2">
+            <button type="button" onClick={() => navigate("/work-pulse")} className={PRIMARY}>
+              Take Work Pulse again
+            </button>
+          </div>
+        </Gate>
+      );
+    }
     return (
       <Gate title="This one needs your side first">
         <p className={LEAD}>
@@ -534,6 +605,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         </header>
 
         <ResubmissionBanner events={report.events_since_report} />
+        <CareerStatusChangedBanner changed={report.career_status_changed === true} past={past} />
 
         {dimensions.length === 0 ? (
           <section className="rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-6 py-5">
@@ -597,7 +669,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
 
       <AboutFooter
         notice={report.guidance_notice}
-        canDescribePastJob={!report.past_job_report_filed && report.career_status !== "first_job"}
+        canDescribePastJob={!report.past_job_report_filed}
       />
     </Shell>
   );

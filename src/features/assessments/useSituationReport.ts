@@ -151,6 +151,11 @@ export interface SituationNeedsCore extends SituationReportCommon {
     career_status: string;
     submitted_at: string;
   } | null;
+  /** Present (true) only when a Work Pulse sitting exists but the one this
+   *  report is pinned to can't be read -- so the page says "we couldn't read
+   *  it" rather than "you haven't taken it". Retaking Work Pulse is still the
+   *  way back. */
+  core_unreadable?: boolean;
 }
 
 /** Core done, no environment report. `can_submit_environment_report` is false
@@ -175,6 +180,12 @@ export interface SituationComplete extends SituationReportCommon {
    *  filed -- that is the common case, and it is what keeps the resubmission
    *  banner from ever nagging. */
   events_since_report: SituationReportEventSinceReport[];
+  /** True when the user's LIVE career status now reads in a different tense
+   *  from the snapshot this report was filed under (e.g. employed -> between
+   *  jobs). The report is NOT re-sliced; the page only asks them to describe
+   *  the job again. The server always sends it in `complete`; optional here so
+   *  fixtures written before it existed still type-check. */
+  career_status_changed?: boolean;
 }
 
 export type SituationReport =

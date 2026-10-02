@@ -516,7 +516,12 @@ def post_my_environment_report():
         "Manager Decoder. `complete` additionally carries `events_since_report` "
         "(BUILD_PLAN B-4): Pulse life/work events logged after the environment "
         "report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- "
-        "what the frontend's resubmission banner reads. Every state carries "
+        "what the frontend's resubmission banner reads -- and `career_status_changed` "
+        "(bool): whether the user's live career status now reads in a different tense "
+        "from the one the report was filed under, so the frontend can ask them to "
+        "describe the job again (the report itself is not re-sliced). `needs_core` "
+        "carries `core_unreadable: true` when a core sitting exists but the pinned one "
+        "has no readable scores. Every state carries "
         "`past_job_report_filed` (bool): whether the user's one past-job environment "
         "report exists. Only reports about the current job feed the report itself."
     ),

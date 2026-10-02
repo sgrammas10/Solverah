@@ -1,27 +1,33 @@
 ---
 name: audit-2026-10-02-open-threads
-description: Open bugs/gaps found in the read-only lane audit before the Julie content day (2026-10-02); check which are fixed before acting
+description: What is still open from the 2026-10-02 lane audit after the same-day fix wave (F1/F2/F3/F5/F7/F9 fixed, uncommitted); check before acting
 metadata:
   type: project
 ---
 
-Read-only audit 2026-10-02 (pre Julie/Sebastian content day ~2026-10-09). Open as of that date:
+Audit 2026-10-02 (before the Julie/Sebastian content sprint, around 2026-10-09). The fix
+wave on the same day (orchestrator dispatch, uncommitted) closed F1 (banner-only
+`career_status_changed`), F2's None guard (`needs_core` + `core_unreadable`), F3 (card
+all-aligned), F5 (trend error state), F7 (past-mode return label, dead first_job check
+removed), and F9 (race test). Still open:
 
-1. Career-status change after a report is never surfaced: snapshot tense drives the report, so an
-   employed->between_jobs user keeps "Negotiate it"/experiments for a lost job (and the reverse).
-   Proposed fix: service flag when tense(live) != tense(snapshot) + banner. Needs Sebastian ruling
-   on banner-only vs auto re-slice.
-2. SituationDashboardCard all-aligned (current mode) shows "pull apart, furthest first" over six
-   Aligned chips; its test uses an impossible `dimensions: []` fixture.
-3. Pin default `first_completed_core_submission_id` ignores scoring_key_version while
-   `has_completed_assessment` is version-keyed; an instrument bump would 500 the report
-   (score_stored_choices raises; a None score dict also crashes). Read API is core-assessments'.
-4. USER_SCENARIOS S10/S21.2/S22.4/S9.6-9.7 stale vs the 2026-09-29 summary-first layout; no
-   scenario for /environment-report/past at all.
-5. Past-job offer has no "I had no earlier job" exit (decision).
-6. situationReport query not invalidated by career-status/experience saves or core completion
-   (60s global staleTime) — hand-off to profile-hub/core-assessments.
+1. F2 remainder (core-assessments' read API): the default pin
+   `first_completed_core_submission_id` is not keyed to scoring_key_version, while
+   `has_completed_assessment` is. After an instrument bump plus a retake,
+   `score_stored_choices` RAISES AssessmentError on the old sitting, which is a 500
+   that the None guard does not catch. It needs a version-keyed default, or
+   `dimension_scores_for_submission` returning None for a sitting it cannot score.
+2. `core_unreadable` gate says "take Work Pulse again". That works when no submission
+   row exists. It does NOT work for an explicit pin to a vanished sitting, because the
+   override persists, so recalibrate is the real exit there. It is a rare edge case.
+3. USER_SCENARIOS S10/S21.2/S22.4/S9.6-9.7 are stale against the 2026-09-29 layout, and
+   there is no /environment-report/past scenario. A doc pass is planned.
+4. Decisions Q2-Q4 are open: the past-job "no earlier job" exit, a duplicate past report,
+   and the first_job hub card.
+5. F6: the situationReport query is not invalidated on career-status/experience saves
+   or core completion. Profile-hub and core-assessments are fixing it. The F1 banner
+   depends on this to appear promptly.
 
-**Why:** these were deferred to keep the audit read-only.
-**How to apply:** at the next lane task, re-check each against code and delete fixed items.
-See [[lane-state-facts]].
+**Why:** these were deferred, or belong to another lane.
+**How to apply:** re-check each against the code at the next lane task, and delete
+the items that are fixed. See [[lane-state-facts]] and [[situation-f1-f2-wire-shape]].

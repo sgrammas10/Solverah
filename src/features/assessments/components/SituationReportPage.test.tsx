@@ -305,6 +305,20 @@ describe("SituationReportPage", () => {
       expect(screen.queryByText(/Straining|Notable|Aligned/)).not.toBeInTheDocument();
       expectNoScoresLeaked();
     });
+
+    // Audit 2026-10-02, F2: a sitting exists but the pinned one can't be read.
+    // "You haven't finished Work Pulse" would be false; the way back is a retake.
+    it("says the sitting couldn't be read, not that it was never taken, when core_unreadable", async () => {
+      serve({ ...NEEDS_CORE, core_unreadable: true });
+      renderPage();
+
+      expect(
+        await screen.findByRole("heading", { name: "We couldn't read your side" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/isn't finished yet/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /Take Work Pulse again/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse");
+    });
   });
 
   describe("needs_environment_report", () => {
@@ -698,12 +712,16 @@ describe("SituationReportPage", () => {
       expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
     });
 
-    it("is hidden for a first_job career status", async () => {
-      serve({ ...COMPLETE, career_status: "first_job" });
+    // Audit 2026-10-02, F7: the old `career_status !== "first_job"` gate read
+    // the SNAPSHOT, which is never first_job (the server files no report for
+    // it), so it could not fire. The link now depends on the flag alone; a
+    // live first_job user is gated by the past form and the server.
+    it("shows on a needs-forward report too, gated on the flag alone", async () => {
+      serve(COMPLETE_NEEDS_FORWARD);
       renderPage();
 
-      await screen.findByRole("heading", { name: "You, and this job" });
-      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
+      const link = await screen.findByRole("link", { name: LINK_NAME });
+      expect(link).toHaveAttribute("href", "/environment-report/past");
     });
 
     it("is absent outside the complete state", async () => {
@@ -845,7 +863,82 @@ describe("SituationReportPage", () => {
     });
   });
 
+  // Audit 2026-10-02, F1: the report renders from the career status it was
+  // filed under. A live status in the other tense raises a banner -- and only
+  // a banner: the report itself is not re-rendered.
+  describe("career-status banner", () => {
+    it("says nothing when the career status still matches the report", async () => {
+      serve({ ...COMPLETE, career_status_changed: false });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByText(/Your career status says/)).not.toBeInTheDocument();
+    });
+
+    it("asks a user who has left the job to describe it again, without re-rendering the report", async () => {
+      serve({ ...COMPLETE, career_status_changed: true });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Your career status says you've moved on from this job/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Describe it again" })).toHaveAttribute(
+        "href",
+        "/environment-report",
+      );
+      // Banner only: still the current-role report it was filed as.
+      expect(screen.getByRole("heading", { name: "You, and this job" })).toBeInTheDocument();
+      expect(renderedOrder()).toEqual(["Autonomy", "Feedback", "Pace"]);
+      expectNoScoresLeaked();
+    });
+
+    it("asks a user who has started a job to describe it, on a needs-forward report", async () => {
+      serve({ ...COMPLETE_NEEDS_FORWARD, career_status_changed: true });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Your career status says you're in a job now/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Describe your job" })).toHaveAttribute(
+        "href",
+        "/environment-report",
+      );
+      expect(screen.getByRole("heading", { name: "What to look for next" })).toBeInTheDocument();
+    });
+
+    it("sits alongside the resubmission banner when both apply", async () => {
+      serve({
+        ...COMPLETE,
+        career_status_changed: true,
+        events_since_report: [{ type: "reorg", date: "2026-09-12T00:00:00Z" }],
+      });
+      renderPage();
+
+      expect(await screen.findByText(/went through a reorg since this report/)).toBeInTheDocument();
+      expect(screen.getByText(/Your career status says/)).toBeInTheDocument();
+    });
+  });
+
   describe("experienced trend (BUILD_PLAN B-4)", () => {
+    // Audit 2026-10-02, F5: a failed history fetch used to read as zero
+    // check-ins and tell a user who HAS checked in that they haven't.
+    it("shows an error with a retry, not the no-check-ins invitation, when the history fetch fails", async () => {
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/situation-report") return Promise.resolve(COMPLETE);
+        if (path === "/me/experiments") return Promise.resolve({ experiments: [] });
+        // 4xx so `shouldRetry` doesn't hold the query mid-retry.
+        if (path === "/me/pulse/history") return Promise.reject(new ApiError("boom", { status: 403 }));
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(/We couldn't load your Pulse check-ins just now/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/You haven't checked in on Pulse yet/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    });
+
     it("invites a user with no check-ins to Pulse, rather than showing an empty chart", async () => {
       serve(COMPLETE, undefined, { checkins: [], events: [] });
       renderPage();
@@ -1073,7 +1166,7 @@ describe("SituationReportPage", () => {
         {
           id: 1, dimension: "autonomy", direction: "under",
           started_at: "2026-08-01T00:00:00Z", ends_at: "2026-08-15T00:00:00Z",
-          status: "active", abandoned_at: null, phase: "ended",
+          status: "completed", abandoned_at: null, phase: "ended",
           experiment_name: "One piece, your method, for a fortnight",
           readout: { verdict: "moved_up", before_count: 2, after_count: 3 },
         },

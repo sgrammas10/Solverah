@@ -41,7 +41,7 @@
  */
 import { Link } from "react-router-dom";
 
-import { useSituationReport } from "../useSituationReport";
+import { isAlignedEntry, useSituationReport } from "../useSituationReport";
 import type { SituationDimensionEntry, SituationReport } from "../useSituationReport";
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -204,8 +204,13 @@ export default function SituationDashboardCard({
     const past = report.needs_forward;
     heading = past ? "What to look for next" : "How your conditions sit";
     reportLink = true;
+    // Current mode always sends all six rows, aligned ones included; the
+    // needs-forward slice drops the aligned rows. Either way "something is
+    // pulling apart" means a non-aligned row, never a non-empty list -- six
+    // Aligned chips under "furthest first" was the 2026-10-02 audit's F3.
+    const anyStrain = report.dimensions.some((entry) => !isAlignedEntry(entry));
     body =
-      report.dimensions.length > 0 ? (
+      anyStrain ? (
         <div className="space-y-3">
           <p className="text-sm text-ink-secondary leading-relaxed">
             {past

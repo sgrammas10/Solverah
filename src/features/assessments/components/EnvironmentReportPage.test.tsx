@@ -578,6 +578,26 @@ describe("EnvironmentReportPage — past job", () => {
     expect(screen.getByText(STAGE_SIZE_ITEM.options[0].textPast)).toBeInTheDocument();
   });
 
+  // Audit 2026-10-02, F7: the return link used to say "your Situation Report"
+  // while sending the user back to this form.
+  it("names the earlier-job form, not the Situation Report, in the career-status return link", async () => {
+    serve({
+      report: COMPLETE,
+      submit: () => Promise.reject(new ApiError("career_status_not_set", { status: 400 })),
+    });
+    renderPage("past");
+    await startPast();
+    await answerAll();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Set your career status/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/environment-report/past", label: "the form about your earlier job" },
+      },
+    });
+  });
+
   it("keeps its draft under its own key, apart from the current-job draft", async () => {
     // A half-finished current-job draft must not resume as the past one.
     sessionStorage.setItem(

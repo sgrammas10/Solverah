@@ -1,2 +1,3 @@
 - [Lane state facts](lane-state-facts.md) — 2026-10-02: seam is an e2e test (not tombstone), envQuestions hand-written, subject migration landed
-- [Audit open threads 2026-10-02](audit-2026-10-02-open-threads.md) — six open items from the pre-Julie-day audit; re-check before acting
+- [Audit open threads](audit-2026-10-02-open-threads.md) — what is still open after the 2026-10-02 fix wave (F2 remainder is core-assessments', docs, Q2-Q4, F6)
+- [F1/F2 wire shape](situation-f1-f2-wire-shape.md) — career_status_changed is complete-only; core_unreadable rides on needs_core (no new state), and why

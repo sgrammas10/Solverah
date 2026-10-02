@@ -397,12 +397,60 @@ def _dimension_weights() -> Dict[str, Dict[str, float]]:
     )
 
 
+def _needs_core_body(env: Optional[dict], manager: dict) -> Dict[str, Any]:
+    """The `needs_core` body: the manager section and, when a current
+    environment report exists, its bare dimension scores (nothing to diff)."""
+    from work_pulse import situation
+
+    body: Dict[str, Any] = {"state": NEEDS_CORE, "manager": manager}
+    if env is None:
+        body["environment"] = None
+        return body
+    body["environment"] = {
+        "dimensions": [
+            {"dimension": dim, "env_score": env["dimension_scores"][dim]}
+            for dim in situation.DIMENSIONS
+        ],
+        "career_status": env["career_status"],
+        "submitted_at": env["submitted_at"],
+    }
+    return body
+
+
+def _career_status_changed(user_id: int, snapshot: str) -> bool:
+    """Whether the caller's LIVE career status reads in a different tense from
+    the one the report was filed under (audit 2026-10-02, F1).
+
+    The report renders from the snapshot, so an `employed` user who has since
+    left keeps a current-role report about a job they no longer hold (and the
+    reverse). This flag only lets the page ask them to describe the job again;
+    the report itself is not re-sliced. A live status that is unset or unknown
+    is not evidence of a change, so it reads False.
+
+    A live `first_job` also reads False. `first_job` is past-tense only as a
+    rendering flag ("no current role"); it has no role to describe, so the
+    environment form gates it and the submit refuses it with 409
+    `first_job_no_role`. A flag would raise a banner whose only action is that
+    dead end, and since only a new report clears it, it would never go away.
+    """
+    from work_pulse import situation_items
+
+    live = _live_career_status(user_id)
+    if live == "first_job" or live not in situation_items.TENSE_BY_CAREER_STATUS:
+        return False
+    return situation_items.is_past_tense(live) != situation_items.is_past_tense(snapshot)
+
+
 def get_situation_report(user: User) -> SituationReportResult:
     """The three states, per BUILD_PLAN §3.5. D-15 (structural, every state): no
     person-side score, no numeric gap, no per-dimension magnitude, anywhere.
 
     Every state also carries `past_job_report_filed`. Nothing else here reads a
     past-job report: the latest-report read is current-only by construction.
+
+    `complete` also carries `career_status_changed` (see `_career_status_changed`).
+    `needs_core` carries `core_unreadable: true` when a current-instrument sitting
+    exists but the pinned one has no readable scores -- a graceful state, never a 500.
     """
     import environment_report_store
 
@@ -425,19 +473,7 @@ def _situation_report(user: User) -> SituationReportResult:
     manager = _manager_section(user.id)
 
     if not has_core:
-        body: Dict[str, Any] = {"state": NEEDS_CORE, "manager": manager}
-        if env is not None:
-            body["environment"] = {
-                "dimensions": [
-                    {"dimension": dim, "env_score": env["dimension_scores"][dim]}
-                    for dim in situation.DIMENSIONS
-                ],
-                "career_status": env["career_status"],
-                "submitted_at": env["submitted_at"],
-            }
-        else:
-            body["environment"] = None
-        return SituationReportResult(status=200, body=body)
+        return SituationReportResult(status=200, body=_needs_core_body(env, manager))
 
     if env is None:
         live_status = _live_career_status(user.id)
@@ -451,7 +487,21 @@ def _situation_report(user: User) -> SituationReportResult:
         )
 
     submission_id = _pinned_submission_id(user.id)
-    person_scores = assessment_store.dimension_scores_for_submission(submission_id)
+    person_scores = (
+        assessment_store.dimension_scores_for_submission(submission_id)
+        if submission_id is not None
+        else None
+    )
+    if person_scores is None:
+        # `has_completed_assessment` said a current-instrument sitting exists, but
+        # the pinned one has no readable scores: no core submission row behind the
+        # person-side scores (`first_completed_core_submission_id` is None), or a
+        # pin naming a submission with no responses. There is no person side to
+        # diff against, which is `needs_core`'s situation -- flagged, so the page
+        # can say "we couldn't read it" rather than "you haven't taken it".
+        body = _needs_core_body(env, manager)
+        body["core_unreadable"] = True
+        return SituationReportResult(status=200, body=body)
 
     env_scores = env["dimension_scores"]
     report_rows = situation.build_situation_report(
@@ -513,6 +563,7 @@ def _situation_report(user: User) -> SituationReportResult:
             "guidance_notice": situation_content.GUIDANCE_NOTICE,
             "manager": manager,
             "events_since_report": _events_since_report(user.id, env["submitted_at"]),
+            "career_status_changed": _career_status_changed(user.id, career_status_snapshot),
         },
     )
 

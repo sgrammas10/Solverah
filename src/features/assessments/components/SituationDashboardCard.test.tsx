@@ -19,6 +19,7 @@ import SituationDashboardCard, { nextActionFor } from "./SituationDashboardCard"
 import { createQueryClient } from "../../../shared/api/queryClient";
 import { ApiError } from "../../../shared/api/apiError";
 import type {
+  AlignedDimensionEntry,
   SituationComplete,
   SituationNeedsCore,
   SituationNeedsEnvironmentReport,
@@ -81,6 +82,23 @@ function strain(
   };
 }
 
+function aligned(
+  dimension: AlignedDimensionEntry["dimension"],
+  rank: number,
+  env_score: number,
+): AlignedDimensionEntry {
+  return {
+    dimension,
+    env_score,
+    bucket: "aligned",
+    direction: null,
+    rank,
+    aligned_note: `${dimension} note`,
+  };
+}
+
+/** The real current-mode shape: ALL SIX rows, aligned ones included, in rank
+ *  order (the server only drops aligned rows in the needs-forward slice). */
 const COMPLETE: SituationComplete = {
   state: "complete",
   manager: { has_profile: false },
@@ -89,18 +107,36 @@ const COMPLETE: SituationComplete = {
   guidance_notice: "Notice",
   events_since_report: [],
   past_job_report_filed: false,
+  career_status_changed: false,
   dimensions: [
-    strain("autonomy", "straining", 1, 0.17),
-    strain("feedback", "notable", 2, 0.42),
-    {
-      dimension: "pace",
-      env_score: 0.63,
-      bucket: "aligned",
-      direction: null,
-      rank: 3,
-      aligned_note: "Pace note",
-    },
+    strain("autonomy", "straining", 0, 0.17),
+    strain("feedback", "notable", 1, 0.42),
+    aligned("pace", 2, 0.63),
+    aligned("collaboration", 3, 0.51),
+    aligned("innovation", 4, 0.47),
+    aligned("decision", 5, 0.58),
   ],
+};
+
+/** Current mode with nothing straining: still six rows, every one aligned. */
+const COMPLETE_ALL_ALIGNED: SituationComplete = {
+  ...COMPLETE,
+  dimensions: [
+    aligned("autonomy", 0, 0.17),
+    aligned("pace", 1, 0.63),
+    aligned("collaboration", 2, 0.51),
+    aligned("feedback", 3, 0.42),
+    aligned("innovation", 4, 0.47),
+    aligned("decision", 5, 0.58),
+  ],
+};
+
+/** The needs-forward slice: aligned rows dropped by the server. */
+const COMPLETE_PAST: SituationComplete = {
+  ...COMPLETE,
+  career_status: "between_jobs",
+  needs_forward: true,
+  dimensions: [strain("autonomy", "straining", 0, 0.17), strain("feedback", "notable", 1, 0.42)],
 };
 
 /** No digit may appear anywhere in the card in the `complete` state. */
@@ -167,6 +203,7 @@ describe("SituationDashboardCard - states", () => {
     expect(screen.getByText("Autonomy — Straining")).toBeInTheDocument();
     expect(screen.getByText("Feedback — Notable")).toBeInTheDocument();
     expect(screen.getByText("Pace — Aligned")).toBeInTheDocument();
+    expect(screen.getByText("Where you and this job pull apart, furthest first.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /See your Situation Report/ })).toHaveAttribute(
       "href",
       "/situation-report",
@@ -194,16 +231,29 @@ describe("SituationDashboardCard - states", () => {
   });
 
   it("complete: renders the past-tense heading when the report needs forward", async () => {
-    mocks.fetchWithAuth.mockResolvedValue({ ...COMPLETE, needs_forward: true });
+    mocks.fetchWithAuth.mockResolvedValue(COMPLETE_PAST);
     renderCard();
     expect(await screen.findByText("What to look for next")).toBeInTheDocument();
+    expect(screen.getByText("Where you and that role pulled apart, furthest first.")).toBeInTheDocument();
     expectNoDigitsInCard();
   });
 
-  it("complete with nothing straining: says so in words rather than showing an empty strip", async () => {
-    mocks.fetchWithAuth.mockResolvedValue({ ...COMPLETE, dimensions: [] });
+  // Regression (audit 2026-10-02, F3): the real all-aligned current-mode
+  // payload is six Aligned rows, not an empty list. It used to render "pull
+  // apart, furthest first" over six Aligned chips.
+  it("complete with every row aligned: says nothing is straining, with no strip", async () => {
+    mocks.fetchWithAuth.mockResolvedValue(COMPLETE_ALL_ALIGNED);
     renderCard();
     expect(await screen.findByText(/Nothing is straining/)).toBeInTheDocument();
+    expect(screen.queryByText(/furthest first/)).toBeNull();
+    expect(screen.queryByRole("list")).toBeNull();
+    expectNoDigitsInCard();
+  });
+
+  it("needs-forward with nothing to carry forward: says so in words", async () => {
+    mocks.fetchWithAuth.mockResolvedValue({ ...COMPLETE_PAST, dimensions: [] });
+    renderCard();
+    expect(await screen.findByText(/Nothing came back to carry forward/)).toBeInTheDocument();
     expect(screen.queryByRole("list")).toBeNull();
     expectNoDigitsInCard();
   });
