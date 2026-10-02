@@ -10,7 +10,21 @@ cannot navigate back into the session through the return value.
 
 MUTABLE, unlike `environment_report_store.py`'s append-only rows -- `abandon`
 moves one row's `status` in place, the same shape `situation_report_pin_store.set_pin`
-mutates rather than appending.
+mutates rather than appending, and `close_ended_experiments` moves `active`
+rows past their `ends_at` to `completed`.
+
+STATUS IS A STORED FACT WITH THREE VALUES; PHASE IS DERIVED FROM IT
+--------------------------------------------------------------------
+`active` / `completed` / `abandoned` (`STATUSES`). `completed` was added on
+2026-10-02: until then a naturally ended experiment kept `status = 'active'`
+forever, so `ONE_ACTIVE_INDEX` (partial on `status = 'active'`) and the
+service's 409 check both kept refusing every later start, and no UI could
+clear it. A time predicate cannot live in a partial index (`now()` is not
+immutable), so the only way the index can keep being the race backstop is for
+an ended row to stop being `active` -- hence a stored `completed`, written
+lazily by `close_ended_experiments` on the service's reads and writes rather
+than by a cron: nothing reads an experiment except the service, and a row
+nobody reads can stay `active` without harm.
 """
 
 from __future__ import annotations
@@ -21,9 +35,11 @@ from typing import Any, Optional, Sequence
 __all__ = [
     "EXPERIMENT_WINDOW",
     "ONE_ACTIVE_INDEX",
+    "STATUSES",
     "active_experiment",
     "checkin_experienced_values",
     "abandon_experiment",
+    "close_ended_experiments",
     "experienced_values_by_window",
     "experiment_for_user",
     "experiments_for_user",
@@ -34,6 +50,9 @@ __all__ = [
 #: (`model.Experiment`), named so a caller can tell that refusal apart from any
 #: other IntegrityError.
 ONE_ACTIVE_INDEX = "uq_experiments_one_active_per_user"
+
+#: The stored `status` vocabulary (`ck_experiment_status_vocab`).
+STATUSES: tuple[str, ...] = ("active", "completed", "abandoned")
 
 #: The fixed two-week window (BUILD_PLAN B-5). Stored into `ends_at` at write
 #: time -- see `model.Experiment`'s docstring for why that is not computed on
@@ -69,6 +88,33 @@ def active_experiment(user_id: int) -> Optional[dict[str, Any]]:
 
     row = Experiment.query.filter_by(user_id=user_id, status="active").first()
     return _serialize(row) if row is not None else None
+
+
+def close_ended_experiments(db, user_id: int, *, now: datetime.datetime) -> int:
+    """Move this user's `active` rows whose `ends_at` has passed to `completed`.
+    Returns how many moved -- usually 0, since at most one row is ever active.
+
+    The lazy half of the status design (module docstring): the service calls
+    this before every read or write of a user's experiments, so an ended row
+    never stays `active` into a 409 check. `ends_at <= now` is the same
+    boundary `work_pulse.experiments.derive_phase` draws, with the caller's
+    *now* rather than the database clock so one request cannot disagree with
+    itself about whether an experiment has ended.
+
+    Does NOT commit -- same convention as `start_experiment`. Idempotent: a
+    second call finds nothing to move.
+    """
+    from model import Experiment
+
+    moved = (
+        Experiment.query.filter(
+            Experiment.user_id == user_id,
+            Experiment.status == "active",
+            Experiment.ends_at <= now,
+        ).update({"status": "completed"}, synchronize_session="fetch")
+    )
+    db.session.flush()
+    return moved
 
 
 def start_experiment(
@@ -126,9 +172,15 @@ def experiments_for_user(user_id: int) -> list[dict[str, Any]]:
 
 
 def abandon_experiment(db, user_id: int, experiment_id: int) -> Optional[dict[str, Any]]:
-    """Move one experiment to `abandoned`, or return it unchanged if it already
-    is -- the idempotence the route promises. None if it does not exist or is
-    not this user's, so the caller can answer 404.
+    """Move one `active` experiment to `abandoned`, or return it unchanged if
+    it already is -- the idempotence the route promises. None if it does not
+    exist or is not this user's, so the caller can answer 404.
+
+    A `completed` row is returned unchanged too: an experiment that ran its
+    two weeks has a readout, and relabelling it "Abandoned" would hide that
+    readout behind a word that is not true of it. The service closes ended
+    rows before calling this, so a click that lands after `ends_at` is a
+    no-op rather than a relabel.
 
     Does NOT commit -- same convention as `start_experiment`.
     """
@@ -137,7 +189,7 @@ def abandon_experiment(db, user_id: int, experiment_id: int) -> Optional[dict[st
     row = Experiment.query.filter_by(id=experiment_id, user_id=user_id).first()
     if row is None:
         return None
-    if row.status != "abandoned":
+    if row.status == "active":
         row.status = "abandoned"
         row.abandoned_at = datetime.datetime.now(datetime.timezone.utc)
         db.session.flush()

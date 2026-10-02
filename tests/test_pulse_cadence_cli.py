@@ -218,13 +218,13 @@ def test_unconfirmed_users_are_excluded(ctx, sent):
 
 def test_biweekly_is_honored(ctx, sent):
     not_yet = _seed("biweekly-not-due@example.test")
-    _seed_checkin(not_yet)
+    _seed_checkin(not_yet, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         not_yet, cadence="biweekly", last_prompted_at=_ago(days=10),
         awaiting_response=False, consecutive_unanswered=0,
     )
     due = _seed("biweekly-due@example.test")
-    _seed_checkin(due)
+    _seed_checkin(due, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         due, cadence="biweekly", last_prompted_at=_ago(days=15),
         awaiting_response=False, consecutive_unanswered=0,
@@ -235,6 +235,25 @@ def test_biweekly_is_honored(ctx, sent):
     assert exit_code == 0
     assert payload["sent"] == 1
     assert [row["to"] for row in sent] == ["biweekly-due@example.test"]
+
+
+def test_a_checkin_after_the_last_prompt_defers_the_next_one(ctx, sent):
+    """F4 (2026-10-02): the clock runs from the LATER of the last prompt and
+    the last check-in. A user prompted 8 days ago who checked in on their own
+    2 days ago is not due -- before this fix they were emailed "time to check
+    in" six days after checking in."""
+    user_id = _seed("just-checked-in@example.test")
+    _seed_checkin(user_id, taken_at=_ago_dt(days=2))
+    _set_pulse_settings(
+        user_id, cadence="weekly", last_prompted_at=_ago(days=8),
+        awaiting_response=False, consecutive_unanswered=0,
+    )
+
+    exit_code, payload, _ = _invoke(ctx, "pulse", "send-prompts")
+
+    assert exit_code == 0
+    assert payload["sent"] == 0
+    assert sent == []
 
 
 # ── idempotency ──────────────────────────────────────────────────────────────
@@ -258,7 +277,7 @@ def test_rerun_within_the_same_window_does_not_double_send(ctx, sent):
 
 def test_three_consecutive_unanswered_drops_to_monthly_with_a_slowdown_note(ctx, sent):
     user_id = _seed("quiet@example.test")
-    _seed_checkin(user_id)
+    _seed_checkin(user_id, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         user_id, cadence="weekly", last_prompted_at=_ago(days=8),
         awaiting_response=True, consecutive_unanswered=2,
@@ -288,7 +307,7 @@ def test_already_monthly_user_is_not_dropped_again_and_gets_no_second_slowdown_n
     in the cron's log line. The unanswered counter still resets: three prompts
     have been accounted for either way."""
     user_id = _seed("still-quiet@example.test")
-    _seed_checkin(user_id)
+    _seed_checkin(user_id, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         user_id, cadence="monthly", last_prompted_at=_ago(days=31),
         awaiting_response=True, consecutive_unanswered=2, auto_slowed=True,
@@ -316,7 +335,7 @@ def test_user_who_chose_monthly_is_prompted_without_a_slowdown_note(ctx, sent):
     `auto_slowed` stays False -- which is what the trend page reads to decide
     whether that paragraph is true of this user."""
     user_id = _seed("chose-monthly@example.test")
-    _seed_checkin(user_id)
+    _seed_checkin(user_id, taken_at=_ago_dt(days=60))
     # Reached the way a user reaches it -- `set_cadence` is what PATCH calls,
     # and it rejected "monthly" outright before G21. Seeding the state directly
     # would let this test pass against code that still refuses the choice.
@@ -351,7 +370,7 @@ def test_choosing_a_cadence_after_an_auto_drop_ends_the_auto_slowed_state(ctx, s
     note, and the trend page stops explaining a slowdown that no longer
     describes anything."""
     user_id = _seed("took-the-wheel@example.test")
-    _seed_checkin(user_id)
+    _seed_checkin(user_id, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         user_id, cadence="monthly", last_prompted_at=_ago(days=31),
         awaiting_response=True, consecutive_unanswered=2, auto_slowed=True,
@@ -379,7 +398,7 @@ def test_choosing_a_cadence_after_an_auto_drop_ends_the_auto_slowed_state(ctx, s
 def test_answering_before_the_next_due_date_resets_the_unanswered_count(ctx, sent):
     """A user who checks in resets the counter -- no streak survives an answer."""
     user_id = _seed("answers@example.test")
-    _seed_checkin(user_id)
+    _seed_checkin(user_id, taken_at=_ago_dt(days=60))
     _set_pulse_settings(
         user_id, cadence="weekly", last_prompted_at=_ago(days=8),
         awaiting_response=False,  # they answered -- pulse_service.submit_checkin's job

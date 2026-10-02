@@ -134,14 +134,30 @@ def is_due(
 ) -> bool:
     """Whether *settings* (as `read_settings` returns it) is due a prompt at *now*.
 
-    `off` is never due. A user never prompted (`last_prompted_at` is None) is due
-    `CADENCE_INTERVALS[cadence]` after *last_checkin_at* -- their most recent
-    completed check-in -- rather than immediately (2026-09-11 ruling: checking in
-    once is the opt-in, and the clock starts at that check-in, so a fresh first
-    check-in buys a full quiet interval before the first prompt instead of
-    everyone who ever checked in getting emailed the moment a cron first runs).
+    `off` is never due. Otherwise the clock starts at the LATER of
+    `last_prompted_at` and *last_checkin_at* -- the user's most recent completed
+    check-in -- and a prompt is due once the cadence's interval has elapsed
+    since then:
 
-    *last_checkin_at* is the caller's job to supply for a never-prompted user --
+    - A user never prompted is due one interval after their last check-in
+      rather than immediately (2026-09-11 ruling: checking in once is the
+      opt-in, and the clock starts at that check-in, so a fresh first check-in
+      buys a full quiet interval before the first prompt instead of everyone
+      who ever checked in getting emailed the moment a cron first runs).
+    - A user who checked in on their own after the last prompt is not due
+      again until one interval after THAT check-in (2026-10-02 fix F4): before
+      this the clock ran from the prompt alone, so a voluntary check-in three
+      days ago still earned a "time to check in" email.
+
+    THE INTERVAL IS COUNTED IN CALENDAR DAYS (UTC), NOT SECONDS (fix F5).
+    The cron runs daily at a fixed time, so a prompt sent at one run is
+    exactly seven days old at the run a week later -- give or take the few
+    milliseconds between the two runs' clocks. A strict `now - last >= 7 days`
+    lost that coin flip whenever the later run was a hair early, and the
+    "weekly" prompt went out on day 8 instead. Comparing dates makes day 7 due
+    whatever the time of day either side fell on.
+
+    *last_checkin_at* is the caller's job to supply --
     `pulse_cadence_service.send_due_prompts`, the only caller, already excludes
     every zero-check-in user before reaching this function. A never-prompted user
     asked about here with no *last_checkin_at* is never due, defensively.
@@ -150,13 +166,29 @@ def is_due(
     if cadence == "off":
         return False
     last_prompted_at = settings["last_prompted_at"]
-    if last_prompted_at is None:
-        if last_checkin_at is None:
-            return False
-        last = last_checkin_at
-    else:
-        last = datetime.datetime.fromisoformat(last_prompted_at)
-    return now - last >= CADENCE_INTERVALS[cadence]
+    anchors = [
+        anchor
+        for anchor in (
+            datetime.datetime.fromisoformat(last_prompted_at) if last_prompted_at else None,
+            last_checkin_at,
+        )
+        if anchor is not None
+    ]
+    if not anchors:
+        return False
+    last = max(anchors)
+    elapsed_days = (_utc_date(now) - _utc_date(last)).days
+    return elapsed_days >= CADENCE_INTERVALS[cadence].days
+
+
+def _utc_date(moment: datetime.datetime) -> datetime.date:
+    """The UTC calendar date of *moment*; a naive value is taken as UTC already
+    (every timestamp this module sees is timezone-aware, from a
+    `timezone=True` column or an `isoformat()` of one -- this is the defensive
+    reading, not a conversion)."""
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(datetime.timezone.utc)
+    return moment.date()
 
 
 def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:

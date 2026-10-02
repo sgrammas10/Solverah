@@ -1700,7 +1700,8 @@ class PulseEvent(db.Model):
 # experimented on.
 #
 # MUTABLE, unlike `EnvironmentReport`/`PulseCheckin`'s append-only rows -- a
-# running experiment's `status` moves to `abandoned` in place, the same shape
+# running experiment's `status` moves to `abandoned` (the user's choice) or to
+# `completed` (its two weeks ran out) in place, the same shape
 # `SituationReportPin` mutates rather than appending. NO free text anywhere on
 # the row, so it rides the tombstone de-identified on account deletion exactly
 # like `pulse_checkins` (D-7b) -- see `solverah/services/account_service.py`.
@@ -1718,6 +1719,13 @@ class Experiment(db.Model):
     the index is what makes a race lose rather than silently double-book). The
     rule is a methodological one, not a UI nicety: a two-week change is
     confounded by a second concurrent one, so only one may run at a time.
+
+    `status` is `active` / `completed` / `abandoned`. A partial index cannot
+    carry a time predicate, so an experiment past its `ends_at` must stop being
+    `active` for the index to keep meaning "one RUNNING experiment": the
+    service moves it to `completed` before every read or write
+    (`experiment_store.close_ended_experiments`). Until 2026-10-02 there was
+    no such status and an ended row blocked every later start.
 
     `ends_at` IS STORED, NOT COMPUTED
     -----------------------------------------------------------------
@@ -1770,8 +1778,13 @@ class Experiment(db.Model):
         db.CheckConstraint(
             "register = 'change_in_place'", name="ck_experiment_register_vocab"
         ),
+        # `completed` since 20261002_experiment_completed: an experiment whose
+        # `ends_at` has passed is moved here lazily by
+        # `experiment_store.close_ended_experiments`, so it drops out of the
+        # partial index below and stops blocking the next start.
         db.CheckConstraint(
-            "status IN ('active', 'abandoned')", name="ck_experiment_status_vocab"
+            "status IN ('active', 'completed', 'abandoned')",
+            name="ck_experiment_status_vocab",
         ),
         db.CheckConstraint(
             "(status = 'abandoned') = (abandoned_at IS NOT NULL)",

@@ -58,7 +58,11 @@ class ExperimentRecord(SolverahModel):
     direction: str
     started_at: str
     ends_at: str
-    status: str = Field(description="'active' or 'abandoned' -- the stored fact.")
+    status: str = Field(
+        description="'active', 'completed' or 'abandoned' -- the stored fact. "
+        "'completed' is written once ends_at has passed, so an ended experiment "
+        "never blocks the next start."
+    )
     abandoned_at: Optional[str] = None
     phase: str = Field(
         description="'running' / 'ended' / 'abandoned' -- derived on read from "

@@ -105,7 +105,7 @@ function ExperiencedSection({
       <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
         {points.length === 1 ? (
           <div className="space-y-3">
-            <PulseSparkline ariaLabel="How work's working for you" points={points} width={520} height={80} />
+            <PulseSparkline ariaLabel="How work's working for you" points={points} width={520} height={120} />
             <p className="text-xs text-ink-tertiary">
               One check-in so far — the line fills in as you add more.
             </p>
@@ -116,7 +116,7 @@ function ExperiencedSection({
             points={points}
             events={events}
             width={520}
-            height={100}
+            height={140}
           />
         )}
       </div>
@@ -139,12 +139,12 @@ function DimensionCard({ dimension, checkins }: { dimension: PulseDimension; che
       {points.length === 0 && <p className="text-xs text-ink-tertiary">Not answered yet.</p>}
       {points.length === 1 && (
         <div className="space-y-1">
-          <PulseSparkline ariaLabel={`${DIMENSION_LABELS[dimension]} trend`} points={points} width={200} height={44} />
+          <PulseSparkline ariaLabel={`${DIMENSION_LABELS[dimension]} trend`} points={points} width={240} height={72} />
           <p className="text-xs text-ink-tertiary">One answer so far.</p>
         </div>
       )}
       {points.length >= 2 && (
-        <PulseSparkline ariaLabel={`${DIMENSION_LABELS[dimension]} trend`} points={points} width={200} height={44} />
+        <PulseSparkline ariaLabel={`${DIMENSION_LABELS[dimension]} trend`} points={points} width={240} height={72} />
       )}
     </div>
   );
@@ -303,6 +303,40 @@ function CadenceSection() {
   const updateSettings = useUpdatePulseSettings();
   const cadence = settingsQuery.data?.cadence;
 
+  // Four unpressed buttons is not a loading state and not an error state --
+  // it reads as "no cadence set", which is never true. Each gets its own
+  // rendering (2026-10-02, F10).
+  if (settingsQuery.isLoading) {
+    return (
+      <section className="space-y-3">
+        <SectionHeading>Check-in cadence</SectionHeading>
+        <div className="rounded-xl border border-cream-muted bg-white px-5 py-4">
+          <p className="text-sm text-ink-tertiary">Loading your cadence…</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (settingsQuery.isError || !settingsQuery.data) {
+    return (
+      <section className="space-y-3">
+        <SectionHeading>Check-in cadence</SectionHeading>
+        <div className="rounded-xl border border-cream-muted bg-white px-5 py-4 space-y-2">
+          <p role="alert" className="text-sm text-ink-secondary">
+            We couldn't load your cadence right now.
+          </p>
+          <button
+            type="button"
+            onClick={() => settingsQuery.refetch()}
+            className="text-sm font-semibold text-forest-dark hover:underline"
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-3">
       <SectionHeading>Check-in cadence</SectionHeading>
@@ -311,7 +345,7 @@ function CadenceSection() {
             choose monthly themselves, and telling them we slowed it down
             because it's been quiet would be a story about a decision they
             made. The note belongs only to the drop the server performed. */}
-        {settingsQuery.data?.auto_slowed && (
+        {settingsQuery.data.auto_slowed && (
           <p className="text-sm text-ink-secondary leading-relaxed">
             We've slowed these down to once a month since it's been quiet — no rush, and you can
             check in any time.

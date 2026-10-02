@@ -5,13 +5,15 @@
  * support a causal claim. Verdicts are words; the two counts are the only
  * numbers, and they are plain check-in counts, never a delta or a percentage.
  */
+import { Link } from "react-router-dom";
+
 import {
   isExperimentAlreadyActive,
   useAbandonExperiment,
   useStartExperiment,
 } from "../../useExperiments";
 import type { Experiment } from "../../useExperiments";
-import { BODY, QUIET_BUTTON, REPORT_H2, dimensionLabel, formatDate } from "./format";
+import { BODY, QUIET_BUTTON, TEXT_LINK, REPORT_H2, dimensionLabel, formatDate } from "./format";
 
 const READOUT_COPY: Record<string, string> = {
   not_enough_data: "There weren't enough check-ins on one side of this to say anything yet.",
@@ -40,11 +42,47 @@ interface ExperimentControlProps {
   status: ExperimentsStatus;
 }
 
+interface StartOfferProps {
+  label: string;
+  disabled: boolean;
+  hasActiveElsewhere: boolean;
+  onStart: () => void;
+  error: unknown;
+}
+
+/** The start button plus every reason it might not work: the other cell's
+ *  running experiment (disabled, with the reason), the server's 409 (the
+ *  page's list was stale -- `useStartExperiment` has already refetched it),
+ *  or any other failure. Nothing fails silently: before 2026-10-02 the 409
+ *  rendered as nothing at all, a button that did nothing when clicked. */
+function StartOffer({ label, disabled, hasActiveElsewhere, onStart, error }: StartOfferProps) {
+  return (
+    <div className="space-y-1.5 print:hidden">
+      <button type="button" onClick={onStart} disabled={disabled} className={QUIET_BUTTON}>
+        {label}
+      </button>
+      {hasActiveElsewhere && (
+        <p className="text-[0.85rem] text-ink-secondary">
+          Only one experiment can run at a time — finish or abandon the other one first.
+        </p>
+      )}
+      {error !== null && error !== undefined && (
+        <p className="text-[0.85rem] text-red-700" role="alert">
+          {isExperimentAlreadyActive(error)
+            ? "Another experiment is already running — finish or abandon that one first. We've refreshed this page to show it."
+            : "We couldn't start that just now. Please try again in a moment."}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** The one cell-level control for a `change_in_place` register: a button
  *  that starts a two-week experiment, a running state once it exists, and
- *  the readout in words once it has ended. Not shown in the needs-forward
- *  rendering -- the server never sends `experiment_name` there, and there is
- *  no live job to run an experiment against. */
+ *  the readout in words once it has ended -- with the button back underneath
+ *  it, since an ended experiment is a result, not a lock. Not shown in the
+ *  needs-forward rendering -- the server never sends `experiment_name` there,
+ *  and there is no live job to run an experiment against. */
 export function ExperimentControl({
   dimension,
   direction,
@@ -65,31 +103,57 @@ export function ExperimentControl({
       experiment.phase !== "abandoned",
   );
 
+  const offer = (label: string) => (
+    <StartOffer
+      label={label}
+      disabled={start.isPending || hasActiveElsewhere}
+      hasActiveElsewhere={hasActiveElsewhere}
+      onStart={() => start.mutate({ dimension: dimension as never, direction })}
+      error={start.isError ? start.error : null}
+    />
+  );
+
   if (current?.phase === "running") {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[4px] bg-forest-pale/50 px-4 py-3">
-        <p className="text-[0.95rem] text-forest-dark">
-          Running since {formatDate(current.started_at)}, through {formatDate(current.ends_at)}.
+      <div className="space-y-2 rounded-[4px] bg-forest-pale/50 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[0.95rem] text-forest-dark">
+            Running since {formatDate(current.started_at)}, through {formatDate(current.ends_at)}.
+          </p>
+          <button
+            type="button"
+            onClick={() => abandon.mutate(current.id)}
+            disabled={abandon.isPending}
+            className="text-[0.9rem] font-semibold text-ink-secondary underline underline-offset-4 hover:text-ink-primary disabled:opacity-50 print:hidden"
+          >
+            Abandon
+          </button>
+        </div>
+        {/* The readout is built from Pulse check-ins on either side of
+            `started_at`; with none during the window there is nothing to
+            read out. Said here, once, where the experiment is -- not as a
+            nag later. */}
+        <p className="text-[0.85rem] text-ink-secondary">
+          The readout compares your Pulse check-ins before and during these two weeks, so it only
+          works if you keep checking in.{" "}
+          <Link to="/pulse" className={`${TEXT_LINK} text-[0.85rem]`}>
+            Check in now
+          </Link>
         </p>
-        <button
-          type="button"
-          onClick={() => abandon.mutate(current.id)}
-          disabled={abandon.isPending}
-          className="text-[0.9rem] font-semibold text-ink-secondary underline underline-offset-4 hover:text-ink-primary disabled:opacity-50 print:hidden"
-        >
-          Abandon
-        </button>
       </div>
     );
   }
 
   if (current?.phase === "ended") {
     return (
-      <div className="space-y-1 rounded-[4px] bg-cream-base px-4 py-3">
-        <p className={BODY}>{READOUT_COPY[current.readout.verdict]}</p>
-        <p className="text-[0.85rem] text-ink-secondary">
-          {readoutCountsProse(current.readout.before_count, current.readout.after_count)}
-        </p>
+      <div className="space-y-2">
+        <div className="space-y-1 rounded-[4px] bg-cream-base px-4 py-3">
+          <p className={BODY}>{READOUT_COPY[current.readout.verdict]}</p>
+          <p className="text-[0.85rem] text-ink-secondary">
+            {readoutCountsProse(current.readout.before_count, current.readout.after_count)}
+          </p>
+        </div>
+        {offer("Try this again for two weeks")}
       </div>
     );
   }
@@ -104,28 +168,7 @@ export function ExperimentControl({
     return null;
   }
 
-  return (
-    <div className="space-y-1.5 print:hidden">
-      <button
-        type="button"
-        onClick={() => start.mutate({ dimension: dimension as never, direction })}
-        disabled={start.isPending || hasActiveElsewhere}
-        className={QUIET_BUTTON}
-      >
-        Try this for two weeks
-      </button>
-      {hasActiveElsewhere && (
-        <p className="text-[0.85rem] text-ink-secondary">
-          Only one experiment can run at a time — finish or abandon the other one first.
-        </p>
-      )}
-      {start.isError && !isExperimentAlreadyActive(start.error) && (
-        <p className="text-[0.85rem] text-red-700" role="alert">
-          We couldn't start that just now. Please try again in a moment.
-        </p>
-      )}
-    </div>
-  );
+  return offer("Try this for two weeks");
 }
 
 const EXPERIMENT_PHASE_LABELS: Record<string, string> = {

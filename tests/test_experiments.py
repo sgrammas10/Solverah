@@ -113,3 +113,14 @@ def test_abandoned_wins_even_before_ends_at():
 def test_abandoned_wins_even_after_ends_at():
     now = ENDS + datetime.timedelta(days=5)
     assert derive_phase("abandoned", ENDS, now) == ABANDONED
+
+
+def test_completed_reads_as_ended():
+    """The stored `completed` status (2026-10-02) is the closed form of an
+    ended experiment: the phase word is the same `ended` the clock gives an
+    `active` row past its `ends_at`, so the wire never changes words when the
+    lazy close lands."""
+    now = ENDS + datetime.timedelta(days=5)
+    assert derive_phase("completed", ENDS, now) == ENDED
+    # Defensive: a completed row is never running again, whatever the clock says.
+    assert derive_phase("completed", ENDS, ENDS - datetime.timedelta(days=1)) == ENDED

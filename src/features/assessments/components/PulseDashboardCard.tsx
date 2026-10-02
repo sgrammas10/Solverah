@@ -25,12 +25,48 @@ function directionSentence(current: number, previous: number): string {
   return `How work's working for you is ${word} from before.`;
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Whether `iso` is within the last seven days -- the only case in which
+ *  "this week" is a true word for the heading. */
+function isThisWeek(iso: string | null, now = Date.now()): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return !Number.isNaN(t) && now - t <= WEEK_MS;
+}
+
 export default function PulseDashboardCard() {
-  const { data, isLoading } = usePulseHistory({ limit: 2 });
+  const { data, isLoading, isError, refetch } = usePulseHistory({ limit: 2 });
 
   if (isLoading) return null;
 
-  const checkins = data?.checkins ?? [];
+  // A failed fetch is not "no check-ins yet": inviting a user with months of
+  // history to "take your first check-in" would be the card lying to them.
+  if (isError || !data) {
+    return (
+      <div className="rounded-xl border border-cream-muted bg-white p-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">Pulse</p>
+        <h2 className="font-display text-lg font-semibold text-ink-primary mb-1">Your pulse</h2>
+        <p role="alert" className="text-sm text-ink-secondary mb-4">
+          We couldn't load your pulse right now.
+        </p>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="text-sm font-semibold text-forest-dark hover:underline"
+          >
+            Try again
+          </button>
+          <Link to="/pulse" className="text-sm text-ink-secondary hover:text-ink-primary">
+            Check in →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const checkins = data.checkins;
 
   if (checkins.length === 0) {
     return (
@@ -53,7 +89,9 @@ export default function PulseDashboardCard() {
   return (
     <div className="rounded-xl border border-cream-muted bg-white p-6">
       <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">Pulse</p>
-      <h2 className="font-display text-lg font-semibold text-ink-primary mb-1">Your pulse this week</h2>
+      <h2 className="font-display text-lg font-semibold text-ink-primary mb-1">
+        {isThisWeek(latest.taken_at) ? "Your pulse this week" : "Your pulse"}
+      </h2>
       <p className="text-sm text-ink-secondary mb-4">
         Last check-in {formatDate(latest.taken_at)}.{" "}
         {previous

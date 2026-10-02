@@ -31,7 +31,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-import { usePulseHistory, usePulseNextCheckin, useSubmitPulseCheckin } from "../usePulse";
+import {
+  isInvalidCheckin,
+  usePulseHistory,
+  usePulseNextCheckin,
+  useSubmitPulseCheckin,
+} from "../usePulse";
 import type { PulseCheckinItem, PulseCheckinRecord, PulseOutcomeItem } from "../usePulse";
 import PulseSparkline from "./PulseSparkline";
 
@@ -128,7 +133,13 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
     ...[...history].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced })),
     { date: current.taken_at ?? new Date().toISOString(), value: current.experienced },
   ];
-  const tier = sequenceBefore === 0 || !prior ? "first" : sequenceBefore === 1 ? "second" : "later";
+  // "First" is the server's word (`sequence` counts this user's check-ins),
+  // never an inference from an empty `history` -- a history fetch that
+  // failed or had not landed would otherwise tell a long-time user this was
+  // their first pulse (2026-10-02, F10). With a prior sequence but no prior
+  // rows to compare against, the page says it saved and no more.
+  const tier =
+    sequenceBefore === 0 ? "first" : !prior ? "unknown" : sequenceBefore === 1 ? "second" : "later";
 
   return (
     <div className="space-y-5">
@@ -139,6 +150,13 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
           <p className="text-sm text-ink-secondary leading-relaxed">
             Nothing to compare it to yet. Check in again next week and you'll start seeing how it
             moves.
+          </p>
+        </>
+      ) : tier === "unknown" ? (
+        <>
+          <h1 className="font-display text-2xl font-semibold text-ink-primary">Check-in logged</h1>
+          <p className="text-sm text-ink-secondary leading-relaxed">
+            Saved. Your trend has the comparison with your earlier check-ins.
           </p>
         </>
       ) : (
@@ -247,9 +265,25 @@ export default function PulseCheckinPage() {
         onSuccess: (result) => {
           setConfirmation({ sequenceBefore: sequence, history: priorSnapshot, current: result });
         },
+        onError: (error) => {
+          // The server's next check-in has moved on from the one this form
+          // was built from (a check-in landed in another tab, say). Only a
+          // fresh `next-checkin` can fix that -- a retry of the same body
+          // would fail the same way (2026-10-02, F9). Answers are keyed by
+          // item id, so whatever still applies survives the refetch.
+          if (isInvalidCheckin(error)) {
+            nextCheckinQuery.refetch();
+          }
+        },
       },
     );
   }
+
+  const submitError = submitMutation.isError
+    ? isInvalidCheckin(submitMutation.error)
+      ? "This check-in was out of date, so we've refreshed the questions. Check your answers and tap Done again."
+      : "We couldn't save that just now. Your answers are still here — try again."
+    : null;
 
   return (
     <Shell>
@@ -276,16 +310,21 @@ export default function PulseCheckinPage() {
         ))}
       </div>
 
-      {submitMutation.isError && (
+      {submitError && (
         <p role="alert" className="text-sm text-red-700">
-          We couldn't save that just now. Your answers are still here — try again.
+          {submitError}
         </p>
       )}
 
+      {/* `historyQuery.isLoading` holds Done until the comparison snapshot
+          (`priorRef`) has settled, so the confirmation never compares against
+          a history that had not arrived. A failed history fetch is not
+          loading and does not hold the button: the confirmation then says
+          "logged" without a comparison (see `Confirmation`). */}
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={!allAnswered || submitMutation.isPending}
+        disabled={!allAnswered || submitMutation.isPending || historyQuery.isLoading}
         className="w-full bg-forest-dark text-white font-semibold py-3.5 rounded hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitMutation.isPending ? "Saving…" : "Done"}

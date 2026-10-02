@@ -117,17 +117,21 @@ PHASES: tuple[str, ...] = (RUNNING, ENDED, ABANDONED)
 def derive_phase(
     status: str, ends_at: datetime.datetime, now: datetime.datetime
 ) -> str:
-    """`running` / `ended` / `abandoned`, derived on every read rather than
-    stored -- an experiment's row never needs a write just because time passed.
+    """`running` / `ended` / `abandoned`, derived on every read.
 
     `abandoned` wins outright: an abandoned experiment stays abandoned
-    regardless of where `ends_at` sits relative to `now`. Otherwise the
-    boundary is `now >= ends_at` -- the instant `ends_at` arrives, the
-    experiment reads as `ended`, matching `Experiment.ends_at`'s own docstring
-    ("started_at + 14 days") rather than requiring one further tick.
+    regardless of where `ends_at` sits relative to `now`. `completed` -- the
+    stored fact `experiment_store.close_ended_experiments` writes once
+    `ends_at` has passed (2026-10-02 fix: an ended row left `active` kept the
+    one-active index and the 409 check refusing every later start) -- reads as
+    `ended`. An `active` row is still judged against the clock: the boundary is
+    `now >= ends_at`, so the instant `ends_at` arrives the experiment reads as
+    `ended` even before the row has been closed, matching `Experiment.ends_at`'s
+    own docstring ("started_at + 14 days") rather than requiring one further
+    tick or one further write.
     """
     if status == "abandoned":
         return ABANDONED
-    if now >= ends_at:
+    if status == "completed" or now >= ends_at:
         return ENDED
     return RUNNING

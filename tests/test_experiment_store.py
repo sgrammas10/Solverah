@@ -121,6 +121,137 @@ def test_two_abandoned_experiments_for_one_user_do_not_collide(client, seed_user
         db.session.commit()  # no IntegrityError
 
 
+def test_the_database_accepts_the_three_statuses_and_nothing_else(client, seed_user):
+    """`ck_experiment_status_vocab` after 20261002_experiment_completed:
+    `completed` is a real stored status; anything outside `STATUSES` still fails."""
+    from app import app
+    from experiment_store import STATUSES
+    from model import Experiment, db
+
+    seed_user(1)
+    assert STATUSES == ("active", "completed", "abandoned")
+    with app.app_context():
+        db.session.add(Experiment(user_id=1, dimension="autonomy", direction="under",
+                                   register="change_in_place", status="completed",
+                                   ends_at=datetime.datetime.now(UTC)))
+        db.session.commit()
+
+        db.session.add(Experiment(user_id=1, dimension="pace", direction="over",
+                                   register="change_in_place", status="finished",
+                                   ends_at=datetime.datetime.now(UTC)))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
+
+
+# ---------------------------------------------------------------------------
+# close_ended_experiments: the lazy close (2026-10-02 blocker)
+# ---------------------------------------------------------------------------
+
+
+def _backdate(db, experiment_id, *, ended_days_ago):
+    from model import Experiment
+
+    row = db.session.get(Experiment, experiment_id)
+    row.ends_at = datetime.datetime.now(UTC) - datetime.timedelta(days=ended_days_ago)
+    row.started_at = row.ends_at - datetime.timedelta(days=14)
+    db.session.commit()
+
+
+def test_close_ended_experiments_moves_only_rows_past_ends_at(client, seed_user):
+    from app import app
+    from experiment_store import active_experiment, close_ended_experiments, experiment_for_user
+    from model import db
+
+    seed_user(1, 2)
+    with app.app_context():
+        ended = _start(db, user_id=1)
+        db.session.commit()
+        _backdate(db, ended["id"], ended_days_ago=1)
+        running = _start(db, user_id=2)
+        db.session.commit()
+
+        now = datetime.datetime.now(UTC)
+        assert close_ended_experiments(db, 1, now=now) == 1
+        assert close_ended_experiments(db, 2, now=now) == 0
+        db.session.commit()
+
+        assert experiment_for_user(1, ended["id"])["status"] == "completed"
+        assert active_experiment(1) is None
+        assert experiment_for_user(2, running["id"])["status"] == "active"
+        # Idempotent: nothing left to move.
+        assert close_ended_experiments(db, 1, now=now) == 0
+
+
+def test_close_ended_experiments_uses_the_callers_clock(client, seed_user):
+    """`ends_at <= now` with the caller's `now`, the boundary `derive_phase`
+    draws -- exactly `ends_at` closes, one second before does not."""
+    from app import app
+    from experiment_store import close_ended_experiments
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        row = _start(db, user_id=1)
+        db.session.commit()
+        ends_at = datetime.datetime.fromisoformat(row["ends_at"])
+
+        assert close_ended_experiments(db, 1, now=ends_at - datetime.timedelta(seconds=1)) == 0
+        assert close_ended_experiments(db, 1, now=ends_at) == 1
+
+
+def test_a_completed_experiment_no_longer_blocks_a_new_active_one(client, seed_user):
+    """THE regression behind the 2026-10-02 blocker, at the index: once an
+    ended row is `completed` it leaves the partial index's predicate, and a
+    second `active` row for the same user commits."""
+    from app import app
+    from experiment_store import close_ended_experiments
+    from model import Experiment, db
+
+    seed_user(1)
+    with app.app_context():
+        first = _start(db, user_id=1, dimension="autonomy", direction="under")
+        db.session.commit()
+        _backdate(db, first["id"], ended_days_ago=1)
+
+        # Without the close, the index refuses -- the bug as it shipped.
+        db.session.add(Experiment(
+            user_id=1, dimension="pace", direction="over", register="change_in_place",
+            ends_at=datetime.datetime.now(UTC) + datetime.timedelta(days=14),
+        ))
+        with pytest.raises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
+
+        close_ended_experiments(db, 1, now=datetime.datetime.now(UTC))
+        db.session.commit()
+        second = _start(db, user_id=1, dimension="pace", direction="over")
+        db.session.commit()  # no IntegrityError
+        assert second["status"] == "active"
+
+
+def test_abandon_leaves_a_completed_experiment_alone(client, seed_user):
+    """A completed experiment has a readout; relabelling it `abandoned` would
+    hide that behind a word that is not true of it."""
+    from app import app
+    from experiment_store import abandon_experiment, close_ended_experiments
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        row = _start(db, user_id=1)
+        db.session.commit()
+        _backdate(db, row["id"], ended_days_ago=1)
+        close_ended_experiments(db, 1, now=datetime.datetime.now(UTC))
+        db.session.commit()
+
+        result = abandon_experiment(db, 1, row["id"])
+        db.session.commit()
+
+        assert result["status"] == "completed"
+        assert result["abandoned_at"] is None
+
+
 # ---------------------------------------------------------------------------
 # abandon_experiment: idempotency + cross-user isolation
 # ---------------------------------------------------------------------------

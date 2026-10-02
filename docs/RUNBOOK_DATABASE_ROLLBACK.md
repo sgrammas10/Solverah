@@ -1,6 +1,6 @@
 # Runbook — Database rollback
 
-**Status:** Path A rehearsed · Path C unrehearsed · **Owner:** Engineering · **Last revised:** 2026-08-27
+**Status:** Path A rehearsed · Path C unrehearsed · **Owner:** Engineering · **Last revised:** 2026-10-02 (§7 added)
 
 Phase 0 and Phase 1 were reversible by redeploying the previous image. Phase 2 is the
 first phase where that stops being true: once a migration has rewritten rows, the old
@@ -206,3 +206,71 @@ Confirmed from the Render dashboard on 2026-08-27:
   depending on it: recover to an hour ago, confirm the instance comes up with plausible
   data, delete it, and write the measured duration into §1. Note that the drill
   provisions a real billable instance that runs until deleted.
+
+---
+
+## 7. Revisions whose downgrade can refuse
+
+Most revisions roll back with a plain `flask db downgrade <previous revision>`. The ones
+below check first whether the old schema can hold the data, and refuse if it cannot,
+rather than picking rows to lose.
+
+**A refusal does not print its reason.** Flask-Migrate catches the migration's
+`RuntimeError` and logs it to the `flask_migrate` logger, which this app's logging setup
+never shows. All you see is the `Running downgrade ...` line and exit code 1. Measured
+2026-10-02. To tell a refusal from a crash: a refusal leaves `alembic_version` unchanged
+and prints no traceback. A real failure, such as an `IntegrityError`, prints one. Then run
+the revision's check query below to see what it refused on.
+
+As everywhere in this runbook, run CLI commands with `FLASK_SKIP_DOTENV=1` and an
+explicit `DATABASE_URL`.
+
+### `20261002_experiment_completed` → `20261002_envreport_subject`
+
+**What the downgrade does.** It relabels every `completed` experiment back to `active`
+(the pre-fix way an ended experiment was stored: `active` with `ends_at` in the past),
+then narrows `ck_experiment_status_vocab` back to `('active', 'abandoned')`.
+
+**When it refuses.** When any user holds more than one experiment that is `active` or
+`completed`. The relabel would give that user two `active` rows, and
+`uq_experiments_one_active_per_user` forbids that. Every user who has run two experiments
+since the fix shipped is in this state, so on production **expect it to refuse** once the
+fix has been live for a few weeks. The check query, which is the one the migration runs:
+
+```sql
+SELECT user_id, count(*) FROM experiments
+WHERE status IN ('active', 'completed')
+GROUP BY user_id HAVING count(*) > 1;
+```
+
+**Roll back without losing rows: stamp, don't downgrade.** The pre-fix code runs
+correctly on the post-fix schema:
+
+- its start-time 409 check looks only at `status = 'active'`, so a `completed` row does
+  not block;
+- its `derive_phase` reads a `completed` row (whose `ends_at` has passed) as `ended`;
+- the widened CHECK accepts everything it writes.
+
+So when only the code needs to go back, leave the schema alone and move the version
+pointer. The old commit's `flask db upgrade` pre-deploy step then finds a revision it
+knows, instead of failing with "Can't locate revision":
+
+```sh
+FLASK_SKIP_DOTENV=1 DATABASE_URL=<target> flask db stamp 20261002_envreport_subject
+```
+
+Then redeploy the commit whose migration head is `20261002_envreport_subject`. When the fix
+is redeployed later, its pre-deploy `flask db upgrade` re-runs this revision. That is
+safe: it drops and recreates the same CHECK, and its backfill closes any rows that ended in
+the meantime. This stamp-then-upgrade cycle was rehearsed on a lane database on 2026-10-02.
+
+Two behaviours of the old code you accept by doing this: an experiment that ends while it
+is live stays `active` again, which is the original bug, so that user's next start gets a
+409 until the fix is back. And its abandon action will relabel a `completed` row as
+`abandoned`, which hides that row's readout.
+
+**If the schema itself must go back** (rare; the stamp above covers a code rollback),
+clearing the refusal is a data decision for the pulse-experiments lane, not something to
+improvise during an incident: for each user the query returns, every row but one must be
+abandoned or deleted. If that cannot be decided quickly, use Path A (§2) to restore the
+snapshot taken before the deploy, and accept losing the writes made since.

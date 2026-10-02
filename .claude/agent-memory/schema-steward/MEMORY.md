@@ -1,0 +1,2 @@
+- [Pending: experiment_completed migration](pending-experiment-completed-migration.md) — pulse-experiments head after envreport_subject; APPROVED; rollback = stamp (runbook §7)
+- [Flask-Migrate swallows RuntimeError](flask-migrate-swallows-runtimeerror.md) — a refusing downgrade exits 1 silently; check alembic_version, not output

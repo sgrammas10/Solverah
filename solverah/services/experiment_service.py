@@ -121,6 +121,20 @@ def _enrich(row: Dict[str, Any]) -> Dict[str, Any]:
     return _enrich_all(row["user_id"], [row])[0]
 
 
+def _close_ended(user_id: int) -> None:
+    """Move this user's ended-but-`active` rows to `completed` before anything
+    else reads or writes them (`experiment_store.close_ended_experiments`).
+    Every route calls this first, so an experiment that ran its two weeks
+    never reaches the 409 check, the one-active index, or the wire as
+    `status = 'active'`. Committed on its own only when something moved: the
+    common case moves nothing and writes nothing."""
+    import experiment_store
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if experiment_store.close_ended_experiments(db, user_id, now=now):
+        db.session.commit()
+
+
 def _already_active() -> ConflictError:
     return ConflictError(
         detail="An experiment is already running -- finish or abandon it first.",
@@ -139,14 +153,17 @@ def _lost_the_one_active_race(exc: IntegrityError) -> bool:
 
 def start_experiment(user: User, payload: Any) -> Dict[str, Any]:
     """``POST /me/experiments``. 422 for a bad cell, 409
-    (``errors[0].code == "experiment_already_active"``) if one is already
+    (``errors[0].code == "experiment_already_active"``) if one is still
     running -- the methodological one-at-a-time rule
-    (``model.Experiment``'s docstring).
+    (``model.Experiment``'s docstring). An experiment whose two weeks are up
+    is closed first (`_close_ended`), so a natural end never blocks the next
+    start -- the 2026-10-02 blocker.
 
     The same 409 when this start loses a race: another start for this user
     commits between the check below and this INSERT, and the one-active index
-    refuses the second row. Nothing else has been written in this transaction
-    by then (the check is a read), so rolling it back loses nothing.
+    refuses the second row. Nothing else of this start has been written by
+    then (the close committed on its own, the check is a read), so rolling it
+    back loses nothing.
     """
     import experiment_store
 
@@ -155,6 +172,7 @@ def start_experiment(user: User, payload: Any) -> Dict[str, Any]:
     direction = payload.get("direction")
     _require_change_in_place_cell(dimension, direction)
 
+    _close_ended(user.id)
     if experiment_store.active_experiment(user.id) is not None:
         raise _already_active()
 
@@ -177,6 +195,7 @@ def list_experiments(user: User) -> Dict[str, Any]:
     then their check-ins) however many experiments there are."""
     import experiment_store
 
+    _close_ended(user.id)
     rows = experiment_store.experiments_for_user(user.id)
     return {"experiments": _enrich_all(user.id, rows)}
 
@@ -184,10 +203,13 @@ def list_experiments(user: User) -> Dict[str, Any]:
 def abandon_experiment(user: User, experiment_id: int) -> Dict[str, Any]:
     """``POST /me/experiments/{id}/abandon``. Idempotent: abandoning an
     already-abandoned experiment is a 200 with the row unchanged, not an
-    error. 404 (never a bare failure) if the id does not exist or belongs to
-    someone else -- indistinguishable on purpose (`solverah.errors.NotFoundError`)."""
+    error -- and so is abandoning one that has already run its two weeks,
+    which keeps its `completed` status and its readout. 404 (never a bare
+    failure) if the id does not exist or belongs to someone else --
+    indistinguishable on purpose (`solverah.errors.NotFoundError`)."""
     import experiment_store
 
+    _close_ended(user.id)
     row = experiment_store.abandon_experiment(db, user.id, experiment_id)
     if row is None:
         raise NotFoundError(detail="No experiment with that id.")

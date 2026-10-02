@@ -21,6 +21,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import PulseCheckinPage from "./PulseCheckinPage";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
+import { experimentKeys } from "../useExperiments";
 import type { PulseNextCheckin, PulseHistory } from "../usePulse";
 
 const mocks = vi.hoisted(() => ({
@@ -89,14 +91,18 @@ const EMPTY_HISTORY: PulseHistory = { checkins: [], events: [] };
 
 interface ServeOptions {
   nextCheckin?: PulseNextCheckin;
-  history?: PulseHistory;
+  /** A `PulseHistory`, an `Error` to reject with, or `"pending"` to never resolve. */
+  history?: PulseHistory | Error | "pending";
   submitResult?: unknown;
 }
 
 function serve({ nextCheckin = NEXT_CHECKIN, history = HISTORY_ONE_PRIOR, submitResult }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
     if (path === "/me/pulse/next-checkin") return Promise.resolve(nextCheckin);
-    if (path === "/me/pulse/history?limit=11") return Promise.resolve(history);
+    if (path === "/me/pulse/history?limit=11") {
+      if (history === "pending") return new Promise(() => {});
+      return history instanceof Error ? Promise.reject(history) : Promise.resolve(history);
+    }
     if (path === "/me/pulse/checkins" && init?.method === "POST") {
       if (submitResult) return submitResult instanceof Error ? Promise.reject(submitResult) : Promise.resolve(submitResult);
       const body = JSON.parse(init.body as string);
@@ -113,14 +119,15 @@ function serve({ nextCheckin = NEXT_CHECKIN, history = HISTORY_ONE_PRIOR, submit
   });
 }
 
-function renderPage() {
+function renderPage(queryClient = createQueryClient()) {
   render(
-    <QueryClientProvider client={createQueryClient()}>
+    <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <PulseCheckinPage />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return queryClient;
 }
 
 beforeEach(() => {
@@ -224,6 +231,84 @@ describe("PulseCheckinPage", () => {
     const firstGroup = screen.getByRole("radiogroup", { name: NEXT_CHECKIN.items[0].stem });
     expect(within(firstGroup).getByRole("radio", { name: "4" })).toHaveAttribute("aria-checked", "true");
   });
+  // F9 (2026-10-02): a 422 `invalid_checkin` means the form was built from a
+  // next-checkin the server has moved past; only a refetch can recover it.
+  it("refetches next-checkin on a 422 invalid_checkin and says the questions were refreshed", async () => {
+    const invalid = new ApiError("item_scores keys do not match", {
+      status: 422,
+      code: "validation",
+      fieldErrors: [{ field: "item_scores", code: "invalid_checkin" }],
+    });
+    serve({ submitResult: invalid });
+    renderPage();
+    await answerAll(4);
+    const nextCheckinCallsBefore = mocks.fetchWithAuth.mock.calls.filter(
+      ([path]) => path === "/me/pulse/next-checkin",
+    ).length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/refreshed the questions/);
+    await waitFor(() =>
+      expect(
+        mocks.fetchWithAuth.mock.calls.filter(([path]) => path === "/me/pulse/next-checkin").length,
+      ).toBe(nextCheckinCallsBefore + 1),
+    );
+  });
+
+  it("does not refetch next-checkin on an ordinary failure", async () => {
+    serve({ submitResult: new Error("boom") });
+    renderPage();
+    await answerAll(4);
+    const nextCheckinCallsBefore = mocks.fetchWithAuth.mock.calls.filter(
+      ([path]) => path === "/me/pulse/next-checkin",
+    ).length;
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    await screen.findByRole("alert");
+
+    expect(
+      mocks.fetchWithAuth.mock.calls.filter(([path]) => path === "/me/pulse/next-checkin").length,
+    ).toBe(nextCheckinCallsBefore);
+  });
+
+  // F10 (2026-10-02): "first pulse" is the server's word (sequence 0), never
+  // an inference from a history that has not arrived or failed.
+  it("holds Done while history is still loading, so no confirmation can be built from an empty snapshot", async () => {
+    serve({ nextCheckin: { ...NEXT_CHECKIN, sequence: 3 }, history: "pending" });
+    renderPage();
+    await answerAll(4);
+
+    expect(screen.getByRole("button", { name: "Done" })).toBeDisabled();
+  });
+
+  it("never says 'first pulse' to a returning user whose history failed to load", async () => {
+    // 4xx so `shouldRetry` doesn't hold the query mid-retry.
+    serve({ nextCheckin: { ...NEXT_CHECKIN, sequence: 3 }, history: new ApiError("boom", { status: 403 }) });
+    renderPage();
+    await answerAll(4);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Done" })).toBeEnabled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(await screen.findByText("Check-in logged")).toBeInTheDocument();
+    expect(screen.queryByText("That's your first pulse")).not.toBeInTheDocument();
+  });
+
+  it("invalidates the experiments readout cache after a check-in", async () => {
+    serve();
+    const queryClient = renderPage();
+    queryClient.setQueryData(experimentKeys.list(), { experiments: [] });
+    await answerAll(4);
+
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    await screen.findByText(/Two points make a trend|This week vs. last week/);
+    await waitFor(() =>
+      expect(queryClient.getQueryState(experimentKeys.list())?.isInvalidated).toBe(true),
+    );
+  });
+
   it("plots every recent check-in plus the new one, not just the last two", async () => {
     // Regression: after the third check-in the chart showed 2 points, because
     // the page fetched history with limit=1 and drew [prior, current].

@@ -1,2 +1,3 @@
-- [Ended experiment stays active](project_experiment_ended_stays_active.md) — OPEN 2026-10-02: after day 14 every new start 409s; UI hides it (dead button)
+- [Ended experiment: 'completed' status](project_experiment_ended_stays_active.md) — FIXED 2026-10-02 (lazy close + migration 20261002_experiment_completed); design and why
+- [Pulse cadence rules](project_pulse_cadence_rules.md) — since 2026-10-02: due-ness anchors on max(prompt, check-in) and counts UTC calendar days; fixture trap
 - [Pulse cron status](project_pulse_cron_status.md) — created in Render dashboard 2026-09-14, not in render.yaml; first real send unverified
