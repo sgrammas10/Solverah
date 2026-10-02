@@ -12,7 +12,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth";
-import { useProfile } from "../../profile";
+import { useProfile, useProfileActions } from "../../profile";
+import { ApiError } from "../../../shared/api/apiError";
+import type { components } from "../../../shared/api/schema";
 import {
   isKnownScoringPhase,
   isNarrationPending,
@@ -29,6 +31,7 @@ import {
   type FetchState,
 } from "../pathFailure";
 import {
+  pathFitKeys,
   useClearPathFeedback,
   usePathFit,
   usePrefetchPathFits,
@@ -42,6 +45,8 @@ import PathFitPanel from "./PathFitPanel";
 import PathWantsPanel from "./PathWantsPanel";
 import SkillProficiencyModal from "./SkillProficiencyModal";
 import { careerStatusNavState } from "../../../shared/lib/careerStatusReturn";
+
+type SkillsResponse = components["schemas"]["SkillsResponse"];
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +96,26 @@ function withSentencesFrom(
   };
 }
 
+/**
+ * The house fallback sentence, for a card whose sentence is never coming.
+ *
+ * The client's copy of `_overlap_sentence` in `intelligence_service` -- the
+ * sentence the server writes for every card it has no narrative for -- built
+ * from the same `overlapping_skills` the card carries for exactly this reason.
+ * It is used only when nothing more will arrive on this page: the read-back
+ * after a mid-narration tap failed, or the job's poll gave up while a card was
+ * still empty. A blank card under a title reads as broken; this reads as the
+ * same card the server would have sent after its own deadline.
+ */
+function fallbackWhyText(overlappingSkills: string[] | undefined): string {
+  const names = (overlappingSkills ?? []).filter(Boolean).slice(0, 3);
+  if (names.length === 0) {
+    return "A different direction. Open it to see how it lines up with your skills.";
+  }
+  if (names.length === 1) return `Uses your ${names[0]}.`;
+  return `Uses your ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}.`;
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -137,7 +162,9 @@ function hasCareerStatus(profile: Record<string, unknown> | undefined): boolean 
   });
 }
 
-// Placeholder — will be replaced by the full component in SOL-31.
+/** Shown before anything else to a user with no career status: the scoring
+ *  job would fail on `career_status_not_set` after they had rated skills and
+ *  answered preferences. Best-guess copy; Julie revises. */
 function CareerStatusOnboardingPrompt() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -171,6 +198,15 @@ function CareerStatusOnboardingPrompt() {
  *  scorer needs at least one, so asking for preferences first would only end
  *  at `profile_incomplete`. Best-guess copy; Julie revises. */
 function AddSkillsPrompt() {
+  const location = useLocation();
+  // The same returnTo the career-status prompt carries, so the profile page can
+  // offer the way back here. Only the returnTo: `showCareerStatusModal` would
+  // pop the career-status question at somebody who has already answered it --
+  // this gate is only reached with a status on file.
+  const { returnTo } = careerStatusNavState(
+    location.pathname + location.search,
+    "Path Intelligence"
+  );
   return (
     <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center space-y-4">
       <p className="font-semibold text-ink-primary">Add a few skills to get started.</p>
@@ -180,6 +216,7 @@ function AddSkillsPrompt() {
       </p>
       <Link
         to="/job-seeker/profile?tab=experience"
+        state={{ returnTo }}
         className="inline-block bg-forest-dark text-white font-semibold px-4 py-2 rounded text-sm hover:bg-forest-mid transition-colors"
       >
         Add skills
@@ -195,6 +232,11 @@ function AddSkillsPrompt() {
 /** The page's screen: every job-lifecycle state, plus `needs_skills`, which is
  *  decided on mount and never by the job. */
 type PageState = FetchState | "needs_skills";
+
+/** One feedback write, as the user made it -- what "Try again" resends. */
+type FeedbackTap =
+  | { kind: "verdict"; onetCode: string; verdict: PathVerdict }
+  | { kind: "clear" };
 
 export default function PathIntelligencePage() {
   const navigate = useNavigate();
@@ -217,6 +259,8 @@ export default function PathIntelligencePage() {
   // skills, means nothing below can succeed yet, so the page says so up front.
   const [entryGate, setEntryGate] = useState<"career_status" | "skills" | null>(null);
   const hasFiredRef = useRef(false);
+  const queryClient = useQueryClient();
+  const { updateProfileData } = useProfileActions();
 
   const startSuggestions = useStartPathSuggestionJob();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -238,6 +282,9 @@ export default function PathIntelligencePage() {
   // Has this session written a judgement? Until it has, the server's map is the
   // truth; after it has, ours is. See `effectiveFeedback`.
   const [feedbackTouched, setFeedbackTouched] = useState(false);
+  // The tap that failed, so the inline "Try again" can send it again rather
+  // than only dismissing the message and leaving the user to find the button.
+  const [failedTap, setFailedTap] = useState<FeedbackTap | null>(null);
 
   const recordFeedback = useRecordPathFeedback();
   const clearFeedback = useClearPathFeedback();
@@ -251,17 +298,33 @@ export default function PathIntelligencePage() {
 
   const fetchSuggestions = useCallback(() => {
     setShowPreferences(false);
-    setRerank(null);
-    setFeedbackError(null);
-    setFeedbackTouched(false);
+    // Every way into a fresh scoring -- the mount, the proficiency modal, the
+    // preferences form, a wants save, the retry button -- comes through here,
+    // and each is a point where the profile may have changed since the deep
+    // fits in this client's cache were fetched (skills, title, career status:
+    // the server has already dropped its stored `path_fits` rows for those).
+    // The QueryClient outlives a navigation to the profile page and back, so
+    // nothing else would ever drop them. Removed, not invalidated: no panel is
+    // open at any of these points, and the list's own effect warms the cards
+    // again once the new one lands.
+    queryClient.removeQueries({ queryKey: pathFitKeys.all });
     startSuggestions.mutate(undefined, {
       // A new enqueue re-keys the poll query, so a stale job's terminal state
-      // cannot shadow the fresh run.
-      onSuccess: (accepted) => setJobId(accepted.job_id),
+      // cannot shadow the fresh run. The re-rank override and the session's
+      // judgements are dropped HERE, on the accepted enqueue, and not before
+      // it: a refused enqueue (a 429 after a few wants saves) keeps the list
+      // the user is reading exactly as it was -- see `jobState`.
+      onSuccess: (accepted) => {
+        setRerank(null);
+        setFeedbackError(null);
+        setFailedTap(null);
+        setFeedbackTouched(false);
+        setJobId(accepted.job_id);
+      },
     });
   // `startSuggestions` is a stable TanStack Query mutation object; listing it
   // would rebuild this callback on every mutation state change, and the mount
-  // effect below depends on it being stable.
+  // effect below depends on it being stable. `queryClient` is stable too.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -287,11 +350,16 @@ export default function PathIntelligencePage() {
   const jobState: FetchState = (() => {
     if (startSuggestions.isPending) return "loading";
     // A19 gives the enqueue a rate limit the synchronous GET never needed, so
-    // a 429 is reachable here and is one of the things "error" renders.
+    // a 429 is reachable here and is one of the things "error" renders --
+    // but only when there is no list to keep. A re-score asked for while a
+    // list is on screen (a wants save, "Try again") that is refused leaves
+    // that list where it is, with the refusal said inline (`rescoreError`):
+    // W-16's rule, cards on screen stay on screen, applied to the enqueue.
     if (startSuggestions.isError) {
-      return stateForFailure(
+      const failure = stateForFailure(
         startSuggestions.error instanceof Error ? startSuggestions.error.message : ""
       );
+      return failure === "error" && data ? "success" : failure;
     }
     const job = suggestionJob.data;
     // W-16: cards on screen stay on screen. Since the job succeeds as soon as
@@ -343,6 +411,11 @@ export default function PathIntelligencePage() {
 
   const feedbackPending = recordFeedback.isPending || clearFeedback.isPending;
 
+  // A refused re-score with the previous list still on screen (see `jobState`).
+  const rescoreError = startSuggestions.isError && fetchState === "success";
+  const rescoreRateLimited =
+    startSuggestions.error instanceof ApiError && startSuggestions.error.status === 429;
+
   // ---------------------------------------------------------------------
   // W-16: cards first, sentences after
   // ---------------------------------------------------------------------
@@ -356,7 +429,6 @@ export default function PathIntelligencePage() {
   //
   // The poll count is read off the query's own state: the render that follows
   // the hook's last permitted poll is the one that sees the cap reached.
-  const queryClient = useQueryClient();
   const pollCount =
     (jobId !== null
       ? queryClient.getQueryState(pathSuggestionJobKeys.status(jobId))?.dataUpdateCount
@@ -387,9 +459,15 @@ export default function PathIntelligencePage() {
   }, [rerankWaiting, jobNarrating]);
 
   const narrating = rerank ? rerankWaiting : jobNarrating;
-  const shownSuggestions = (data?.suggestions ?? []).map((suggestion) =>
-    narrating && !suggestion.why_text ? { ...suggestion, sentence_pending: true } : suggestion
-  );
+  // An empty sentence is either still coming (shimmer) or never coming -- the
+  // read-back failed, or the poll gave up first -- and then the card gets the
+  // house fallback rather than a blank line under its title.
+  const shownSuggestions = (data?.suggestions ?? []).map((suggestion) => {
+    if (suggestion.why_text) return suggestion;
+    return narrating
+      ? { ...suggestion, sentence_pending: true }
+      : { ...suggestion, why_text: fallbackWhyText(suggestion.overlapping_skills) };
+  });
 
   /**
    * Record a verdict and swap in the list the server ranks from it.
@@ -414,6 +492,7 @@ export default function PathIntelligencePage() {
       const previousRerank = rerank;
       const previousFeedback = effectiveFeedback;
       setFeedbackError(null);
+      setFailedTap(null);
       setFeedbackTouched(true);
       setFeedback({ ...previousFeedback, [onetCode]: verdict });
       if (data && verdict !== "interesting") {
@@ -434,6 +513,7 @@ export default function PathIntelligencePage() {
             setRerank(previousRerank);
             setFeedback(previousFeedback);
             setFeedbackError(error instanceof Error ? error.message : "");
+            setFailedTap({ kind: "verdict", onetCode, verdict });
           },
         },
       );
@@ -445,6 +525,7 @@ export default function PathIntelligencePage() {
     const previousRerank = rerank;
     const previousFeedback = effectiveFeedback;
     setFeedbackError(null);
+    setFailedTap(null);
     setFeedbackTouched(true);
     clearFeedback.mutate(undefined, {
       onSuccess: (result) => {
@@ -455,9 +536,20 @@ export default function PathIntelligencePage() {
         setRerank(previousRerank);
         setFeedback(previousFeedback);
         setFeedbackError(error instanceof Error ? error.message : "");
+        setFailedTap({ kind: "clear" });
       },
     });
   }, [rerank, effectiveFeedback, clearFeedback]);
+
+  /** The inline "Try again": send the tap that failed, exactly as it was. */
+  const retryFailedTap = useCallback(() => {
+    if (!failedTap) {
+      setFeedbackError(null);
+      return;
+    }
+    if (failedTap.kind === "clear") handleClearFeedback();
+    else handleVerdict(failedTap.onetCode, failedTap.verdict);
+  }, [failedTap, handleClearFeedback, handleVerdict]);
 
   // Opening a card is now state and nothing else: the query below it fires on
   // the code, and if the card was prefetched there is nothing to fire.
@@ -478,7 +570,7 @@ export default function PathIntelligencePage() {
     // PUT, not PATCH: the write replaces the whole ratings map rather than
     // merging into it, and Phase 1b made the verb match what happens.
     mutationFn: (levels: Record<string, string>) =>
-      fetchWithAuth("/me/skills", {
+      fetchWithAuth<SkillsResponse>("/me/skills", {
         method: "PUT",
         body: JSON.stringify({
           skills: Object.entries(levels).map(([name, proficiency]) => ({
@@ -487,6 +579,18 @@ export default function PathIntelligencePage() {
           })),
         }),
       }),
+    // Into the profile cache, as PathPreferencesForm does with its write.
+    // Without it the cached document keeps the ratings from page load: the
+    // next "Edit skill ratings" opens on the OLD values, and pressing Save on
+    // that modal writes them straight back over the new ones. The server's
+    // `skill_levels` is the whole merged map, so it replaces the cached one;
+    // a response without it falls back to the same merge the server does.
+    onSuccess: (saved, levels) => {
+      updateProfileData({
+        skill_levels: saved?.skill_levels ?? { ...skillLevels, ...levels },
+        skills_proficiency_confirmed: true,
+      });
+    },
   });
 
   const handleProficiencySave = (levels: Record<string, string>) => {
@@ -689,10 +793,40 @@ export default function PathIntelligencePage() {
                   <p className="text-xs">Your suggestions haven't changed.</p>
                   <button
                     type="button"
-                    onClick={() => setFeedbackError(null)}
-                    className="mt-3 text-xs font-semibold text-red-700 underline"
+                    onClick={retryFailedTap}
+                    disabled={feedbackPending}
+                    className="mt-3 text-xs font-semibold text-red-700 underline disabled:opacity-60"
                   >
                     Try again
+                  </button>
+                </div>
+              )}
+
+              {/* A re-score that was refused while this list was on screen.
+                  The list stays; the refusal is said here. Best-guess copy;
+                  Julie revises. */}
+              {rescoreError && (
+                <div
+                  role="alert"
+                  data-rescore-error
+                  className="rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
+                >
+                  <p className="font-medium mb-1">
+                    {rescoreRateLimited
+                      ? "That's a lot of updates at once, so these are your paths from before."
+                      : "We couldn't update your paths just now, so these are the ones from before."}
+                  </p>
+                  <p className="text-xs">
+                    {rescoreRateLimited
+                      ? "Give it a minute, then try again."
+                      : "Please try again in a moment."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={fetchSuggestions}
+                    className="mt-3 text-xs font-semibold text-red-700 underline"
+                  >
+                    Update my paths
                   </button>
                 </div>
               )}

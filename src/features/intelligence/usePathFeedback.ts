@@ -124,12 +124,15 @@ export const pathFitKeys = {
 /**
  * How long a fetched deep fit is served without going back to the server.
  *
- * `Infinity`, i.e. for the life of this page load, and the server is what makes
- * that safe rather than optimistic: the stored `path_fits` row is invalidated
- * whenever the profile changes (a fingerprint mismatch) and re-computed on the
- * next request, and a profile edit means a navigation, which means a new
- * `QueryClient`. Inside one visit to one page there is nothing that can change
- * the answer and nothing a refetch could discover.
+ * `Infinity`, and it is the page, not this number, that keeps that honest. The
+ * server invalidates its stored `path_fits` rows whenever skills, title or
+ * career status change, but the `QueryClient` is NOT replaced by a navigation
+ * -- it lives as long as the SPA does -- so a user who edits their profile and
+ * comes back would otherwise be served the analysis from before the edit.
+ * `PathIntelligencePage.fetchSuggestions` removes every `pathFitKeys.all`
+ * entry on each fresh scoring, which is every point at which the profile can
+ * have changed under this page. Between two scorings nothing can change the
+ * answer and nothing a refetch could discover.
  */
 const PATH_FIT_STALE_TIME_MS = Infinity;
 
