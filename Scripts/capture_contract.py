@@ -260,6 +260,23 @@ that the flag reads `true`, because a past report never reaches the report itsel
 -- and `submit-past-environment-report-limit`, the 409 `past_report_limit` a
 second past report gets. `export` still does not move: it runs before any
 environment report exists.
+
+**Re-baselined for the 2026-10-02 bug-fix wave.** A deliberate change, and A31
+(docs/ARCHITECTURE.md) is the ledger. `GET /me/situation-report`'s `complete`
+state gained one additive key, `career_status_changed` (bool): it is true when
+the caller's live career status reads in a different tense from the snapshot the
+report was filed under. No step was added, removed or reordered. Verified twice
+before the recapture on the standing baseline, before and after the wave's
+last follow-ups landed: 3 differences, all body-only, and each body equals its
+baseline byte for byte once `"career_status_changed":false,` is removed --
+`situation-report-complete`, `situation-report-after-pulse-event` and
+`situation-report-after-past-report`. EMAIL is `employed` live and in the
+snapshot, so the flag reads `false` in all three. The rest of the wave does not
+reach this scenario. There is no agent or quiz-insight step, so `LlmErrorResponse`
+and the agent's 422 -> 503 for an unavailable model are not pinned here. The
+dashboard's recommendation backstop moved from 3 to 6, but this scenario never
+has more than three, so `dashboard` and `dashboard-cached` stay byte-identical.
+After the recapture: 0 differences across 116.
 """
 
 from __future__ import annotations

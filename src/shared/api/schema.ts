@@ -15,7 +15,9 @@ export interface paths {
         put?: never;
         /**
          * Stream a chat turn from the AI agent
-         * @description Responds with `text/event-stream`, not JSON: one `data: {"chunk": ...}` frame per token, then `data: {"done": true, "model": ...}`. A failure that happens mid-stream is delivered as a `data: {"error": ...}` frame on a 200, because the status line has already been sent.
+         * @description Responds with `text/event-stream`, not JSON: one `data: {"chunk": ...}` frame per token, then `data: {"done": true, "model": ...}`. A failure that happens mid-stream is delivered as a `data: {"error": ..., "code": "agent_stream_interrupted"}` frame on a 200, because the status line has already been sent. A stream that ends without `done` was cut off and its partial reply should be discarded.
+         *
+         *     The server picks the model; a `model` in the body is ignored. Roles are `user` and `assistant` only, the history is capped at 40 messages of 4,000 characters each, and the server may drop the oldest turns to fit its context budget.
          */
         post: operations["post_intelligence_agent_messages"];
         delete?: never;
@@ -1307,7 +1309,7 @@ export interface paths {
         };
         /**
          * Read the Situation Report
-         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
+         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
          */
         get: operations["get_me_get_my_situation_report"];
         put?: never;
@@ -1515,10 +1517,9 @@ export interface components {
             /**
              * Role
              * @description "user" or "assistant".
+             * @enum {string}
              */
-            role: string;
-        } & {
-            [key: string]: unknown;
+            role: "user" | "assistant";
         };
         /**
          * AgentMessagesRequest
@@ -1532,15 +1533,9 @@ export interface components {
         AgentMessagesRequest: {
             /**
              * Messages
-             * @description Full conversation history; must be non-empty.
+             * @description Conversation history, oldest first; must be non-empty. The server may drop the oldest turns to fit its context budget.
              */
             messages: components["schemas"]["AgentChatMessage"][];
-            /**
-             * Model
-             * @description Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).
-             * @default null
-             */
-            model: string | null;
         };
         /**
          * AssessmentCatalogueEntry
@@ -1914,8 +1909,10 @@ export interface components {
          * DashboardResponse
          * @description Job-seeker dashboard summary.
          *
-         *     ``recentActivity`` (at most five, newest first) and ``recommendations`` (at
-         *     most three) are derived from the caller's own rows; the counts are live.
+         *     ``recentActivity`` (at most five, newest first) and ``recommendations`` (every
+         *     step that applies, most important first; the dashboard shows three after
+         *     dropping those its other cards already link to) are derived from the
+         *     caller's own rows; the counts are live.
          */
         DashboardResponse: {
             /** Applications */
@@ -2080,7 +2077,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2148,7 +2145,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2198,7 +2195,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2987,6 +2984,26 @@ export interface components {
          *     collapses them by moving handlers onto ``solverah.errors.ApiError``.
          */
         LegacyError: {
+            /**
+             * Error
+             * @description Human-readable failure message.
+             */
+            error: string;
+        };
+        /**
+         * LlmErrorResponse
+         * @description A failure from an LLM-backed route.
+         *
+         *     ``error`` is generic, user-facing text; ``code`` is stable and
+         *     machine-readable. The provider's own exception text, its name, and the model
+         *     id are logged server-side and never sent (2026-10-02 audit #4).
+         */
+        LlmErrorResponse: {
+            /**
+             * Code
+             * @description "insight_generation_failed", "insight_malformed", "agent_unavailable", "agent_model_unavailable", or "agent_failed".
+             */
+            code: string;
             /**
              * Error
              * @description Human-readable failure message.
@@ -4210,7 +4227,9 @@ export interface components {
          * @description Quizzes to generate insights for.
          *
          *     A quiz with no key, no title, or no answered items is discarded before the
-         *     model is called; if that leaves nothing, the request is a 400.
+         *     model is called; if that leaves nothing, the request is a 400. Counts and
+         *     lengths are capped (a 422 past them) on the signed-in and the anonymous
+         *     endpoint alike, since both pay for the same completion.
          */
         QuizInsightsRequest: {
             /** Quizgroup */
@@ -4903,7 +4922,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Internal server error */
@@ -4912,7 +4931,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Service unavailable */
@@ -4921,7 +4940,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -5878,13 +5897,22 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -7533,13 +7561,22 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */

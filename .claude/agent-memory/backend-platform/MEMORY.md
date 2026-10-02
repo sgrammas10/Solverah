@@ -1,0 +1,1 @@
+- [A31 re-baseline + LLM steps gap](rebaseline-pending-career-status-changed.md) — 2026-10-02 wave re-baselined (3 steps); baseline has no LLM-route steps; .doc MIME drop proposal

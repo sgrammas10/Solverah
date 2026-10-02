@@ -204,14 +204,18 @@
         "type": "object"
       },
       "AgentChatMessage": {
-        "additionalProperties": true,
         "properties": {
           "content": {
+            "maxLength": 4000,
             "title": "Content",
             "type": "string"
           },
           "role": {
             "description": "\"user\" or \"assistant\".",
+            "enum": [
+              "user",
+              "assistant"
+            ],
             "title": "Role",
             "type": "string"
           }
@@ -227,26 +231,14 @@
         "description": "``POST /agent/messages``. The response is Server-Sent Events, not JSON.\n\nThe server prepends its own system message carrying RAG context assembled\nfrom the profile, the company network, and the user's resume text -- so a\nclient must not send a system message of its own expecting it to be\nhonoured.",
         "properties": {
           "messages": {
-            "description": "Full conversation history; must be non-empty.",
+            "description": "Conversation history, oldest first; must be non-empty. The server may drop the oldest turns to fit its context budget.",
             "items": {
               "$ref": "#/components/schemas/AgentChatMessage"
             },
+            "maxItems": 40,
             "minItems": 1,
             "title": "Messages",
             "type": "array"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Groq model. Defaults to \"openai/gpt-oss-20b\" (or SOLVERAH_AGENT_MODEL).",
-            "title": "Model"
           }
         },
         "required": [
@@ -918,7 +910,7 @@
       },
       "DashboardResponse": {
         "additionalProperties": false,
-        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` (at most five, newest first) and ``recommendations`` (at\nmost three) are derived from the caller's own rows; the counts are live.",
+        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` (at most five, newest first) and ``recommendations`` (every\nstep that applies, most important first; the dashboard shows three after\ndropping those its other cards already link to) are derived from the\ncaller's own rows; the counts are live.",
         "properties": {
           "applications": {
             "title": "Applications",
@@ -1242,7 +1234,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -1357,7 +1349,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -1447,7 +1439,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -2883,6 +2875,28 @@
           "error"
         ],
         "title": "LegacyError",
+        "type": "object"
+      },
+      "LlmErrorResponse": {
+        "additionalProperties": false,
+        "description": "A failure from an LLM-backed route.\n\n``error`` is generic, user-facing text; ``code`` is stable and\nmachine-readable. The provider's own exception text, its name, and the model\nid are logged server-side and never sent (2026-10-02 audit #4).",
+        "properties": {
+          "code": {
+            "description": "\"insight_generation_failed\", \"insight_malformed\", \"agent_unavailable\", \"agent_model_unavailable\", or \"agent_failed\".",
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "description": "Human-readable failure message.",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "title": "LlmErrorResponse",
         "type": "object"
       },
       "LoginRequest": {
@@ -4856,9 +4870,10 @@
       },
       "QuizInsightsRequest": {
         "additionalProperties": false,
-        "description": "Quizzes to generate insights for.\n\nA quiz with no key, no title, or no answered items is discarded before the\nmodel is called; if that leaves nothing, the request is a 400.",
+        "description": "Quizzes to generate insights for.\n\nA quiz with no key, no title, or no answered items is discarded before the\nmodel is called; if that leaves nothing, the request is a 400. Counts and\nlengths are capped (a 422 past them) on the signed-in and the anonymous\nendpoint alike, since both pay for the same completion.",
         "properties": {
           "quizGroup": {
+            "maxLength": 64,
             "title": "Quizgroup",
             "type": "string"
           },
@@ -4866,6 +4881,7 @@
             "items": {
               "$ref": "#/components/schemas/QuizPayload"
             },
+            "maxItems": 8,
             "title": "Quizzes",
             "type": "array"
           }
@@ -4908,10 +4924,12 @@
         "additionalProperties": false,
         "properties": {
           "question": {
+            "maxLength": 400,
             "title": "Question",
             "type": "string"
           },
           "selected": {
+            "maxLength": 300,
             "title": "Selected",
             "type": "string"
           }
@@ -4930,15 +4948,18 @@
             "items": {
               "$ref": "#/components/schemas/QuizItem"
             },
+            "maxItems": 40,
             "title": "Items",
             "type": "array"
           },
           "key": {
             "description": "Echoed verbatim in the matching insight.",
+            "maxLength": 64,
             "title": "Key",
             "type": "string"
           },
           "title": {
+            "maxLength": 120,
             "title": "Title",
             "type": "string"
           }
@@ -5875,7 +5896,7 @@
   "paths": {
     "/api/v1/agent/messages": {
       "post": {
-        "description": "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure that happens mid-stream is delivered as a `data: {\"error\": ...}` frame on a 200, because the status line has already been sent.",
+        "description": "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure that happens mid-stream is delivered as a `data: {\"error\": ..., \"code\": \"agent_stream_interrupted\"}` frame on a 200, because the status line has already been sent. A stream that ends without `done` was cut off and its partial reply should be discarded.\n\nThe server picks the model; a `model` in the body is ignored. Roles are `user` and `assistant` only, the history is capped at 40 messages of 4,000 characters each, and the server may drop the oldest turns to fit its context budget.",
         "operationId": "post_intelligence_agent_messages",
         "requestBody": {
           "content": {
@@ -5902,7 +5923,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
                 }
               }
             },
@@ -5912,7 +5933,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -5922,7 +5943,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -7232,11 +7253,21 @@
             },
             "description": "Bad request"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -9480,11 +9511,21 @@
             },
             "description": "Not found"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -9868,7 +9909,7 @@
     },
     "/api/v1/me/situation-report": {
       "get": {
-        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
+        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
         "operationId": "get_me_get_my_situation_report",
         "responses": {
           "200": {
