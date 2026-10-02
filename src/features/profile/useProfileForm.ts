@@ -15,14 +15,22 @@
  *   normalizeProfileData(incoming) — Coerce a raw server payload to ProfileFormData shape.
  *   useProfileForm(options?)       — The hook itself; returns form state + mutators.
  */
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth";
 import { useProfile, profileKeys } from "./useProfile";
 import { useProfileActions } from "./useProfileActions";
 import { useStartResumeParseJob, useResumeParseJobStatus } from "./useResumeParseJob";
+import { dashboardKeys } from "./dashboardKeys";
 import { errorMessage } from "../../shared/api/apiError";
-import { ProfileFormData, PendingResumeUpload, ResumeParseUiState, SkillLevel, Certification } from "./types";
+import {
+  ProfileFormData,
+  PendingResumeUpload,
+  ResumeParseUiState,
+  SkillLevel,
+  Certification,
+  isCareerStatus,
+} from "./types";
 
 // Per-collection limits enforced in the UI to prevent unreasonably large profiles.
 const MAX_EXPERIENCES = 20;
@@ -34,6 +42,35 @@ const MAX_SECONDARY_LOCATIONS = 20;
 // Upload progress simulation timing constants.
 const PROGRESS_TICK_MS = 450;        // interval between each progress step
 const PROGRESS_RESET_DELAY_MS = 600; // delay before resetting progress bar to 0 after completion
+
+/** The resume types the parser can read. `.doc` is NOT one: it uploads, then
+ *  yields no text (audit 2026-10-02 item 1). Extension as well as MIME, because
+ *  some browsers hand a .docx over with an empty `type`. */
+const READABLE_RESUME_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+const READABLE_RESUME_EXTENSIONS = [".pdf", ".docx"];
+
+export function isReadableResume(file: File): boolean {
+  if (READABLE_RESUME_TYPES.includes(file.type)) return true;
+  const name = file.name.toLowerCase();
+  return !file.type && READABLE_RESUME_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
+
+/** Best-guess copy; Julie revises. */
+export const UNREADABLE_RESUME_MESSAGE =
+  "We can only read PDF and DOCX files. Save your resume as one of those and upload it again.";
+
+/** Thrown when the profile PATCH landed and the follow-up `PATCH /me` (the
+ *  account name) did not -- a different message, because the rest is saved. */
+class IdentitySaveError extends Error {}
+
+/** The save-failure copy. Best guess; Julie revises. */
+export const SAVE_FAILED_MESSAGE =
+  "We couldn't save your profile. Your changes are still here, so try again.";
+export const NAME_SAVE_FAILED_MESSAGE =
+  "Your profile was saved, but we couldn't update your name. Try saving again.";
 
 /**
  * Build a blank ProfileFormData, optionally pre-seeded with the user's name and email.
@@ -119,7 +156,7 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   const { user, updateProfile, fetchWithAuth } = useAuth();
   // The document writes come from the profile slice's own hook now; only
   // identity (`user`, `updateProfile`) and the transport stay on auth.
-  const { updateProfileData, saveProfileData } = useProfileActions();
+  const { saveProfileData } = useProfileActions();
 
   // The profile document, from the query rather than off `user`. This hook used
   // to do both -- read `user.profileData` in one effect and call
@@ -146,6 +183,10 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   const [educationLimitMsg, setEducationLimitMsg] = useState("");
   const [certificationLimitMsg, setCertificationLimitMsg] = useState("");
   const [locationLimitMsg, setLocationLimitMsg] = useState("");
+  const [resumeFileError, setResumeFileError] = useState<string | null>(null);
+  // Whether the form has been filled from the document once. See the
+  // hydration effect for why later fills are skipped while the form is dirty.
+  const hydratedRef = useRef(false);
 
   // Single structured resume-parse status, derived from the start mutation and
   // the poll query -- no separate hand-rolled booleans for "parsing"/"failed".
@@ -182,32 +223,61 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   // the mutation's pending state rather than a hand-rolled boolean. It used to
   // chain a POST /me/recommendations/refresh after the write; nothing consumes
   // those recommendations yet, so the save no longer waits on it.
+  //
+  // No optimistic cache writes (audit 2026-10-02 item 5). handleSubmit used to
+  // merge the draft into the profile cache and the session user before the
+  // PATCH, and a failed PATCH left both holding data the server never took,
+  // with nothing shown and the bar filled to "Saved". The caches are now
+  // written only from the server's answer -- saveProfileData puts the returned
+  // document in the profile cache, and the name goes on the session user once
+  // PATCH /me confirms it -- so a failure has nothing to roll back.
   const saveProfile = useMutation({
-    mutationFn: async (profileDataToSave: ProfileFormData) => {
+    mutationFn: async ({ data, name }: { data: ProfileFormData; name: string | null }) => {
       if (saveProfileData) {
         // Spread rather than passed direct: `ProfileData` wants an index
         // signature, which the anonymous spread type has and the named
         // `ProfileFormData` interface does not.
-        await saveProfileData({ ...profileDataToSave });
+        await saveProfileData({ ...data });
       } else {
         console.warn("saveProfileData is not available; profile saved locally only.");
       }
+      // The name lives on users.name as well as in the document, and only
+      // PATCH /me writes that column (audit 2026-10-02 item 10). Without this
+      // the header and "Welcome back" kept the sign-up name forever.
+      if (!name) return null;
+      try {
+        const identity = await fetchWithAuth<{ name?: string }>("/me", {
+          method: "PATCH",
+          body: JSON.stringify({ name }),
+        });
+        return identity?.name || name;
+      } catch (err) {
+        throw new IdentitySaveError(errorMessage(err, "name not saved"));
+      }
     },
-    onSuccess: (_data, profileDataToSave) => {
-      setFormData(profileDataToSave);
+    onSuccess: (savedName, { data }) => {
+      if (savedName) updateProfile?.({ name: savedName });
+      setFormData(data);
       setIsSaved(true);
-      options.onSaved?.(profileDataToSave);
-    },
-    onSettled: () => {
       setSaveProgress(100);
       setTimeout(() => setSaveProgress(0), PROGRESS_RESET_DELAY_MS);
+      options.onSaved?.(data);
+    },
+    onError: () => {
+      // The bar must not finish: a full bar reads as "Saved".
+      setSaveProgress(0);
     },
   });
   const isSaving = saveProfile.isPending;
-  // The bar outlives isSaving: onSettled fills it to 100 and the reset timer
+  // The bar outlives isSaving: onSuccess fills it to 100 and the reset timer
   // hides it, so the user sees it finish. It cannot reach 100 before the save
-  // settles because the ticker below caps at 90.
+  // settles because the ticker below caps at 90, and a failed save drops it.
   const saveBarVisible = isSaving || saveProgress > 0;
+  const saveError: string | null = saveProfile.isError
+    ? saveProfile.error instanceof IdentitySaveError
+      ? NAME_SAVE_FAILED_MESSAGE
+      : SAVE_FAILED_MESSAGE
+    : null;
 
   // The resume upload -- ticket then S3 PUT -- as one mutation: the two steps
   // succeed or fail as a unit, exactly as the hand-rolled try block treated
@@ -288,8 +358,16 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   // Gated on isSuccess rather than on `profile` being truthy: while the query is
   // still in flight `profile` is undefined, and treating that as "no profile"
   // is what would blank a populated form for one render on every mount.
+  //
+  // After the first fill, a document change is NOT copied over a dirty form.
+  // The career-status control and a server-side resume parse both change the
+  // cached document while the user may be mid-edit, and re-filling then would
+  // silently discard the edits. Once the form is clean again (a save landed),
+  // the effect re-runs on `isSaved` and picks up the server's copy.
   useEffect(() => {
     if (!profileLoaded) return;
+    if (hydratedRef.current && !isSaved) return;
+    hydratedRef.current = true;
     if (profile && Object.keys(profile).length > 0) {
       setFormData((curr) => ({
         ...curr,
@@ -298,7 +376,7 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
     } else {
       setFormData(buildDefaultProfile(user ?? undefined));
     }
-  }, [profile, profileLoaded, user]);
+  }, [profile, profileLoaded, user, isSaved]);
 
   // Backfill identity from the session for a document that does not carry it.
   //
@@ -354,8 +432,25 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
       resumeKey: normalized.resumeKey ?? prev.resumeKey,
     }));
     queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    // The dashboard's activity and its "add your skills" step read the same
+    // document; its cached copy is out of date the moment the parse lands.
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     setResumeParseJobId(null);
   }, [resumeParseJobStatus.data, queryClient]);
+
+  // A parse that failed put nothing on the profile, so the card must not keep
+  // showing the new file as the profile's resume next to the error.
+  const parseJobStatus = resumeParseJobStatus.data?.status;
+  useEffect(() => {
+    if (parseJobStatus !== "failed") return;
+    const stored = (profile as Partial<ProfileFormData> | undefined)?.uploadedResume ?? null;
+    setFormData((prev) => ({ ...prev, uploadedResume: stored }));
+    setResumeUploaded(Boolean(stored));
+    setPendingResume(null);
+    // `profile` deliberately not a dependency: this runs on the failure, not
+    // on every later change to the document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parseJobStatus]);
 
   // Warn before leaving with unsaved changes
   useEffect(() => {
@@ -372,31 +467,34 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    let profileDataToSave = {
-      ...formData,
+    // career_status is never sent from the draft. The Experience tab's control
+    // writes it on its own (PATCH /me/career-status), and a copy held in the
+    // form would put back whatever the status was when the form loaded.
+    const { career_status: _draftStatus, ...draft } = formData;
+    let profileDataToSave: ProfileFormData = {
+      ...draft,
       uploadedResume: uploadedResume
         ? { name: uploadedResume.name, size: uploadedResume.size, type: uploadedResume.type }
         : formData.uploadedResume ?? null,
     };
 
-    // If any experience entry is marked as current, the user is employed.
-    // Set career_status automatically so Path Intelligence stops showing the
-    // "set your career status" prompt after the profile is saved.
+    // A current role on a profile with no status yet means the user is
+    // employed: set it, so Path Intelligence and the Situation Report stop
+    // asking. Only when no status is stored -- an explicit choice from the
+    // career-status control is never overwritten by a save (audit item 6).
+    const storedStatus = (profile as { career_status?: unknown } | undefined)?.career_status;
     const hasCurrentRole = (profileDataToSave.experience ?? []).some(
       (exp: any) =>
         ["present", "current"].includes((exp.endDate ?? "").toLowerCase())
     );
-    if (hasCurrentRole) {
+    if (hasCurrentRole && !isCareerStatus(storedStatus)) {
       profileDataToSave = { ...profileDataToSave, career_status: "employed" };
     }
 
-    // The synchronous cache merges stay ahead of the server round trip, as
-    // they always were; the awaited writes live on the mutation.
     const fullName = `${profileDataToSave.firstName} ${profileDataToSave.lastName}`.trim();
-    updateProfile?.({ name: fullName, profileComplete: true });
-    updateProfileData?.(profileDataToSave);
+    const nameChanged = fullName && fullName !== user?.name ? fullName : null;
 
-    saveProfile.mutate(profileDataToSave);
+    saveProfile.mutate({ data: profileDataToSave, name: nameChanged });
   };
 
   const handleChange = (field: string, value: any) => {
@@ -422,10 +520,15 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
         { id: Date.now(), company: "", position: "", startDate: "", endDate: "", description: "" },
       ],
     }));
+    setIsSaved(false);
   };
 
+  // Every collection edit marks the form dirty, so the unsaved strip and the
+  // beforeunload warning appear. Experience, education and adding a skill
+  // never did (audit 2026-10-02 item 4) -- only the personal fields did.
   const removeExperience = (id: number) => {
     setFormData((prev) => ({ ...prev, experience: prev.experience.filter((e) => e.id !== id) }));
+    setIsSaved(false);
   };
 
   const updateExperience = (id: number, field: string, value: string) => {
@@ -433,6 +536,7 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
       ...prev,
       experience: prev.experience.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
     }));
+    setIsSaved(false);
   };
 
   // ── Skills ──────────────────────────────────────────────────────────────────
@@ -442,11 +546,13 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
       setSkillLimitMsg(`You have reached the maximum of ${MAX_SKILLS} skills.`);
       return;
     }
+    if (formData.skills.includes(skill)) return;
+    if (skillLimitMsg) setSkillLimitMsg("");
     setFormData((prev) => {
       if (prev.skills.includes(skill)) return prev;
-      if (skillLimitMsg) setSkillLimitMsg("");
       return { ...prev, skills: [...prev.skills, skill] };
     });
+    setIsSaved(false);
   };
 
   const removeSkill = (skill: string) => {
@@ -483,10 +589,12 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
         { id: Date.now(), institution: "", degree: "", startDate: "", endDate: "", gpa: "" },
       ],
     }));
+    setIsSaved(false);
   };
 
   const removeEducation = (id: number) => {
     setFormData((prev) => ({ ...prev, education: prev.education.filter((e) => e.id !== id) }));
+    setIsSaved(false);
   };
 
   const updateEducation = (id: number, field: string, value: string) => {
@@ -494,6 +602,7 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
       ...prev,
       education: prev.education.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
     }));
+    setIsSaved(false);
   };
 
   // ── Certifications ──────────────────────────────────────────────────────────
@@ -559,6 +668,14 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // The picker no longer offers .doc, but "All files" still lets one through.
+    // Refused here rather than uploaded to a parse that can only fail.
+    if (!isReadableResume(file)) {
+      setResumeFileError(UNREADABLE_RESUME_MESSAGE);
+      if (e.target) e.target.value = "";
+      return;
+    }
+    setResumeFileError(null);
     setUploadedResume(file);
     setIsSaved(false);
     uploadResume.mutate(file);
@@ -591,6 +708,8 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
     setIsSaved,
     saveProgress,
     saveBarVisible,
+    saveError,
+    resumeFileError,
     isUploadingResume,
     uploadProgress,
     uploadedResume,

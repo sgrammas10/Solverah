@@ -38,16 +38,25 @@ import {
 } from '../../assessments';
 import type { SituationReport } from '../../assessments';
 import { nextActionFor } from '../../assessments';
+import { careerStatusNavState } from '../../../shared/lib/careerStatusReturn';
+import { dashboardKeys } from '../dashboardKeys';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
 type DashboardRecommendation = components['schemas']['DashboardRecommendation'];
 
-/** Query keys for the dashboard document. `all` is the invalidation handle. */
-export const dashboardKeys = {
-  all: ['dashboard'] as const,
-  summary: () => ['dashboard', 'summary'] as const,
-};
+// Moved to ../dashboardKeys so the profile writers can drop the dashboard
+// without importing this lazy-loaded page; re-exported for existing importers.
+export { dashboardKeys };
+
+/** How many next steps the card shows. The server sends every step that
+ *  applies; this screen drops the ones a lead card already links to and then
+ *  takes the first three (audit 2026-10-02 item 9). */
+export const RECOMMENDATIONS_SHOWN = 3;
+
+/** Below this the "Complete your profile" alert shows. `profileCompletion` is
+ *  the server's share of the seven fields `domain.profile` counts. */
+const PROFILE_COMPLETE_PCT = 100;
 
 const MINUTE = 60_000;
 
@@ -83,8 +92,11 @@ export function hrefsOfferedElsewhere(
   report: SituationReport | undefined,
   workPulseBannerVisible: boolean,
 ): Set<string> {
-  // PulseDashboardCard renders on every dashboard and always links to /pulse.
-  const offered = new Set<string>(['/pulse']);
+  // Not '/pulse', though PulseDashboardCard always links there: that link is
+  // the card's general way in, while the "Check in on your week" step only
+  // fires when a check-in is actually due, and filtering it out left a user
+  // who had done everything else with an empty card (audit item 9).
+  const offered = new Set<string>();
   if (workPulseBannerVisible) offered.add('/work-pulse');
   if (!report) return offered;
   const action = nextActionFor(report, workPulseBannerVisible);
@@ -110,10 +122,16 @@ function JobSeekerDashboard() {
   };
 
   /* Profile hrefs keep the tab translation; every other href is an SPA route.
-     Career status has no page of its own -- the profile page's modal sets it. */
+     Career status has no page of its own -- the profile page's modal sets it,
+     on the Experience tab where the status control also lives, and offers the
+     way back here once it is saved (audit item 8: it used to go to Path
+     Intelligence instead). */
   const openRecommendation = (rec: DashboardRecommendation) => {
     if (rec.id === 'career_status') {
-      navigate('/job-seeker/profile', { state: { showCareerStatusModal: true } });
+      navigate(
+        { pathname: '/job-seeker/profile', search: '?tab=experience' },
+        { state: careerStatusNavState('/job-seeker/dashboard', 'your dashboard') },
+      );
     } else if (rec.href?.startsWith('/') && !rec.href.startsWith('/job-seeker/profile')) {
       navigate(rec.href);
     } else {
@@ -139,6 +157,12 @@ function JobSeekerDashboard() {
   } = useQuery({
     queryKey: dashboardKeys.summary(),
     queryFn: () => fetchWithAuth<any>('/me/dashboard'),
+    // Every arrival refetches, whatever the staleTime. The writes that change
+    // this document happen on other pages (profile, status, resume, pulse,
+    // the assessments), and with the default 60s staleTime the user came back
+    // to the steps they had just finished (audit item 7). The server side is
+    // a Redis hit those writes already invalidate, so this is cheap.
+    refetchOnMount: 'always',
   });
   // Loading covers a retry in flight too, so "Try again" doesn't look dead.
   const dashboardCardsLoading = dashboardLoading || (dashboardIsError && dashboardIsFetching);
@@ -168,9 +192,15 @@ function JobSeekerDashboard() {
   // Shares the card's query (same key), so this costs no extra request.
   const { data: situationReport } = useSituationReport();
   const offeredElsewhere = hrefsOfferedElsewhere(situationReport, workPulseBannerVisible);
-  const recommendations: DashboardRecommendation[] = (dashboardData?.recommendations ?? []).filter(
-    (rec: DashboardRecommendation) => !rec.href || !offeredElsewhere.has(rec.href),
-  );
+  const recommendations: DashboardRecommendation[] = (dashboardData?.recommendations ?? [])
+    .filter((rec: DashboardRecommendation) => !rec.href || !offeredElsewhere.has(rec.href))
+    .slice(0, RECOMMENDATIONS_SHOWN);
+
+  // From the server's completion share, not `user.profileComplete`: the
+  // server never sends that flag, so the alert showed for every user after
+  // any reload (audit item 3). Hidden while the document is unknown.
+  const completionPct = dashboardData ? parseInt(dashboardData.profileCompletion ?? '0', 10) : null;
+  const showCompleteProfileAlert = completionPct !== null && completionPct < PROFILE_COMPLETE_PCT;
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
@@ -216,7 +246,7 @@ function JobSeekerDashboard() {
         )}
 
         {/* Profile completion alert */}
-        {!user?.profileComplete && (
+        {showCompleteProfileAlert && (
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-4">
             <User className="h-5 w-5 text-amber-600 shrink-0" />
             {/* Was "…to get better job matches and increase visibility" — the
@@ -325,10 +355,21 @@ function JobSeekerDashboard() {
               {!recommendations.length && (
                 <div className="text-center py-10">
                   <Brain className="h-8 w-8 text-ink-tertiary mx-auto mb-3" />
-                  <p className="text-sm text-ink-secondary">Suggestions start after Work Pulse.</p>
-                  <p className="text-xs text-ink-tertiary mt-1">
-                    Once you&rsquo;ve taken it, we&rsquo;ll point you to what&rsquo;s worth doing next.
-                  </p>
+                  {user?.wp_v2_completed ? (
+                    <>
+                      <p className="text-sm text-ink-secondary">You&rsquo;re up to date.</p>
+                      <p className="text-xs text-ink-tertiary mt-1">
+                        The cards above have your next step. New suggestions show up here as they come.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-ink-secondary">Suggestions start after Work Pulse.</p>
+                      <p className="text-xs text-ink-tertiary mt-1">
+                        Once you&rsquo;ve taken it, we&rsquo;ll point you to what&rsquo;s worth doing next.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
               <div className="space-y-3">

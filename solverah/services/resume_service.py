@@ -33,13 +33,14 @@ import importlib
 import importlib.util
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from packages.ml.resume import parse_resume
 from solverah.infra.storage import get_s3_client
@@ -48,8 +49,11 @@ __all__ = [
     "MAX_DOCX_RATIO",
     "MAX_DOCX_UNCOMPRESSED_BYTES",
     "MIME_EXTENSIONS",
+    "NO_TEXT_MESSAGE",
+    "NoResumeText",
     "PARSE_TIMEOUT_SECONDS",
     "build_profile_from_resume_key",
+    "split_duration",
     "docx_expansion_refusal",
     "download_url",
     "extract_resume_text",
@@ -194,8 +198,11 @@ def _extract_out_of_process(file_path: Path, mime: str) -> str:
     clock.
 
     Failure of any kind returns "", the same answer this module has always given
-    for a file it could not read: the caller merges an empty parse and the user
-    sees the upload succeed with nothing filled in.  A timeout is therefore not
+    for a file it could not read.  Since 2026-10-02 that "" is no longer merged
+    as an empty parse: :func:`build_profile_from_resume_key` raises
+    :class:`NoResumeText` on it, and the parse job tells the user the file had
+    no readable text instead of reporting a success that changed nothing (or,
+    before the merge rule, wiped their sections).  A timeout is therefore not
     a new outcome for callers to handle, only a new way to reach an old one.
     """
     if not sys.executable:
@@ -338,11 +345,29 @@ def download_url(resume_key: str) -> str:
     )
 
 
-def _fetch_text(resume_key: str, resume_mime: str) -> str:
-    """Download an object and extract its text, or return "" on any failure.
+class NoResumeText(Exception):
+    """The resume was downloaded, and no text could be read out of it.
 
-    Broad by design: a resume that cannot be read should leave the user with an
-    empty parse to fill in by hand, not a 500 on an upload that succeeded.
+    A .doc (accepted for upload, never parsed), a scanned PDF with no text
+    layer, a parse that hit :data:`PARSE_TIMEOUT_SECONDS`, and a .docx refused
+    by :func:`docx_expansion_refusal` all end here. Raised rather than returned
+    as an empty parse, because an empty parse merged over a profile is what
+    used to wipe a user's experience, education and skills while the job
+    reported ``succeeded`` (audit 2026-10-02, item 1).
+    """
+
+
+#: What the user is told when :class:`NoResumeText` is raised. Fixed text, like
+#: ``resume_jobs.GENERIC_FAILURE``, so nothing from the extractor reaches a client.
+NO_TEXT_MESSAGE = "We couldn't read any text from this file. Try a PDF or DOCX."
+
+
+def _download_and_extract(resume_key: str, resume_mime: str) -> str:
+    """Download an object and extract its text. Storage errors propagate.
+
+    Extraction failures do not raise: :func:`extract_resume_text` answers ""
+    for anything it cannot read, and that "" is what :class:`NoResumeText`
+    is raised on by the caller.
     """
     temp_path = None
     try:
@@ -357,11 +382,103 @@ def _fetch_text(resume_key: str, resume_mime: str) -> str:
             temp_path = Path(tmp_file.name)
 
         return extract_resume_text(temp_path, resume_mime)
-    except Exception:  # noqa: BLE001 -- see docstring
-        return ""
     finally:
         if temp_path is not None and temp_path.exists():
             temp_path.unlink()
+
+
+def _fetch_text(resume_key: str, resume_mime: str) -> str:
+    """Download an object and extract its text, or return "" on any failure.
+
+    Broad by design, for callers that degrade to an empty parse rather than
+    report one. The authenticated parse job does not use this: it needs to
+    tell "storage failed" from "the file had no text", and this cannot.
+    """
+    try:
+        return _download_and_extract(resume_key, resume_mime)
+    except Exception:  # noqa: BLE001 -- see docstring
+        return ""
+
+
+#: Month name (first three letters) -> month number.
+_MONTH_NUMBERS = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+}
+
+#: Words that mean the role has no end yet. The form's "I currently work here"
+#: checkbox is ``endDate == "Present"``, and ``profile_document`` reads the same
+#: convention (``CURRENT_ROLE_MARKERS``).
+_ONGOING_WORDS = {"present", "current", "now"}
+
+_RANGE_SPLIT = re.compile(r"\s*(?:[-–—]|\bto\b)\s*", re.IGNORECASE)
+_MONTH_YEAR = re.compile(r"^([a-z]+)\.?\s+(\d{2}|\d{4})$", re.IGNORECASE)
+_NUMERIC_MONTH_YEAR = re.compile(r"^(\d{1,2})/(\d{2}|\d{4})$")
+_YEAR_ONLY = re.compile(r"^(\d{4})$")
+
+
+def _full_year(raw: str, today: datetime.date) -> Optional[int]:
+    """A four-digit year from "2019" or "19"; two digits pivot on today."""
+    year = int(raw)
+    if len(raw) == 4:
+        return year
+    if len(raw) != 2:
+        return None
+    candidate = 2000 + year
+    return candidate if candidate <= today.year + 1 else 1900 + year
+
+
+def _month_value(token: str, today: datetime.date, *, is_end: bool) -> str:
+    """One side of a range as the form's ``YYYY-MM``, or "" if unreadable.
+
+    A bare year has no month, and ``<input type="month">`` cannot show one
+    without it. January for a start and December for an end is the reading
+    that keeps the whole stated year inside the range; the user can narrow it.
+    """
+    token = token.strip().strip(",.")
+    match = _MONTH_YEAR.match(token)
+    if match:
+        month = _MONTH_NUMBERS.get(match.group(1)[:3].lower())
+        year = _full_year(match.group(2), today)
+        if month and year:
+            return "%04d-%02d" % (year, month)
+        return ""
+    match = _NUMERIC_MONTH_YEAR.match(token)
+    if match:
+        month = int(match.group(1))
+        year = _full_year(match.group(2), today)
+        if 1 <= month <= 12 and year:
+            return "%04d-%02d" % (year, month)
+        return ""
+    match = _YEAR_ONLY.match(token)
+    if match:
+        return "%s-%s" % (match.group(1), "12" if is_end else "01")
+    return ""
+
+
+def split_duration(
+    duration: Any, today: Optional[datetime.date] = None
+) -> Tuple[str, str]:
+    """``(startDate, endDate)`` from the parser's ``duration`` string.
+
+    "March 2019 - Present" -> ``("2019-03", "Present")``; "06/2018 to 08/2020"
+    -> ``("2018-06", "2020-08")``; "March 2019" alone -> ``("2019-03", "")``.
+    "Present", "Current" and "Now" become ``"Present"``, which is how the form
+    stores its current-role flag -- never a date. Anything unreadable leaves
+    that side "" rather than putting text in a month field, which renders it
+    invisible (audit 2026-10-02, item 2).
+    """
+    if not isinstance(duration, str) or not duration.strip():
+        return "", ""
+    today = today or datetime.date.today()
+    parts = [part for part in _RANGE_SPLIT.split(duration.strip(), maxsplit=1) if part]
+    start = _month_value(parts[0], today, is_end=False) if parts else ""
+    if len(parts) < 2:
+        return start, ""
+    end_token = parts[1].strip().strip(",.")
+    if end_token.lower() in _ONGOING_WORDS:
+        return start, "Present"
+    return start, _month_value(end_token, today, is_end=True)
 
 
 def build_profile_from_resume_key(
@@ -372,10 +489,12 @@ def build_profile_from_resume_key(
 ) -> Dict[str, Any]:
     """Parse a resume stored in S3 and return profile field updates.
 
-    Used by the authenticated resume-upload flow (``/profile/resume/finalize``)
-    where the user is already registered.  Returns only the fields that can be
-    derived from the resume (experience, education, skills, uploadedResume,
-    resumeKey); callers merge this into the existing ``profile_data``.
+    Used by the authenticated parse job (``resume_jobs.run``) and, through
+    :func:`build_profile_from_intake`, the anonymous intake.  Returns only the
+    fields that can be derived from the resume (experience, education, skills,
+    uploadedResume, resumeKey); callers merge this into the existing
+    ``profile_data`` -- see ``domain.profile.merge_resume_parse`` for the rule
+    that keeps an empty section from replacing a filled one.
 
     Args:
         resume_key:        S3/R2 object key for the uploaded resume.
@@ -387,9 +506,15 @@ def build_profile_from_resume_key(
     Returns:
         Partial profile dict with keys:
         ``experience``, ``education``, ``skills``, ``uploadedResume``, ``resumeKey``.
+
+    Raises:
+        NoResumeText: the file downloaded but held no readable text.
+        Exception: whatever object storage raised; not swallowed here.
     """
-    resume_text = _fetch_text(resume_key, resume_mime)
-    parsed = parse_resume(resume_text) if resume_text else {}
+    resume_text = _download_and_extract(resume_key, resume_mime)
+    if not resume_text or not resume_text.strip():
+        raise NoResumeText(resume_mime)
+    parsed = parse_resume(resume_text)
     if not isinstance(parsed, dict):
         parsed = {}
 
@@ -397,13 +522,14 @@ def build_profile_from_resume_key(
     for idx, exp in enumerate(parsed.get("experience", [])):
         bullets = exp.get("impact_bullets") or []
         description = "\n".join("- %s" % bullet for bullet in bullets) if bullets else ""
+        start_date, end_date = split_duration(exp.get("duration", ""))
         experience_entries.append(
             {
                 "id": idx + 1,
                 "company": exp.get("company", ""),
                 "position": exp.get("title", ""),
-                "startDate": "",
-                "endDate": exp.get("duration", ""),
+                "startDate": start_date,
+                "endDate": end_date,
                 "description": description,
             }
         )
@@ -515,12 +641,31 @@ def build_profile_from_intake(intake) -> Dict[str, Any]:
     """
     from solverah.domain.auth import default_profile
 
-    parsed_fields = build_profile_from_resume_key(
-        resume_key=intake.resume_key,
-        resume_mime=intake.resume_mime,
-        resume_size_bytes=intake.resume_size_bytes,
-        resume_name=Path(intake.resume_key).name,
-    )
+    try:
+        parsed_fields = build_profile_from_resume_key(
+            resume_key=intake.resume_key,
+            resume_mime=intake.resume_mime,
+            resume_size_bytes=intake.resume_size_bytes,
+            resume_name=Path(intake.resume_key).name,
+        )
+    except Exception:  # noqa: BLE001 -- see docstring: the intake degrades, it does not fail
+        # No text, or storage failed. There is no existing profile here to
+        # protect, so an empty parse is the documented outcome, not a wipe.
+        logger.warning(
+            "intake_resume_parse_empty",
+            extra={"event": "intake_resume_parse_empty", "mime": intake.resume_mime},
+        )
+        parsed_fields = {
+            "experience": [],
+            "education": [],
+            "skills": [],
+            "uploadedResume": {
+                "name": Path(intake.resume_key).name,
+                "size": intake.resume_size_bytes,
+                "type": intake.resume_mime,
+            },
+            "resumeKey": intake.resume_key,
+        }
 
     profile = default_profile(
         email=intake.email,

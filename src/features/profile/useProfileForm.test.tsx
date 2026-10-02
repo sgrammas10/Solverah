@@ -3,8 +3,12 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import {
   buildDefaultProfile,
+  isReadableResume,
   normalizeProfileData,
   useProfileForm,
+  NAME_SAVE_FAILED_MESSAGE,
+  SAVE_FAILED_MESSAGE,
+  UNREADABLE_RESUME_MESSAGE,
 } from "./useProfileForm";
 import { useAuth } from "../auth";
 import { useProfile, profileKeys } from "./useProfile";
@@ -607,5 +611,253 @@ describe("useProfileForm - onSaved", () => {
     });
 
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+// ─── audit 2026-10-02 regressions ─────────────────────────────────────────────
+
+const submit = (result: any) =>
+  act(async () => {
+    result.current.handleSubmit({ preventDefault: () => {} } as any);
+  });
+
+describe("useProfileForm - every collection edit marks the form dirty (item 4)", () => {
+  it.each([
+    ["addExperience", (r: any) => r.current.addExperience()],
+    ["addEducation", (r: any) => r.current.addEducation()],
+    ["addSkill", (r: any) => r.current.addSkill("Rust")],
+  ])("%s", async (_name, edit) => {
+    const result = await setup();
+    expect(result.current.isSaved).toBe(true);
+    act(() => { edit(result); });
+    expect(result.current.isSaved).toBe(false);
+  });
+
+  it.each([
+    ["updateExperience", (r: any, id: number) => r.current.updateExperience(id, "company", "Acme")],
+    ["removeExperience", (r: any, id: number) => r.current.removeExperience(id)],
+  ])("%s on a loaded entry", async (_name, edit) => {
+    mockProfile = {
+      experience: [{ id: 7, company: "Old", position: "", startDate: "", endDate: "", description: "" }],
+    };
+    const result = await setup();
+    expect(result.current.isSaved).toBe(true);
+    act(() => { edit(result, 7); });
+    expect(result.current.isSaved).toBe(false);
+  });
+
+  it.each([
+    ["updateEducation", (r: any, id: number) => r.current.updateEducation(id, "degree", "BA")],
+    ["removeEducation", (r: any, id: number) => r.current.removeEducation(id)],
+  ])("%s on a loaded entry", async (_name, edit) => {
+    mockProfile = {
+      education: [{ id: 3, institution: "U", degree: "", startDate: "", endDate: "", gpa: "" }],
+    };
+    const result = await setup();
+    act(() => { edit(result, 3); });
+    expect(result.current.isSaved).toBe(false);
+  });
+
+  it("adding a skill already listed changes nothing and stays clean", async () => {
+    mockProfile = { skills: ["Rust"] };
+    const result = await setup();
+    act(() => { result.current.addSkill("Rust"); });
+    expect(result.current.isSaved).toBe(true);
+  });
+});
+
+describe("useProfileForm - a failed save (item 5)", () => {
+  it("shows an error, does not fill the bar, and wrote nothing optimistically", async () => {
+    mockActions.saveProfileData.mockRejectedValueOnce(new Error("500"));
+    const result = await setup();
+    act(() => { result.current.handleChange("summary", "draft"); });
+
+    await submit(result);
+
+    expect(result.current.saveError).toBe(SAVE_FAILED_MESSAGE);
+    expect(result.current.saveProgress).toBe(0);
+    expect(result.current.saveBarVisible).toBe(false);
+    expect(result.current.isSaved).toBe(false);
+    // The draft is still in the form to retry with.
+    expect(result.current.formData.summary).toBe("draft");
+    // Nothing for a rollback to undo: neither cache was written ahead of the server.
+    expect(mockActions.updateProfileData).not.toHaveBeenCalled();
+    expect(mockAuth.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("a later successful save clears the error", async () => {
+    mockActions.saveProfileData.mockRejectedValueOnce(new Error("500"));
+    const result = await setup();
+    await submit(result);
+    expect(result.current.saveError).not.toBeNull();
+
+    await submit(result);
+    expect(result.current.saveError).toBeNull();
+    expect(result.current.isSaved).toBe(true);
+  });
+});
+
+describe("useProfileForm - name edits reach users.name (item 10)", () => {
+  beforeEach(() => {
+    mockAuth.user = { name: "Ada Lovelace", email: "ada@example.com" };
+  });
+  afterEach(() => {
+    mockAuth.user = null;
+  });
+
+  it("PATCHes /me with the new name and puts the confirmed name on the session", async () => {
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({ name: "Ada King" });
+    const result = await setup();
+    act(() => { result.current.handleChange("lastName", "King"); });
+
+    await submit(result);
+
+    expect(mockActions.saveProfileData).toHaveBeenCalledTimes(1);
+    expect(mockAuth.fetchWithAuth).toHaveBeenCalledWith("/me", {
+      method: "PATCH",
+      body: JSON.stringify({ name: "Ada King" }),
+    });
+    expect(mockAuth.updateProfile).toHaveBeenCalledWith({ name: "Ada King" });
+    expect(result.current.isSaved).toBe(true);
+  });
+
+  it("does not PATCH /me when the name is unchanged", async () => {
+    const result = await setup();
+    act(() => { result.current.handleChange("summary", "hello"); });
+
+    await submit(result);
+
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalledWith("/me", expect.anything());
+    expect(mockAuth.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("says the profile saved but the name did not when only PATCH /me fails", async () => {
+    mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("boom"));
+    const result = await setup();
+    act(() => { result.current.handleChange("firstName", "Augusta"); });
+
+    await submit(result);
+
+    expect(mockActions.saveProfileData).toHaveBeenCalledTimes(1);
+    expect(result.current.saveError).toBe(NAME_SAVE_FAILED_MESSAGE);
+    expect(result.current.isSaved).toBe(false);
+    expect(mockAuth.updateProfile).not.toHaveBeenCalled();
+  });
+});
+
+describe("useProfileForm - career status belongs to the control, not the draft (item 6)", () => {
+  it("never overwrites a stored status with the derived 'employed'", async () => {
+    mockProfile = {
+      career_status: "between_jobs",
+      experience: [{ id: 1, company: "Gig", position: "", startDate: "", endDate: "Present", description: "" }],
+    };
+    const result = await setup();
+
+    await submit(result);
+
+    const sent = mockActions.saveProfileData.mock.calls[0][0];
+    expect("career_status" in sent).toBe(false);
+  });
+
+  it("does not resend a status the form happens to hold", async () => {
+    const result = await setup();
+    act(() => {
+      result.current.setFormData((prev: any) => ({ ...prev, career_status: "first_job" }));
+    });
+
+    await submit(result);
+
+    const sent = mockActions.saveProfileData.mock.calls[0][0];
+    expect("career_status" in sent).toBe(false);
+  });
+});
+
+describe("useProfileForm - a document change does not overwrite unsaved edits", () => {
+  it("keeps the draft when the cached document changes under a dirty form", async () => {
+    mockProfile = { summary: "stored", career_status: "employed" };
+    const { result, rerender } = await setupWithControls();
+    expect(result.current.formData.summary).toBe("stored");
+    act(() => { result.current.handleChange("summary", "my draft"); });
+
+    // e.g. the career-status control writing the cached document.
+    mockProfile = { summary: "stored", career_status: "between_jobs" };
+    await act(async () => { rerender(); });
+
+    expect(result.current.formData.summary).toBe("my draft");
+  });
+
+  it("still refills a clean form from a changed document", async () => {
+    mockProfile = { summary: "stored" };
+    const { result, rerender } = await setupWithControls();
+    mockProfile = { summary: "changed elsewhere" };
+    await act(async () => { rerender(); });
+    expect(result.current.formData.summary).toBe("changed elsewhere");
+  });
+});
+
+describe("useProfileForm - resumes the parser cannot read (item 1)", () => {
+  it("refuses a .doc before uploading it", async () => {
+    const result = await setup();
+    const doc = new File(["legacy"], "resume.doc", { type: "application/msword" });
+
+    await act(async () => {
+      result.current.handleResumeUpload({ target: { files: [doc], value: "x" } } as any);
+    });
+
+    expect(result.current.resumeFileError).toBe(UNREADABLE_RESUME_MESSAGE);
+    expect(mockAuth.fetchWithAuth).not.toHaveBeenCalled();
+    expect(mockStartResumeParseJob.mutate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a .docx with an empty MIME type by its extension", () => {
+    expect(isReadableResume(new File(["x"], "cv.docx", { type: "" }))).toBe(true);
+    expect(isReadableResume(new File(["x"], "cv.doc", { type: "" }))).toBe(false);
+    expect(isReadableResume(new File(["x"], "cv.pdf", { type: "application/pdf" }))).toBe(true);
+  });
+
+  it("puts the stored resume back on the card when the parse fails", async () => {
+    mockProfile = { uploadedResume: { name: "old.pdf", size: 10, type: "application/pdf" } };
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({
+      resume_id: "r-9",
+      upload_url: "https://uploads.example.com/r-9",
+      max_bytes: 10_000_000,
+    });
+    const { result, rerender } = await setupWithControls();
+
+    await act(async () => {
+      await result.current.handleResumeUpload({ target: { files: [uploadedFile()] } } as any);
+    });
+    expect(result.current.formData.uploadedResume?.name).toBe("resume.pdf");
+    const onJobStarted = mockStartResumeParseJob.mutate.mock.calls[0][1].onSuccess;
+    act(() => onJobStarted({ job_id: "j-9", status: "queued", status_url: "" }));
+
+    mockResumeParseJobStatus = {
+      data: {
+        job_id: "j-9",
+        status: "failed",
+        profile: null,
+        error: "We couldn't read any text from this file. Try a PDF or DOCX.",
+      },
+      error: null,
+      isLoading: false,
+    };
+    await act(async () => { rerender(); });
+
+    expect(result.current.formData.uploadedResume?.name).toBe("old.pdf");
+    expect(result.current.resumeParseStatus).toEqual({
+      phase: "failed",
+      message: "We couldn't read any text from this file. Try a PDF or DOCX.",
+    });
+  });
+
+  it("drops the dashboard once a parse lands (item 7)", async () => {
+    const { rerender, invalidateSpy } = await setupWithControls();
+    mockResumeParseJobStatus = {
+      data: { job_id: "j-1", status: "succeeded", profile: { skills: ["Go"] }, error: null },
+      error: null,
+      isLoading: false,
+    };
+    await act(async () => { rerender(); });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
   });
 });

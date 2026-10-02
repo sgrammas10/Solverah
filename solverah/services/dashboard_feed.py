@@ -48,7 +48,14 @@ __all__ = [
 ]
 
 ACTIVITY_LIMIT = 5
-RECOMMENDATION_LIMIT = 3
+
+#: Every rule below can fire at once, so this is a backstop, not a cut. It was
+#: 3 until 2026-10-02, and the cut ran BEFORE the dashboard dropped the steps a
+#: lead card on the same screen already links to (D-6) -- so a user whose top
+#: three were all offered elsewhere got an empty card that said "Suggestions
+#: start after Work Pulse" after they had taken it (audit item 9). The
+#: dashboard now filters the whole list and shows the first three itself.
+RECOMMENDATION_LIMIT = 6
 
 #: Icon names must be ones `JobSeekerDashboard.tsx`'s `iconMap` resolves.
 _ASSESSMENT_COPY: Dict[str, Tuple[str, str]] = {
@@ -172,7 +179,8 @@ def build_recommendations(
     has_work_pulse: bool,
     now: datetime.datetime,
 ) -> List[Dict[str, Any]]:
-    """The user's next unfinished steps, most important first, at most three."""
+    """The user's next unfinished steps, most important first. All of them --
+    see :data:`RECOMMENDATION_LIMIT` for why the dashboard, not this, picks three."""
     latest = {row.source: row.at for row in rows if row.source != repo.SOURCE_ASSESSMENT}
     # Current-job reports only: the repository leaves past-job reports out of
     # this source, so a user with only a past report is still asked for one.

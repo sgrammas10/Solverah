@@ -16,6 +16,9 @@ type Props = {
   uploadedResume: File | null;
   resumeUploaded: boolean;
   resumeParseStatus: ResumeParseUiState;
+  /** A file refused before upload (wrong type). Optional so callers that never
+   *  refuse one need not pass it. */
+  resumeFileError?: string | null;
   handleResumeUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleViewResume: () => void;
   removeUploadedResume: () => void;
@@ -32,6 +35,7 @@ export default function PersonalInfoTab({
   uploadedResume,
   resumeUploaded,
   resumeParseStatus,
+  resumeFileError = null,
   handleResumeUpload,
   handleViewResume,
   removeUploadedResume,
@@ -249,8 +253,14 @@ export default function PersonalInfoTab({
           )}
 
           {resumeParseStatus.phase === "failed" && (
-            <div className="mb-4 p-2 text-red-700 bg-red-50 border border-red-200 rounded text-sm">
+            <div role="alert" className="mb-4 p-2 text-red-700 bg-red-50 border border-red-200 rounded text-sm">
               {resumeParseStatus.message}
+            </div>
+          )}
+
+          {resumeFileError && (
+            <div role="alert" className="mb-4 p-2 text-red-700 bg-red-50 border border-red-200 rounded text-sm">
+              {resumeFileError}
             </div>
           )}
 
@@ -268,13 +278,13 @@ export default function PersonalInfoTab({
                     name="resume-upload"
                     type="file"
                     className="sr-only"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     onChange={handleResumeUpload}
                   />
                 </label>
                 <p className="pl-1">or drag and drop</p>
               </div>
-              <p className="text-xs text-ink-secondary">PDF, DOC, DOCX up to 10MB</p>
+              <p className="text-xs text-ink-secondary">PDF or DOCX, up to 10MB</p>
             </div>
           </div>
         </div>

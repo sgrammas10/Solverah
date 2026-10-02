@@ -41,6 +41,7 @@ from typing import Any, Dict, List, Optional
 import sqlalchemy as sa
 
 from model import ResumeParseJob, User, db
+from solverah.domain import profile as profile_domain
 from solverah.repositories import profile_repository
 from solverah.services import resume_service
 
@@ -82,7 +83,8 @@ STALL_MINUTES = 30
 #: retention with no reader (SECURITY_AUDIT_2026-09 #7).
 PURGE_DAYS = 30
 
-#: The only failure text a client is ever shown.
+#: The failure text a client is shown for anything but a file with no text
+#: (that one is ``resume_service.NO_TEXT_MESSAGE``, also fixed text).
 #:
 #: Parse failures come from pdfminer, python-docx, and botocore, and their
 #: messages carry bucket names, object keys, and file paths.  Mapping to a fixed
@@ -214,10 +216,24 @@ def run(job_id: int) -> str:
         snapshot = resume_service.snapshot_of(claimed["object_key"], profile_updates)
 
         def merge(existing: Dict[str, Any]) -> Dict[str, Any]:
-            return {**existing, **profile_updates, "_parsedResumeSnapshot": snapshot}
+            # An empty parsed section leaves the stored one alone; see the
+            # domain function for why that is the whole of the rule.
+            return profile_domain.merge_resume_parse(existing, profile_updates, snapshot)
 
         profile_repository.update_document(claimed["user_id"], merge)
         db.session.commit()
+    except resume_service.NoResumeText:
+        # Not an error in the logs' sense -- the file is the problem, and the
+        # user can fix it. Nothing is merged, so the profile is untouched, and
+        # the message says what to do rather than "could not parse".
+        db.session.rollback()
+        logger.info(
+            "resume_job_no_text",
+            extra={"event": "resume_job_no_text", "job_id": job_id,
+                   "mime": claimed["mime"]},
+        )
+        _finish(job_id, FAILED, resume_service.NO_TEXT_MESSAGE)
+        return FAILED
     except Exception as exc:  # noqa: BLE001 -- the job row is the error channel
         db.session.rollback()
         logger.exception(

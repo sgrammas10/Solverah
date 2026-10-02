@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
-import { profileKeys } from "../useProfile";
-import { useAuth } from "../../auth";
 import { readCareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
 import CareerStatusReturnDialog from "./CareerStatusReturnDialog";
+import { invalidateProfileDependents, useSetCareerStatus } from "./useSetCareerStatus";
 import PersonalInfoTab from "./PersonalInfoTab";
 import ExperienceTab from "./ExperienceTab";
 import EducationTab from "./EducationTab";
@@ -19,6 +18,15 @@ const tabs = [
   { id: "performance", label: "Performance", icon: Star },
 ];
 
+const DEFAULT_TAB = "personal";
+
+/** A tab id this page can render, or null. An unknown `?tab=` (or hash, or
+ *  router state) used to become the active tab and render an empty page with
+ *  no tab highlighted (G12). */
+function knownTab(value: unknown): string | null {
+  return typeof value === "string" && tabs.some((tab) => tab.id === value) ? value : null;
+}
+
 // ---------------------------------------------------------------------------
 // Career Status Modal
 // ---------------------------------------------------------------------------
@@ -30,23 +38,12 @@ interface CareerStatusModalProps {
 }
 
 function CareerStatusModal({ onDismiss, onSaved }: CareerStatusModalProps) {
-  const { fetchWithAuth } = useAuth();
-  const queryClient = useQueryClient();
-
-  // A failed PATCH re-enables the buttons and nothing more, as before.
-  const selectStatus = useMutation({
-    mutationFn: async (status: "between_jobs" | "first_job") => {
-      await fetchWithAuth("/me/career-status", {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      });
-      // The page the user goes back to reads career_status off the cached
-      // profile document; a stale copy would put the same "set your career
-      // status" prompt straight back in front of them.
-      await queryClient.invalidateQueries({ queryKey: profileKeys.document() });
-    },
-    onSuccess: onSaved,
-  });
+  // The same write as the Experience tab's control: it puts the status in the
+  // cached profile document (the page the user goes back to reads it there,
+  // and a stale copy would put the same prompt straight back in front of
+  // them), then drops the dashboard and Situation Report. A failure shows the
+  // alert below and re-enables the buttons.
+  const selectStatus = useSetCareerStatus({ onSaved });
 
   const loading = selectStatus.isPending;
   const handleSelect = (status: "between_jobs" | "first_job") => selectStatus.mutate(status);
@@ -132,15 +129,15 @@ function JobSeekerProfile() {
 
   const getTabFromURL = () => {
     const qs = new URLSearchParams(location.search);
-    const fromSearch = qs.get("tab");
+    const fromSearch = knownTab(qs.get("tab"));
     if (fromSearch) return fromSearch;
-    if (location.hash && location.hash.length > 1) return location.hash.slice(1);
+    const fromHash = location.hash && location.hash.length > 1 ? knownTab(location.hash.slice(1)) : null;
+    if (fromHash) return fromHash;
     const st = (location.state as any) || {};
-    if (st.initialTab) return st.initialTab;
-    return null;
+    return knownTab(st.initialTab);
   };
 
-  const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || "personal");
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || DEFAULT_TAB);
   const [showCareerStatusModal, setShowCareerStatusModal] = useState<boolean>(
     () => !!(location.state as any)?.showCareerStatusModal
   );
@@ -156,10 +153,14 @@ function JobSeekerProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, location.hash, location.state]);
 
+  const queryClient = useQueryClient();
   const profile = useProfileForm({
-    // The employed path: saving a profile with a current role sets
-    // career_status "employed" (useProfileForm.handleSubmit).
+    // The employed path: saving a profile with a current role, when no status
+    // is stored yet, sets career_status "employed" (useProfileForm.handleSubmit).
     onSaved: (saved) => {
+      // A save can change career_status and everything the dashboard's next
+      // steps read; neither cached read was ever dropped (audit items 6, 7).
+      void invalidateProfileDependents(queryClient);
       if (returnTo && saved.career_status === "employed") {
         setShowCareerStatusModal(false);
         setShowReturnDialog(true);
@@ -233,6 +234,7 @@ function JobSeekerProfile() {
             uploadedResume={profile.uploadedResume}
             resumeUploaded={profile.resumeUploaded}
             resumeParseStatus={profile.resumeParseStatus}
+            resumeFileError={profile.resumeFileError}
             handleResumeUpload={profile.handleResumeUpload}
             handleViewResume={profile.handleViewResume}
             removeUploadedResume={profile.removeUploadedResume}
@@ -283,6 +285,11 @@ function JobSeekerProfile() {
                 />
               </div>
             </div>
+          )}
+          {profile.saveError && (
+            <p role="alert" className="mb-4 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+              {profile.saveError}
+            </p>
           )}
           <div className="flex justify-end">
             <button

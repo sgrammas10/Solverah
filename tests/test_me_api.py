@@ -196,6 +196,66 @@ def test_patch_career_status(client, auth):
     CareerStatusResponse.model_validate(resp.get_json())
 
 
+@pytest.mark.parametrize("bad", ["retired", "", None, 3, "Employed"])
+def test_patch_my_profile_rejects_an_unknown_career_status(client, auth, bad):
+    """Audit 2026-10-02 item 13: PATCH /me/career-status validated the status and
+    the profile PATCH, which writes the same column, did not. A 400, and nothing
+    else in the same request is written either."""
+    resp = client.patch(
+        "/api/v1/me/profile",
+        json={"profile": {"career_status": bad, "phone": "555-0199"}},
+        headers={"X-CSRF-TOKEN": auth},
+    )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "invalid_status"
+    profile = client.get("/api/v1/me/profile").get_json()["profile"]
+    assert profile.get("phone") != "555-0199"
+    assert "career_status" not in profile
+
+
+def test_patch_my_profile_accepts_each_known_career_status(client, auth):
+    for status in ("employed", "between_jobs", "first_job"):
+        resp = client.patch(
+            "/api/v1/me/profile",
+            json={"profile": {"career_status": status}},
+            headers={"X-CSRF-TOKEN": auth},
+        )
+        assert resp.status_code == 200, resp.get_json()
+        assert resp.get_json()["profile"]["career_status"] == status
+
+
+def test_an_in_between_proficiency_reads_back_instead_of_500ing(client, auth):
+    """Audit 2026-10-02 item 12: profile_skills.proficiency allows 1-5, the read
+    mapped only 1/3/5, and a 2 or a 4 raised KeyError inside GET /me/profile.
+    An in-between score reads as the named level below it."""
+    client.put(
+        "/api/v1/me/skills",
+        json={"skills": [{"name": "Python", "proficiency": "advanced"},
+                         {"name": "SQL", "proficiency": "intermediate"}]},
+        headers={"X-CSRF-TOKEN": auth},
+    )
+    from app import app
+    from model import ProfileSkill, User, db
+
+    with app.app_context():
+        user_id = User.query.filter_by(email=EMAIL).first().id
+        rows = ProfileSkill.query.filter_by(user_id=user_id).all()
+        assert {row.label for row in rows} == {"Python", "SQL"}
+        for row in rows:
+            row.proficiency = 4 if row.label == "Python" else 2
+        db.session.commit()
+
+    resp = client.get("/api/v1/me/profile")
+
+    assert resp.status_code == 200
+    ProfileDocument.model_validate(resp.get_json())
+    assert resp.get_json()["profile"]["skill_levels"] == {
+        "Python": "intermediate",
+        "SQL": "beginner",
+    }
+
+
 def test_put_then_get_skills_round_trips(client, auth):
     """GET /me/skills is new: the endpoint it replaces was write-only."""
     put = client.put(

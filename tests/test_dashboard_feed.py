@@ -151,11 +151,11 @@ def _ids(recs):
 # ── A brand-new account ─────────────────────────────────────────────────────
 
 
-def test_a_new_account_has_no_activity_and_the_first_three_steps(client, auth):
+def test_a_new_account_has_no_activity_and_every_first_step(client, auth):
     body = _dashboard(client)
 
     assert body["recentActivity"] == []
-    assert _ids(body["recommendations"]) == ["career_status", "work_pulse", "skills"]
+    assert _ids(body["recommendations"]) == ["career_status", "work_pulse", "skills", "pulse"]
 
 
 def test_the_old_placeholder_strings_never_appear(client, auth):
@@ -338,11 +338,18 @@ def test_pulse_is_recommended_when_never_taken_or_older_than_the_cadence():
     assert "pulse" not in _all_rules({"pulse_settings": {"cadence": "off"}})
 
 
-def test_recommendations_are_capped_at_three_in_priority_order():
-    assert _ids(_recs()) == ["career_status", "work_pulse", "skills"]
+def test_every_applicable_step_is_sent_in_priority_order():
+    """Audit 2026-10-02 item 9: the server used to cut the list to three BEFORE
+    the dashboard dropped the steps its lead cards already offer, which could
+    leave the card empty. The whole list goes out now; the dashboard picks."""
+    assert _ids(_recs()) == ["career_status", "work_pulse", "skills", "pulse"]
     settled = {"career_status": "employed", "skills": ["Python"]}
     assert _ids(_recs(settled, [_row("environment_report", 1)], has_work_pulse=True)) == [
         "situation_report", "pulse"]
+
+
+def test_every_rule_fits_under_the_backstop():
+    assert dashboard_feed.RECOMMENDATION_LIMIT >= 6
 
 
 def test_the_endpoint_applies_the_rules_to_real_rows(client, auth):

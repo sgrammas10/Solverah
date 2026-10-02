@@ -35,6 +35,8 @@ const mocks = vi.hoisted(() => ({
     isSaved: true,
     saveProgress: 0,
     saveBarVisible: false,
+    saveError: null as string | null,
+    resumeFileError: null as string | null,
     isUploadingResume: false,
     uploadProgress: 0,
     uploadedResume: null,
@@ -101,22 +103,31 @@ beforeEach(() => {
   mocks.profileForm.isSaving = false;
   mocks.profileForm.saveBarVisible = false;
   mocks.profileForm.saveProgress = 0;
+  mocks.profileForm.saveError = null;
 });
 
-function renderJobSeekerProfile(search = "") {
+/** The page calls useQueryClient() itself now (it drops the dashboard and the
+ *  Situation Report after a save), so every render needs a client. */
+function renderJobSeekerProfile(search = "", client = createQueryClient()) {
   render(
-    <MemoryRouter initialEntries={[{ pathname: "/job-seeker/profile", search }]}>
-      <JobSeekerProfile />
-    </MemoryRouter>
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[{ pathname: "/job-seeker/profile", search }]}>
+        <JobSeekerProfile />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
+  return client;
 }
 
 /** Navigated here with the modal already open, as `EnvironmentReportPage`'s
  *  "Set your career status" button does. Needs a real query client -- the
  *  modal's save is a `useMutation`. */
-function renderWithCareerStatusModal(state: Record<string, unknown> = { showCareerStatusModal: true }) {
+function renderWithCareerStatusModal(
+  state: Record<string, unknown> = { showCareerStatusModal: true },
+  client = createQueryClient(),
+) {
   render(
-    <QueryClientProvider client={createQueryClient()}>
+    <QueryClientProvider client={client}>
       <MemoryRouter
         initialEntries={[
           { pathname: "/job-seeker/profile", state },
@@ -184,6 +195,15 @@ describe("JobSeekerProfile - URL param", () => {
     renderJobSeekerProfile("?tab=education");
     expect(screen.getByTestId("education-tab")).toBeInTheDocument();
   });
+
+  it("falls back to Personal Info for an unknown ?tab= (G12)", () => {
+    // Used to become the active tab: no tab highlighted and an empty page.
+    renderJobSeekerProfile("?tab=nonsense");
+    expect(screen.getByTestId("personal-info-tab")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /personal info/i }).className).toContain(
+      "border-forest-light",
+    );
+  });
 });
 
 // ─── unsaved changes warning ───────────────────────────────────────────────────
@@ -214,6 +234,23 @@ describe("JobSeekerProfile - save button", () => {
     mocks.profileForm.isSaving = true;
     renderJobSeekerProfile();
     expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
+  });
+
+  it("shows a failed save as an alert by the button (audit item 5)", () => {
+    mocks.profileForm.saveError = "We couldn't save your profile. Your changes are still here, so try again.";
+    renderJobSeekerProfile();
+    expect(screen.getByRole("alert")).toHaveTextContent("We couldn't save your profile.");
+    expect(screen.queryByText("Saved")).toBeNull();
+  });
+
+  it("drops the dashboard and the Situation Report after a save (audit items 6, 7)", () => {
+    const client = renderJobSeekerProfile();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    act(() => {
+      mocks.formOptions?.onSaved?.({ ...mocks.profileForm.formData });
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["situationReport"] });
   });
 
   it("keeps the save bar on screen at 100% after the save finishes", () => {
@@ -247,6 +284,19 @@ describe("JobSeekerProfile - career status modal (G13)", () => {
     // The modal stays open -- there is nowhere else for this user to go.
     expect(screen.getByText("Where are you in your career?")).toBeInTheDocument();
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("drops the dashboard and Situation Report once a status is saved", async () => {
+    mocks.fetchWithAuth.mockResolvedValueOnce({});
+    const client = createQueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    renderWithCareerStatusModal({ showCareerStatusModal: true }, client);
+
+    fireEvent.click(screen.getByRole("button", { name: /currently unemployed/i }));
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalledWith("/intelligence/paths"));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["situationReport"] });
   });
 
   it("navigates once a retried save succeeds", async () => {

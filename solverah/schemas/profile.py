@@ -91,8 +91,10 @@ class DashboardRecommendation(SolverahModel):
 class DashboardResponse(SolverahModel):
     """Job-seeker dashboard summary.
 
-    ``recentActivity`` (at most five, newest first) and ``recommendations`` (at
-    most three) are derived from the caller's own rows; the counts are live.
+    ``recentActivity`` (at most five, newest first) and ``recommendations`` (every
+    step that applies, most important first; the dashboard shows three after
+    dropping those its other cards already link to) are derived from the
+    caller's own rows; the counts are live.
     """
 
     profileCompletion: str = Field(description='Percentage with a literal "%", e.g. "71%".')

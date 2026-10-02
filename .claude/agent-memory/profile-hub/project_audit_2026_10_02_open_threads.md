@@ -1,21 +1,18 @@
 ---
 name: audit-2026-10-02-open-threads
-description: Read-only lane audit 2026-10-02 (pre Julie content day) found these unfixed bugs in profile/resume/dashboard/hub; check each is still open before acting
+description: Read-only lane audit 2026-10-02 found 9 profile/resume/dashboard bugs; the same-day fix wave fixed all of them (uncommitted); what is still open after it
 metadata:
   type: project
 ---
 
-Read-only audit for the orchestrator, 2026-10-02, ahead of Sebastian+Julie's content day (~2026-10-09). Nothing was fixed in that session. Open threads, most severe first:
+The 2026-10-02 audit (pre content day ~2026-10-09) listed 9 bugs; the orchestrator's fix wave the same day added 4 more (name to users.name, G12 unknown tab, proficiency 2/4 KeyError, career_status validation on PATCH /me/profile). All 13 were fixed in the working tree, UNCOMMITTED as of 2026-10-02 -- check `git log` before assuming they landed. Decisions taken in that wave: [[fix-wave-2026-10-02-decisions]].
 
-1. Resume parse REPLACES experience/education/skills wholesale (`resume_jobs.run` merge `{**existing, **profile_updates}`); an empty extraction (.doc is accepted but never parsed, scanned PDF, 30s timeout, refused docx) wipes them and reports `succeeded`.
-2. Parser `duration` ("March 2019 - Present") lands in `endDate`, `startDate` always "" -> invisible in `type="month"` inputs, and current role never detected.
-3. Server never sends `profileComplete`; dashboard "Complete your profile" alert shows for every user after any reload.
-4. Experience/education add/edit/remove never call `setIsSaved(false)` -> no unsaved strip, no beforeunload.
-5. Save failure: no error shown, the bar says "Saved", and the optimistic cache write is not rolled back.
-6. Once set, career status cannot be changed from the UI (modal only reachable via router state while unset; unchecking current role never clears "employed").
-7. Dashboard query never invalidated client-side (60s staleTime) -> stale recs after profile/status/pulse writes.
-8. Dashboard career_status rec passes no returnTo -> after saving, the user is dumped on /intelligence/paths.
-9. Recs empty state says "Suggestions start after Work Pulse" when the client filter hid everything for a user who HAS done it.
+Still open after the wave:
+- Backend MIME allowlist `infra/storage.py` ALLOWED_MIME still accepts application/msword (backend-platform's file). The parse now fails .doc with a clear message, and our picker no longer offers it, but the intake forms (IntakeForm.tsx, IntakePromptModal.tsx, public-funnel's) still accept .doc.
+- Profiles parsed BEFORE the fix still hold "March 2019 - Present" in endDate with startDate "" (invisible in month inputs). No backfill written.
+- Replace vs merge for a NON-empty parsed section: Sebastian's open decision; filled sections still replace wholesale.
+- No in-app navigation guard for unsaved edits (needs frontend-shell); only beforeunload.
+- Not browser-verified against a local API in that wave (cluster tests + type-check only).
 
-**Why:** these block clean content review: Julie will role-play statuses and upload resumes.
-**How to apply:** before the next task in this lane, grep each site; strike the fixed ones from this file. See [[resume-parse-runs-inline-in-prod]].
+**Why:** Julie will role-play statuses and upload resumes on content day.
+**How to apply:** before the next task, verify the wave landed (grep `merge_resume_parse`, `CareerStatusControl`); strike items here as they close. See [[resume-parse-runs-inline-in-prod]].

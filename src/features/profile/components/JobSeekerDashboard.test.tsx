@@ -96,7 +96,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.user = {
     name: "Ada Lovelace",
-    profileComplete: true,
     wpl_completed: false,
     wp_v2_completed: false,
   };
@@ -149,13 +148,50 @@ describe("JobSeekerDashboard - happy path", () => {
     renderJobSeekerDashboard();
     await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
   });
+
+  it("refetches on every arrival, not only once the 60s staleTime has passed", async () => {
+    // Regression (audit 2026-10-02 item 7): writes that change this document
+    // happen on other pages and nothing invalidated it, so coming back showed
+    // the steps just finished. One client across both mounts, as in the app.
+    const client = createQueryClient();
+    const dashboardCalls = () =>
+      mocks.fetchWithAuth.mock.calls.filter(([path]) => path === "/me/dashboard").length;
+    const mount = () =>
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter>
+            <JobSeekerDashboard />
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+    const first = mount();
+    await waitFor(() => expect(dashboardCalls()).toBe(1));
+    first.unmount();
+
+    mount();
+    await waitFor(() => expect(dashboardCalls()).toBe(2));
+  });
 });
 
 // ─── profile completion alert ─────────────────────────────────────────────────
 
+/**
+ * Regression (audit 2026-10-02 item 3): the alert read `user.profileComplete`,
+ * which the server never sends -- so after any reload it was undefined and the
+ * alert showed for every user, however complete. It reads the dashboard's own
+ * `profileCompletion` now.
+ */
 describe("JobSeekerDashboard - profile completion alert", () => {
+  const withCompletion = (profileCompletion: string) =>
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return Promise.resolve({ ...DASHBOARD_DOC, profileCompletion });
+    });
+
   it("shows profile completion alert when profile is not complete", async () => {
-    mocks.user = { name: "Ada", profileComplete: false, wpl_completed: false, wp_v2_completed: false };
+    withCompletion("71%");
     renderJobSeekerDashboard();
     await waitFor(() =>
       expect(screen.getByText(/Complete your profile/i)).toBeInTheDocument()
@@ -163,11 +199,30 @@ describe("JobSeekerDashboard - profile completion alert", () => {
   });
 
   it("does not show profile completion alert when profile is complete", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
+    withCompletion("100%");
     renderJobSeekerDashboard();
     // Waited on the fetch rather than on a rendered "60%": D-6 removed the
     // Profile Completion tile that used to be this test's settle signal.
     await waitFor(() => expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/dashboard"));
+    await screen.findByText("Recent Activity");
+    expect(screen.queryByText(/Complete your profile/i)).toBeNull();
+  });
+
+  it("ignores a session user with no profileComplete flag, which is every real one", async () => {
+    withCompletion("100%");
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
+    renderJobSeekerDashboard();
+    await screen.findByText("Recent Activity");
+    expect(screen.queryByText(/Complete your profile/i)).toBeNull();
+  });
+
+  it("does not show the alert before the dashboard document has arrived", () => {
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return new Promise(() => {});
+    });
+    renderJobSeekerDashboard();
     expect(screen.queryByText(/Complete your profile/i)).toBeNull();
   });
 });
@@ -176,14 +231,14 @@ describe("JobSeekerDashboard - profile completion alert", () => {
 
 describe("JobSeekerDashboard - work pulse banner", () => {
   it("shows the banner when the current instrument is not completed", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("wp-banner")).toBeInTheDocument());
     expect(screen.getByTestId("wp-banner")).toHaveAttribute("data-retake", "false");
   });
 
   it("banner can be dismissed", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: false };
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => screen.getByTestId("wp-banner"));
     fireEvent.click(screen.getByText("Dismiss Banner"));
@@ -193,7 +248,7 @@ describe("JobSeekerDashboard - work pulse banner", () => {
   it("RE-PROMPTS a user who only completed the ORIGINAL Work Pulse (retake copy)", async () => {
     // The 12-question quiz was replaced 2026-08-19; old sittings don't feed the matching
     // model, so wpl_completed alone must NOT hide the banner. Decided with Sebastian.
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: true, wp_v2_completed: false };
+    mocks.user = { name: "Ada", wpl_completed: true, wp_v2_completed: false };
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("wp-banner")).toBeInTheDocument());
     expect(screen.getByTestId("wp-banner")).toHaveAttribute("data-retake", "true");
@@ -201,7 +256,7 @@ describe("JobSeekerDashboard - work pulse banner", () => {
   });
 
   it("shows the completion card when the current instrument is completed", async () => {
-    mocks.user = { name: "Ada", profileComplete: true, wpl_completed: false, wp_v2_completed: true };
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
     renderJobSeekerDashboard();
     await waitFor(() => expect(screen.getByTestId("wp-unlock")).toBeInTheDocument());
     expect(screen.queryByTestId("wp-banner")).toBeNull();
@@ -371,16 +426,24 @@ describe("JobSeekerDashboard - real activity and recommendations", () => {
     });
   });
 
-  it("opens the career-status modal for the career_status step", async () => {
+  it("opens the career-status modal on the Experience tab, with the way back here", async () => {
+    // Regression (audit 2026-10-02 item 8): no returnTo, so after saving the
+    // user was sent to Path Intelligence, and the modal opened on Personal Info.
     withDoc({
       recommendations: [{ id: "career_status", title: "Tell us where you are in your career", href: "/job-seeker/profile", priority: "urgent" }],
     });
     renderJobSeekerDashboard();
 
     fireEvent.click(await screen.findByText("Tell us where you are in your career"));
-    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile", {
-      state: { showCareerStatusModal: true },
-    });
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      { pathname: "/job-seeker/profile", search: "?tab=experience" },
+      {
+        state: {
+          showCareerStatusModal: true,
+          returnTo: { path: "/job-seeker/dashboard", label: "your dashboard" },
+        },
+      },
+    );
   });
 });
 
@@ -429,19 +492,73 @@ describe("JobSeekerDashboard - recommendations do not repeat the lead cards (D-6
     expect(within(card).getByText("Read your Situation Report")).toBeInTheDocument();
   });
 
-  it("drops the pulse check-in, which the pulse card always links to", async () => {
+  it("keeps the pulse check-in step, which fires only when a check-in is due", async () => {
+    // Regression (audit 2026-10-02 item 9): '/pulse' was always filtered
+    // because the pulse card links there, so this step could never render.
+    mocks.user = { ...mocks.user, wp_v2_completed: true };
+    mocks.situationReport = NEEDS_ENV;
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return Promise.resolve({
+        ...DASHBOARD_DOC,
+        recommendations: [
+          { id: "environment_report", title: "Describe your current job", href: "/environment-report" },
+          { id: "pulse", title: "Check in on your week", href: "/pulse" },
+        ],
+      });
+    });
+    renderJobSeekerDashboard();
+    await screen.findByTestId("situation-card");
+    const card = screen.getByText("Recommendations").parentElement as HTMLElement;
+    expect(await within(card).findByText("Check in on your week")).toBeInTheDocument();
+    expect(within(card).queryByText("Describe your current job")).toBeNull();
+  });
+
+  it("filters first and then shows three, so a filtered step never costs a slot", async () => {
     mocks.situationReport = NEEDS_CORE;
     mocks.fetchWithAuth.mockImplementation((path: string) => {
       if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
       if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
       return Promise.resolve({
         ...DASHBOARD_DOC,
-        recommendations: [...RECS, { id: "pulse", title: "Check in on your week", href: "/pulse" }],
+        recommendations: [
+          { id: "work_pulse", title: "Take Work Pulse", href: "/work-pulse", priority: "urgent" },
+          { id: "a", title: "Step A", href: "/a" },
+          { id: "b", title: "Step B", href: "/b" },
+          { id: "c", title: "Step C", href: "/c" },
+          { id: "d", title: "Step D", href: "/d" },
+        ],
       });
     });
     renderJobSeekerDashboard();
-    const card = await recsCard();
-    expect(within(card).queryByText("Check in on your week")).toBeNull();
+    await screen.findByTestId("situation-card");
+    const card = screen.getByText("Recommendations").parentElement as HTMLElement;
+    expect(await within(card).findByText("Step C")).toBeInTheDocument();
+    expect(within(card).queryByText("Take Work Pulse")).toBeNull();
+    expect(within(card).getByText("Step A")).toBeInTheDocument();
+    expect(within(card).getByText("Step B")).toBeInTheDocument();
+    expect(within(card).queryByText("Step D")).toBeNull();
+  });
+
+  it("does not tell a user who has taken Work Pulse that suggestions start after it", async () => {
+    // Every step this user has left is offered by a lead card above.
+    mocks.user = { ...mocks.user, wp_v2_completed: true };
+    mocks.situationReport = NEEDS_ENV;
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return Promise.resolve({
+        ...DASHBOARD_DOC,
+        recommendations: [
+          { id: "environment_report", title: "Describe your current job", href: "/environment-report" },
+        ],
+      });
+    });
+    renderJobSeekerDashboard();
+    await screen.findByTestId("situation-card");
+    expect(await screen.findByText("You’re up to date.")).toBeInTheDocument();
+    expect(screen.queryByText("Suggestions start after Work Pulse.")).toBeNull();
   });
 
   it("drops the Situation Report once the card links to it", async () => {
@@ -456,24 +573,24 @@ describe("JobSeekerDashboard - recommendations do not repeat the lead cards (D-6
 });
 
 describe("hrefsOfferedElsewhere", () => {
-  it("offers only the always-present pulse card's link without a report or banner", () => {
-    expect([...hrefsOfferedElsewhere(undefined, false)]).toEqual(["/pulse"]);
+  it("offers nothing without a report or banner -- the pulse step is not the pulse card", () => {
+    expect([...hrefsOfferedElsewhere(undefined, false)]).toEqual([]);
   });
 
   it("needs_core: the card takes Work Pulse only when the banner is gone", () => {
-    expect([...hrefsOfferedElsewhere(NEEDS_CORE as any, true)]).toEqual(["/pulse", "/work-pulse"]);
-    expect([...hrefsOfferedElsewhere(NEEDS_CORE as any, false)]).toEqual(["/pulse", "/work-pulse"]);
+    expect([...hrefsOfferedElsewhere(NEEDS_CORE as any, true)]).toEqual(["/work-pulse"]);
+    expect([...hrefsOfferedElsewhere(NEEDS_CORE as any, false)]).toEqual(["/work-pulse"]);
   });
 
   it("first_job: FocusType and the report link", () => {
     expect(hrefsOfferedElsewhere(FIRST_JOB as any, false)).toEqual(
-      new Set(["/pulse", "/focus-type", "/situation-report"]),
+      new Set(["/focus-type", "/situation-report"]),
     );
   });
 
   it("complete: the manager step and the report link", () => {
     expect(hrefsOfferedElsewhere(COMPLETE as any, false)).toEqual(
-      new Set(["/pulse", "/manager-profile", "/situation-report"]),
+      new Set(["/manager-profile", "/situation-report"]),
     );
   });
 });

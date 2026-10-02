@@ -131,6 +131,9 @@ def save_profile(user: User, raw_profile_data: Any, clean_profile_data) -> Profi
             has nothing to do with the service layer.
     """
     profile_data = clean_profile_data(raw_profile_data)
+    problem = domain.validate_career_status(profile_data)
+    if problem:
+        return _error(400, problem)
     # Read now, not after the commit: the commit expires `user`, and reading an
     # attribute of an expired row reloads the whole row.
     user_id = user.id
