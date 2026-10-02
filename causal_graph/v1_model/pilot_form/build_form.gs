@@ -8,7 +8,7 @@
 
 function buildPilotForm() {
   var form = FormApp.create("How you work, and how your job works");
-  form.setDescription("This is a short research questionnaire from Solverah, a career tool that is still in development. It asks how you like to work and, if you have or recently had a job, how that job actually runs. Your answers are used to improve how Solverah compares people with jobs.\n\n- It's anonymous. We don't ask your name, and we never ask which company you work for.\n- It takes about 15 minutes. Questions marked optional can be skipped.\n- There are no right answers. Every question runs between two legitimate ways of working.\n- If you'd like a short written report on your answers, you can leave an email at the end. It's optional and kept separately from your answers.\n\nBy continuing you agree to your answers being used this way.\n\nQuestions, or want your answers removed? Reply to the person who sent you this link.");
+  form.setDescription("This is a short research questionnaire from Solverah, a career tool that is still in development. It asks how you like to work and, if you have or recently had a job, how that job actually runs. Your answers are used to improve how Solverah compares people with jobs.\n\n- It's anonymous. We don't ask your name, and we never ask which company you work for.\n- It takes about 15 minutes. Questions marked optional can be skipped.\n- There are no right answers. Every question runs between two legitimate ways of working.\n- If you'd like a short written report on your answers, you can leave an email at the end. It's optional and kept separately from your answers. We use it to send your report and, only if you say yes at the end, to check in once a few months later.\n\nBy continuing you agree to your answers being used this way.\n\nQuestions, or want your answers removed? Reply to the person who sent you this link.");
   form.setConfirmationMessage("Thank you, your answers are in. If you left an email, your report will follow.");
   // Google's automatic email collection stays OFF: the only email is the optional
   // question on the last page, so answers are never tied to an address by default.
@@ -595,8 +595,14 @@ function buildPilotForm() {
   // ---- page final
   pages["final"] = form.addPageBreakItem().setTitle("Last thing (optional)");
   item = form.addTextItem().setTitle("Your email, if you'd like your report emailed to you").setRequired(false);
-  item.setHelpText("Optional. Reports are built from the job questions, so we can only send one if you described a job. Your email is stored apart from your answers and used for nothing else.");
+  item.setHelpText("Optional. Reports are built from the job questions, so we can only send one if you described a job. Your email is stored apart from your answers and used only to send your report and, if you say yes below, one check-in.");
   item.setValidation(FormApp.createTextValidation().setHelpText("Please enter an email address, or leave this blank.").requireTextIsEmail().build());
+  item = form.addMultipleChoiceItem().setTitle("Can we check in once in a few months?").setRequired(false);
+  item.setHelpText("Optional. One short email asking how the job is going now. Only if you left an email above. You can say no and still get your report.");
+  item.setChoiceValues([
+    "Yes, you can check in",
+    "No thanks",
+  ]);
 
   // ---- second pass: branching choices and end-of-section jumps
   item = branching["career_status"];

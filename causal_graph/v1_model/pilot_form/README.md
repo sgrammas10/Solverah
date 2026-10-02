@@ -150,8 +150,9 @@ What it prints:
   listed.
 
 Each respondent is stored as a user `pilot-<id>@pilotform.solverah.invalid` that cannot
-sign in. Real emails go only to `Desktop/solverah-pilot/emails.csv` (pilot id, email): never
-into the database, never into the repo, never onto the screen.
+sign in. Real emails go only to `Desktop/solverah-pilot/emails.csv` (columns `pilot_id`,
+`email`, `followup_ok`): never into the database, never into the repo, never onto the
+screen. An emails.csv from before `followup_ok` existed still loads; its rows read `no`.
 
 If the import says **REFUSED: the CSV does not match form_mapping.json**, the CSV is from a
 different form or the form's questions were edited after it was built. If it says the form
@@ -177,6 +178,19 @@ that contains a digit. Two lines in some reports point to the app's Manager Deco
 pilot respondents can't open; trim them if you like.
 
 Someone looking for their first job has no report (there's no job to compare against).
+
+## Follow-up consent (a later check-in, not built yet)
+
+The last page asks, optionally, **"Can we check in once in a few months?"** The intro and
+the email question say the email is used for the report and, only if they say yes, one
+check-in. `followup_ok` in `emails.csv` is `yes` only when the person said yes **and** left
+an email (a yes with no email can't be acted on, so it counts as no); blank counts as no.
+
+Nothing sends that check-in yet. When one is built, it re-asks only "Overall, how well is
+this role working for you?" (`experienced`), and only of `followup_ok = yes` respondents.
+Those later ratings are **exploratory** under the pre-registration (Part 3, "Pulse repeats
+of `experienced`"); they are not part of Look 1 or Look 2 and don't count toward the
+thresholds.
 
 ---
 

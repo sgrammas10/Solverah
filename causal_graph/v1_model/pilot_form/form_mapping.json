@@ -2050,6 +2050,25 @@
       "slot": null,
       "required": false,
       "answers": []
+    },
+    {
+      "qid": "followup",
+      "title": "Can we check in once in a few months?",
+      "occurrence": 1,
+      "role": "followup",
+      "item_id": null,
+      "slot": null,
+      "required": false,
+      "answers": [
+        [
+          "Yes, you can check in",
+          "yes"
+        ],
+        [
+          "No thanks",
+          "no"
+        ]
+      ]
     }
   ]
 }

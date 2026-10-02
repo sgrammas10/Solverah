@@ -51,7 +51,7 @@ def _rows(mapping):
     return [
         sample_csv.respondent(
             mapping, status="employed", timestamp="10/2/2026 9:00:00", previous=True,
-            email=REAL_EMAIL, env_keys={"env-autonomy-1": "e", "env-autonomy-2": "a"},
+            email=REAL_EMAIL, followup=spec.FOLLOWUP_YES, env_keys={"env-autonomy-1": "e", "env-autonomy-2": "a"},
             stage_size=4, comp=4, industry="tech", experienced=5),
         sample_csv.respondent(
             mapping, status="between_jobs", timestamp="10/2/2026 9:05:00",
@@ -239,7 +239,9 @@ def test_respondent_emails_never_reach_the_database(client, mapping, tmp_path):
     summary = _import(parsed)
     written = import_responses.write_emails(tmp_path / "emails.csv", parsed, summary.present)
     assert written == 2
-    assert REAL_EMAIL in (tmp_path / "emails.csv").read_text(encoding="utf-8")
+    emails_text = (tmp_path / "emails.csv").read_text(encoding="utf-8")
+    assert "%s,%s,yes" % (parsed[0].pilot_id, REAL_EMAIL) in emails_text
+    assert "first.job@example.org,no" in emails_text
 
     with app.app_context():
         with db.engine.connect() as conn:
@@ -248,6 +250,9 @@ def test_respondent_emails_never_reach_the_database(client, mapping, tmp_path):
                     flat = repr(tuple(row))
                     assert REAL_EMAIL not in flat, table.name
                     assert "first.job@example.org" not in flat, table.name
+                    # The consent travels with the email only, never into the DB.
+                    assert spec.FOLLOWUP_CHOICES[0][0] not in flat, table.name
+                    assert "followup" not in flat, table.name
     assert all(p.email is None or "@" in p.email for p in parsed)
 
 

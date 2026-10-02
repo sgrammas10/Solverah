@@ -23,10 +23,17 @@ the first copy edit, so nothing here matches against the banks at all. The gener
 PILOT IDS
 ---------
 A Forms export has no response id. `pilot_id` is a hash of the respondent's whole row --
-timestamp and every answer -- EXCLUDING the email cell, so it is stable across re-exports
+timestamp and every answer -- EXCLUDING the email cell and the follow-up consent cell
+(PRIVATE_ROLES: contact data, not answers to the instrument), so it is stable across re-exports
 (re-importing the same CSV, or a later CSV that also contains these rows, maps each row to
 the same id) and carries nothing about who the respondent is. Two byte-identical rows
 submitted in the same second would share an id and count once; that is accepted.
+
+FOLLOW-UP CONSENT (2026-10-02)
+------------------------------
+`followup_ok` is True only for an explicit "yes" from a respondent who also left an email:
+a yes with no address cannot be acted on, so it is read as no. Blank means no. It never
+reaches the database -- it travels with the email to emails.csv, outside the repo.
 """
 
 from __future__ import annotations
@@ -41,6 +48,7 @@ from typing import Any, Iterable, Optional
 
 from . import PACKAGE_DIR
 from .spec import (
+    FOLLOWUP_YES,
     GATE_YES,
     SLOT_CURRENT_PAST,
     SLOT_CURRENT_PRESENT,
@@ -60,6 +68,10 @@ SLOT_FOR_STATUS = {
 ENV_CONTEXT_ITEMS = ("stage_size", "comp", "industry", "experienced")
 
 PILOT_ID_LENGTH = 16
+
+#: Cells that identify or contact a person rather than answer the instrument. Left out of
+#: pilot_id, so the id is a function of the answers alone.
+PRIVATE_ROLES = ("email", "followup")
 
 
 class MappingMismatch(ValueError):
@@ -102,6 +114,8 @@ class ParsedResponse:
     current: Optional[JobAnswers] = None
     previous: Optional[JobAnswers] = None
     email: Optional[str] = None
+    #: Consented to one later check-in. Only ever True alongside an email.
+    followup_ok: bool = False
     #: Set when nothing at all can be imported for this respondent.
     skip_reason: Optional[str] = None
     #: Parts that were not imported, with why -- the respondent is still imported.
@@ -163,9 +177,15 @@ def _ascii_list(titles: list, limit: int = 3) -> str:
 # ---------------------------------------------------------------------------
 # Rows
 # ---------------------------------------------------------------------------
-def pilot_id_for(row: list, email_index: Optional[int]) -> str:
-    """Stable id from the row's cells, with the email cell left out (see module doc)."""
-    cells = [_norm(v) for i, v in enumerate(row) if i != email_index]
+def pilot_id_for(row: list, private_indexes) -> str:
+    """Stable id from the row's cells, with the PRIVATE_ROLES cells left out (see module
+    doc). `private_indexes` is a collection of column indexes, or one index, or None."""
+    if private_indexes is None:
+        private_indexes = ()
+    elif isinstance(private_indexes, int):
+        private_indexes = (private_indexes,)
+    excluded = set(private_indexes)
+    cells = [_norm(v) for i, v in enumerate(row) if i not in excluded]
     digest = hashlib.sha256("\x1f".join(cells).encode("utf-8")).hexdigest()
     return digest[:PILOT_ID_LENGTH]
 
@@ -206,9 +226,10 @@ def _job(slot: str, cells: dict) -> tuple[Optional[JobAnswers], Optional[str]]:
 def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> ParsedResponse:
     """One CSV data row -> ParsedResponse. Never raises for respondent-level problems;
     they become `skip_reason` or `notes`."""
-    email_index = next((i for i, c in columns.items()
-                        if i != "timestamp" and c["role"] == "email"), None)
-    parsed = ParsedResponse(pilot_id=pilot_id_for(row, email_index), row_number=row_number)
+    private = [i for i, c in columns.items()
+               if i != "timestamp" and c["role"] in PRIVATE_ROLES]
+    parsed = ParsedResponse(pilot_id=pilot_id_for(row, private), row_number=row_number)
+    followup = None
 
     core: dict = {}
     by_slot: dict = {}
@@ -223,6 +244,14 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
                 value = _norm(cell)
                 parsed.email = value if "@" in value else None
                 continue
+            if role == "followup":
+                try:
+                    ok, value = _answer(column, cell)
+                except ValueError:
+                    ok, value = True, None  # unrecognised consent text is not consent
+                    parsed.notes.append("follow-up answer not recognised; read as no")
+                followup = value if ok else None
+                continue
             ok, value = _answer(column, cell)
             if role == "core":
                 if ok:
@@ -236,6 +265,8 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
     except ValueError as exc:
         parsed.skip_reason = str(exc)
         return parsed
+
+    parsed.followup_ok = followup == FOLLOWUP_YES and parsed.email is not None
 
     n_core = sum(1 for c in mapping["columns"] if c["role"] == "core")
     if len(core) != n_core:

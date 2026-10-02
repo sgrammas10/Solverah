@@ -164,7 +164,8 @@ FORM_DESCRIPTION = (
     "- There are no right answers. Every question runs between two legitimate ways of "
     "working.\n"
     "- If you'd like a short written report on your answers, you can leave an email at the "
-    "end. It's optional and kept separately from your answers.\n\n"
+    "end. It's optional and kept separately from your answers. We use it to send your "
+    "report and, only if you say yes at the end, to check in once a few months later.\n\n"
     "By continuing you agree to your answers being used this way.\n\n" + CONTACT_LINE
 )
 
@@ -215,8 +216,20 @@ GATE_CHOICES = (
 EMAIL_TITLE = "Your email, if you'd like your report emailed to you"
 EMAIL_HELP = (
     "Optional. Reports are built from the job questions, so we can only send one if you "
-    "described a job. Your email is stored apart from your answers and used for nothing "
-    "else."
+    "described a job. Your email is stored apart from your answers and used only to send "
+    "your report and, if you say yes below, one check-in."
+)
+
+FOLLOWUP_YES = "yes"
+FOLLOWUP_NO = "no"
+FOLLOWUP_TITLE = "Can we check in once in a few months?"
+FOLLOWUP_HELP = (
+    "Optional. One short email asking how the job is going now. Only if you left an email "
+    "above. You can say no and still get your report."
+)
+FOLLOWUP_CHOICES = (
+    ("Yes, you can check in", FOLLOWUP_YES),
+    ("No thanks", FOLLOWUP_NO),
 )
 
 
@@ -410,6 +423,17 @@ def build_spec() -> FormSpec:
                 required=False,
                 role="email",
                 help_text=EMAIL_HELP,
+            ),
+            # Explicit consent for ONE later re-ask of `experienced` (Sebastian,
+            # 2026-10-02). Optional; a blank, or a yes with no email, means no.
+            Question(
+                qid="followup",
+                title=FOLLOWUP_TITLE,
+                kind="choice",
+                required=False,
+                role="followup",
+                help_text=FOLLOWUP_HELP,
+                choices=tuple(Choice(text, answer) for text, answer in FOLLOWUP_CHOICES),
             ),
         ),
     )

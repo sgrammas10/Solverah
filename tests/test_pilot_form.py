@@ -248,10 +248,31 @@ def test_script_settings_shuffle_off_and_no_automatic_email_collection():
     assert "UrlFetchApp" not in script
 
 
-def test_the_only_optional_question_is_the_email(form):
+def test_the_only_optional_questions_are_the_email_and_the_followup_consent(form):
     optional = [q.qid for q in form.questions() if not q.required]
-    assert optional == ["email"]
-    assert form.page("final").questions[0].kind == "email"
+    assert optional == ["email", "followup"]
+    final = form.page("final").questions
+    assert [q.qid for q in final] == ["email", "followup"]
+    assert final[0].kind == "email"
+
+
+def test_the_followup_consent_question_is_on_the_final_page_after_the_email(form, mapping):
+    q = form.page("final").questions[1]
+    assert (q.role, q.kind, q.required) == ("followup", "choice", False)
+    assert [c.answer for c in q.choices] == [spec.FOLLOWUP_YES, spec.FOLLOWUP_NO]
+    assert all(c.go_to is None for c in q.choices)
+    assert mapping["columns"][-1]["qid"] == "followup"
+    assert mapping["columns"][-1]["answers"] == [[t, a] for t, a in spec.FOLLOWUP_CHOICES]
+    script = generate_form_script.SCRIPT_PATH.read_text(encoding="ascii")
+    assert script.index(spec.EMAIL_TITLE) < script.index(spec.FOLLOWUP_TITLE)
+
+
+def test_consent_copy_names_both_uses_of_the_email():
+    """The email is used for the report and, only on a yes, one check-in -- the intro and
+    the email help must not still say 'nothing else'."""
+    for text in (spec.FORM_DESCRIPTION, spec.EMAIL_HELP):
+        assert "nothing else" not in text
+        assert "report" in text and "check-in" in text.replace("check in", "check-in")
 
 
 # ---------------------------------------------------------------------------
@@ -561,9 +582,76 @@ def test_emails_are_written_by_pilot_id_and_merged(tmp_path, mapping):
     assert import_responses.write_emails(target, second) == 1
     assert import_responses.write_emails(target, second, only=set()) == 0
     text = target.read_text(encoding="utf-8")
-    assert text.splitlines()[0] == "pilot_id,email"
-    assert "%s,a@example.org" % first[0].pilot_id in text
-    assert "%s,b@example.org" % second[0].pilot_id in text
+    assert text.splitlines()[0] == "pilot_id,email,followup_ok"
+    assert "%s,a@example.org,no" % first[0].pilot_id in text
+    assert "%s,b@example.org,no" % second[0].pilot_id in text
+
+
+def _parsed_followup(mapping, *, email, followup, ts="t"):
+    return _parse(mapping, [sample_csv.respondent(
+        mapping, status="employed", timestamp=ts, email=email, followup=followup)])[0]
+
+
+@pytest.mark.parametrize("email,followup,expected", [
+    ("a@example.org", spec.FOLLOWUP_YES, True),
+    ("a@example.org", spec.FOLLOWUP_NO, False),
+    ("a@example.org", None, False),          # blank
+    ("", spec.FOLLOWUP_YES, False),          # a yes with no email cannot be acted on
+])
+def test_followup_consent_parses_yes_no_blank(mapping, email, followup, expected):
+    p = _parsed_followup(mapping, email=email, followup=followup)
+    assert p.skip_reason is None
+    assert p.followup_ok is expected
+    if not email:
+        assert p.email is None
+
+
+def test_unrecognised_followup_text_is_no_and_does_not_skip(mapping):
+    row = sample_csv.respondent(mapping, status="employed", timestamp="t", email="a@x.org")
+    row["followup"] = "Maybe later"
+    [p] = _parse(mapping, [row])
+    assert p.skip_reason is None and p.followup_ok is False
+    assert any("follow-up" in n for n in p.notes)
+
+
+def test_the_followup_answer_does_not_change_the_pilot_id(mapping):
+    """Consent is contact data like the email, not an answer: pilot_id stays a function
+    of the answers alone, so changing it never re-identifies a row."""
+    ids = {
+        _parsed_followup(mapping, email=e, followup=f).pilot_id
+        for e, f in (("a@x.org", spec.FOLLOWUP_YES), ("a@x.org", spec.FOLLOWUP_NO),
+                     ("", None), ("b@y.org", None))
+    }
+    assert len(ids) == 1
+
+
+def test_emails_csv_records_followup_and_merges_idempotently(tmp_path, mapping):
+    target = tmp_path / "emails.csv"
+    yes = [_parsed_followup(mapping, email="a@example.org", followup=spec.FOLLOWUP_YES,
+                            ts="t1")]
+    no = [_parsed_followup(mapping, email="b@example.org", followup=spec.FOLLOWUP_NO,
+                           ts="t2")]
+    import_responses.write_emails(target, yes)
+    import_responses.write_emails(target, no)
+    once = target.read_text(encoding="utf-8")
+    import_responses.write_emails(target, yes)
+    import_responses.write_emails(target, no)
+    assert target.read_text(encoding="utf-8") == once
+    assert "%s,a@example.org,yes" % yes[0].pilot_id in once
+    assert "%s,b@example.org,no" % no[0].pilot_id in once
+    assert len(once.splitlines()) == 3
+
+
+def test_an_old_format_emails_csv_still_merges(tmp_path, mapping):
+    target = tmp_path / "emails.csv"
+    target.write_text("pilot_id,email\r\nold0000000000001,old@example.org\r\n",
+                      encoding="utf-8")
+    new = [_parsed_followup(mapping, email="new@example.org", followup=spec.FOLLOWUP_YES)]
+    assert import_responses.write_emails(target, new) == 1
+    lines = target.read_text(encoding="utf-8").splitlines()
+    assert lines[0] == "pilot_id,email,followup_ok"
+    assert "old0000000000001,old@example.org,no" in lines
+    assert "%s,new@example.org,yes" % new[0].pilot_id in lines
 
 
 def test_pilot_email_is_an_invalid_tld_address_on_the_provenance_domain():

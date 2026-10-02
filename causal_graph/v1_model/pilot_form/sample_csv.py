@@ -56,7 +56,8 @@ def job_answers(m: dict, slot: str, *, env_key: str = "c", stage_size=2, comp=3,
 
 
 def respondent(m: dict, *, status: str, timestamp: str, previous: bool = False,
-               email: str = "", core_pattern: str = "AB", **job) -> dict:
+               email: str = "", core_pattern: str = "AB", followup: str | None = None,
+               **job) -> dict:
     """{qid: cell} for a whole respondent, as the form's branching would leave it."""
     labels = {v: k for k, v in spec.CAREER_STATUS_CHOICES}
     row = {"__timestamp__": timestamp, "career_status": labels[status]}
@@ -72,6 +73,8 @@ def respondent(m: dict, *, status: str, timestamp: str, previous: bool = False,
                                    comp=None, industry=None))
     if email:
         row["email"] = email
+    if followup is not None:  # spec.FOLLOWUP_YES / FOLLOWUP_NO; None leaves it blank
+        row["followup"] = dict((v, k) for k, v in spec.FOLLOWUP_CHOICES)[followup]
     return row
 
 

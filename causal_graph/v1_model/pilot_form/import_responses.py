@@ -58,7 +58,7 @@ PILOT_FORM_EMAIL_DOMAIN = _atd.PILOT_FORM_EMAIL_DOMAIN
 
 DEFAULT_EMAILS_PATH = Path(DEFAULT_PRIVATE_DIR) / "emails.csv"
 
-EMAILS_HEADER = ("pilot_id", "email")
+EMAILS_HEADER = ("pilot_id", "email", "followup_ok")
 
 
 def pilot_email(pilot_id: str) -> str:
@@ -265,12 +265,18 @@ def assert_outside_repo(path, what: str) -> Path:
 
 def write_emails(path: Path, parsed: Iterable[ParsedResponse],
                  only: Optional[set] = None) -> int:
-    """Merge {pilot_id: email} into `path` for respondents in `only` (default: every
-    importable one). Returns how many were written. Refuses any path inside the
-    repository."""
+    """Merge {pilot_id: (email, followup_ok)} into `path` for respondents in `only`
+    (default: every importable one). Returns how many were written. Refuses any path
+    inside the repository.
+
+    `followup_ok` is 'yes' or 'no' -- consent to ONE later check-in, read as 'no' unless
+    the respondent said yes AND left an email (responses.py). A file written before the
+    column existed (pilot_id,email) still loads: its rows read 'no', the conservative
+    default, and are rewritten with the column. Re-importing the same rows rewrites the
+    same values, so the merge is idempotent."""
     path = assert_outside_repo(path, "respondent emails")
     wanted = {
-        p.pilot_id: p.email for p in parsed
+        p.pilot_id: (p.email, "yes" if p.followup_ok else "no") for p in parsed
         if p.email and p.skip_reason is None and (only is None or p.pilot_id in only)
     }
     if not wanted:
@@ -279,14 +285,17 @@ def write_emails(path: Path, parsed: Iterable[ParsedResponse],
     if path.exists():
         with path.open(newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle):
-                existing[row["pilot_id"]] = row["email"]
+                followup = (row.get("followup_ok") or "").strip().lower()
+                existing[row["pilot_id"]] = (
+                    row["email"], "yes" if followup == "yes" else "no")
     existing.update(wanted)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(EMAILS_HEADER)
         for pilot_id in sorted(existing):
-            writer.writerow((pilot_id, existing[pilot_id]))
+            email, followup = existing[pilot_id]
+            writer.writerow((pilot_id, email, followup))
     return len(wanted)
 
 
