@@ -307,6 +307,34 @@ A current-only dataset assembles byte-identically to before (every array, raw an
 `preprocess_conf`); only the two new row fields are added —
 `tests/test_assemble_environment_training_data.py` asserts it.
 
+## 2026-10-01 — pilot-form respondents: `respondent_source`
+
+Before launch, rows also come from the **pilot form** (`causal_graph/v1_model/pilot_form/`):
+a Google Form generated from the app's own item banks, whose responses are imported into a
+LOCAL `solverah_pilot*` database through the app's real doorways (ORM `User`,
+`profile_repository`, `assessment_store.persist_submission`,
+`situation_report_service.submit_environment_report`). The rows they produce are app rows in
+every column; pre-registration Amendment 2 requires them to be labelled anyway, so a look
+can be re-called on app rows alone.
+
+* **`respondent_source`** — `'app'` or `'pilot_form'`, in `FUNNEL_FIELD_CAPTURE_NOTES`.
+  `'pilot_form'` exactly when the user's email ends in `PILOT_FORM_EMAIL_DOMAIN`
+  (`@pilotform.solverah.invalid`), which only the importer assigns.
+
+**Why the email domain and not a column.** It is the least invasive label that is still
+unforgeable in practice: no migration, no new column on a table another lane owns, nothing
+for the app to write or forget to write. `.invalid` is reserved (RFC 2606), so no real
+person can sign up with such an address, and the pattern match runs in SQL so only user ids
+come back — no email address reaches the assembler. It is the same convention devfit's
+`@synthetic.solverah.invalid` already uses, which the pre-registration's exclusion rule
+reads.
+
+**App rows are unchanged.** `assemble_environment_rows` takes the lookup as an optional
+keyword (absent means `'app'`), and every pre-existing field and array is byte-identical to
+the assembler before this change —
+`tests/test_assemble_environment_training_data.py` asserts it against the previous commit,
+as it did for `report_subject`.
+
 ### Pointer: condition experiments (BUILD_PLAN B-5)
 
 The `experiments` table (`model.Experiment`) holds one row per user per two-week

@@ -430,6 +430,20 @@ ENVIRONMENT_OUTCOME_COLUMN = "experienced_outcome"
 #: down, and `dropped` is where it becomes visible instead of silent.
 TRAINABLE_CAREER_STATUSES: frozenset[str] = frozenset({"employed", "between_jobs"})
 
+#: Where a respondent came from. 'app' is anyone who answered through the
+#: product; 'pilot_form' is a respondent to the pre-launch pilot form
+#: (`causal_graph/v1_model/pilot_form/`, pre-registration Amendment 2), whose
+#: answers were imported through the app's own storage doorways under a user
+#: whose email ends in PILOT_FORM_EMAIL_DOMAIN. The domain IS the label: the
+#: importer is the only thing that creates such addresses (`.invalid` is
+#: reserved by RFC 2606 and can never be registered or mailed), so the label
+#: needs no new column and no migration, and an app row's provenance is
+#: untouched -- it is 'app' because its email is anything else.
+RESPONDENT_SOURCE_APP = "app"
+RESPONDENT_SOURCE_PILOT_FORM = "pilot_form"
+RESPONDENT_SOURCES: tuple[str, ...] = (RESPONDENT_SOURCE_APP, RESPONDENT_SOURCE_PILOT_FORM)
+PILOT_FORM_EMAIL_DOMAIN = "@pilotform.solverah.invalid"
+
 PIN_EXPLICIT = "explicit_override"
 PIN_FIRST_CORE = "first_core_sitting"
 
@@ -461,6 +475,7 @@ class EnvironmentTrainingRow:
     employer_name_normalized: Optional[str]
     report_subject: str
     current_report_ordinal: Optional[int]
+    respondent_source: str = RESPONDENT_SOURCE_APP
     outcome_source: str = OUTCOME_SOURCE
     capture_path: str = CAPTURE_PATH
 
@@ -556,6 +571,18 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
         "oldest first by (submitted_at, id); None on a past row. Past rows interleaved "
         "in time do not shift it. 'First eligible current report' -- the "
         "pre-registered primary sample -- is current_report_ordinal == 1."
+    ),
+    "respondent_source": (
+        "'app' or 'pilot_form'. 'pilot_form' means the respondent answered the "
+        "pre-launch pilot Google Form and the answers were imported into a LOCAL "
+        "research database through the app's own storage doorways "
+        "(causal_graph/v1_model/pilot_form/); 'app' is every other respondent. Derived "
+        "from the user's email domain, which the importer alone assigns "
+        "(PILOT_FORM_EMAIL_DOMAIN, an RFC 2606 .invalid address); the email itself never "
+        "leaves the query. Pre-registration Amendment 2: pilot current rows count toward "
+        "the primary population, and each look is ALSO called on 'app' rows alone -- a "
+        "disagreement is reported as mode-sensitive. Synthetic devfit users read 'app' "
+        "here; they are excluded by their own domain (section 0.2), not by this field."
     ),
     "employer_name_normalized": (
         "environment_reports.employer_name_normalized (⚑6) -- optional, usually NULL, "
@@ -707,6 +734,7 @@ def assemble_environment_rows(
     conf_kind: dict[str, Optional[str]],
     score_person: Callable[[dict], dict],
     scoring_key_version: Optional[str],
+    respondent_sources: Optional[dict] = None,
 ) -> EnvironmentAssembleResult:
     """Build the arrays from fully-resolved lookups.
 
@@ -723,6 +751,9 @@ def assemble_environment_rows(
                           (A-5's load-bearing lesson: `person_dimension_score`
                           is upserted in place, so a retake silently rewrites
                           what a pinned read would have returned).
+    respondent_sources:   {user_id: 'app' | 'pilot_form'}. A user it does not
+                          name is 'app', so a caller that predates the pilot
+                          form gets exactly the rows it always got.
 
     Every excluded report lands in `dropped` with a reason. Silently shrinking N
     is the "empty response read as absence" bug this project keeps catching
@@ -861,6 +892,9 @@ def assemble_environment_rows(
                 employer_name_normalized=report.get("employer_name_normalized"),
                 report_subject=report["subject"],
                 current_report_ordinal=current_ordinal_of.get(report_id),
+                respondent_source=(respondent_sources or {}).get(
+                    user_id, RESPONDENT_SOURCE_APP
+                ),
             )
         )
 
@@ -933,6 +967,21 @@ def _fetch_environment_dimension_scores(conn: Connection, report_ids: list[int])
     # (report, dimension) unique, so unlike company_dimension_score there is
     # never more than one row to choose between.
     return {(r["environment_report_id"], r["dimension_key"]): r["score"] for r in rows}
+
+
+def _fetch_respondent_sources(conn: Connection, user_ids: list[int]) -> dict:
+    """{user_id: 'pilot_form'} for the pilot-form respondents among `user_ids`;
+    everyone absent is 'app'. The match runs in the database and only ids come
+    back, so no email address ever reaches the assembler."""
+    if not user_ids:
+        return {}
+    stmt = text(
+        "SELECT id FROM users WHERE id IN :uids AND LOWER(email) LIKE :pattern"
+    ).bindparams(bindparam("uids", expanding=True))
+    rows = conn.execute(
+        stmt, {"uids": user_ids, "pattern": "%" + PILOT_FORM_EMAIL_DOMAIN}
+    ).all()
+    return {r[0]: RESPONDENT_SOURCE_PILOT_FORM for r in rows}
 
 
 def _core_sitting_precedes(candidate: dict, incumbent: dict) -> bool:
@@ -1146,6 +1195,7 @@ def assemble_environment_training_data(
         conf_kind,
         score_person,
         scoring_key_version,
+        respondent_sources=_fetch_respondent_sources(conn, user_ids),
     )
 
 

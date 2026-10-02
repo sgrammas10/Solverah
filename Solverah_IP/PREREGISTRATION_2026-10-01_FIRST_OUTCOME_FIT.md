@@ -208,3 +208,33 @@ a previous job (`environment_reports.subject = 'past'`); every earlier row is
 **Why.** A past-job rating is recalled rather than current, describes a job the respondent
 has already left, and pairs a person side measured now with a job that has ended. That is
 a different population answering the same item.
+
+### Amendment 2 — 2026-10-01: pilot-form respondents
+
+Adopted by Sebastian 2026-10-01, written before the pilot form exists and before any
+response to it.
+
+Before launch, rows may also come from a **pilot form** (a Google Form generated from the
+app's own item banks, same wording, same option order, same section order, `experienced`
+last). Its responses are imported into a LOCAL research database through the app's real
+scoring and storage code, and every resulting row carries a provenance label that marks
+it as pilot-form.
+
+- Pilot-form current-job rows **count toward the primary population and the §0.5
+  thresholds**, under the same rules as app rows (§0.2: first current report per
+  respondent; the same exclusions; Appendix A applies to pilot respondents too).
+  Pilot-form past-job rows follow Amendment 1: exploratory only.
+- **Pre-registered sensitivity check:** at each look, the Part 1 calls are also computed
+  on app rows only. If the overall call and the app-only call disagree, the look is
+  reported as **"mode-sensitive"** with both calls, and neither is adopted as the look's
+  result. If there are fewer than 30 app rows, the app-only call is reported as
+  "insufficient app rows" and the overall call stands.
+- The form changes nothing in §0.3–§0.5. **Where the fit runs** (Part 4) is settled for
+  pilot rows: locally, against the research database, never against production.
+- Respondent emails, where given, are stored apart from answers, never in the research
+  database and never in the repo.
+
+**Why.** The site is not launching yet, so the form is the only source of rows before
+launch. Counting them is what makes Look 1 reachable; labelling them and checking
+app-only is what keeps a mode difference (a form instead of the app's stepper) from
+passing as a finding.

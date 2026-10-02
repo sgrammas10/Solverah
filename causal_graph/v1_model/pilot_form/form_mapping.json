@@ -1,0 +1,2055 @@
+{
+  "_generated_by": "causal_graph/v1_model/pilot_form/generate_form_script.py -- do not edit",
+  "pilot_form_version": "pilot-v1-2026-10-01",
+  "core_form_version": "v2-2026-08-18",
+  "env_form_version": "env-v2-2026-10-01",
+  "core_item_order": [
+    "de2v2",
+    "co1v2",
+    "in1v2",
+    "pa3v2",
+    "fb3v2",
+    "au3v2",
+    "in3v2",
+    "de4v2",
+    "pa4v2",
+    "co3v2",
+    "fb1v2",
+    "au1v2",
+    "in2v2",
+    "co2v2",
+    "fb4v2",
+    "au4v2",
+    "pa1v2",
+    "de3v2",
+    "co4v2",
+    "pa2v2",
+    "fb2v2",
+    "in4v2",
+    "de1v2",
+    "au2v2"
+  ],
+  "timestamp_column": "Timestamp",
+  "columns": [
+    {
+      "qid": "core::de2v2",
+      "title": "The situation rhymes with things you've seen, but a few details are different this time. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "de2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Check the numbers on the parts that differ, go on experience for the rest.",
+          "A"
+        ],
+        [
+          "Treat it as close enough to what you know and decide on that basis.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::co1v2",
+      "title": "You're starting a piece of work you could do on your own. You're more likely to:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "co1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Just get going on it yourself.",
+          "A"
+        ],
+        [
+          "Talk it through with someone first.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::in1v2",
+      "title": "Something you put together recently works, but not well. You're more likely to:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "in1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Take another pass at the parts that are weakest.",
+          "A"
+        ],
+        [
+          "Start it over with a different idea of how it should work.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::pa3v2",
+      "title": "That tempo turns out to be the normal state of the team -- it's been a couple of months and it hasn't let up. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "pa3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Have found you'd rather keep it this way than go back.",
+          "A"
+        ],
+        [
+          "Be looking to carve out slower stretches for yourself.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::fb3v2",
+      "title": "Your work is being reviewed in a meeting with the rest of the team present. When they've spotted something you got wrong, you'd rather they:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "fb3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Note it privately afterwards, rather than in front of the whole group.",
+          "A"
+        ],
+        [
+          "Say it there in the room while everyone's looking at the same thing.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::au3v2",
+      "title": "You're given a project that a few other teams are depending on, and people will notice if it goes wrong. You're more likely to:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "au3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Set the direction yourself and keep people posted as you go.",
+          "A"
+        ],
+        [
+          "Agree the direction with your manager before you start.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::in3v2",
+      "title": "Something the team relies on works well and nobody is complaining. You've thought of a fundamentally different approach that might be better, but you'd have to throw the current one out to find out. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "in3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Push to try the new approach.",
+          "A"
+        ],
+        [
+          "Leave it alone -- it's working.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::de4v2",
+      "title": "On the teams you've been on, the decisions that frustrated you were the ones where:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "de4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "A call sat unmade while people waited on figures that were never going to arrive in a usable form.",
+          "A"
+        ],
+        [
+          "A call was made on somebody's read of it, with no way for anyone to check the reasoning after.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::pa4v2",
+      "title": "Thinking about the stretches of work that wore you down, what actually did it was:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "pa4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "A tempo that never dropped, month after month, with no stretch you could exhale in.",
+          "A"
+        ],
+        [
+          "Long stretches where the work was there but nothing was urgent, and the days ran together.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::co3v2",
+      "title": "A piece of work could either be split up and done separately, or done start-to-finish with someone else in the room the whole time. Same deadline either way. You'd pick:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "co3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Split it up and sync at the end.",
+          "A"
+        ],
+        [
+          "Do the whole thing together.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::fb1v2",
+      "title": "There's something small you could be doing better. You'd rather your manager:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "fb1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Mention it next time you're already talking one-on-one.",
+          "A"
+        ],
+        [
+          "Send it over as soon as they notice, without waiting for a scheduled slot.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::au1v2",
+      "title": "You're given a routine task you've handled many times before, with no special instructions attached. You're more likely to:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "au1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Just do it your usual way without checking in.",
+          "A"
+        ],
+        [
+          "Confirm the expected approach first.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::in2v2",
+      "title": "A process that's been running for a year does the job, though nobody loves it. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "in2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Replace it with something you think would work better.",
+          "A"
+        ],
+        [
+          "Smooth out the parts that annoy people and leave the rest.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::co2v2",
+      "title": "The team proposes a standing hour every day where everyone works through the current problem together. For you that would be:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "co2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Worth the hour -- you'd get more out of it than you'd lose.",
+          "A"
+        ],
+        [
+          "An hour you'd rather have back for your own work.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::fb4v2",
+      "title": "The people you've worked under that you've found hardest were the ones who:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "fb4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Never told you where you stood until something formal came around, so you were guessing for months at a time.",
+          "A"
+        ],
+        [
+          "Raised things the moment they saw them, wherever you happened to be and whoever happened to be there.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::au4v2",
+      "title": "Looking back, what's frustrated you most was when:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "au4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "You were left to figure out something high-stakes entirely on your own, with no one available even once to sanity-check your read of it before you committed.",
+          "A"
+        ],
+        [
+          "Even on the most important work, you were expected to check in and get sign-off on the direction and the plan before starting -- not just the finer details.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::pa1v2",
+      "title": "A single afternoon comes up where several things need turning around quickly at once. Afterwards you'd say:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "pa1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "That's a good afternoon -- you'd take more of them.",
+          "A"
+        ],
+        [
+          "That's fine occasionally, but you were glad when it was over.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::de3v2",
+      "title": "This one is genuinely new -- nobody on the team has faced this exact situation, and there is some data available but it's thin and doesn't cover it cleanly. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "de3v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Work from the thin data and say plainly what it does and doesn't cover.",
+          "A"
+        ],
+        [
+          "Reason it out from what you know about how situations like this tend to behave.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::co4v2",
+      "title": "The setups you've worked in that drained you most were the ones where:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "co4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Weeks where you barely worked alongside anyone -- your part arrived, you did it, you passed it on.",
+          "A"
+        ],
+        [
+          "Almost never getting a stretch of the day that was yours, because the work was always happening in a group.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::pa2v2",
+      "title": "A push like that runs for a full week rather than an afternoon. Partway through, you're more likely to be:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "pa2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Watching the calendar for when it eases off.",
+          "A"
+        ],
+        [
+          "Still running on it without particularly wanting it to stop.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::fb2v2",
+      "title": "You've just handed in a piece of work and there's a real problem with it. You'd rather find out:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "fb2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Straight away, before you've moved on to anything else.",
+          "A"
+        ],
+        [
+          "Once they've been through all of it, in one go.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::in4v2",
+      "title": "You've been most frustrated in situations where:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "in4v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Things kept getting rebuilt from scratch, and work you'd already finished got thrown away over and over.",
+          "A"
+        ],
+        [
+          "Nothing could be rebuilt, so you kept working around the same known problems because replacing them was never worth it.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::de1v2",
+      "title": "A call comes up that's close to ones you've made many times before, and it points the way it usually does. You'd more likely:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "de1v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Go with what the pattern has been, without pulling it up.",
+          "A"
+        ],
+        [
+          "Pull the figures first, even though you expect them to agree.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "core::au2v2",
+      "title": "You're handed a new project that's fairly low-risk if something goes wrong. You're more likely to:",
+      "occurrence": 1,
+      "role": "core",
+      "item_id": "au2v2",
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Check your approach with your manager first.",
+          "A"
+        ],
+        [
+          "Figure out your own approach as you go.",
+          "B"
+        ]
+      ]
+    },
+    {
+      "qid": "career_status",
+      "title": "Where are you in your career?",
+      "occurrence": 1,
+      "role": "career_status",
+      "item_id": null,
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Currently employed",
+          "employed"
+        ],
+        [
+          "Between jobs",
+          "between_jobs"
+        ],
+        [
+          "Looking for my first job",
+          "first_job"
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_present:stage_size",
+      "title": "How big is the organization you work for \u2014 the whole organization, not your team?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "stage_size",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "An early-stage startup \u2014 a handful of people, still finding its footing.",
+          1
+        ],
+        [
+          "A small company that has found its footing and is growing \u2014 tens of people.",
+          2
+        ],
+        [
+          "A mid-sized organization \u2014 hundreds of people, with real structure in place.",
+          3
+        ],
+        [
+          "A large organization \u2014 thousands of people, established in its market.",
+          4
+        ],
+        [
+          "A very large enterprise \u2014 tens of thousands of people and many layers.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_present:comp",
+      "title": "Compared with what you could earn elsewhere doing similar work, how does this role pay?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "comp",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Well below what you could get elsewhere for similar work.",
+          1
+        ],
+        [
+          "Somewhat below.",
+          2
+        ],
+        [
+          "About the same \u2014 at market.",
+          3
+        ],
+        [
+          "Somewhat above.",
+          4
+        ],
+        [
+          "Well above what you could get elsewhere for similar work.",
+          5
+        ],
+        [
+          "Not sure how this compares.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_present:industry",
+      "title": "Which industry is the organization you work for in?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "industry",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Technology \u2014 software, hardware, internet or IT services.",
+          "tech"
+        ],
+        [
+          "Finance \u2014 banking, insurance, investment or accounting.",
+          "finance"
+        ],
+        [
+          "Healthcare \u2014 hospitals, clinics, pharma or health services.",
+          "healthcare"
+        ],
+        [
+          "Retail \u2014 shops, e-commerce or consumer goods.",
+          "retail"
+        ],
+        [
+          "Something else.",
+          "other"
+        ],
+        [
+          "Not sure, or I\u2019d rather not say.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-autonomy-1",
+      "title": "How much say do you have over how your work gets done?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-autonomy-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Your work is assigned and specified for you, and most decisions go up for sign-off before you act.",
+          "a"
+        ],
+        [
+          "Your manager sets the direction and the priorities; you choose your own tactics inside clear guardrails.",
+          "b"
+        ],
+        [
+          "Direction is set at the team level, and within that you pick how the work gets done.",
+          "c"
+        ],
+        [
+          "You own the outcome and choose your own approach, with only light approval along the way.",
+          "d"
+        ],
+        [
+          "You set your own priorities and your own methods, and almost nothing needs approval.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-autonomy-2",
+      "title": "Who decides what you work on, and in what order?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-autonomy-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "You decide what you take on and in what order; nobody hands you a queue.",
+          "a"
+        ],
+        [
+          "You\u2019re given the outcomes to hit, and the sequence and the timing are yours.",
+          "b"
+        ],
+        [
+          "You and your manager set your priorities together, and either of you can move them.",
+          "c"
+        ],
+        [
+          "Your priorities are set for you, though you can make the case for changing them.",
+          "d"
+        ],
+        [
+          "What you work on and when is scheduled for you, and changing it takes permission.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-pace-1",
+      "title": "What is the tempo of the work?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-pace-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "The tempo is fast: aggressive deadlines, quick turnaround, and an intense week.",
+          "a"
+        ],
+        [
+          "Urgency is regular \u2014 timelines are tight-ish and work goes out often, without being relentless.",
+          "b"
+        ],
+        [
+          "The tempo is ordinary: some stretches of crunch, some stretches of calm.",
+          "c"
+        ],
+        [
+          "The tempo is generally measured, with occasional pushes; deadlines exist but rarely dominate the week.",
+          "d"
+        ],
+        [
+          "The tempo is deliberate: long planning horizons and an unhurried week.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-pace-2",
+      "title": "How quickly are things expected to happen?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-pace-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Nothing is expected in a hurry \u2014 requests can wait until you get to them.",
+          "a"
+        ],
+        [
+          "Most things can wait a day or two; a genuine rush is the exception.",
+          "b"
+        ],
+        [
+          "Some things need an answer the same day, some can sit for a week.",
+          "c"
+        ],
+        [
+          "Quick turnaround is the norm \u2014 you\u2019re expected to respond and move within the day.",
+          "d"
+        ],
+        [
+          "Requests land expecting an answer now, and your week can be rearranged overnight.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-collaboration-1",
+      "title": "How does the work actually get produced?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-collaboration-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "You produce your work heads-down and alone; meetings are rare and there is no pairing or joint working time.",
+          "a"
+        ],
+        [
+          "You produce the work alone and bring it to periodic syncs; those meetings are status and handoff, not joint problem-solving.",
+          "b"
+        ],
+        [
+          "Roughly half the work is done alone and half of it in a group; neither mode dominates how the work gets made.",
+          "c"
+        ],
+        [
+          "Cross-functional work is common and meetings are frequent; most problems get worked through as a group.",
+          "d"
+        ],
+        [
+          "Almost everything is produced together \u2014 constant pairing, standing group sessions, a team you are working alongside all day.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-collaboration-2",
+      "title": "How much of your working day is spent working with other people?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-collaboration-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Most of the day is live time with other people \u2014 calls, working sessions, back-and-forth throughout.",
+          "a"
+        ],
+        [
+          "You\u2019re in live working sessions with others most days, with time in between to work on your own.",
+          "b"
+        ],
+        [
+          "It is an even mix of live group time and written, work-on-your-own time.",
+          "c"
+        ],
+        [
+          "It is mostly written and asynchronous, with a live session when something needs one.",
+          "d"
+        ],
+        [
+          "Written updates stand in for meetings almost entirely, and long stretches of solo time are the norm.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-feedback-1",
+      "title": "How often do you hear how your work is landing?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-feedback-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Rarely \u2014 you hear about your work occasionally, and often only when something has gone wrong.",
+          "a"
+        ],
+        [
+          "Feedback arrives mainly on a fixed cycle: a review, or a scheduled check-in.",
+          "b"
+        ],
+        [
+          "A normal mix: scheduled reviews, plus comment in the moment when something comes up.",
+          "c"
+        ],
+        [
+          "Often \u2014 you get comment on your work well outside any review cycle.",
+          "d"
+        ],
+        [
+          "Constantly \u2014 you hear how the work is landing as you go, from whoever is looking at it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-feedback-2",
+      "title": "How is criticism of your work delivered?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-feedback-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Criticism is delivered straight and unsoftened, and open disagreement about the work is routine.",
+          "a"
+        ],
+        [
+          "Criticism is fairly direct and debate about the work is normal; a thick skin helps.",
+          "b"
+        ],
+        [
+          "Criticism is delivered plainly and in moderation \u2014 neither blunt nor heavily cushioned.",
+          "c"
+        ],
+        [
+          "Criticism is delivered diplomatically; directness is the exception.",
+          "d"
+        ],
+        [
+          "Criticism is cushioned or indirect when it comes, and open disagreement is rare.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-innovation-1",
+      "title": "What kind of work is it \u2014 improving what exists, or making what doesn\u2019t?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-innovation-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Creating things that don\u2019t exist yet \u2014 new offerings, new capabilities, bets that may not come off.",
+          "a"
+        ],
+        [
+          "Building something new comes up often, alongside the work of running what already exists.",
+          "b"
+        ],
+        [
+          "A real split: part of the work improves what exists, part of it creates something new.",
+          "c"
+        ],
+        [
+          "Mostly improving what already exists, with the occasional genuinely new thing at the edges.",
+          "d"
+        ],
+        [
+          "Making something that already exists work better \u2014 improvement and scale, not new territory.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-innovation-2",
+      "title": "How much of the work is a bet that might not pay off?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-innovation-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Almost none \u2014 work that doesn\u2019t pan out isn\u2019t planned for, and what gets started is expected to land.",
+          "a"
+        ],
+        [
+          "The occasional experiment is tolerated, but the bulk of the effort goes to things with a known payoff.",
+          "b"
+        ],
+        [
+          "Some of the work is a known quantity and some of it is a bet; both are normal.",
+          "c"
+        ],
+        [
+          "Experiments are a planned part of the work, and some of them are expected not to pan out.",
+          "d"
+        ],
+        [
+          "Exploration is the point \u2014 a good share of what is tried is expected to fail, and that is budgeted for.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-decision-1",
+      "title": "What do decisions actually rest on?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-decision-1",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Taste, experience and vision \u2014 someone\u2019s judgement carries the call.",
+          "a"
+        ],
+        [
+          "Judgement leads, and numbers are brought in afterwards to confirm it.",
+          "b"
+        ],
+        [
+          "Judgement and evidence both carry weight, depending on the call.",
+          "c"
+        ],
+        [
+          "Measurement usually settles it, with judgement filling the gaps the numbers don\u2019t cover.",
+          "d"
+        ],
+        [
+          "Numbers settle it \u2014 measured, tested, and not decided until the evidence is in.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_present:env-decision-2",
+      "title": "When you want to make a case for something, what carries it?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-decision-2",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "Numbers \u2014 you\u2019re expected to bring measurements, tests or analysis.",
+          "a"
+        ],
+        [
+          "Usually evidence, though a well-argued judgement call can carry.",
+          "b"
+        ],
+        [
+          "Either a strong argument or good numbers will carry a case; both are ordinary currency.",
+          "c"
+        ],
+        [
+          "Mostly reasoning and experience; numbers are supporting material.",
+          "d"
+        ],
+        [
+          "Argument and instinct \u2014 the numbers are rarely what decides it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_present:experienced",
+      "title": "Overall, how well is this role working for you?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "experienced",
+      "slot": "current_present",
+      "required": true,
+      "answers": [
+        [
+          "It isn\u2019t working at all.",
+          1
+        ],
+        [
+          "It isn\u2019t working well.",
+          2
+        ],
+        [
+          "A mixed picture.",
+          3
+        ],
+        [
+          "It\u2019s working well.",
+          4
+        ],
+        [
+          "It\u2019s working very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_past:stage_size",
+      "title": "How big was the organization you worked for in that role \u2014 the whole organization, not your team?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "stage_size",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "An early-stage startup \u2014 a handful of people, still finding its footing.",
+          1
+        ],
+        [
+          "A small company that had found its footing and was growing \u2014 tens of people.",
+          2
+        ],
+        [
+          "A mid-sized organization \u2014 hundreds of people, with real structure in place.",
+          3
+        ],
+        [
+          "A large organization \u2014 thousands of people, established in its market.",
+          4
+        ],
+        [
+          "A very large enterprise \u2014 tens of thousands of people and many layers.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_past:comp",
+      "title": "Compared with what you could have earned elsewhere doing similar work, how did that role pay?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "comp",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Well below what you could have got elsewhere for similar work.",
+          1
+        ],
+        [
+          "Somewhat below.",
+          2
+        ],
+        [
+          "About the same \u2014 at market.",
+          3
+        ],
+        [
+          "Somewhat above.",
+          4
+        ],
+        [
+          "Well above what you could have got elsewhere for similar work.",
+          5
+        ],
+        [
+          "Not sure how that compared.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_past:industry",
+      "title": "Which industry did the organization you worked for in that role belong to?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "industry",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Technology \u2014 software, hardware, internet or IT services.",
+          "tech"
+        ],
+        [
+          "Finance \u2014 banking, insurance, investment or accounting.",
+          "finance"
+        ],
+        [
+          "Healthcare \u2014 hospitals, clinics, pharma or health services.",
+          "healthcare"
+        ],
+        [
+          "Retail \u2014 shops, e-commerce or consumer goods.",
+          "retail"
+        ],
+        [
+          "Something else.",
+          "other"
+        ],
+        [
+          "Not sure, or I\u2019d rather not say.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-autonomy-1",
+      "title": "How much say did you have over how your work got done?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-autonomy-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Your work was assigned and specified for you, and most decisions went up for sign-off before you acted.",
+          "a"
+        ],
+        [
+          "Your manager set the direction and the priorities; you chose your own tactics inside clear guardrails.",
+          "b"
+        ],
+        [
+          "Direction was set at the team level, and within that you picked how the work got done.",
+          "c"
+        ],
+        [
+          "You owned the outcome and chose your own approach, with only light approval along the way.",
+          "d"
+        ],
+        [
+          "You set your own priorities and your own methods, and almost nothing needed approval.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-autonomy-2",
+      "title": "Who decided what you worked on, and in what order?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-autonomy-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "You decided what you took on and in what order; nobody handed you a queue.",
+          "a"
+        ],
+        [
+          "You were given the outcomes to hit, and the sequence and the timing were yours.",
+          "b"
+        ],
+        [
+          "You and your manager set your priorities together, and either of you could move them.",
+          "c"
+        ],
+        [
+          "Your priorities were set for you, though you could make the case for changing them.",
+          "d"
+        ],
+        [
+          "What you worked on and when was scheduled for you, and changing it took permission.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-pace-1",
+      "title": "What was the tempo of the work?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-pace-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "The tempo was fast: aggressive deadlines, quick turnaround, and an intense week.",
+          "a"
+        ],
+        [
+          "Urgency was regular \u2014 timelines were tight-ish and work went out often, without being relentless.",
+          "b"
+        ],
+        [
+          "The tempo was ordinary: some stretches of crunch, some stretches of calm.",
+          "c"
+        ],
+        [
+          "The tempo was generally measured, with occasional pushes; deadlines existed but rarely dominated the week.",
+          "d"
+        ],
+        [
+          "The tempo was deliberate: long planning horizons and an unhurried week.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-pace-2",
+      "title": "How quickly were things expected to happen?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-pace-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Nothing was expected in a hurry \u2014 requests could wait until you got to them.",
+          "a"
+        ],
+        [
+          "Most things could wait a day or two; a genuine rush was the exception.",
+          "b"
+        ],
+        [
+          "Some things needed an answer the same day, some could sit for a week.",
+          "c"
+        ],
+        [
+          "Quick turnaround was the norm \u2014 you were expected to respond and move within the day.",
+          "d"
+        ],
+        [
+          "Requests landed expecting an answer now, and your week could be rearranged overnight.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-collaboration-1",
+      "title": "How did the work actually get produced?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-collaboration-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "You produced your work heads-down and alone; meetings were rare and there was no pairing or joint working time.",
+          "a"
+        ],
+        [
+          "You produced the work alone and brought it to periodic syncs; those meetings were status and handoff, not joint problem-solving.",
+          "b"
+        ],
+        [
+          "Roughly half the work was done alone and half of it in a group; neither mode dominated how the work got made.",
+          "c"
+        ],
+        [
+          "Cross-functional work was common and meetings were frequent; most problems got worked through as a group.",
+          "d"
+        ],
+        [
+          "Almost everything was produced together \u2014 constant pairing, standing group sessions, a team you were working alongside all day.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-collaboration-2",
+      "title": "How much of your working day was spent working with other people?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-collaboration-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Most of the day was live time with other people \u2014 calls, working sessions, back-and-forth throughout.",
+          "a"
+        ],
+        [
+          "You were in live working sessions with others most days, with time in between to work on your own.",
+          "b"
+        ],
+        [
+          "It was an even mix of live group time and written, work-on-your-own time.",
+          "c"
+        ],
+        [
+          "It was mostly written and asynchronous, with a live session when something needed one.",
+          "d"
+        ],
+        [
+          "Written updates stood in for meetings almost entirely, and long stretches of solo time were the norm.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-feedback-1",
+      "title": "How often did you hear how your work was landing?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-feedback-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Rarely \u2014 you heard about your work occasionally, and often only when something had gone wrong.",
+          "a"
+        ],
+        [
+          "Feedback arrived mainly on a fixed cycle: a review, or a scheduled check-in.",
+          "b"
+        ],
+        [
+          "A normal mix: scheduled reviews, plus comment in the moment when something came up.",
+          "c"
+        ],
+        [
+          "Often \u2014 you got comment on your work well outside any review cycle.",
+          "d"
+        ],
+        [
+          "Constantly \u2014 you heard how the work was landing as you went, from whoever was looking at it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-feedback-2",
+      "title": "How was criticism of your work delivered?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-feedback-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Criticism was delivered straight and unsoftened, and open disagreement about the work was routine.",
+          "a"
+        ],
+        [
+          "Criticism was fairly direct and debate about the work was normal; a thick skin helped.",
+          "b"
+        ],
+        [
+          "Criticism was delivered plainly and in moderation \u2014 neither blunt nor heavily cushioned.",
+          "c"
+        ],
+        [
+          "Criticism was delivered diplomatically; directness was the exception.",
+          "d"
+        ],
+        [
+          "Criticism was cushioned or indirect when it came, and open disagreement was rare.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-innovation-1",
+      "title": "What kind of work was it \u2014 improving what existed, or making what didn\u2019t?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-innovation-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Creating things that didn\u2019t exist yet \u2014 new offerings, new capabilities, bets that might not come off.",
+          "a"
+        ],
+        [
+          "Building something new came up often, alongside the work of running what already existed.",
+          "b"
+        ],
+        [
+          "A real split: part of the work improved what existed, part of it created something new.",
+          "c"
+        ],
+        [
+          "Mostly improving what already existed, with the occasional genuinely new thing at the edges.",
+          "d"
+        ],
+        [
+          "Making something that already existed work better \u2014 improvement and scale, not new territory.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-innovation-2",
+      "title": "How much of the work was a bet that might not pay off?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-innovation-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Almost none \u2014 work that didn\u2019t pan out wasn\u2019t planned for, and what got started was expected to land.",
+          "a"
+        ],
+        [
+          "The occasional experiment was tolerated, but the bulk of the effort went to things with a known payoff.",
+          "b"
+        ],
+        [
+          "Some of the work was a known quantity and some of it was a bet; both were normal.",
+          "c"
+        ],
+        [
+          "Experiments were a planned part of the work, and some of them were expected not to pan out.",
+          "d"
+        ],
+        [
+          "Exploration was the point \u2014 a good share of what was tried was expected to fail, and that was budgeted for.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-decision-1",
+      "title": "What did decisions actually rest on?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-decision-1",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Taste, experience and vision \u2014 someone\u2019s judgement carried the call.",
+          "a"
+        ],
+        [
+          "Judgement led, and numbers were brought in afterwards to confirm it.",
+          "b"
+        ],
+        [
+          "Judgement and evidence both carried weight, depending on the call.",
+          "c"
+        ],
+        [
+          "Measurement usually settled it, with judgement filling the gaps the numbers didn\u2019t cover.",
+          "d"
+        ],
+        [
+          "Numbers settled it \u2014 measured, tested, and not decided until the evidence was in.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:current_past:env-decision-2",
+      "title": "When you wanted to make a case for something, what carried it?",
+      "occurrence": 1,
+      "role": "env",
+      "item_id": "env-decision-2",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "Numbers \u2014 you were expected to bring measurements, tests or analysis.",
+          "a"
+        ],
+        [
+          "Usually evidence, though a well-argued judgement call could carry.",
+          "b"
+        ],
+        [
+          "Either a strong argument or good numbers would carry a case; both were ordinary currency.",
+          "c"
+        ],
+        [
+          "Mostly reasoning and experience; numbers were supporting material.",
+          "d"
+        ],
+        [
+          "Argument and instinct \u2014 the numbers were rarely what decided it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "context:current_past:experienced",
+      "title": "Overall, how well was that role working for you?",
+      "occurrence": 1,
+      "role": "context",
+      "item_id": "experienced",
+      "slot": "current_past",
+      "required": true,
+      "answers": [
+        [
+          "It wasn\u2019t working at all.",
+          1
+        ],
+        [
+          "It wasn\u2019t working well.",
+          2
+        ],
+        [
+          "A mixed picture.",
+          3
+        ],
+        [
+          "It was working well.",
+          4
+        ],
+        [
+          "It was working very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "gate_previous",
+      "title": "Describe a previous job too?",
+      "occurrence": 1,
+      "role": "gate",
+      "item_id": null,
+      "slot": null,
+      "required": true,
+      "answers": [
+        [
+          "Yes, describe the job before that one",
+          "yes"
+        ],
+        [
+          "No, finish here",
+          "no"
+        ]
+      ]
+    },
+    {
+      "qid": "context:previous:stage_size",
+      "title": "How big was the organization you worked for in that role \u2014 the whole organization, not your team?",
+      "occurrence": 2,
+      "role": "context",
+      "item_id": "stage_size",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "An early-stage startup \u2014 a handful of people, still finding its footing.",
+          1
+        ],
+        [
+          "A small company that had found its footing and was growing \u2014 tens of people.",
+          2
+        ],
+        [
+          "A mid-sized organization \u2014 hundreds of people, with real structure in place.",
+          3
+        ],
+        [
+          "A large organization \u2014 thousands of people, established in its market.",
+          4
+        ],
+        [
+          "A very large enterprise \u2014 tens of thousands of people and many layers.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "context:previous:comp",
+      "title": "Compared with what you could have earned elsewhere doing similar work, how did that role pay?",
+      "occurrence": 2,
+      "role": "context",
+      "item_id": "comp",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Well below what you could have got elsewhere for similar work.",
+          1
+        ],
+        [
+          "Somewhat below.",
+          2
+        ],
+        [
+          "About the same \u2014 at market.",
+          3
+        ],
+        [
+          "Somewhat above.",
+          4
+        ],
+        [
+          "Well above what you could have got elsewhere for similar work.",
+          5
+        ],
+        [
+          "Not sure how that compared.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "context:previous:industry",
+      "title": "Which industry did the organization you worked for in that role belong to?",
+      "occurrence": 2,
+      "role": "context",
+      "item_id": "industry",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Technology \u2014 software, hardware, internet or IT services.",
+          "tech"
+        ],
+        [
+          "Finance \u2014 banking, insurance, investment or accounting.",
+          "finance"
+        ],
+        [
+          "Healthcare \u2014 hospitals, clinics, pharma or health services.",
+          "healthcare"
+        ],
+        [
+          "Retail \u2014 shops, e-commerce or consumer goods.",
+          "retail"
+        ],
+        [
+          "Something else.",
+          "other"
+        ],
+        [
+          "Not sure, or I\u2019d rather not say.",
+          null
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-autonomy-1",
+      "title": "How much say did you have over how your work got done?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-autonomy-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Your work was assigned and specified for you, and most decisions went up for sign-off before you acted.",
+          "a"
+        ],
+        [
+          "Your manager set the direction and the priorities; you chose your own tactics inside clear guardrails.",
+          "b"
+        ],
+        [
+          "Direction was set at the team level, and within that you picked how the work got done.",
+          "c"
+        ],
+        [
+          "You owned the outcome and chose your own approach, with only light approval along the way.",
+          "d"
+        ],
+        [
+          "You set your own priorities and your own methods, and almost nothing needed approval.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-autonomy-2",
+      "title": "Who decided what you worked on, and in what order?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-autonomy-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "You decided what you took on and in what order; nobody handed you a queue.",
+          "a"
+        ],
+        [
+          "You were given the outcomes to hit, and the sequence and the timing were yours.",
+          "b"
+        ],
+        [
+          "You and your manager set your priorities together, and either of you could move them.",
+          "c"
+        ],
+        [
+          "Your priorities were set for you, though you could make the case for changing them.",
+          "d"
+        ],
+        [
+          "What you worked on and when was scheduled for you, and changing it took permission.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-pace-1",
+      "title": "What was the tempo of the work?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-pace-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "The tempo was fast: aggressive deadlines, quick turnaround, and an intense week.",
+          "a"
+        ],
+        [
+          "Urgency was regular \u2014 timelines were tight-ish and work went out often, without being relentless.",
+          "b"
+        ],
+        [
+          "The tempo was ordinary: some stretches of crunch, some stretches of calm.",
+          "c"
+        ],
+        [
+          "The tempo was generally measured, with occasional pushes; deadlines existed but rarely dominated the week.",
+          "d"
+        ],
+        [
+          "The tempo was deliberate: long planning horizons and an unhurried week.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-pace-2",
+      "title": "How quickly were things expected to happen?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-pace-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Nothing was expected in a hurry \u2014 requests could wait until you got to them.",
+          "a"
+        ],
+        [
+          "Most things could wait a day or two; a genuine rush was the exception.",
+          "b"
+        ],
+        [
+          "Some things needed an answer the same day, some could sit for a week.",
+          "c"
+        ],
+        [
+          "Quick turnaround was the norm \u2014 you were expected to respond and move within the day.",
+          "d"
+        ],
+        [
+          "Requests landed expecting an answer now, and your week could be rearranged overnight.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-collaboration-1",
+      "title": "How did the work actually get produced?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-collaboration-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "You produced your work heads-down and alone; meetings were rare and there was no pairing or joint working time.",
+          "a"
+        ],
+        [
+          "You produced the work alone and brought it to periodic syncs; those meetings were status and handoff, not joint problem-solving.",
+          "b"
+        ],
+        [
+          "Roughly half the work was done alone and half of it in a group; neither mode dominated how the work got made.",
+          "c"
+        ],
+        [
+          "Cross-functional work was common and meetings were frequent; most problems got worked through as a group.",
+          "d"
+        ],
+        [
+          "Almost everything was produced together \u2014 constant pairing, standing group sessions, a team you were working alongside all day.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-collaboration-2",
+      "title": "How much of your working day was spent working with other people?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-collaboration-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Most of the day was live time with other people \u2014 calls, working sessions, back-and-forth throughout.",
+          "a"
+        ],
+        [
+          "You were in live working sessions with others most days, with time in between to work on your own.",
+          "b"
+        ],
+        [
+          "It was an even mix of live group time and written, work-on-your-own time.",
+          "c"
+        ],
+        [
+          "It was mostly written and asynchronous, with a live session when something needed one.",
+          "d"
+        ],
+        [
+          "Written updates stood in for meetings almost entirely, and long stretches of solo time were the norm.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-feedback-1",
+      "title": "How often did you hear how your work was landing?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-feedback-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Rarely \u2014 you heard about your work occasionally, and often only when something had gone wrong.",
+          "a"
+        ],
+        [
+          "Feedback arrived mainly on a fixed cycle: a review, or a scheduled check-in.",
+          "b"
+        ],
+        [
+          "A normal mix: scheduled reviews, plus comment in the moment when something came up.",
+          "c"
+        ],
+        [
+          "Often \u2014 you got comment on your work well outside any review cycle.",
+          "d"
+        ],
+        [
+          "Constantly \u2014 you heard how the work was landing as you went, from whoever was looking at it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-feedback-2",
+      "title": "How was criticism of your work delivered?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-feedback-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Criticism was delivered straight and unsoftened, and open disagreement about the work was routine.",
+          "a"
+        ],
+        [
+          "Criticism was fairly direct and debate about the work was normal; a thick skin helped.",
+          "b"
+        ],
+        [
+          "Criticism was delivered plainly and in moderation \u2014 neither blunt nor heavily cushioned.",
+          "c"
+        ],
+        [
+          "Criticism was delivered diplomatically; directness was the exception.",
+          "d"
+        ],
+        [
+          "Criticism was cushioned or indirect when it came, and open disagreement was rare.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-innovation-1",
+      "title": "What kind of work was it \u2014 improving what existed, or making what didn\u2019t?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-innovation-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Creating things that didn\u2019t exist yet \u2014 new offerings, new capabilities, bets that might not come off.",
+          "a"
+        ],
+        [
+          "Building something new came up often, alongside the work of running what already existed.",
+          "b"
+        ],
+        [
+          "A real split: part of the work improved what existed, part of it created something new.",
+          "c"
+        ],
+        [
+          "Mostly improving what already existed, with the occasional genuinely new thing at the edges.",
+          "d"
+        ],
+        [
+          "Making something that already existed work better \u2014 improvement and scale, not new territory.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-innovation-2",
+      "title": "How much of the work was a bet that might not pay off?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-innovation-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Almost none \u2014 work that didn\u2019t pan out wasn\u2019t planned for, and what got started was expected to land.",
+          "a"
+        ],
+        [
+          "The occasional experiment was tolerated, but the bulk of the effort went to things with a known payoff.",
+          "b"
+        ],
+        [
+          "Some of the work was a known quantity and some of it was a bet; both were normal.",
+          "c"
+        ],
+        [
+          "Experiments were a planned part of the work, and some of them were expected not to pan out.",
+          "d"
+        ],
+        [
+          "Exploration was the point \u2014 a good share of what was tried was expected to fail, and that was budgeted for.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-decision-1",
+      "title": "What did decisions actually rest on?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-decision-1",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Taste, experience and vision \u2014 someone\u2019s judgement carried the call.",
+          "a"
+        ],
+        [
+          "Judgement led, and numbers were brought in afterwards to confirm it.",
+          "b"
+        ],
+        [
+          "Judgement and evidence both carried weight, depending on the call.",
+          "c"
+        ],
+        [
+          "Measurement usually settled it, with judgement filling the gaps the numbers didn\u2019t cover.",
+          "d"
+        ],
+        [
+          "Numbers settled it \u2014 measured, tested, and not decided until the evidence was in.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "env:previous:env-decision-2",
+      "title": "When you wanted to make a case for something, what carried it?",
+      "occurrence": 2,
+      "role": "env",
+      "item_id": "env-decision-2",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "Numbers \u2014 you were expected to bring measurements, tests or analysis.",
+          "a"
+        ],
+        [
+          "Usually evidence, though a well-argued judgement call could carry.",
+          "b"
+        ],
+        [
+          "Either a strong argument or good numbers would carry a case; both were ordinary currency.",
+          "c"
+        ],
+        [
+          "Mostly reasoning and experience; numbers were supporting material.",
+          "d"
+        ],
+        [
+          "Argument and instinct \u2014 the numbers were rarely what decided it.",
+          "e"
+        ]
+      ]
+    },
+    {
+      "qid": "context:previous:experienced",
+      "title": "Overall, how well was that role working for you?",
+      "occurrence": 2,
+      "role": "context",
+      "item_id": "experienced",
+      "slot": "previous",
+      "required": true,
+      "answers": [
+        [
+          "It wasn\u2019t working at all.",
+          1
+        ],
+        [
+          "It wasn\u2019t working well.",
+          2
+        ],
+        [
+          "A mixed picture.",
+          3
+        ],
+        [
+          "It was working well.",
+          4
+        ],
+        [
+          "It was working very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "email",
+      "title": "Your email, if you'd like your report emailed to you",
+      "occurrence": 1,
+      "role": "email",
+      "item_id": null,
+      "slot": null,
+      "required": false,
+      "answers": []
+    }
+  ]
+}

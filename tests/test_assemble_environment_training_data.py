@@ -934,7 +934,8 @@ def _seed_current_only_dataset(client, monkeypatch, prefix):
 _PRE_SUBJECT_COMMIT = "45de8b4"
 
 
-def _load_pre_subject_assembler():
+def _load_assembler_at(commit):
+    """The assembler module AS IT WAS at `commit`, or None without that history."""
     import importlib.util
     import subprocess
 
@@ -943,19 +944,23 @@ def _load_pre_subject_assembler():
         source = subprocess.run(
             [
                 "git", "-C", str(repo), "show",
-                "%s:causal_graph/v1_model/assemble_training_data.py" % _PRE_SUBJECT_COMMIT,
+                "%s:causal_graph/v1_model/assemble_training_data.py" % commit,
             ],
             check=True, capture_output=True, text=True, encoding="utf-8",
         ).stdout
     except (OSError, subprocess.CalledProcessError):
         return None
-    name = "_atd_pre_subject"
+    name = "_atd_at_%s" % commit
     spec = importlib.util.spec_from_loader(name, loader=None)
     module = importlib.util.module_from_spec(spec)
     module.__file__ = str(_V1_MODEL / "assemble_training_data.py")
     sys.modules[name] = module
-    exec(compile(source, "<atd@%s>" % _PRE_SUBJECT_COMMIT, "exec"), module.__dict__)
+    exec(compile(source, "<atd@%s>" % commit, "exec"), module.__dict__)
     return module
+
+
+def _load_pre_subject_assembler():
+    return _load_assembler_at(_PRE_SUBJECT_COMMIT)
 
 
 def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
@@ -987,7 +992,9 @@ def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
     _assert_same_result(new, old)
     old_names = {f.name for f in dataclasses.fields(old.rows[0])}
     new_names = {f.name for f in dataclasses.fields(new.rows[0])}
-    assert new_names - old_names == {"report_subject", "current_report_ordinal"}
+    # respondent_source arrived later (pilot form, 2026-10-01); see the test below.
+    assert new_names - old_names == {
+        "report_subject", "current_report_ordinal", "respondent_source"}
     assert old_names <= new_names
 
     # On current-only data the new fields are fully determined.
@@ -995,6 +1002,67 @@ def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
     assert [r.current_report_ordinal for r in new.rows] == [
         r.report_ordinal for r in new.rows
     ]
+
+
+#: The commit just before `respondent_source` existed (pilot form, Amendment 2).
+_PRE_PROVENANCE_COMMIT = "e8a9a72"
+
+
+def test_app_rows_are_byte_identical_to_the_pre_provenance_assembler(client, monkeypatch):
+    """Adding `respondent_source` must not move an app row. Same database (current and
+    past reports, a NULL comp, a named industry, a dropped report), assembled by today's
+    code and by the code at _PRE_PROVENANCE_COMMIT: every array, raw and preprocessed,
+    `dropped`, and EVERY pre-existing row field identical -- nothing ignored. The only
+    difference is the one new field, and on app users it reads 'app'."""
+    old_atd = _load_assembler_at(_PRE_PROVENANCE_COMMIT)
+    if old_atd is None:
+        pytest.skip("commit %s not in this checkout" % _PRE_PROVENANCE_COMMIT)
+
+    _seed_current_only_dataset(client, monkeypatch, "e4_prov")
+    _write_past_report("e4_prov_0@example.com", experienced=4)
+
+    new = _assemble()
+    from app import app
+    from model import db
+
+    with app.app_context():
+        with db.engine.connect() as conn:
+            old = old_atd.assemble_environment_training_data(conn, _cfg())
+
+    assert len(new.rows) == 7 and len(new.dropped) == 1
+    _assert_same_result(new, old, ignore_fields=())
+    old_names = {f.name for f in dataclasses.fields(old.rows[0])}
+    new_names = {f.name for f in dataclasses.fields(new.rows[0])}
+    assert new_names - old_names == {"respondent_source"}
+    assert {r.respondent_source for r in new.rows} == {"app"}
+
+
+def test_respondent_source_is_read_from_the_pilot_domain_only(client, monkeypatch):
+    """'pilot_form' exactly for users on PILOT_FORM_EMAIL_DOMAIN; a look-alike address
+    (the domain inside the local part, or a different TLD) stays 'app'."""
+    from app import app
+    from model import User, db
+
+    emails = [
+        "pilot-abc%s" % atd.PILOT_FORM_EMAIL_DOMAIN,
+        "pilotform.solverah.invalid@example.com",
+        "x@pilotform.solverah.example",
+    ]
+    for email in emails:
+        csrf = _register_and_login(client, monkeypatch, email)
+        _set_career_status(client, csrf, "employed")
+        _complete_core(client, csrf)
+        assert _post_env(client, csrf).status_code == 200
+
+    with app.app_context():
+        ids = {User.query.filter_by(email=e).first().id: e for e in emails}
+        db.session.remove()
+    result = _assemble()
+    by_email = {ids[r.user_id]: r.respondent_source for r in result.rows}
+    assert by_email == {
+        emails[0]: "pilot_form", emails[1]: "app", emails[2]: "app",
+    }
+    assert atd.RESPONDENT_SOURCES == ("app", "pilot_form")
 
 
 def test_past_rows_do_not_perturb_current_rows(client, monkeypatch):
