@@ -1,0 +1,2 @@
+- [Deploy gate state](project_deploy_gate_state.md) — 2026-10-02: F/W-1..15 live via #155; W-16..19 + path_narratives migration unmerged; runbook F section lags
+- [Lane history pointers](reference_lane_history.md) — global memory files + docs holding F/W rulings, numbers, open decisions

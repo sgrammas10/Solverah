@@ -1,0 +1,2 @@
+- [Audit 2026-10-02 open threads](project_audit_2026_10_02_open_threads.md) — 9 unfixed lane bugs (resume wipe, profileComplete, dirty flags, status lock); verify before acting
+- [Resume parse runs inline in prod](project_resume_parse_inline_in_prod.md) — eager Celery, no worker/beat; reaper never runs; client poll has no ceiling

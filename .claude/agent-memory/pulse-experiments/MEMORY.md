@@ -1,0 +1,2 @@
+- [Ended experiment stays active](project_experiment_ended_stays_active.md) — OPEN 2026-10-02: after day 14 every new start 409s; UI hides it (dead button)
+- [Pulse cron status](project_pulse_cron_status.md) — created in Render dashboard 2026-09-14, not in render.yaml; first real send unverified

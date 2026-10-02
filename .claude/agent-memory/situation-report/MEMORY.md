@@ -1,0 +1,2 @@
+- [Lane state facts](lane-state-facts.md) — 2026-10-02: seam is an e2e test (not tombstone), envQuestions hand-written, subject migration landed
+- [Audit open threads 2026-10-02](audit-2026-10-02-open-threads.md) — six open items from the pre-Julie-day audit; re-check before acting

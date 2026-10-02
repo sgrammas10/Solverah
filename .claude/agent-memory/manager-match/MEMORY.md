@@ -1,0 +1,1 @@
+- [Audit 2026-10-02 open findings](audit-2026-10-02-open-findings.md) — archetype fallthrough (77% "Operator"), mm_answers never cleared, no mm parity test

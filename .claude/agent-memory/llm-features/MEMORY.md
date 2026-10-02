@@ -1,0 +1,2 @@
+- [Audit 2026-10-02 open threads](project_audit_2026_10_02_open_threads.md) — ranked agent/quiz/insight bugs found pre-Julie-day; check what is fixed first
+- [Recommendations are stubs](project_recommendations_are_stubs.md) — both routes always empty, no caller; removal is a contract change, ask first
