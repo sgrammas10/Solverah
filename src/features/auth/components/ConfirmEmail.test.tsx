@@ -154,6 +154,38 @@ describe("ConfirmEmail - error handling", () => {
     expect(screen.getByText(/That code has expired/i)).toBeInTheDocument();
   });
 
+  // G8: the server answers a bad code with `invalid code` / `code expired` --
+  // terse by design, they are the codes the legacy body has no other field
+  // for -- and the screen used to print them raw. Keyed on the exact wire
+  // strings (pinned server-side by test_register_api.py).
+  it.each([
+    ["invalid code", /didn't match/i],
+    ["code expired", /has expired/i],
+  ])("turns the wire string %j into friendly copy (G8)", async (wire, friendly) => {
+    server.use(mock("post", "/api/v1/auth/email/verify").reply(400, { error: wire }));
+    renderConfirmEmail({ email: "a@b.com" });
+    await submitCode();
+
+    const errorPanel = document.querySelector(".bg-red-50");
+    expect(errorPanel?.textContent).toMatch(friendly);
+    expect(errorPanel?.textContent?.trim()).not.toBe(wire);
+  });
+
+  it("does not mistake a rate limit for a wrong code", async () => {
+    // The limiter's 429 is a problem+json body; its own message must survive.
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").resolve(() =>
+        HttpResponse.json(
+          { title: "Too Many Requests", status: 429, detail: "Too many attempts. Wait a minute." },
+          { status: 429 },
+        ),
+      ),
+    );
+    renderConfirmEmail({ email: "a@b.com" });
+    await submitCode();
+    expect(screen.getByText(/Too many attempts/i)).toBeInTheDocument();
+  });
+
   it("shows the fallback message when the error body carries nothing usable", async () => {
     // Off-contract on purpose -- see the equivalent note in useEarlyAccess.test.ts.
     // `LegacyError` requires `error`, so `.reply` cannot express a null body, and

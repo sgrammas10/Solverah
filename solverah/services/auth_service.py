@@ -49,8 +49,11 @@ from solverah.services import outbox
 
 __all__ = [
     "AuthResult",
+    "CONFIRM_CODE_EXPIRED",
+    "CONFIRM_INVALID_CODE",
     "MAX_LOGIN_ATTEMPTS",
     "LOGIN_LOCKOUT_MINUTES",
+    "RESET_INVALID_OR_EXPIRED",
     "clear_failed_logins",
     "confirm_email",
     "login",
@@ -63,6 +66,17 @@ __all__ = [
 
 MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", "5"))
 LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
+
+#: The ``error`` strings a bad one-time code answers with.  They ARE the
+#: machine-readable codes: the SPA keys its user-facing copy on these exact
+#: values (``src/features/auth/otpErrorCopy.ts``, G8), the contract baseline
+#: records ``{"error": "invalid code"}`` byte-for-byte, and the legacy
+#: ``{"error": ...}`` body has no other field to carry a code in.  Named so a
+#: reword here is a deliberate wire change rather than a copy edit that
+#: silently drops every verify screen back to raw server text.
+CONFIRM_INVALID_CODE = "invalid code"
+CONFIRM_CODE_EXPIRED = "code expired"
+RESET_INVALID_OR_EXPIRED = "invalid_or_expired_code"
 
 
 @dataclass
@@ -343,14 +357,14 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
 
     user = user_repository.find_by_email(email)
     if not user or not user.confirmation_token:
-        return _error(400, "invalid code")
+        return _error(400, CONFIRM_INVALID_CODE)
 
     # Check expiry (15 minutes for 6-digit codes)
     if domain.is_code_expired(user.confirmation_sent_at):
-        return _error(400, "code expired")
+        return _error(400, CONFIRM_CODE_EXPIRED)
 
     if user.confirmation_token != code:
-        return _error(400, "invalid code")
+        return _error(400, CONFIRM_INVALID_CODE)
 
     user.email_confirmed = True
     # Phase 2c's `users.status`. Nothing reads it yet, and it is maintained here
@@ -477,13 +491,13 @@ def verify_password_reset(*, email: str, code: str) -> AuthResult:
 
     user = user_repository.find_by_email(email)
     if not user or not user.reset_token:
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     if domain.is_code_expired(user.reset_sent_at):
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     if user.reset_token != code:
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     user.reset_token = None
     user.reset_sent_at = None

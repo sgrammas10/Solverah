@@ -133,8 +133,13 @@ export interface AuthContextType {
    * logout's `finally` does, including dropping the `solverah.hasSession` hint
    * (else the next boot burns a doomed refresh) and clearing the query cache
    * (else the deleted account's data survives into the next sign-in here).
+   *
+   * `drafts: true` also removes the per-user drafts in browser storage
+   * (draftStorage.ts). Logout and account deletion pass it; the failed-refresh
+   * path does not, because a refresh also fails on a network blip and that
+   * must not cost a person their in-progress answers.
    */
-  clearSessionLocally: () => void;
+  clearSessionLocally: (opts?: { drafts?: boolean }) => void;
   fetchWithAuth: <T = any>(endpoint: string, options?: RequestInit) => Promise<T>;
   streamFetch: (endpoint: string, options?: RequestInit) => Promise<globalThis.Response>;
   /** Optimistically update the in-memory user object without a server round-trip. */

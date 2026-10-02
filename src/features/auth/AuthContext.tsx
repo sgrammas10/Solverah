@@ -20,8 +20,10 @@
  *   opaque refresh token sits behind it in a cookie the browser sends only to
  *   POST /auth/refresh.  So a 401 means "the access token aged out", not "you
  *   are signed out", and the answer is refresh-then-retry — once, never in a
- *   loop.  Both places that talk to the API do it: the boot probe and
- *   fetchWithAuth.
+ *   loop.  Every place that talks to the API does it: the boot probe, and
+ *   `sendWithRefresh`, the one core under both fetchWithAuth and streamFetch.
+ *   (streamFetch had no refresh until 2026-10-02: the agent chat's first
+ *   message after the fifteenth minute failed, every time.)
  *
  *   The boot probe only attempts a refresh when this browser has had a session
  *   before (`hasHadSession()`).  An anonymous landing page is the
@@ -57,6 +59,9 @@ import { emitAuthEvent } from "./authEvents";
 // The `solverah.hasSession` hint that gates the boot-time refresh; see
 // sessionHint.ts for what it is and is not.
 import { hasHadSession, rememberSession } from "./sessionHint";
+// The per-user drafts every instrument keeps in browser storage, swept when
+// the session ends; see draftStorage.ts for the list and what stays.
+import { clearUserDrafts } from "./draftStorage";
 import { API_BASE } from "../../shared/api/api";
 import { parseApiError } from "../../shared/api/apiError";
 
@@ -179,18 +184,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /**
    * Drop every trace of the session this tab was holding.
    *
-   * The local half of logout, reached when a refresh fails: the session is over
-   * server-side and there is nothing to tell it. Same cache hygiene as logout()
-   * for the same reason -- every cached query belongs to the session that just
-   * ended -- but no request, because the thing that would authenticate one is
-   * exactly what is gone.
+   * The local half of logout -- logout() itself ends here -- and the whole of
+   * it when a refresh fails or the account was deleted: the session is over
+   * server-side and there is nothing to tell it. Every cached query belongs to
+   * the session that just ended, so the cache is cleared whole.
+   *
+   * `drafts: true` also sweeps the per-user drafts in browser storage
+   * (draftStorage.ts). They are keyed by instrument, not account, so without
+   * the sweep the next person to sign in on this tab was offered the last
+   * one's half-finished Manager Match and the guest quiz replay attached the
+   * wrong person's answers. It is opt-in, and only logout and account
+   * deletion opt in, because the failed-refresh path lands here too and
+   * `refreshSession` resolves false on a NETWORK error as well as a revoked
+   * family: a connection blip at submit would otherwise cost a person all 24
+   * Work Pulse answers. The drafts are tab-scoped sessionStorage (bar the
+   * guest replay), so the shared-device case that matters is the explicit
+   * sign-out, and that one sweeps.
    */
-  const clearSessionLocally = () => {
+  const clearSessionLocally = (opts: { drafts?: boolean } = {}) => {
     signedInExplicitly.current = false;
     setUser(null);
     applyCsrfToken(null);
     rememberSession(false);
     queryClient.clear();
+    if (opts.drafts) clearUserDrafts();
   };
 
 
@@ -260,27 +277,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
-  const fetchWithAuth = async <T = any>(
+  /**
+   * Send one authenticated request, refreshing the access token once on a 401.
+   *
+   * The core both public helpers are built on. `fetchWithAuth` parses the JSON
+   * and throws on failure; `streamFetch` hands the response back untouched
+   * because its body is an event stream. Everything else -- the CSRF header,
+   * the credentials, the single refresh and the single replay -- is this
+   * function, once, so the two cannot drift apart again.
+   *
+   * The CSRF token is read from the ref inside `send`, not captured outside
+   * it: the replay runs in the same tick as the refresh that just rotated the
+   * token, and the new one has to reach the header before React has
+   * re-rendered anything. A replayed POST therefore carries the fresh token.
+   *
+   * A 401 means the fifteen-minute access token aged out mid-session, which is
+   * routine rather than terminal. Refresh once and replay; if the refresh
+   * fails there is no session left to salvage, so drop the local one and
+   * return the original response for the caller to surface.
+   *
+   * ONE retry, unconditionally, and it is the shape that guarantees it: a
+   * plain `if`, no loop, and no path back into here from the replay. A loop
+   * would turn an expired family into an infinite refresh storm against the
+   * auth endpoint; because there is none, a second 401 comes straight back
+   * and means what it says.
+   */
+  const sendWithRefresh = async (
     endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> => {
+    options: RequestInit,
+  ): Promise<globalThis.Response> => {
     const method = (options.method || "GET").toUpperCase();
 
     const send = () => {
-      const headers: HeadersInit = {
+      const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        ...(options.headers || {}),
+        ...((options.headers as Record<string, string>) || {}),
       };
-
-      // attach CSRF token for state-changing requests. Read from the ref, not
-      // from state: a retry after a refresh happens in the same tick as the
-      // refresh, and the new token has to reach this line before React has
-      // re-rendered anything.
       const token = csrfTokenRef.current;
       if (token && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-        (headers as any)["X-CSRF-TOKEN"] = token;
+        headers["X-CSRF-TOKEN"] = token;
       }
-
       return fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers,
@@ -289,17 +325,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     let res = await send();
-
-    // A 401 means the fifteen-minute access token aged out mid-session, which
-    // is now routine rather than terminal. Refresh once and replay the request;
-    // if the refresh fails there is no session left to salvage, so drop the
-    // local one and let the original error surface.
-    //
-    // ONE retry, unconditionally, and it is the shape that guarantees it: a
-    // plain `if`, no loop, and no path back into here from the replay. A loop
-    // would turn an expired family into an infinite refresh storm against the
-    // auth endpoint; because there is none, a second 401 falls straight through
-    // to the throw below and means what it says.
     if (res.status === 401) {
       if (await refreshSession()) {
         res = await send();
@@ -307,6 +332,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearSessionLocally();
       }
     }
+    return res;
+  };
+
+  const fetchWithAuth = async <T = any>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> => {
+    const res = await sendWithRefresh(endpoint, options);
 
     const data = await res.json().catch((e) => {
       console.error("fetchWithAuth: failed to parse JSON response:", e);
@@ -328,25 +361,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const streamFetch = async (
+  /**
+   * `fetchWithAuth` for a response whose body is not JSON (the agent chat's
+   * event stream). Same credentials, CSRF, refresh and single replay -- see
+   * `sendWithRefresh` -- but the response comes back unread, so a failure is a
+   * non-ok response rather than a throw, which is what its caller handles.
+   */
+  const streamFetch = (
     endpoint: string,
     options: RequestInit = {}
-  ): Promise<globalThis.Response> => {
-    const method = (options.method || "GET").toUpperCase();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...((options.headers as Record<string, string>) || {}),
-    };
-    const token = csrfTokenRef.current;
-    if (token && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-      headers["X-CSRF-TOKEN"] = token;
-    }
-    return fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers,
-      credentials: "include",
-    });
-  };
+  ): Promise<globalThis.Response> => sendWithRefresh(endpoint, options);
 
   const loginWithData = (userData: User, token: string) => {
     const { user: identity, profile } = splitLoginUser(userData);
@@ -438,24 +462,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // thirty-day session behind. Local state is still cleared either way — a user
   // who clicked "log out" is logged out of this tab no matter what the network
   // did — and the residue is the same one the endpoint's docstring names.
+  //
+  // The local half is `clearSessionLocally`, shared with the failed-refresh
+  // and account-deletion paths so the three cannot disagree about what "signed
+  // out of this tab" means. Clearing the whole query cache there is
+  // deliberately broader than the profile-only removal this used to do: it
+  // needs no knowledge of any other slice's query keys (removing that
+  // knowledge is what broke the auth ⇄ profile cycle), and it closes the same
+  // leak for every slice that has since moved onto the query cache. The
+  // browser-storage drafts get the same treatment here -- and only here and
+  // on account deletion; see clearSessionLocally for why a failed refresh
+  // must not.
   const logout = async () => {
     try {
       await fetchWithAuth("/auth/logout", { method: "POST" });
     } catch (e) {
       console.error(e);
     } finally {
-      signedInExplicitly.current = false;
-      setUser(null);
-      applyCsrfToken(null);
-      rememberSession(false);
-      // Every cached query belongs to the session that just ended -- the
-      // profile document, matches, dashboard rows, all of it -- and none of it
-      // may survive into the next sign-in on this tab. Clearing the whole cache
-      // is deliberately broader than the profile-only removal this used to be:
-      // it needs no knowledge of any other slice's query keys (removing that
-      // knowledge is what broke the auth ⇄ profile cycle), and it closes the
-      // same leak for every slice that has since moved onto the query cache.
-      queryClient.clear();
+      clearSessionLocally({ drafts: true });
     }
   };
 

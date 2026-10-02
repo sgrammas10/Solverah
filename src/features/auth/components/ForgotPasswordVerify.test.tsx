@@ -140,13 +140,33 @@ describe("ForgotPasswordVerify - happy path", () => {
 // ─── error handling ────────────────────────────────────────────────────────────
 
 describe("ForgotPasswordVerify - error handling", () => {
-  it("shows error message on invalid/expired code", async () => {
+  it("shows friendly copy for the wire string invalid_or_expired_code", async () => {
+    // The real body (auth_service.RESET_INVALID_OR_EXPIRED), not a fixture of
+    // the test's own invention: this screen keys its copy on the exact string.
     server.use(
-      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "Invalid code" }),
+      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "invalid_or_expired_code" }),
     );
     renderForgotPasswordVerify();
     await submitCode();
-    expect(screen.getByText(/Invalid or expired code/i)).toBeInTheDocument();
+    expect(screen.getByText(/invalid or has expired/i)).toBeInTheDocument();
+    expect(screen.queryByText(/invalid_or_expired_code/)).not.toBeInTheDocument();
+  });
+
+  it("does not mistake a rate limit for a wrong code (G8)", async () => {
+    // Before G8 every ApiError here rendered "Invalid or expired code", so a
+    // person who hit the 5/minute limit was told their code was wrong.
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").resolve(() =>
+        HttpResponse.json(
+          { title: "Too Many Requests", status: 429, detail: "Too many attempts. Wait a minute." },
+          { status: 429 },
+        ),
+      ),
+    );
+    renderForgotPasswordVerify();
+    await submitCode();
+    expect(screen.getByText(/Too many attempts/i)).toBeInTheDocument();
+    expect(screen.queryByText(/invalid or has expired/i)).not.toBeInTheDocument();
   });
 
   it("shows network error message when the request fails outright", async () => {
@@ -161,7 +181,7 @@ describe("ForgotPasswordVerify - error handling", () => {
 
   it("does not call loginWithData on failure", async () => {
     server.use(
-      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "Invalid code" }),
+      mock("post", "/api/v1/auth/password/reset").reply(400, { error: "invalid_or_expired_code" }),
     );
     renderForgotPasswordVerify();
     await submitCode();

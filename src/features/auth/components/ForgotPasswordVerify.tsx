@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
-import { ApiError, parseApiError } from '../../../shared/api/apiError';
+import { parseApiError } from '../../../shared/api/apiError';
+import { otpErrorMessage } from '../otpErrorCopy';
 import { useAuth } from '../useAuth';
 import { User } from '../authContext';
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
@@ -69,12 +70,13 @@ export default function ForgotPasswordVerify() {
     resendMutation.mutate(email);
   };
 
+  // Keyed on the wire string `invalid_or_expired_code` rather than on "any
+  // ApiError": before G8 a 429 from the 5/minute limiter was shown as a wrong
+  // code, which sent people back to retype a code that was fine.
   const message =
     codeValidationMsg ||
     (resetMutation.isError
-      ? resetMutation.error instanceof ApiError
-        ? 'Invalid or expired code. Please try again.'
-        : 'Network error. Please try again.'
+      ? otpErrorMessage(resetMutation.error, 'Network error. Please try again.')
       : '');
   const showMessage = Boolean(codeValidationMsg) || resetMutation.isError;
   const resendFailed = Boolean(resendValidationMsg) || resendMutation.isError;

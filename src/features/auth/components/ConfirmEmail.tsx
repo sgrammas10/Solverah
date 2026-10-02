@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
 import { parseApiError } from '../../../shared/api/apiError';
+import { otpErrorMessage } from '../otpErrorCopy';
 
 const REDIRECT_DELAY_MS = 2000;
 import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
@@ -73,12 +74,12 @@ export default function ConfirmEmail() {
   };
 
   const verified = verifyMutation.isSuccess;
+  // G8: the server answers a bad code with `invalid code` / `code expired`;
+  // otpErrorCopy turns those into sentences and leaves any other message alone.
   const verifyErrorMsg =
     codeValidationMsg ||
     (verifyMutation.isError
-      ? verifyMutation.error instanceof Error
-        ? verifyMutation.error.message || 'Network error. Please try again.'
-        : 'Network error. Please try again.'
+      ? otpErrorMessage(verifyMutation.error, 'Network error. Please try again.')
       : '');
   const resendFailed = Boolean(resendValidationMsg) || resendMutation.isError;
   const resendMsg =

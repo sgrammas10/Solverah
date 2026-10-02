@@ -96,7 +96,8 @@ function AccountSettingsPage() {
 
   const finishDeletion = (filesLeftBehind: boolean) => {
     navigate("/", { replace: true, state: { accountDeleted: true, filesLeftBehind } });
-    clearSessionLocally();
+    // The account is gone; so are its half-finished answers in this tab.
+    clearSessionLocally({ drafts: true });
   };
 
   const deleteAccount = useMutation({
