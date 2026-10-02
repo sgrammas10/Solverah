@@ -40,6 +40,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mocks.navigate,
+  // The results page links to /trust; no router is rendered here.
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("../../auth/useAuth", () => ({

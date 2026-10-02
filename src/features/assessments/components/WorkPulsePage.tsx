@@ -40,13 +40,26 @@
  */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 import AssessmentStepper from "./AssessmentStepper";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
-import { useAssessment } from "../useAssessment";
+import { flattenItems, useAssessment } from "../useAssessment";
+import { situationReportKeys, useSituationReport } from "../useSituationReport";
 import { useAuth } from "../../auth";
+
+/** The dashboard document's query key. Spelled out rather than imported:
+ *  `dashboardKeys` is not on the profile slice's public surface, and slices
+ *  may not deep-import each other. WorkPulsePage.test.tsx pins it to
+ *  `dashboardKeys.all`, so a rename there fails a test here. */
+export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
+
+/** Shown for any submit failure. The server's own text is never shown: it is
+ *  written for developers, and for a stale form it names opaque item tokens. */
+export const SUBMIT_ERROR_MESSAGE =
+  "We couldn't save your Work Pulse. Your answers are still here. Reload the questions, then press Finish again.";
 
 /** The live form. Mounted only while the current instrument is incomplete, so a completed
  * user's visit does not fetch (and rebuild) a form they will never see. */
@@ -76,6 +89,11 @@ function WorkPulseForm({
     () => Object.keys(answers).length > 0
   );
   const [startIndex, setStartIndex] = useState(0);
+  // Bumped to remount the stepper at `startIndex` after the questions reload.
+  const [stepperKey, setStepperKey] = useState(0);
+  // The hook keeps its last submit error until the next submit. Reloading the
+  // questions answers it, so the message is hidden from then until Finish.
+  const [submitErrorDismissed, setSubmitErrorDismissed] = useState(false);
   // Counted against the loaded form, not the raw draft: the hook prunes answers whose
   // tokens are not in this form, and a draft pruned to nothing is no draft at all.
   const answeredCount = items
@@ -97,9 +115,24 @@ function WorkPulseForm({
   }
 
   async function handleComplete() {
+    setSubmitErrorDismissed(false);
     const result = await submit();
     if (result) {
       onCompleted();
+    }
+  }
+
+  /** The action on a failed submit. A form that changed under the respondent
+   *  (a new item file, so new tokens) is the failure a reload can fix: the hook
+   *  drops answers to items no longer in it, and the stepper reopens at the
+   *  first question still unanswered. */
+  async function handleReloadQuestions() {
+    setSubmitErrorDismissed(true);
+    const refreshed = await reloadForm();
+    const fresh = refreshed?.data ? flattenItems(refreshed.data) : items;
+    if (fresh && fresh.length > 0) {
+      setStartIndex(firstUnansweredIndex(fresh, (i) => answers[i.token] !== undefined));
+      setStepperKey((k) => k + 1);
     }
   }
 
@@ -170,33 +203,72 @@ function WorkPulseForm({
 
       {!promptVisible && items !== null && items.length > 0 && (
         <AssessmentStepper
+          key={stepperKey}
           initialIndex={startIndex}
           items={items}
           answers={answers}
           onAnswer={setAnswer}
           onComplete={handleComplete}
           submitting={submitting}
-          submitError={submitError}
+          submitError={submitError && !submitErrorDismissed ? SUBMIT_ERROR_MESSAGE : null}
+          onReloadQuestions={handleReloadQuestions}
         />
       )}
     </>
   );
 }
 
+/** Which next step the completion card leads with. */
+type NextStep = "describe_job" | "see_report" | "first_job" | "pending";
+
 export default function WorkPulsePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, updateProfile } = useAuth();
   const [justCompleted, setJustCompleted] = useState(false);
 
   const isCompleted = justCompleted || Boolean(user?.wp_v2_completed);
   const hasLegacyResults = Boolean(user?.wpl_completed);
 
+  // The report decides the next step, because it already knows the two cases
+  // the plain "describe your job" bridge got wrong: a `first_job` user has no
+  // job to describe (the server refuses the form), and a user who described
+  // the job before taking Work Pulse already has a report.
+  const situation = useSituationReport({ enabled: isCompleted });
+  const report = situation.data;
+  let nextStep: NextStep;
+  if (situation.isPending || (situation.isFetching && report?.state === "needs_core")) {
+    // Nothing yet, or only a pre-completion copy being refetched. Waiting
+    // keeps a first_job user from seeing a button they cannot use.
+    nextStep = "pending";
+  } else if (report?.state === "complete") {
+    nextStep = "see_report";
+  } else if (
+    report?.state === "needs_environment_report" &&
+    !report.can_submit_environment_report
+  ) {
+    nextStep = "first_job";
+  } else {
+    // Includes a failed fetch: the environment report page handles its own refusals.
+    nextStep = "describe_job";
+  }
+
   function handleCompleted() {
     // Optimistic local flip only -- the server derives the durable value from the stored
     // submission, so a refresh converges on the same answer.
     updateProfile({ wp_v2_completed: true });
+    // The Situation Report and the dashboard document both read core completion,
+    // and both may be cached from before it. Without this the dashboard's card
+    // and the report page disagree with this screen until a reload.
+    queryClient.invalidateQueries({ queryKey: situationReportKeys.all });
+    queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY });
     setJustCompleted(true);
   }
+
+  const secondary =
+    "inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors";
+  const primary =
+    "inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors";
 
   return (
     <div className="relative min-h-screen bg-cream-base overflow-hidden">
@@ -228,43 +300,76 @@ export default function WorkPulsePage() {
                 Situation Report is the other half of this one, and describing
                 the job is what completes it. The env-report CTA is therefore
                 primary and the FocusType / ManagerMatch CTAs step down to
-                secondary rather than disappearing. */}
-            <p className="text-sm text-ink-primary font-medium">
-              24 questions about you. Now 16 about your job.
-            </p>
-            <p className="text-sm text-ink-secondary">
-              Work Pulse is half of your Situation Report. The other half is your own
-              description of the role you're in — what it actually offers, not what it
-              was advertised as — and the report is the distance between the two.
-            </p>
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => navigate("/environment-report")}
-                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-              >
-                Describe your job →
-              </button>
-            </div>
+                secondary rather than disappearing.
+
+                Two exceptions, both read off the report. A `first_job` user has
+                no job to describe, so FocusType leads instead, matching the
+                report page's own first_job screen. A user who described the job
+                first already has a report, so the primary button opens it. */}
+            {nextStep === "describe_job" && (
+              <>
+                <p className="text-sm text-ink-primary font-medium">
+                  24 questions about you. Now 16 about your job.
+                </p>
+                <p className="text-sm text-ink-secondary">
+                  Work Pulse is half of your Situation Report. The other half is your own
+                  description of the role you're in — what it actually offers, not what it
+                  was advertised as — and the report is the distance between the two.
+                </p>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/environment-report")}
+                    className={primary}
+                  >
+                    Describe your job →
+                  </button>
+                </div>
+              </>
+            )}
+            {nextStep === "see_report" && (
+              <>
+                <p className="text-sm text-ink-secondary">
+                  You've already described your job, so both halves of your Situation
+                  Report are in. It's ready to read.
+                </p>
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/situation-report")}
+                    className={primary}
+                  >
+                    See your Situation Report →
+                  </button>
+                </div>
+              </>
+            )}
+            {nextStep === "first_job" && (
+              <p className="text-sm text-ink-secondary">
+                When you start a job, sixteen questions about it turn this into your
+                Situation Report. Until then, FocusType and ManagerMatch need no employer,
+                and they're most useful while you're choosing between offers.
+              </p>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => navigate("/focus-type")}
-                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+                className={nextStep === "first_job" ? primary : secondary}
               >
                 Start FocusType →
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/manager-match")}
-                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+                className={secondary}
               >
                 Start ManagerMatch →
               </button>
               <button
                 type="button"
                 onClick={() => navigate("/job-seeker/dashboard", { replace: true })}
-                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
+                className={secondary}
               >
                 Back to dashboard
               </button>

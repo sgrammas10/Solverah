@@ -37,7 +37,10 @@ export interface Scene4Props {
   onComplete: (payload: {
     now: string[];
     tomorrow: string[];
-    avg_decision_time_ms: number;
+    /** Mean over the cards the user clicked. Timed-out cards are not decisions
+     *  and are left out; null when every card timed out, which the scorer reads
+     *  as no timing signal (it used to be 0, which read as the fastest possible). */
+    avg_decision_time_ms: number | null;
   }) => void;
 }
 
@@ -68,7 +71,7 @@ export default function Scene4({ onComplete }: Scene4Props) {
     const avg =
       clickedTimes.length > 0
         ? Math.round(clickedTimes.reduce((a, b) => a + b, 0) / clickedTimes.length)
-        : 0;
+        : null;
     onCompleteRef.current({ now: nowIds, tomorrow: tomorrowIds, avg_decision_time_ms: avg });
   }, []);
 

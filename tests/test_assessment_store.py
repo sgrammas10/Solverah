@@ -74,3 +74,34 @@ def test_stale_key_submission_does_not_count(client, seed_user):
         persist_submission(db, 3, _fake_submission("v1-superseded+mean_pole"))
         db.session.commit()
         assert has_completed_assessment(3) is False
+
+
+def test_a_sitting_the_current_item_file_cannot_score_reads_as_absent(client, seed_user):
+    """Situation-report F2 hand-off (2026-10-02).
+
+    The default pin (first_completed_core_submission_id) is not keyed to the scoring-key
+    version, so after an item-bank change it can name a sitting whose item ids the current
+    file no longer holds. Re-scoring that sitting used to raise AssessmentError, which the
+    Situation Report surfaced as a 500. It must read as an absence instead.
+
+    _fake_submission's item ids are shaped, not real, so the current file cannot score them --
+    which is exactly the post-change case.
+    """
+    from app import app
+    from model import db
+    from assessment_store import dimension_scores_for_submission, persist_submission
+
+    seed_user(4)
+
+    with app.app_context():
+        submission_id = persist_submission(db, 4, _fake_submission("v1-superseded+mean_pole"))
+        db.session.commit()
+        assert dimension_scores_for_submission(submission_id) is None
+
+
+def test_an_unknown_sitting_reads_as_absent(client):
+    from app import app
+    from assessment_store import dimension_scores_for_submission
+
+    with app.app_context():
+        assert dimension_scores_for_submission("0" * 32) is None

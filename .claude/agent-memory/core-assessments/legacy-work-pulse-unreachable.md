@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-WPStepper, the answer half of useWP and wpQuestions.ts are mounted nowhere. Only `/work-pulse/results` and IntelligencePage read the legacy result, and only for users with `wpl_completed`. Even so, `POST /assessments/work_pulse/scoring-jobs` still accepts 12 answers and calls OpenAI, and WorkPulseResultsPage's enqueue path can no longer be reached. That page also says the narrative is "visible on your Solverah profile, giving employers a window into how you actually work", which contradicts the durable no-employer-visibility promise on /work-pulse and /trust. WorkPulseUnlock's data branch is likewise dead.
+WPStepper, the answer half of useWP and wpQuestions.ts are mounted nowhere. Only `/work-pulse/results` and IntelligencePage read the legacy result, and only for users with `wpl_completed`. Even so, `POST /assessments/work_pulse/scoring-jobs` still accepts 12 answers and calls OpenAI, and WorkPulseResultsPage's enqueue path can no longer be reached. That page used to say employers could see the narrative; rewritten 2026-10-02 to "Only you ... Employers never see them" with a /trust link. WorkPulseUnlock's data branch is likewise dead.
 
 **Why:** the 2026-10-02 audit asked Sebastian whether to retire the kind. `culture_preferences` (the interim matcher's input) derives ONLY from these legacy answers, so new users never get one. That is matching-model's concern.
 

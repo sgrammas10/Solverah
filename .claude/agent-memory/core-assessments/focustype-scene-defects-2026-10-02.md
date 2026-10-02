@@ -1,17 +1,19 @@
 ---
 name: focustype-scene-defects-2026-10-02
-description: Open FocusType defects found 2026-10-02 -- Scene 4 timing rules inverted/unreachable, drag scenes have no touch-action or keyboard sensor, scenes untested
+description: FocusType after the 2026-10-02 fix wave -- what was fixed, and the two items still open (3000ms rule unreachable = Julie's call; FOCUSTYPE_SPEC.md missing)
 metadata:
   type: project
 ---
 
-Open as of 2026-10-02 (audit only, nothing fixed):
-- Scene4 sends `avg_decision_time_ms: 0` when every card times out. `score.py` reads `< 1500` as a fast decider, so a user who never clicked gets reactivity +1. The `>= 3000 -> deep_focus +1` rule cannot fire, because TIMER_MS is 3000 and a click must land before the timeout.
-- Scene1/2/5 use dnd-kit PointerSensor and set no `touch-action: none`. Scene2/5 have no KeyboardSensor. They are likely broken on phones (inferred, not device-tested) and confirmed keyboard-inaccessible.
-- FocusTypePage.test mocks every Scene, and no Scene*.test exists.
-- A malformed scene body that passes validation (e.g. `scene_2.now: 5`) causes a 500 in score.py.
-- FOCUSTYPE_SPEC.md, which score.py cites as the source of its rules, is not in the repo.
+Fixed in the 2026-10-02 fix wave (uncommitted at time of writing): Scene 4 sends `avg_decision_time_ms: null` when every card times out and score.py treats null/absent as no timing signal; Scenes 1/2/5 use Mouse+Touch(200ms hold)+Keyboard sensors; malformed scene bodies are a 400; draft key is `focus_type_draft:<user id>`; the retake flag is stripped from router state; success navigates with `replace`. Scene1/2/4/5 now have tests (`focustype/*.test.tsx`, helpers in `dndTestUtils.ts`).
 
-**Why:** the Julie content day needs FocusType's thresholds to be trustworthy. What a timed-out card should score is expert judgment, so it is Julie's call.
+Deliberate deviation: draggables carry `touch-action: manipulation`, NOT `none`. The orchestrator brief asked for `none`, but with TouchSensor's press-and-hold that would stop the page (and Scene 5's timeline) scrolling under a finger. Do not "fix" it back to `none` without re-reading `focustype/dragSensors.ts`.
 
-**How to apply:** delete this entry once each item is fixed or ruled on.
+Still open:
+- The `>= 3000 -> deep_focus +1` rule cannot fire: clicks land before the 3000ms timeout and timeouts are now excluded. What timing should mean is Julie's call; thresholds unchanged by ruling of the brief.
+- FOCUSTYPE_SPEC.md, which score.py cites as its source of rules, is not in the repo.
+- Not device-tested on a real phone; jsdom tests prove sensor wiring only.
+
+**Why:** the Julie content day needs FocusType's thresholds to be trustworthy.
+
+**How to apply:** delete this entry once Julie rules on timing and the spec question is closed.

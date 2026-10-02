@@ -38,6 +38,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mocks.navigate,
+  // The page renders no router; a plain anchor is all the /trust link needs here.
+  Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("../../auth/useAuth", () => ({
@@ -247,6 +253,20 @@ describe("WorkPulseResultsPage", () => {
     expect(screen.getByText("You bring deep focus to your work.")).toBeInTheDocument();
     expect(mocks.startScoringMutate).not.toHaveBeenCalled();
     expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("never tells the user employers can see the narrative (F7)", () => {
+    // Regression: the page said the archetype and narrative were "visible on
+    // your Solverah profile, giving employers a window into how you actually
+    // work" -- the opposite of the promise on /work-pulse and /trust.
+    mocks.wpState.cachedResult = MOCK_RESULT;
+    mocks.user = { wpl_completed: true };
+    renderPage();
+
+    expect(screen.queryByText(/window into how you actually work/i)).toBeNull();
+    expect(screen.queryByText(/visible on your Solverah profile/i)).toBeNull();
+    expect(screen.getByText(/Employers never see them/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /how this works/i })).toHaveAttribute("href", "/trust");
   });
 
   it("labels Pro and CompanyLens as coming soon, with no dead unlock buttons", () => {

@@ -289,6 +289,13 @@ def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | No
     Returns None if `submission_id` names no responses -- an unknown or malformed
     handle, never a partial score (D-07): a caller with a real pin always gets either
     a complete six-dimension dict or an explicit absence to handle.
+
+    Also None when the sitting's rows cannot be scored against the CURRENT item file
+    -- a sitting from before an item-bank change whose item ids the file no longer
+    holds. The default pin (`first_completed_core_submission_id`) is deliberately not
+    keyed to the scoring-key version, so it can name such a sitting; raising here
+    turned that into a 500 on the Situation Report. An absence is the honest answer,
+    and the caller already has to handle one.
     """
     from model import AssessmentResponse
 
@@ -296,10 +303,13 @@ def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | No
     if not rows:
         return None
 
-    from assessment_form import score_stored_choices
+    from assessment_form import AssessmentError, score_stored_choices
 
     choices = {r.item_id: r.choice for r in rows}
-    return score_stored_choices(choices)
+    try:
+        return score_stored_choices(choices)
+    except AssessmentError:
+        return None
 
 
 def first_completed_core_submission_id(user_id: int) -> str | None:

@@ -5,9 +5,16 @@
  * server-ordered items, opaque tokens, no client shuffling -- are owned by
  * useAssessment.test.ts and AssessmentStepper.test.tsx.
  */
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import WorkPulsePage from "./WorkPulsePage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import WorkPulsePage, { DASHBOARD_QUERY_KEY, SUBMIT_ERROR_MESSAGE } from "./WorkPulsePage";
+import { situationReportKeys } from "../useSituationReport";
+// A deep import on purpose, test-only: `dashboardKeys` is not on the profile
+// slice's public surface, and this test exists to fail if WorkPulsePage's
+// spelled-out copy of it drifts from the dashboard's own.
+// eslint-disable-next-line no-restricted-imports
+import { dashboardKeys } from "../../profile/dashboardKeys";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -25,6 +32,8 @@ const mocks = vi.hoisted(() => ({
     reloadForm: vi.fn(),
   },
   stepperProps: null as any,
+  stepperMounts: 0,
+  situation: null as any,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -36,16 +45,30 @@ vi.mock("../../auth/useAuth", () => ({
   useAuth: () => ({ user: mocks.user, updateProfile: mocks.updateProfile }),
 }));
 
-vi.mock("../useAssessment", () => ({
-  useAssessment: () => mocks.assessment,
-}));
+vi.mock("../useAssessment", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useAssessment")>();
+  return { ...actual, useAssessment: () => mocks.assessment };
+});
 
-vi.mock("./AssessmentStepper", () => ({
-  default: (props: any) => {
-    mocks.stepperProps = props;
-    return <div data-testid="assessment-stepper">AssessmentStepper</div>;
-  },
-}));
+// The completion card reads the Situation Report to choose its next step.
+vi.mock("../useSituationReport", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../useSituationReport")>();
+  return { ...actual, useSituationReport: () => mocks.situation };
+});
+
+vi.mock("./AssessmentStepper", async () => {
+  const { useEffect } = await import("react");
+  return {
+    default: (props: any) => {
+      mocks.stepperProps = props;
+      // Counts mounts, so a test can see the stepper reopen after a reload.
+      useEffect(() => {
+        mocks.stepperMounts += 1;
+      }, []);
+      return <div data-testid="assessment-stepper">AssessmentStepper</div>;
+    },
+  };
+});
 
 vi.mock("../../../shared/ui/HeroNetworkAnimation", () => ({
   default: () => null,
@@ -68,13 +91,24 @@ beforeEach(() => {
   mocks.assessment.reloadForm = vi.fn();
   mocks.assessment.clearAnswers = vi.fn();
   mocks.stepperProps = null;
+  mocks.stepperMounts = 0;
+  mocks.situation = {
+    data: { state: "needs_environment_report", can_submit_environment_report: true },
+    isPending: false,
+    isFetching: false,
+  };
 });
 
+let queryClient: QueryClient;
+
 function renderPage() {
+  queryClient = new QueryClient();
   render(
-    <MemoryRouter>
-      <WorkPulsePage />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <WorkPulsePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -304,5 +338,145 @@ describe("WorkPulsePage — readability over the animation", () => {
     expect(screen.getByTestId("work-pulse-panel")).toContainElement(
       screen.getByText(/Work Pulse Complete/i)
     );
+  });
+});
+
+// ─── F3: the dashboard and the Situation card must not contradict this page ──
+
+describe("WorkPulsePage - caches refreshed on completion (F3)", () => {
+  it("pins its dashboard key to the dashboard's own", () => {
+    expect([...DASHBOARD_QUERY_KEY]).toEqual([...dashboardKeys.all]);
+  });
+
+  it("invalidates the Situation Report and the dashboard when Work Pulse is finished", async () => {
+    // Regression: only the auth flag flipped, so a cached report still said
+    // "needs_core" and the dashboard still prompted for Work Pulse.
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "abc",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: situationReportKeys.all });
+    expect(spy).toHaveBeenCalledWith({ queryKey: dashboardKeys.all });
+  });
+
+  it("invalidates nothing when the submit fails", async () => {
+    mocks.assessment.submit = vi.fn().mockResolvedValue(null);
+    renderPage();
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+// ─── F5: a failed submit shows the house message and a way out ──────────────
+
+describe("WorkPulsePage - submit errors (F5)", () => {
+  it("passes the house message to the stepper, never the server's text", () => {
+    // Regression: the hook's error string (server text, e.g. naming an opaque
+    // item token) was rendered verbatim under the Finish button.
+    mocks.assessment.submitError = "Unknown item token 'zz9' for respondent 4f2a";
+    renderPage();
+    expect(mocks.stepperProps.submitError).toBe(SUBMIT_ERROR_MESSAGE);
+    expect(mocks.stepperProps.submitError).not.toContain("zz9");
+  });
+
+  it("passes no message when there is no error", () => {
+    renderPage();
+    expect(mocks.stepperProps.submitError).toBeNull();
+  });
+
+  it("offers 'reload the questions', which refetches and reopens at the first unanswered item", async () => {
+    mocks.assessment.submitError = "boom";
+    mocks.assessment.answers = { zulu: "A" };
+    // The reloaded form puts the unanswered "mike" first, so the reopen index
+    // has to come from the fresh form, not from the one on screen.
+    mocks.assessment.reloadForm = vi.fn().mockResolvedValue({
+      data: {
+        form_version: "v2",
+        respondent_id: "r",
+        blocks: [{ block: 1, items: [ITEMS[1], ITEMS[0]] }],
+      },
+    });
+    renderPage();
+    // The draft gets the resume prompt first; resuming opens at "mike" (1).
+    fireEvent.click(screen.getByRole("button", { name: "Pick up where you left off" }));
+    expect(mocks.stepperMounts).toBe(1);
+    expect(mocks.stepperProps.initialIndex).toBe(1);
+    expect(mocks.stepperProps.submitError).toBe(SUBMIT_ERROR_MESSAGE);
+
+    await act(async () => {
+      await mocks.stepperProps.onReloadQuestions();
+    });
+
+    expect(mocks.assessment.reloadForm).toHaveBeenCalled();
+    // Remounted at "mike" again, which is index 0 in the reloaded form.
+    expect(mocks.stepperMounts).toBe(2);
+    expect(mocks.stepperProps.initialIndex).toBe(0);
+    // The old error is answered by the reload; it stays hidden until Finish.
+    expect(mocks.stepperProps.submitError).toBeNull();
+  });
+});
+
+// ─── The Situation Report hand-off on the completion card ───────────────────
+
+describe("WorkPulsePage - next step after completion", () => {
+  beforeEach(() => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+  });
+
+  it("first_job: no 'Describe your job' button; FocusType leads", () => {
+    // Regression: a first_job user was led to a form the server refuses (409).
+    mocks.situation = {
+      data: { state: "needs_environment_report", can_submit_environment_report: false },
+      isPending: false,
+      isFetching: false,
+    };
+    renderPage();
+    expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
+    expect(screen.queryByText("24 questions about you. Now 16 about your job.")).toBeNull();
+    const focusType = screen.getByRole("button", { name: /start focustype/i });
+    expect(focusType.className).toContain("bg-forest-dark");
+    expect(screen.getByRole("button", { name: /start managermatch/i }).className).not.toContain(
+      "bg-forest-dark"
+    );
+  });
+
+  it("job described first: opens the report instead of asking again", () => {
+    mocks.situation = {
+      data: { state: "complete", career_status: "employed" },
+      isPending: false,
+      isFetching: false,
+    };
+    renderPage();
+    expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /see your situation report/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/situation-report");
+  });
+
+  it("while the report is loading, offers no bridge a first_job user could not use", () => {
+    mocks.situation = { data: undefined, isPending: true, isFetching: true };
+    renderPage();
+    expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /start focustype/i })).toBeInTheDocument();
+  });
+
+  it("a stale pre-completion report being refetched counts as loading", () => {
+    mocks.situation = { data: { state: "needs_core", environment: null }, isPending: false, isFetching: true };
+    renderPage();
+    expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
+  });
+
+  it("a failed report fetch falls back to describing the job", () => {
+    mocks.situation = { data: undefined, isPending: false, isFetching: false, isError: true };
+    renderPage();
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
   });
 });

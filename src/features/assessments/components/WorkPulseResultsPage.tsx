@@ -13,7 +13,7 @@
  * socket; it was never the slow one.
  */
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useWP } from "../useWP";
 import type { WpApiResponse } from "../useWP";
@@ -328,11 +328,17 @@ export default function WorkPulseResultsPage() {
         {/* What this unlocks */}
         <div className="rounded-xl border border-cream-muted bg-white px-6 py-5">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">
-            What completing Work Pulse unlocks
+            Who sees this
           </p>
+          {/* This used to say the narrative was visible to employers. It never
+              was, and the promise on /work-pulse and /trust is that employers
+              never see what you tell Work Pulse. */}
           <p className="text-sm text-ink-secondary leading-relaxed">
-            Your archetype and narrative are now visible on your Solverah profile,
-            giving employers a window into how you actually work — not just what you've done.
+            Only you. Your archetype and narrative stay in your Intelligence Hub, where
+            they shape what Solverah shows you. Employers never see them.{" "}
+            <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
+              How this works →
+            </Link>
           </p>
           <button
             type="button"

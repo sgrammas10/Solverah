@@ -666,7 +666,20 @@ def test_the_path_suggestion_enqueue_is_rate_limited(enforcing, auth, monkeypatc
     [
         ("work_pulse", {"answers": [{"question_id": "wp-q1", "option_id": "wp-q1-b"}]}),
         ("manager_match", {"answers": [{"question_id": "mm-q1", "choice": "a"}]}),
+        # Fifteen answers, so past the count: the precheck's run of the pure
+        # scorer is what refuses this one (2026-10-02, manager-match F4).
+        (
+            "manager_match",
+            {
+                "answers": [
+                    {"question_id": "mm-q%d" % (i + 1), "choice": "a"} for i in range(14)
+                ]
+                + [{"question_id": "mm-q99", "choice": "a"}]
+            },
+        ),
         ("wpll", {"answers": []}),
+        # A null option_id: the rules engine cannot read one (2026-10-02, F10).
+        ("wpll", {"answers": [{"question_id": "wpll-q1", "option_id": None}]}),
     ],
 )
 def test_a_malformed_body_is_refused_before_the_enqueue_with_the_scorers_error(

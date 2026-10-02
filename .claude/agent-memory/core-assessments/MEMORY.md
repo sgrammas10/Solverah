@@ -1,4 +1,4 @@
 - [Core has no retake entry](core-has-no-retake-entry.md) — design (trust page, recalibrate, D-15 pin) assumes retakes; UI offers none; awaiting ruling
 - [form_version bump re-prompts everyone](form-version-bump-reprompts-everyone.md) — wording edits keep tokens; a version bump is a new instrument; never rename item_ids
-- [FocusType scene defects 2026-10-02](focustype-scene-defects-2026-10-02.md) — Scene4 avg=0 inverts scoring, 3000ms rule dead, drag scenes touch/keyboard gaps, no scene tests
-- [Legacy work_pulse unreachable](legacy-work-pulse-unreachable.md) — 12-q kind has no UI but still LLM-scored; results page claims employers see it
+- [FocusType after fix wave 2026-10-02](focustype-scene-defects-2026-10-02.md) — fixes landed; touch-action is manipulation ON PURPOSE; 3000ms rule dead (Julie); spec missing
+- [Legacy work_pulse unreachable](legacy-work-pulse-unreachable.md) — 12-q kind has no UI but still LLM-scored; employer claim on its results page fixed 2026-10-02

@@ -2,11 +2,8 @@ import { useState } from "react";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
   DragOverlay,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -18,6 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DRAGGABLE_TOUCH_STYLE, useSceneSensors } from "./dragSensors";
 
 // ---------------------------------------------------------------------------
 // Card data — IDs must match focus_type/score.py _S1_CARD_SCORES keys
@@ -33,6 +31,26 @@ const CARDS = [
 ] as const;
 
 type CardId = (typeof CARDS)[number]["id"];
+
+function cardName(id: unknown): string {
+  return CARDS.find((c) => c.id === id)?.label ?? "card";
+}
+
+/** Read aloud during a drag. Positions are 1-based, as the screen shows them. */
+function makeAnnouncements(order: readonly string[]): Announcements {
+  const position = (id: unknown) => order.indexOf(String(id)) + 1;
+  return {
+    onDragStart: ({ active }) =>
+      `Picked up ${cardName(active.id)}, position ${position(active.id)} of ${order.length}.`,
+    onDragOver: ({ active, over }) =>
+      over ? `${cardName(active.id)} is over position ${position(over.id)}.` : undefined,
+    onDragEnd: ({ active, over }) =>
+      over
+        ? `${cardName(active.id)} dropped at position ${position(over.id)}.`
+        : `${cardName(active.id)} put back.`,
+    onDragCancel: ({ active }) => `Cancelled. ${cardName(active.id)} put back.`,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Sortable card — used inside SortableContext
@@ -62,6 +80,7 @@ function SortableCard({
     <div
       ref={setNodeRef}
       style={{
+        ...DRAGGABLE_TOUCH_STYLE,
         transform: CSS.Transform.toString(transform),
         transition,
       }}
@@ -117,10 +136,7 @@ export default function Scene1({ onComplete }: Scene1Props) {
   const [hasDragged, setHasDragged] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
+  const sensors = useSceneSensors(sortableKeyboardCoordinates);
 
   function handleDragStart({ active }: DragStartEvent) {
     setActiveId(active.id as string);
@@ -148,14 +164,20 @@ export default function Scene1({ onComplete }: Scene1Props) {
           It's 9am. Six things are waiting for you. Drag them into the order
           you'd actually tackle them — top to bottom.
         </p>
+        <p className="text-xs text-ink-tertiary">
+          On a touchscreen, press and hold a card to pick it up. With a keyboard,
+          Space picks a card up, the arrow keys move it, and Space puts it down.
+        </p>
       </div>
 
       {/* Sortable list */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        accessibility={{ announcements: makeAnnouncements(order) }}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveId(null)}
       >
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <div className="flex flex-col gap-2">

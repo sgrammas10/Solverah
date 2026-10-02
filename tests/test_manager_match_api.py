@@ -44,6 +44,13 @@ VALID_LLM_RESPONSE = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    # Per .claude/CLAUDE.md: every file touching an assessment route supplies
+    # the secret itself (no default by design, D-05), never via conftest.py.
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+
+
 def _noop(*_args, **_kwargs):
     return None
 
@@ -159,26 +166,69 @@ def test_submit_wrong_answer_count(client, monkeypatch):
     assert "15" in res.get_json()["error"]
 
 
-def test_an_invalid_choice_value_fails_the_job_not_the_enqueue(client, monkeypatch):
-    """The precheck counts; the scorer judges. A bad `choice` lands in the worker.
+def test_an_invalid_choice_value_is_refused_at_the_enqueue(client, monkeypatch):
+    """The precheck runs the pure scorer, so a bad `choice` is a 400 at the door.
 
-    Fifteen answers with an invalid value pass the count-only precheck, so the
-    enqueue answers 202 and `score_manager_match`'s ValueError surfaces on the
-    poll -- in the scorer's own words, which is what tells the caller *which*
-    answer to fix. Was `test_submit_invalid_choice_value`, a 400 when the
-    scorer ran on the request path.
+    It used to pass the count-only precheck, answer 202, and fail on the poll.
+    The scorer makes no provider call, so the precheck runs it (2026-10-02,
+    F4 hand-off) and the 400 carries the scorer's own words, which is what
+    tells the caller *which* answer to fix. Was `test_submit_invalid_choice_value`,
+    a 400 when the scorer ran on the request path -- the same answer again.
     """
+    from app import app
+    from model import ScoringJob, db
+
     csrf = _register_and_login(client, monkeypatch, email="mm_bad@example.com")
-    _mock_openai(monkeypatch)
+    llm = _mock_openai(monkeypatch)
 
     bad_answers = [dict(a) for a in MM_ANSWERS]
     bad_answers[2]["choice"] = "x"
 
-    poll = _score(client, csrf, bad_answers)
+    with app.app_context():
+        before = db.session.query(ScoringJob).count()
+    queued = _queue(client, {"answers": bad_answers}, csrf)
 
-    body = poll.get_json()
-    assert body["status"] == "failed"
-    assert body["error"] == "Invalid choice 'x' for question 'mm-q3'; must be 'a' or 'b'"
+    assert queued.status_code == 400
+    assert queued.get_json()["error"] == (
+        "Invalid choice 'x' for question 'mm-q3'; must be 'a' or 'b'"
+    )
+    with app.app_context():
+        assert db.session.query(ScoringJob).count() == before
+    llm.chat.completions.create.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "mutate, expected_error",
+    [
+        (lambda a: a[7].update(question_id="mm-q99"), "Unknown question_id 'mm-q99'"),
+        (lambda a: a[14].update(question_id="mm-q1"), "Duplicate answer for question 'mm-q1'"),
+    ],
+    ids=["unknown_id", "duplicate_id"],
+)
+def test_a_bad_question_id_is_refused_at_the_enqueue_in_the_scorers_words(
+    client, monkeypatch, mutate, expected_error
+):
+    """Regression (audit 2026-10-02, F4): an unknown or duplicated id was a
+    KeyError inside the worker, so the job failed with the generic message and
+    the caller could not tell which answer was wrong. It became the scorer's
+    ValueError, and since the precheck now runs the scorer it is a 400 at the
+    enqueue: no job row, no poll, no provider spend.
+    """
+    from solverah.services.scoring_jobs import GENERIC_FAILURE
+
+    csrf = _register_and_login(client, monkeypatch, email="mm_badid@example.com")
+    llm = _mock_openai(monkeypatch)
+
+    bad_answers = [dict(a) for a in MM_ANSWERS]
+    mutate(bad_answers)
+
+    queued = _queue(client, {"answers": bad_answers}, csrf)
+
+    assert queued.status_code == 400
+    error = queued.get_json()["error"]
+    assert error == expected_error
+    assert error != GENERIC_FAILURE
+    llm.chat.completions.create.assert_not_called()
 
 
 def test_submit_malformed_llm_response(client, monkeypatch):

@@ -28,7 +28,7 @@ type Scene3Payload = {
 type Scene4Payload = {
   now: string[];
   tomorrow: string[];
-  avg_decision_time_ms: number;
+  avg_decision_time_ms: number | null;
 };
 type Scene5Payload = string[];
 
@@ -49,14 +49,27 @@ export interface FocusTypeResult {
 // ---------------------------------------------------------------------------
 // Draft persistence -- sessionStorage, like every other quiz's in-progress
 // answers, so a reload mid-simulator no longer throws finished scenes away.
+//
+// The key carries the user id. A browser tab outlives a sign-out, and an
+// unscoped draft was picked up by whoever signed in next and submitted as theirs.
+// The draft is cleared on a successful submit here, and at logout by the auth
+// slice; both are wanted.
 // ---------------------------------------------------------------------------
 
-export const FOCUS_TYPE_DRAFT_KEY = "focus_type_draft";
+/** Prefix of every FocusType draft key; a logout sweep can match on it. */
+export const FOCUS_TYPE_DRAFT_KEY_PREFIX = "focus_type_draft";
+
+/** The draft key for one user: `focus_type_draft:<user id>`. */
+export function focusTypeDraftKey(userId: string | number): string {
+  return `${FOCUS_TYPE_DRAFT_KEY_PREFIX}:${userId}`;
+}
+
 const SCENE_NUMBERS = [1, 2, 3, 4, 5] as const;
 
-function readDraft(): ScenePayloads {
+function readDraft(key: string | null): ScenePayloads {
+  if (!key) return {};
   try {
-    const raw = sessionStorage.getItem(FOCUS_TYPE_DRAFT_KEY);
+    const raw = sessionStorage.getItem(key);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
@@ -66,17 +79,28 @@ function readDraft(): ScenePayloads {
   }
 }
 
-function writeDraft(payloads: ScenePayloads) {
+function writeDraft(key: string | null, payloads: ScenePayloads) {
+  if (!key) return;
   try {
-    sessionStorage.setItem(FOCUS_TYPE_DRAFT_KEY, JSON.stringify(payloads));
+    sessionStorage.setItem(key, JSON.stringify(payloads));
   } catch {
     // A full or disabled sessionStorage costs the resume and nothing else.
   }
 }
 
-function clearDraft() {
+function clearDraft(key: string | null) {
   try {
-    sessionStorage.removeItem(FOCUS_TYPE_DRAFT_KEY);
+    if (key) sessionStorage.removeItem(key);
+  } catch {
+    // As above.
+  }
+}
+
+/** The pre-2026-10-02 key had no user in it, so nothing says whose it is. It is
+ *  dropped on arrival rather than adopted. */
+function dropUnscopedDraft() {
+  try {
+    sessionStorage.removeItem(FOCUS_TYPE_DRAFT_KEY_PREFIX);
   } catch {
     // As above.
   }
@@ -121,33 +145,55 @@ function SceneIndicator({ current, total }: { current: number; total: number }) 
 export default function FocusTypePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
-  const { fetchWithAuth } = useAuth();
+  const { fetchWithAuth, user } = useAuth();
+  const draftKey = user?.id != null ? focusTypeDraftKey(user.id) : null;
   const { updateProfileData } = useProfileActions();
   const { data: profile, isLoading: profileLoading } = useProfile();
+
+  // The retake flag is read once, on mount, and then stripped from the history
+  // entry (the effect below). Router state survives a reload, so leaving it in
+  // place made a reload mid-retake look like a fresh "Retake" click and wipe
+  // the scenes already finished.
+  const [isRetake] = useState(
+    () => (location.state as { retake?: boolean } | null)?.retake === true
+  );
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [currentScene, setCurrentScene] = useState(1);
   // A retake starts clean; anything else picks up the stored draft (if any),
   // and the resume prompt below decides what happens to it.
   const [scenePayloads, setScenePayloads] = useState<ScenePayloads>(() => {
+    dropUnscopedDraft();
     if (isRetake) {
-      clearDraft();
+      clearDraft(draftKey);
       return {};
     }
-    return readDraft();
+    return readDraft(draftKey);
   });
   const draftSceneCount = SCENE_NUMBERS.filter((n) => hasScene(scenePayloads, n)).length;
   const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
     () => draftSceneCount > 0
   );
+  // A draft beside a saved result is a retake in progress, because a
+  // successful submit clears the draft. That is what a reload mid-retake looks
+  // like once the flag is gone, and it gets the resume prompt rather than a
+  // bounce to the old result.
+  const [retaking] = useState(() => isRetake || draftSceneCount > 0);
+
+  useEffect(() => {
+    if ((location.state as { retake?: boolean } | null)?.retake === true) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // Mount only: this consumes the flag the initializer above already read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const savedResult = profile?.focus_type_result as FocusTypeResult | undefined;
   useEffect(() => {
-    if (savedResult && !isRetake) {
+    if (savedResult && !retaking) {
       navigate("/focus-type/results", { replace: true, state: { result: savedResult } });
     }
-  }, [savedResult, isRetake, navigate]);
+  }, [savedResult, retaking, navigate]);
 
   const submitMutation = useMutation({
     mutationFn: (payloads: ScenePayloads) =>
@@ -156,9 +202,11 @@ export default function FocusTypePage() {
         body: JSON.stringify(payloads),
       }),
     onSuccess: (result) => {
-      clearDraft();
+      clearDraft(draftKey);
       updateProfileData({ focus_type_result: result });
-      navigate("/focus-type/results", { state: { result } });
+      // `replace`: Back from the results page must not land on this page's
+      // history entry and start the simulator over.
+      navigate("/focus-type/results", { replace: true, state: { result } });
     },
   });
 
@@ -173,7 +221,7 @@ export default function FocusTypePage() {
     const key = `scene_${sceneNum}` as keyof ScenePayloads;
     const updated = { ...scenePayloads, [key]: payload } as ScenePayloads;
     setScenePayloads(updated);
-    writeDraft(updated);
+    writeDraft(draftKey, updated);
 
     if (sceneNum < 5) {
       setCurrentScene(sceneNum + 1);
@@ -197,7 +245,7 @@ export default function FocusTypePage() {
   }
 
   function handleStartOver() {
-    clearDraft();
+    clearDraft(draftKey);
     setScenePayloads({});
     setCurrentScene(1);
     setPhase("scenes");
@@ -248,7 +296,7 @@ export default function FocusTypePage() {
   }
 
   // ── A saved draft: ask before resuming ──
-  if (phase === "intro" && showResumePrompt && !(savedResult && !isRetake)) {
+  if (phase === "intro" && showResumePrompt && !(savedResult && !retaking)) {
     return (
       <div className="min-h-screen bg-cream-base">
         <div className="mx-auto max-w-lg px-6 pt-16 pb-20">

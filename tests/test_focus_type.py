@@ -1,7 +1,19 @@
 """Tests for FocusType scoring module and POST /api/focus-type/submit."""
 
+import copy
+
 import pytest
-from focus_type.score import score_focus_type, DIMENSIONS, _determine_archetype
+from focus_type.score import (
+    DIMENSIONS,
+    FocusTypePayloadError,
+    _determine_archetype,
+    score_focus_type,
+)
+
+
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +276,73 @@ class TestScene4:
         s = _score_scene_4({"now": [], "tomorrow": [], "avg_decision_time_ms": 3000})
         assert s["deep_focus"] == 1
 
+    def test_all_cards_timed_out_is_no_timing_signal(self):
+        """F2 regression: the client sends null when no card was clicked.
+
+        It used to send 0, which read as the fastest decider possible and gave a
+        user who never clicked +1 reactivity. Null must score neither rule.
+        """
+        from focus_type.score import _score_scene_4
+        s = _score_scene_4({"now": [], "tomorrow": [], "avg_decision_time_ms": None})
+        assert s["reactivity"] == 0
+        assert s["deep_focus"] == 0
+
+    def test_missing_timing_is_no_timing_signal(self):
+        from focus_type.score import _score_scene_4
+        s = _score_scene_4({"now": [], "tomorrow": []})
+        assert s["reactivity"] == 0
+        assert s["deep_focus"] == 0
+
+    def test_null_timing_scores_through_the_public_api(self):
+        scene_4 = dict(DEEP_DIVER_PAYLOAD["scene_4"], avg_decision_time_ms=None)
+        with_null = score_focus_type(
+            DEEP_DIVER_PAYLOAD["scene_1"], DEEP_DIVER_PAYLOAD["scene_2"],
+            DEEP_DIVER_PAYLOAD["scene_3"], scene_4, DEEP_DIVER_PAYLOAD["scene_5"],
+        )
+        # The payload's 500ms average is the only reactivity source in it.
+        assert with_null["dimension_scores"]["reactivity"] == 0
+
+
+class TestValidateScenes:
+    """F10: a body the schema admits but the scorers cannot read is a 400, not a 500."""
+
+    @pytest.mark.parametrize(
+        "scene, value",
+        [
+            ("scene_1", [{"id": "big_project"}]),
+            ("scene_1", "big_project"),
+            ("scene_2", {"now": 5, "later": [], "ignore": []}),
+            ("scene_2", {"now": [["nested"]], "later": [], "ignore": []}),
+            ("scene_2", ["now"]),
+            ("scene_3", {"deep_solo": "lots", "planning": 1}),
+            ("scene_3", {"deep_solo": True}),
+            ("scene_4", {"now": "deep_research", "tomorrow": []}),
+            ("scene_4", {"now": [], "tomorrow": [], "avg_decision_time_ms": "fast"}),
+            ("scene_4", {"now": [], "tomorrow": [], "avg_decision_time_ms": -1}),
+            ("scene_5", [1, 2, 3]),
+        ],
+    )
+    def test_malformed_scene_raises_payload_error(self, scene, value):
+        payload = copy.deepcopy(DEEP_DIVER_PAYLOAD)
+        payload[scene] = value
+        with pytest.raises(FocusTypePayloadError) as exc:
+            score_focus_type(
+                payload["scene_1"], payload["scene_2"], payload["scene_3"],
+                payload["scene_4"], payload["scene_5"],
+            )
+        assert scene in str(exc.value)
+
+    def test_unknown_keys_and_ids_still_score(self):
+        payload = copy.deepcopy(DEEP_DIVER_PAYLOAD)
+        payload["scene_2"]["extra_bucket"] = 7
+        payload["scene_3"]["not_a_dimension"] = "ignored"
+        payload["scene_1"].append("not_a_card")
+        result = score_focus_type(
+            payload["scene_1"], payload["scene_2"], payload["scene_3"],
+            payload["scene_4"], payload["scene_5"],
+        )
+        assert result["archetype"] == "Deep Diver"
+
 
 class TestScene5:
     def test_leads_with_deep_work_scores_deep_focus(self):
@@ -349,6 +428,40 @@ class TestFocusTypeEndpoint:
         )
         assert res.status_code == 422
         assert "scene_3" in {error["field"] for error in res.get_json()["errors"]}
+
+    @pytest.mark.parametrize(
+        "scene, value",
+        [
+            ("scene_2", {"now": 5, "later": [], "ignore": []}),
+            ("scene_3", {"deep_solo": "lots"}),
+            ("scene_4", {"now": [], "tomorrow": [], "avg_decision_time_ms": "fast"}),
+            ("scene_1", [{"id": "big_project"}]),
+        ],
+    )
+    def test_malformed_scene_contents_return_400(self, client, monkeypatch, scene, value):
+        """F10 regression: these reached the scorer and raised a TypeError (500)."""
+        csrf = _register_and_login(client, monkeypatch, email="bad-%s@example.com" % scene)
+        payload = copy.deepcopy(DEEP_DIVER_PAYLOAD)
+        payload[scene] = value
+        res = client.post(
+            "/api/v1/assessments/focus_type/submissions",
+            json=payload,
+            headers={"X-CSRF-TOKEN": csrf},
+        )
+        assert res.status_code == 400
+        assert scene in res.get_json()["error"]
+
+    def test_null_timing_is_accepted(self, client, monkeypatch):
+        csrf = _register_and_login(client, monkeypatch, email="nulltiming@example.com")
+        payload = copy.deepcopy(DEEP_DIVER_PAYLOAD)
+        payload["scene_4"]["avg_decision_time_ms"] = None
+        res = client.post(
+            "/api/v1/assessments/focus_type/submissions",
+            json=payload,
+            headers={"X-CSRF-TOKEN": csrf},
+        )
+        assert res.status_code == 200
+        assert res.get_json()["dimension_scores"]["reactivity"] == 0
 
     def test_unauthenticated_returns_401(self, client):
         res = client.post("/api/v1/assessments/focus_type/submissions", json=DEEP_DIVER_PAYLOAD)

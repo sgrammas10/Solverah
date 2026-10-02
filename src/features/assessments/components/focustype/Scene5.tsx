@@ -3,15 +3,20 @@ import {
   DndContext,
   DragOverlay,
   pointerWithin,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDroppable,
   useDraggable,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
   type DragOverEvent,
 } from "@dnd-kit/core";
+import {
+  DRAGGABLE_TOUCH_STYLE,
+  slotCollision,
+  slotIndexOf,
+  slotKeyboardCoordinates,
+  useSceneSensors,
+} from "./dragSensors";
 
 // ---------------------------------------------------------------------------
 // Block definitions — IDs must match backend Scene 5 scoring
@@ -120,6 +125,38 @@ function blockById(id: string): BlockDef | undefined {
   return BLOCKS.find((b) => b.id === id);
 }
 
+// A mouse or finger drop lands on the slot under the pointer; a keyboard drag
+// moves slot by slot (see dragSensors).
+const collisionDetection = slotCollision(pointerWithin);
+const keyboardCoordinates = slotKeyboardCoordinates(TOTAL_SLOTS);
+
+/** "6:30pm" for slot 1. */
+function slotTime(slot: number): string {
+  const minutes = 18 * 60 + slot * 30;
+  const hour = Math.floor(minutes / 60) - 12;
+  const mins = minutes % 60;
+  return `${hour}${mins ? `:${String(mins).padStart(2, "0")}` : ""}pm`;
+}
+
+function blockName(id: unknown): string {
+  return blockById(String(id))?.label ?? "block";
+}
+
+function placeName(id: unknown): string {
+  const slot = slotIndexOf(id);
+  return slot === null ? "off the timeline" : `the ${slotTime(slot)} slot`;
+}
+
+const announcements: Announcements = {
+  onDragStart: ({ active }) => `Picked up ${blockName(active.id)}.`,
+  onDragOver: ({ active, over }) => `${blockName(active.id)} is over ${placeName(over?.id)}.`,
+  onDragEnd: ({ active, over }) =>
+    over
+      ? `${blockName(active.id)} dropped at ${placeName(over.id)}.`
+      : `${blockName(active.id)} back in the tray.`,
+  onDragCancel: ({ active }) => `Cancelled. ${blockName(active.id)} not moved.`,
+};
+
 // ---------------------------------------------------------------------------
 // useTimelineState
 // ---------------------------------------------------------------------------
@@ -187,6 +224,7 @@ function DroppableSlot({ index, isOver }: { index: number; isOver: boolean }) {
   return (
     <div
       ref={setNodeRef}
+      data-testid={`slot-${index}`}
       style={{ width: SLOT_WIDTH, height: TIMELINE_HEIGHT, flexShrink: 0 }}
       className={`border-r border-cream-muted last:border-r-0 transition-colors duration-100 ${
         isOver ? "bg-forest-pale/50" : ""
@@ -208,7 +246,7 @@ function DraggableTrayBlock({ id }: { id: string }) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      style={{ opacity: isDragging ? 0.2 : 1 }}
+      style={{ ...DRAGGABLE_TOUCH_STYLE, opacity: isDragging ? 0.2 : 1 }}
       className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-grab active:cursor-grabbing select-none transition-all shadow-sm hover:shadow-md ${block.bgClass} ${block.textClass} ${block.borderClass}`}
     >
       <span className="text-base leading-none">{block.emoji}</span>
@@ -242,6 +280,7 @@ function DraggableTimelineBlock({
       {...listeners}
       {...attributes}
       style={{
+        ...DRAGGABLE_TOUCH_STYLE,
         position: "absolute",
         left: startSlot * SLOT_WIDTH,
         width: block.slots * SLOT_WIDTH,
@@ -296,9 +335,7 @@ export default function Scene5({ onComplete }: Scene5Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoverSlot, setHoverSlot] = useState<number | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSceneSensors(keyboardCoordinates);
 
   const unplacedBlocks = BLOCKS.filter((b) => !placed.has(b.id));
   const canConfirm = filledSlots >= REQUIRED_SLOTS;
@@ -309,11 +346,7 @@ export default function Scene5({ onComplete }: Scene5Props) {
   }
 
   function handleDragOver({ over }: DragOverEvent) {
-    if (over && typeof over.id === "string" && over.id.startsWith("slot-")) {
-      setHoverSlot(parseInt(over.id.split("-")[1], 10));
-    } else {
-      setHoverSlot(null);
-    }
+    setHoverSlot(over ? slotIndexOf(over.id) : null);
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -327,10 +360,8 @@ export default function Scene5({ onComplete }: Scene5Props) {
       return;
     }
 
-    const overId = over.id as string;
-    if (!overId.startsWith("slot-")) return;
-
-    const slotIndex = parseInt(overId.split("-")[1], 10);
+    const slotIndex = slotIndexOf(over.id);
+    if (slotIndex === null) return;
     placeBlock(blockId, slotIndex);
     // If placeBlock fails (overlap / out of bounds), the block stays
     // at its previous position (or in the tray if it wasn't placed).
@@ -353,11 +384,18 @@ export default function Scene5({ onComplete }: Scene5Props) {
           <strong className="text-ink-primary">3 hours</strong> to continue. Blocks
           can&apos;t overlap — not everything needs to fit.
         </p>
+        <p className="text-xs text-ink-tertiary">
+          On a touchscreen, press and hold a block to pick it up; a quick swipe scrolls
+          the timeline. With a keyboard, Space picks a block up, the left and right
+          arrows move it a half hour, down takes it off the timeline, and Space puts
+          it down.
+        </p>
       </div>
 
       <DndContext
         sensors={sensors}
-        collisionDetection={pointerWithin}
+        collisionDetection={collisionDetection}
+        accessibility={{ announcements }}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}

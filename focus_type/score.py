@@ -6,6 +6,9 @@ recommendations.  All scoring rules come directly from FOCUSTYPE_SPEC.md.
 
 from __future__ import annotations
 
+import math
+from typing import Any
+
 # ---------------------------------------------------------------------------
 # Dimensions
 # ---------------------------------------------------------------------------
@@ -121,7 +124,13 @@ _S4_ALMOST_ALL_TOMORROW_THRESHOLD = 6  # 6+ of 8 in TOMORROW
 def _score_scene_4(scene_4: dict) -> dict[str, int]:
     now     = set(scene_4.get("now", []))
     tomorrow = set(scene_4.get("tomorrow", []))
-    avg_ms  = scene_4.get("avg_decision_time_ms", 1500)
+    # Average over the cards the user actually clicked. Timed-out cards are not
+    # decisions and the client leaves them out; when every card timed out it
+    # sends null, and a missing or null value is no timing signal at all --
+    # neither rule below fires. (It used to arrive as 0, which read as the
+    # fastest decider possible and handed a user who never clicked +1
+    # reactivity.)
+    avg_ms  = scene_4.get("avg_decision_time_ms")
 
     scores: dict[str, int] = {d: 0 for d in DIMENSIONS}
 
@@ -136,10 +145,11 @@ def _score_scene_4(scene_4: dict) -> dict[str, int]:
     if len(tomorrow) >= _S4_ALMOST_ALL_TOMORROW_THRESHOLD:
         scores["burst_energy"] += 2
 
-    if avg_ms < 1500:
-        scores["reactivity"] += 1
-    if avg_ms >= 3000:
-        scores["deep_focus"] += 1
+    if avg_ms is not None:
+        if avg_ms < 1500:
+            scores["reactivity"] += 1
+        if avg_ms >= 3000:
+            scores["deep_focus"] += 1
 
     return scores
 
@@ -272,6 +282,68 @@ _RECOMMENDATIONS: dict[str, list[str]] = {
 
 
 # ---------------------------------------------------------------------------
+# Payload shape checks
+# ---------------------------------------------------------------------------
+#
+# The request schema accepts any JSON object or list per scene, so a body such
+# as ``scene_2.now: 5`` reaches the scorers above, which would fail with a
+# TypeError (a 500). These checks run first and turn such a body into a
+# FocusTypePayloadError, which the service answers with a 400. They check shape
+# only; unknown card ids still score nothing, as before.
+
+
+class FocusTypePayloadError(ValueError):
+    """A scene payload whose shape the scorers cannot read."""
+
+
+def _is_number(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def _require_str_list(value: Any, where: str) -> None:
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        raise FocusTypePayloadError("%s must be a list of strings" % where)
+
+
+def _require_dict(value: Any, where: str) -> None:
+    if not isinstance(value, dict):
+        raise FocusTypePayloadError("%s must be an object" % where)
+
+
+def validate_scenes(
+    scene_1: Any, scene_2: Any, scene_3: Any, scene_4: Any, scene_5: Any
+) -> None:
+    """Raise FocusTypePayloadError if any scene has a shape the scorers cannot read."""
+    _require_str_list(scene_1, "scene_1")
+
+    _require_dict(scene_2, "scene_2")
+    for bucket in ("now", "later", "ignore"):
+        if bucket in scene_2:
+            _require_str_list(scene_2[bucket], "scene_2.%s" % bucket)
+
+    _require_dict(scene_3, "scene_3")
+    for key in _S3_DIM_MAP:
+        if key in scene_3 and not _is_number(scene_3[key]):
+            raise FocusTypePayloadError("scene_3.%s must be a number" % key)
+
+    _require_dict(scene_4, "scene_4")
+    for bucket in ("now", "tomorrow"):
+        if bucket in scene_4:
+            _require_str_list(scene_4[bucket], "scene_4.%s" % bucket)
+    avg_ms = scene_4.get("avg_decision_time_ms")
+    if avg_ms is not None and not (_is_number(avg_ms) and avg_ms >= 0):
+        raise FocusTypePayloadError(
+            "scene_4.avg_decision_time_ms must be a non-negative number or null"
+        )
+
+    _require_str_list(scene_5, "scene_5")
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -289,12 +361,19 @@ def score_focus_type(
         scene_2: {"now": [...], "later": [...], "ignore": [...]} triage buckets.
         scene_3: {"deep_solo": hrs, "planning": hrs, "social": hrs,
                   "breaks": hrs, "exploring": hrs} — must sum to ~4.
-        scene_4: {"now": [...], "tomorrow": [...], "avg_decision_time_ms": int}.
+        scene_4: {"now": [...], "tomorrow": [...],
+                  "avg_decision_time_ms": int | None} -- None (or absent)
+                  when the user clicked no card, which scores no timing.
         scene_5: Block IDs in timeline order.
 
     Returns:
         {"archetype": str, "dimension_scores": {dim: int}, "recommendations": [str]}
+
+    Raises:
+        FocusTypePayloadError: a scene's shape cannot be scored.
     """
+    validate_scenes(scene_1, scene_2, scene_3, scene_4, scene_5)
+
     totals: dict[str, int] = {d: 0 for d in DIMENSIONS}
 
     for scene_scores in (

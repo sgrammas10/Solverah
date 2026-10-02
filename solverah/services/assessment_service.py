@@ -132,6 +132,30 @@ def _chat_json(messages: List[Dict[str, Any]], model_env: str, default_model: st
 # Work Pulse Lite-Lite (anonymous teaser)
 # ---------------------------------------------------------------------------
 
+def _wpll_answers_error(answers: Any) -> Optional[str]:
+    """Why a WPLL answers list cannot be scored, or None when it can.
+
+    Shared by :func:`wpll_insight` and :func:`precheck` so the enqueue and the
+    worker refuse the same bodies. The request schema lets ``question_id`` and
+    ``option_id`` be null; the rules engine cannot read a null, so an answer
+    without both strings is a 400 at the door, not a failed job later.
+    """
+    if not isinstance(answers, list):
+        return "answers must be a list"
+    if len(answers) == 0:
+        return "answers is required"
+    if len(answers) > WPLL_MAX_ANSWERS:
+        return "Too many answers"
+    for answer in answers:
+        if not isinstance(answer, dict):
+            return "each answer must be an object"
+        if not isinstance(answer.get("question_id"), str) or not isinstance(
+            answer.get("option_id"), str
+        ):
+            return "each answer needs a question_id and an option_id"
+    return None
+
+
 def wpll_insight(answers: Any) -> AssessmentResult:
     """Generate the anonymous WPLL teaser insight.
 
@@ -144,12 +168,9 @@ def wpll_insight(answers: Any) -> AssessmentResult:
     """
     from work_pulse.insight_engine import LOCKED_SECTION_TITLES, generate_result
 
-    if not isinstance(answers, list):
-        return _error(400, "answers must be a list")
-    if len(answers) == 0:
-        return _error(400, "answers is required")
-    if len(answers) > WPLL_MAX_ANSWERS:
-        return _error(400, "Too many answers")
+    refusal = _wpll_answers_error(answers)
+    if refusal is not None:
+        return _error(400, refusal)
 
     insight_text = None
     try:
@@ -316,21 +337,26 @@ def _store(user_id: int, kind: str, *, answers, result, narrative=None) -> None:
 def submit_focus_type(user: User, data: Dict[str, Any]) -> AssessmentResult:
     """Score and persist a FocusType result.
 
-    Entirely deterministic -- no LLM, so no failure mode beyond a bad payload.
+    Entirely deterministic -- no LLM, so no failure mode beyond a bad payload,
+    and a bad payload is a 400: the request schema admits any object or list
+    per scene, so the shape checks live with the scorer that reads them.
     """
-    from focus_type.score import score_focus_type
+    from focus_type.score import FocusTypePayloadError, score_focus_type
 
     missing = ["scene_%d" % i for i in range(1, 6) if "scene_%d" % i not in data]
     if missing:
         return _error(400, "Missing scene payloads: %s" % ", ".join(missing))
 
-    result = score_focus_type(
-        data["scene_1"],
-        data["scene_2"],
-        data["scene_3"],
-        data["scene_4"],
-        data["scene_5"],
-    )
+    try:
+        result = score_focus_type(
+            data["scene_1"],
+            data["scene_2"],
+            data["scene_3"],
+            data["scene_4"],
+            data["scene_5"],
+        )
+    except FocusTypePayloadError as exc:
+        return _error(400, str(exc))
 
     user_id = user.id  # a value: the commit below expires the user row
     _store(user_id, "focus_type", answers=data, result=result)
@@ -579,7 +605,9 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
     is held honest by ``tests/test_scoring_jobs.py``, which sends the same
     malformed body through the enqueue's precheck and through a directly-run
     job and asserts the two report the same error -- so the copy cannot drift
-    without a test failing.
+    without a test failing. WPLL's guard is the exception: its per-answer
+    check grew past a length test, so both callers share
+    :func:`_wpll_answers_error` rather than carry two copies of it.
 
     Returns None when there is nothing to object to.  A None here is not a
     promise the scoring will succeed: the provider can still fail, and that is
@@ -595,17 +623,20 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
         answers = data.get("answers")
         if not isinstance(answers, list) or len(answers) != MANAGER_MATCH_ANSWER_COUNT:
             return _error(400, "answers must be a list of exactly 15 items")
+        # The scorer is pure and calls no provider, so running it here costs
+        # nothing and turns a bad question_id or choice into a 400 at the door
+        # rather than a failed job. Its error text is the worker's, word for word.
+        from manager_match.score import score_manager_match
+
+        try:
+            score_manager_match(answers)
+        except ValueError as exc:
+            return _error(400, str(exc))
         return None
 
     if kind.key == "wpll":
-        answers = data.get("answers", [])
-        if not isinstance(answers, list):
-            return _error(400, "answers must be a list")
-        if len(answers) == 0:
-            return _error(400, "answers is required")
-        if len(answers) > WPLL_MAX_ANSWERS:
-            return _error(400, "Too many answers")
-        return None
+        refusal = _wpll_answers_error(data.get("answers", []))
+        return None if refusal is None else _error(400, refusal)
 
     return None
 

@@ -195,8 +195,15 @@ def score_answers(answers: list[dict]) -> dict[str, int]:
     """
     scores = {dim: 0 for dim in QUESTION_DIMENSIONS.values()}
     for answer in answers:
-        q_id = answer.get("question_id", "")
-        o_id = answer.get("option_id", "")
+        if not isinstance(answer, dict):
+            continue
+        q_id = answer.get("question_id")
+        o_id = answer.get("option_id")
+        # A null or non-string id is skipped like an unknown one. The service
+        # refuses such bodies with a 400 before they get here; this keeps the
+        # engine itself from raising on one.
+        if not isinstance(q_id, str) or not isinstance(o_id, str):
+            continue
         dim = QUESTION_DIMENSIONS.get(q_id)
         if not dim:
             continue
