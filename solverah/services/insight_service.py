@@ -50,8 +50,20 @@ class InsightResult:
         return self.status < 400
 
 
-def _error(status: int, message: str) -> InsightResult:
-    return InsightResult(status=status, body={"error": message})
+#: Generic text for a failed generation. The provider's own error stays in the log.
+_GENERATION_FAILED_MESSAGE = "We couldn't generate your insight right now. Please try again in a moment."
+
+#: Total answered items across every quiz in one request. The schema caps each
+#: quiz (40 items) and the quiz count (8); this caps the product. The six real
+#: quizzes together come to 78.
+MAX_TOTAL_ITEMS = 120
+
+
+def _error(status: int, message: str, code: Optional[str] = None) -> InsightResult:
+    body: Dict[str, Any] = {"error": message}
+    if code:
+        body["code"] = code
+    return InsightResult(status=status, body=body)
 
 
 def normalize_quizzes(quizzes: Any) -> List[Dict[str, Any]]:
@@ -97,17 +109,19 @@ def _generate(quiz_group: str, quizzes: List[Dict[str, Any]], logger) -> Tuple[A
             model=model,
             messages=insight_prompts.build_quiz_insight_prompt(quiz_group, quizzes),
             response_format={"type": "json_object"},
+            max_completion_tokens=llm.QUIZ_INSIGHT_MAX_COMPLETION_TOKENS,
         )
         insight_payload = json.loads(response.choices[0].message.content or "{}")
-    except Exception as exc:  # noqa: BLE001 -- surfaced to the caller
-        logger.exception("Quiz insight generation failed")
-        # The exception type and message are included deliberately: this is an
-        # operator-facing failure on a feature that is easy to misconfigure
-        # (missing key, wrong model name), and the class name is the fastest
-        # route to the cause. It leaks no user data and no stack frames.
-        return None, _error(
-            500, "Unable to generate insight: %s: %s" % (type(exc).__name__, exc)
-        ), model
+    except Exception as exc:  # noqa: BLE001 -- logged, then answered generically
+        # The exception type and message go to the log, not the response
+        # (2026-10-02 audit #4). The body used to carry them -- "the fastest
+        # route to the cause" for an operator -- but the modal rendered that
+        # body to users, provider error text and all. The log line has the
+        # traceback, and `code` tells a client which failure this was.
+        logger.exception(
+            "Quiz insight generation failed (model=%s): %s: %s", model, type(exc).__name__, exc
+        )
+        return None, _error(500, _GENERATION_FAILED_MESSAGE, "insight_generation_failed"), model
 
     normalized = insight_prompts.coerce_insight_payload(insight_payload, quiz_group, quizzes)
     return normalized, None, model
@@ -121,6 +135,8 @@ def _validate_request(quiz_group: str, quizzes: Any):
     normalized = normalize_quizzes(quizzes)
     if not normalized:
         return None, _error(400, "No valid quiz answers provided")
+    if sum(len(quiz["items"]) for quiz in normalized) > MAX_TOTAL_ITEMS:
+        return None, _error(400, "Too many quiz answers in one request")
     return normalized, None
 
 
@@ -147,7 +163,7 @@ def generate_for_guest(data: Dict[str, Any], logger) -> InsightResult:
     overall_summary = overall_insight.get("summary") if isinstance(overall_insight, dict) else None
 
     if not isinstance(insights, list):
-        return _error(500, "Malformed insight response")
+        return _error(500, _GENERATION_FAILED_MESSAGE, "insight_malformed")
 
     return InsightResult(
         status=200,
@@ -187,12 +203,16 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
     overall_insight = payload.get("overallInsight") if isinstance(payload, dict) else None
 
     if not isinstance(insights, list):
-        return _error(500, "Malformed insight response")
+        return _error(500, _GENERATION_FAILED_MESSAGE, "insight_malformed")
 
     if user_id is None:
         return _error(404, "User not found")
 
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    posted_keys = [quiz["key"] for quiz in normalized]
+    # What the response reports as the group's synthesis: for careerQuizzes,
+    # the one actually stored, which a partial post leaves unchanged.
+    reported_overall: Dict[str, Any] = {"value": overall_insight}
 
     def store(stored: Any) -> Dict[str, Any]:
         # `quizInsights` is one profile key, written as one: the rest of the
@@ -200,13 +220,25 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
         quiz_insights = dict(stored) if isinstance(stored, dict) else {}
 
         if quiz_group == CAREER_QUIZ_GROUP:
-            quiz_insights[CAREER_QUIZ_GROUP] = _career_group_store(
+            group = _career_group_store(
                 quiz_insights.get(CAREER_QUIZ_GROUP),
                 insights,
                 overall_insight,
                 timestamp,
                 model,
+                posted_keys,
             )
+            quiz_insights[CAREER_QUIZ_GROUP] = group
+            reported_overall["value"] = group.get("_overallInsight")
+            # Before 2026-10-02 the guest replay stored two of these quizzes as
+            # flat groups of their own (G16). Once the quiz has an entry in the
+            # career group, the flat copy is a stale duplicate that the agent
+            # context would read twice; drop it -- but only once the nested entry
+            # exists. A model response can omit a posted quiz, and deleting the
+            # flat copy then would lose that insight outright.
+            for key in posted_keys:
+                if key != CAREER_QUIZ_GROUP and key in group and key in quiz_insights:
+                    del quiz_insights[key]
         else:
             quiz_insights[quiz_group] = _single_group_store(
                 insights, overall_insight, timestamp, model
@@ -220,23 +252,43 @@ def generate_for_user(user: Optional[User], data: Dict[str, Any], logger) -> Ins
         status=200,
         body={
             "quizGroup": quiz_group,
-            "overallInsight": overall_insight,
+            "overallInsight": reported_overall["value"],
             "insights": insights,
         },
     )
 
 
-def _career_group_store(existing, insights, overall_insight, timestamp, model) -> Dict[str, Any]:
+def _stored_quiz_keys(group: Dict[str, Any]) -> set:
+    """The quiz entries in a stored career group: not metadata, dict-valued."""
+    return {
+        key for key, value in group.items()
+        if not key.startswith("_") and isinstance(value, dict)
+    }
+
+
+def _career_group_store(
+    existing, insights, overall_insight, timestamp, model, posted_keys=()
+) -> Dict[str, Any]:
     """The careerQuizzes group stores one entry per quiz, keyed by quiz key.
 
     Merged over what is already there rather than replacing it, so generating
     insights for one quiz does not erase the others. The underscore-prefixed
     keys are group-level metadata and cannot collide with a quiz key.
+
+    ``_overallInsight`` is the page's "Across all your quizzes" card, so it is
+    replaced only by a synthesis that saw every quiz the group already holds
+    (2026-10-02 audit #6). A post of one quiz into a group holding three used
+    to overwrite it with a one-quiz synthesis under that heading. A partial
+    post now updates its own entries and leaves the synthesis as it was; the
+    SPA posts every saved quiz together, so the synthesis stays current.
+    ``_overallKeys`` records which quizzes the stored synthesis covers.
     """
     store = dict(existing) if isinstance(existing, dict) else {}
 
-    if overall_insight and isinstance(overall_insight, dict):
+    covers_all = _stored_quiz_keys(store) <= set(posted_keys)
+    if overall_insight and isinstance(overall_insight, dict) and covers_all:
         store["_overallInsight"] = overall_insight
+        store["_overallKeys"] = sorted(set(posted_keys))
     store["_generatedAt"] = timestamp
     store["_model"] = model
 
@@ -245,6 +297,11 @@ def _career_group_store(existing, insights, overall_insight, timestamp, model) -
             continue
         key = insight.get("key")
         if not key:
+            continue
+        # Only quizzes that were actually posted. A key the model invented
+        # would sit in the group as a "stored quiz" no later post ever covers,
+        # so `covers_all` would stay False and the combined card never update.
+        if posted_keys and key not in posted_keys:
             continue
         store[key] = {
             "title": insight.get("title"),

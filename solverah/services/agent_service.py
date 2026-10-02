@@ -45,14 +45,58 @@ import time
 from collections import OrderedDict
 from pathlib import Path
 from threading import Lock
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from model import User
 from solverah.infra import storage
 from solverah.repositories import company_repository, profile_repository
 from solverah.services import resume_service
 
-__all__ = ["build_agent_context", "fetch_resume_text", "resume_text_for", "system_prompt_for"]
+__all__ = [
+    "AGENT_HISTORY_MAX_CHARS",
+    "bounded_history",
+    "build_agent_context",
+    "fetch_resume_text",
+    "resume_text_for",
+    "system_prompt_for",
+]
+
+#: Character budget for the conversation history sent with one turn (2026-10-02
+#: audit #5). The schema caps each message and the message count; this caps
+#: their sum, so a long chat keeps working -- its oldest turns fall off -- rather
+#: than growing every turn's input bill without bound.
+AGENT_HISTORY_MAX_CHARS = 16000
+
+
+def bounded_history(messages: List[Any]) -> List[Dict[str, str]]:
+    """The newest turns that fit :data:`AGENT_HISTORY_MAX_CHARS`, oldest first.
+
+    Each message is rebuilt as exactly ``{"role", "content"}`` with the role
+    limited to ``user``/``assistant``: anything else the client put on it is
+    not forwarded to the provider, and a ``system`` message is dropped (the
+    request schema already rejects one; this is the second line). The newest
+    message is always kept, even alone over budget -- the schema's per-message
+    cap bounds it.
+    """
+    cleaned: List[Dict[str, str]] = []
+    for message in messages or []:
+        if not isinstance(message, dict):
+            continue
+        role = message.get("role")
+        content = message.get("content")
+        if role not in ("user", "assistant") or not isinstance(content, str):
+            continue
+        cleaned.append({"role": role, "content": content})
+
+    kept: List[Dict[str, str]] = []
+    total = 0
+    for message in reversed(cleaned):
+        total += len(message["content"])
+        if kept and total > AGENT_HISTORY_MAX_CHARS:
+            break
+        kept.append(message)
+    kept.reverse()
+    return kept
 
 _resume_cache: "OrderedDict[str, tuple]" = OrderedDict()  # resumeKey -> (text, expires_at)
 _resume_cache_lock = Lock()

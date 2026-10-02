@@ -9,6 +9,21 @@ interface Message {
   content: string;
 }
 
+/** Turns sent per request; the server rejects more than 40. */
+const MAX_HISTORY_MESSAGES = 20;
+/** The server's per-message cap (AGENT_MESSAGE_MAX_CHARS). */
+const MAX_MESSAGE_CHARS = 4000;
+
+const CUT_OFF_MESSAGE = 'The reply was cut off before it finished. Please try again.';
+const EMPTY_REPLY_MESSAGE = "The assistant didn't send a reply. Please try again.";
+
+/** The newest turns, each inside the server's per-message cap. */
+function historyForRequest(messages: Message[]): Message[] {
+  return messages
+    .slice(-MAX_HISTORY_MESSAGES)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }));
+}
+
 function AgentChat() {
   const { streamFetch } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,6 +43,10 @@ function AgentChat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
+  // Leaving the page mid-reply cancels the stream rather than letting it run
+  // on, billed, into a component that is gone (audit 2026-10-02 #13).
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
@@ -46,7 +65,9 @@ function AgentChat() {
     try {
       const response = await streamFetch('/agent/messages', {
         method: 'POST',
-        body: JSON.stringify({ messages: nextMessages }),
+        // The newest turns only, inside the server's caps (40 messages of
+        // 4,000 characters; it trims the oldest further to its own budget).
+        body: JSON.stringify({ messages: historyForRequest(nextMessages) }),
         signal: controller.signal,
       });
 
@@ -62,8 +83,9 @@ function AgentChat() {
       let buffer = '';
       let assistantContent = '';
       let started = false;
+      let finished = false;
 
-      while (true) {
+      while (!finished) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -76,8 +98,13 @@ function AgentChat() {
           let event: any;
           try { event = JSON.parse(payload); } catch { continue; }
           if (event.error) throw new Error(event.error);
+          if (event.done) {
+            finished = true;
+            break;
+          }
           if (event.chunk) {
             assistantContent += event.chunk;
+            // Rendered as it arrives -- no artificial per-chunk delay.
             if (!started) {
               setMessages([...nextMessages, { role: 'assistant', content: assistantContent }]);
               started = true;
@@ -88,12 +115,17 @@ function AgentChat() {
                 return updated;
               });
             }
-            await new Promise(resolve => setTimeout(resolve, 40));
           }
         }
       }
+
+      if (!finished) throw new Error(CUT_OFF_MESSAGE);
+      if (!assistantContent.trim()) throw new Error(EMPTY_REPLY_MESSAGE);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
+      // A partial or failed reply is dropped, so it is never sent back as
+      // history on the next turn. The user's own message stays.
+      if (!controller.signal.aborted) setMessages(nextMessages);
       const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       setError(message);
     } finally {
@@ -207,6 +239,7 @@ function AgentChat() {
           onKeyDown={handleKeyDown}
           placeholder="Message Solverah AI… (Enter to send, Shift+Enter for new line)"
           rows={2}
+          maxLength={MAX_MESSAGE_CHARS}
           disabled={isLoading}
           className="flex-1 resize-none rounded-xl border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder-ink-tertiary focus:outline-none focus:ring-2 focus:ring-forest-mid disabled:opacity-50"
         />

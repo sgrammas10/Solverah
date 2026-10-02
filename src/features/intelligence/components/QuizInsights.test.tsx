@@ -175,3 +175,58 @@ describe("QuizInsights - navigation", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
   });
 });
+
+// ─── one insight home (audit 2026-10-02 #7 / G16) ──────────────────────────────
+
+describe("QuizInsights - storage and read paths agree", () => {
+  it("shows a stand-alone quiz's nested insight under the career group", async () => {
+    mockProfile = {
+      quizInsights: {
+        careerQuizzes: { careerJobSearch: { title: "Career & Job Search", summary: "Nested CJS." } },
+      },
+    };
+    renderQuizInsights("?group=careerQuizzes");
+    await waitFor(() => expect(screen.getByText("Nested CJS.")).toBeInTheDocument());
+  });
+
+  it("shows a legacy flat insight (the old guest replay) under the career group", async () => {
+    mockProfile = {
+      quizInsights: { yourFutureYourWay: { title: "Your Future, Your Way", summary: "Flat YF." } },
+    };
+    renderQuizInsights("?group=careerQuizzes");
+    await waitFor(() => expect(screen.getByText("Flat YF.")).toBeInTheDocument());
+  });
+
+  it("an old single-quiz link finds the nested entry", async () => {
+    mockProfile = {
+      quizInsights: { careerQuizzes: { careerJobSearch: { title: "CJS", summary: "Nested CJS." } } },
+    };
+    renderQuizInsights("?group=careerJobSearch");
+    await waitFor(() => expect(screen.getByText("Nested CJS.")).toBeInTheDocument());
+  });
+
+  it("falls back to the just-generated insight while the profile lacks it", async () => {
+    mockProfile = { quizInsights: { somethingElse: {} } };
+    renderQuizInsights("?group=careerQuizzes", {
+      insight: {
+        overallInsight: { summary: "Signed-in synthesis." },
+        insights: [{ title: "Fresh", summary: "Just generated." }],
+      },
+    });
+    await waitFor(() => expect(screen.getByText("Just generated.")).toBeInTheDocument());
+    expect(screen.getByText("Signed-in synthesis.")).toBeInTheDocument();
+  });
+
+  it("does not crash on stored list fields that are not lists", async () => {
+    mockProfile = {
+      quizInsights: {
+        careerQuizzes: {
+          earlyCareer: { title: "Early", summary: "x", keyTakeaways: "a string", nextSteps: 7 },
+          _overallInsight: { summary: "Overall", keyTakeaways: "also a string" },
+        },
+      },
+    };
+    renderQuizInsights("?group=careerQuizzes");
+    await waitFor(() => expect(screen.getByText("Overall")).toBeInTheDocument());
+  });
+});

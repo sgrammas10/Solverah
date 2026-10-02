@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { getGuestInsight, hasCompletedGuestQuiz } from "../../../shared/lib/guestQuiz";
 import { CONTAINER, LEAD, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
 
 type InsightEntry = {
@@ -38,7 +39,7 @@ function InsightRow({ title, entry }: { title: string; entry: InsightEntry }) {
         {entry.summary ? (
           <p className="text-[1.02rem] leading-[1.65] text-ink-primary">{entry.summary}</p>
         ) : null}
-        {entry.keyTakeaways?.length ? (
+        {Array.isArray(entry.keyTakeaways) && entry.keyTakeaways.length ? (
           <div>
             <h3 className={SUBHEAD}>Key takeaways</h3>
             <Bullets items={entry.keyTakeaways} />
@@ -50,7 +51,7 @@ function InsightRow({ title, entry }: { title: string; entry: InsightEntry }) {
             <p className="mt-2.5 text-[0.97rem] leading-[1.6] text-ink-secondary">{entry.combinedMeaning}</p>
           </div>
         ) : null}
-        {entry.nextSteps?.length ? (
+        {Array.isArray(entry.nextSteps) && entry.nextSteps.length ? (
           <div>
             <h3 className={SUBHEAD}>Next steps</h3>
             <Bullets items={entry.nextSteps} />
@@ -65,7 +66,13 @@ export default function GuestQuizInsights() {
   const location = useLocation();
   const navigate = useNavigate();
   const state = location.state as { insight?: InsightPayload } | null;
-  const insight = state?.insight;
+  // G20: router state alone did not survive a reload or a fresh tab. The
+  // insight is stored with the pending save once it succeeds, so that is the
+  // fallback; router state still wins when both are present.
+  const insight = state?.insight?.insights?.length ? state.insight : getGuestInsight();
+  // The quiz list is locked after one guest quiz, so "Choose a quiz" would
+  // land on a page with nothing to choose. Offer the account instead.
+  const lockedOut = hasCompletedGuestQuiz();
 
   return (
     <div className="landing min-h-screen bg-cream-base font-body text-ink-primary antialiased">
@@ -97,12 +104,26 @@ export default function GuestQuizInsights() {
 
         {!insight?.insights?.length ? (
           <div className="mt-12 border-t border-cream-muted pt-8">
-            <p className="text-[1.02rem] leading-[1.6] text-ink-secondary">
-              No insights found. Take a quiz to generate your insights.
-            </p>
-            <button type="button" onClick={() => navigate("/quiz-preview")} className={`mt-6 ${SECONDARY}`}>
-              Choose a quiz
-            </button>
+            {lockedOut ? (
+              <>
+                <p className="text-[1.02rem] leading-[1.6] text-ink-secondary">
+                  We couldn’t find your insight on this device. Sign in or create an account to take
+                  more quizzes and keep your results.
+                </p>
+                <button type="button" onClick={() => navigate("/login")} className={`mt-6 ${SECONDARY}`}>
+                  Sign in
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[1.02rem] leading-[1.6] text-ink-secondary">
+                  No insights found. Take a quiz to generate your insights.
+                </p>
+                <button type="button" onClick={() => navigate("/quiz-preview")} className={`mt-6 ${SECONDARY}`}>
+                  Choose a quiz
+                </button>
+              </>
+            )}
           </div>
         ) : (
           <div className="mt-12">

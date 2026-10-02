@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { getPendingQuizSave, hasCompletedGuestQuiz } from "../../../shared/lib/guestQuiz";
+import { getGuestInsight, getPendingQuizSave, hasCompletedGuestQuiz } from "../../../shared/lib/guestQuiz";
 import { CONTAINER, LEAD, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
 
 interface QuizRow {
@@ -52,6 +52,7 @@ function LockIcon() {
  */
 export default function GuestQuizPreview() {
   const lockedOut = hasCompletedGuestQuiz() || Boolean(getPendingQuizSave());
+  const hasInsight = Boolean(getGuestInsight());
 
   return (
     <div className="landing min-h-screen bg-cream-base font-body text-ink-primary antialiased">
@@ -81,6 +82,14 @@ export default function GuestQuizPreview() {
           >
             You’ve already taken a guest quiz. Create an account or sign in to take more and save
             your results.
+            {hasInsight ? (
+              <>
+                {" "}
+                <Link to="/quiz-preview/insights" className="font-semibold text-forest-mid underline">
+                  See your insight
+                </Link>
+              </>
+            ) : null}
           </p>
         )}
 

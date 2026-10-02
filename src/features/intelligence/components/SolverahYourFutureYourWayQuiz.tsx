@@ -1,33 +1,39 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { useAuth } from "../../auth";
 import { useProfileActions } from "../../profile";
 import {
   yourFutureYourWayIntro,
   yourFutureYourWayQuestions,
 } from "../data/solverahYourFutureYourWayQuiz";
 import QuizInsightModal from "./QuizInsightModal";
-import { API_BASE } from "../../../shared/api/api";
-import { markGuestQuizCompleted, setPendingQuizSave } from "../../../shared/lib/guestQuiz";
-import { useQuizInsight } from "../useQuizInsight";
-import { parseApiError } from "../../../shared/api/apiError";
-
+import {
+  YOUR_FUTURE_KEY,
+  CAREER_QUIZ_GROUP,
+  buildSingleQuizPayload,
+  hasAnswers,
+  quizDefinition,
+  storedInsightFor,
+  storedOverallInsight,
+} from "../quizPayload";
+import { useQuizSubmission } from "../useQuizSubmission";
 
 /* ===========================================================
    COMPONENT: YourFutureYourWayTab
    -----------------------------------------------------------
    Responsibilities:
-   ✔ Render the quiz UI
-   ✔ Track selected answers
-   ✔ Save results into the user's profile via AuthContext
+   ✔ Render quiz sections and questions
+   ✔ Track selected answers in local state
+   ✔ Persist results to profile; submit through useQuizSubmission
    =========================================================== */
 type YourFutureYourWayTabProps = {
   guest?: boolean;
 };
 
+const QUIZ = quizDefinition(YOUR_FUTURE_KEY)!;
+
 export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProps) {
-  // answers: maps question id → selected option index (0–3)
+  // answers maps questionId → selected option index (0–3)
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
@@ -39,12 +45,14 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
     insightError,
     insightResponse,
     setInsightResponse,
-    openInsight,
     handleInsightClose,
-  } = useQuizInsight();
+    saveError,
+    saving,
+    submitGuest,
+    submitSignedIn,
+  } = useQuizSubmission();
 
-  const { fetchWithAuth } = useAuth();
-  const { fetchProfileData, saveProfileData } = useProfileActions();
+  const { fetchProfileData } = useProfileActions();
   const navigate = useNavigate();
   useEffect(() => {
     (async () => {
@@ -60,7 +68,7 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
         }
         const current = await fetchProfileData();
         const profileData = current?.profileData || current || {};
-        const saved = (profileData as any)?.quizResults?.yourFutureYourWay;
+        const saved = (profileData as any)?.quizResults?.[YOUR_FUTURE_KEY];
         if (saved && typeof saved === "object") {
           setAnswers(saved);
           setHasSaved(true);
@@ -68,19 +76,15 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
         } else {
           setIsEditing(true);
         }
-        const stored = (profileData as any)?.quizInsights?.yourFutureYourWay;
-        if (stored && typeof stored === "object") {
+        // Signed-in writes nest under careerQuizzes.<key>; the flat key is a
+        // pre-2026-10-02 fallback (audit #7). This read used the flat key only,
+        // so a stored insight never preloaded.
+        const quizInsights = (profileData as any)?.quizInsights;
+        const stored = storedInsightFor(quizInsights, YOUR_FUTURE_KEY);
+        if (stored) {
           setInsightResponse({
-            overallSummary: stored.overallSummary || null,
-            insights: [
-              {
-                title: stored.title,
-                summary: stored.summary,
-                keyTakeaways: stored.keyTakeaways,
-                combinedMeaning: stored.combinedMeaning,
-                nextSteps: stored.nextSteps,
-              },
-            ],
+            overallInsight: storedOverallInsight(quizInsights),
+            insights: [{ ...stored, title: stored.title || QUIZ.title }],
           });
         }
       } catch (err) {
@@ -88,130 +92,41 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
         setIsEditing(true);
       }
     })();
-  }, [fetchProfileData, guest]);
+  }, [fetchProfileData, guest, setInsightResponse]);
 
   /* ---------------------------------------------------------
      onChange
      ---------------------------------------------------------
-     Updates the selected answer for a single question.
+     Update the selected answer for a given question.
      qid = question id
-     idx = index of chosen option
+     idx = index of the chosen option
   --------------------------------------------------------- */
-  const onChange = (qid: number, idx: number) =>
+  const onChange = (qid: number, idx: number) => {
     setAnswers((prev) => ({ ...prev, [qid]: idx }));
+  };
+
+  const canSubmit = hasAnswers(answers) && !saving && !insightLoading;
 
   /* ---------------------------------------------------------
      onSubmit
      ---------------------------------------------------------
-     - Fetch existing profile data
-     - Adds/overwrites quizResults.yourFutureYourWay
-     - Saves via saveProfileData from the profile slice's useProfileActions
+     - Guest: this quiz's preview insight; stored only on success
+     - Signed in: save under quizResults.yourFutureYourWay, then generate
+       insights for every saved quiz (careerQuizzes group)
   --------------------------------------------------------- */
-  const onSubmit = () => {
-    (async () => {
-      try {
-        if (guest) {
-          markGuestQuizCompleted();
-          const payload = {
-            quizGroup: "yourFutureYourWay",
-            quizzes: [
-              {
-                key: "yourFutureYourWay",
-                title: "Your Future, Your Way",
-                items: yourFutureYourWayQuestions
-                  .map((q) => {
-                    const selectedIdx = answers?.[q.id];
-                    if (typeof selectedIdx !== "number") return null;
-                    return { question: q.text, selected: q.options[selectedIdx] };
-                  })
-                  .filter(Boolean),
-              },
-            ],
-          };
-          setPendingQuizSave({
-            quizGroup: "yourFutureYourWay",
-            quizResults: {
-              yourFutureYourWay: answers,
-              yourFutureYourWaySubmittedAt: new Date().toISOString(),
-            },
-            quizPayload: payload,
-            createdAt: new Date().toISOString(),
-          });
-          openInsight(async () => {
-            const res = await fetch(`${API_BASE}/intake/quiz-preview/insights`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            const data = await res.json().catch(() => null);
-            if (!res.ok) {
-              throw parseApiError(res, data, "Failed to generate insights.");
-            }
-            return {
-              overallSummary: data?.overallSummary || null,
-              insights: data?.insights || [],
-            };
-          });
-          return;
-        }
-        // Get current profile data if available
-        const current = await (fetchProfileData
-          ? fetchProfileData()
-          : Promise.resolve(null));
-
-        // Handle shape { profileData: {...} } or raw object
-        const profileData = current?.profileData || current || {};
-
-        const existingQuizResults = (profileData as any)?.quizResults || {};
-        const newProfileData = {
-          ...profileData,
-          quizResults: {
-            ...existingQuizResults,
-            yourFutureYourWay: answers,
-            yourFutureYourWaySubmittedAt: new Date().toISOString(),
-          },
-        };
-
-        if (saveProfileData) {
-          await saveProfileData(newProfileData);
-          setHasSaved(true);
-          setIsEditing(false);
-          if (fetchWithAuth) {
-            const payload = {
-              quizGroup: "careerQuizzes",
-              quizzes: [
-                {
-                  key: "yourFutureYourWay",
-                  title: "Your Future, Your Way",
-                  items: yourFutureYourWayQuestions
-                    .map((q) => {
-                      const selectedIdx = answers?.[q.id];
-                      if (typeof selectedIdx !== "number") return null;
-                      return { question: q.text, selected: q.options[selectedIdx] };
-                    })
-                    .filter(Boolean),
-                },
-              ],
-            };
-            openInsight(async () => {
-              const res = await fetchWithAuth("/me/quiz-insights", {
-                method: "POST",
-                body: JSON.stringify(payload),
-              });
-              return {
-                overallSummary: res.overallSummary || null,
-                insights: res.insights || [],
-              };
-            });
-          }
-        } else {
-          alert("Unable to save responses (not authenticated).");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Failed to save responses. Check console for details.");
-      }
-    })();
+  const onSubmit = async () => {
+    const quizResults = {
+      [YOUR_FUTURE_KEY]: answers,
+      [`${YOUR_FUTURE_KEY}SubmittedAt`]: new Date().toISOString(),
+    };
+    if (guest) {
+      submitGuest(buildSingleQuizPayload(QUIZ, answers), quizResults);
+      return;
+    }
+    if (await submitSignedIn(quizResults)) {
+      setHasSaved(true);
+      setIsEditing(false);
+    }
   };
 
   const handleViewInsights = () => {
@@ -220,9 +135,9 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
       return;
     }
     if (insightResponse?.insights?.length) {
-      navigate("/quiz-insights?group=careerQuizzes", { state: { insight: insightResponse } });
+      navigate(`/quiz-insights?group=${CAREER_QUIZ_GROUP}`, { state: { insight: insightResponse } });
     } else {
-      navigate("/quiz-insights?group=careerQuizzes");
+      navigate(`/quiz-insights?group=${CAREER_QUIZ_GROUP}`);
     }
   };
 
@@ -348,12 +263,18 @@ export default function YourFutureYourWayTab({ guest }: YourFutureYourWayTabProp
           </div>
 
           {/* Submit button */}
+          {saveError ? (
+            <p role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {saveError}
+            </p>
+          ) : null}
           <button
-            type="button"
             onClick={onSubmit}
-            className="mt-6 rounded-full bg-gradient-to-r from-forest-light via-forest-mid to-forest-dark px-6 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity"
+            disabled={!canSubmit}
+            className="mt-6 rounded-full bg-gradient-to-r from-forest-light via-forest-mid to-forest-dark px-6 py-3 text-sm font-semibold text-white shadow-md hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
           >
-            {guest ? "Get Insight" : "Save Answers"}
+            {saving ? "Saving…" : guest ? "Get Insight" : "Save Answers"}
           </button>
         </>
       )}

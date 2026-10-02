@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useProfile } from "../../profile";
+import { ALL_QUIZZES, CAREER_QUIZ_GROUP, storedInsightFor } from "../quizPayload";
 
 type InsightEntry = {
   title?: string;
@@ -29,6 +30,12 @@ const groupTitles: Record<string, string> = {
   yourFutureYourWay: "Your Future, Your Way Insights",
 };
 
+/** A stored list field, or nothing: a non-array must not reach `.map`. */
+const listOf = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+
+const CAREER_QUIZ_ORDER = ALL_QUIZZES.map((quiz) => quiz.key);
+
 export default function QuizInsights() {
   // The insights live inside the profile document, which useProfile() already
   // caches — reading the cache replaces the fetchProfileData() round trip this
@@ -39,12 +46,16 @@ export default function QuizInsights() {
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as {
-    insight?: { overallSummary?: string | null; insights?: InsightEntry[] };
+    insight?: {
+      overallSummary?: string | null;
+      overallInsight?: OverallInsight | null;
+      insights?: InsightEntry[];
+    };
   } | null;
 
   const group = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get("group") || "careerQuizzes";
+    return params.get("group") || CAREER_QUIZ_GROUP;
   }, [location.search]);
 
   const quizInsights = (profile as any)?.quizInsights;
@@ -55,6 +66,8 @@ export default function QuizInsights() {
 
   const renderInsightCard = (title: string, entry?: InsightEntry) => {
     if (!entry) return null;
+    const keyTakeaways = listOf(entry.keyTakeaways);
+    const nextSteps = listOf(entry.nextSteps);
     return (
       <div key={title} className="border border-cream-muted rounded-xl bg-white p-6">
         <h3 className="font-display text-lg font-semibold text-ink-primary mb-3">{title}</h3>
@@ -63,13 +76,13 @@ export default function QuizInsights() {
           <p className="text-sm text-ink-secondary leading-relaxed mb-4">{entry.summary}</p>
         )}
 
-        {entry.keyTakeaways?.length ? (
+        {keyTakeaways.length ? (
           <div className="mb-4">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">
               Key takeaways
             </p>
             <ul className="space-y-1.5">
-              {entry.keyTakeaways.map((item, idx) => (
+              {keyTakeaways.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm text-ink-secondary">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
                   {item}
@@ -88,13 +101,13 @@ export default function QuizInsights() {
           </div>
         )}
 
-        {entry.nextSteps?.length ? (
+        {nextSteps.length ? (
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">
               Next steps
             </p>
             <ul className="space-y-1.5">
-              {entry.nextSteps.map((item, idx) => (
+              {nextSteps.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm text-ink-secondary">
                   <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-mid" />
                   {item}
@@ -107,43 +120,62 @@ export default function QuizInsights() {
     );
   };
 
-  const content = (() => {
-    if (!insightsData && locationState?.insight?.insights?.length) {
-      return (
-        <div className="mt-6 grid gap-4">
-          {locationState.insight.overallSummary ? (
-            <div className="rounded-xl border border-forest-pale bg-forest-pale px-5 py-4 text-sm text-forest-dark">
-              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-mid mb-2">
-                Overall summary
-              </p>
-              <p className="leading-relaxed">{locationState.insight.overallSummary}</p>
-            </div>
-          ) : null}
-          {locationState.insight.insights.map((entry, idx) =>
-            renderInsightCard(entry.title || `Insight ${idx + 1}`, entry),
-          )}
-        </div>
-      );
-    }
+  // What the quiz page just generated, handed over in router state. Shown only
+  // when the profile document has nothing for this group yet -- e.g. the
+  // refetch after the POST has not landed.
+  const fromNavigation = (() => {
+    const insight = locationState?.insight;
+    if (!insight?.insights?.length) return null;
+    const overallSummary = insight.overallInsight?.summary || insight.overallSummary;
+    return (
+      <div className="mt-6 grid gap-4">
+        {overallSummary ? (
+          <div className="rounded-xl border border-forest-pale bg-forest-pale px-5 py-4 text-sm text-forest-dark">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-mid mb-2">
+              Overall summary
+            </p>
+            <p className="leading-relaxed">{overallSummary}</p>
+          </div>
+        ) : null}
+        {insight.insights.map((entry, idx) =>
+          renderInsightCard(entry.title || `Insight ${idx + 1}`, entry),
+        )}
+      </div>
+    );
+  })();
 
+  const stored = (() => {
     if (!insightsData) return null;
 
-    if (group === "careerQuizzes") {
-      const groupData = insightsData.careerQuizzes as InsightGroup | undefined;
-      if (!groupData) return null;
-      const CAREER_QUIZ_ORDER = ["earlyCareer", "careerTransition", "midCareer", "teenFocused", "careerJobSearch", "yourFutureYourWay"];
-      const allKeys = Object.keys(groupData).filter((key) => !key.startsWith("_"));
+    if (group === CAREER_QUIZ_GROUP) {
+      const nested = (insightsData.careerQuizzes as InsightGroup | undefined) ?? {};
+      // One entry per quiz: the nested careerQuizzes.<key> entry, else a
+      // pre-2026-10-02 flat quizInsights.<key> document (audit #7 / G16 --
+      // the guest replay used to write those, and this page never read them).
+      const entries: Record<string, InsightEntry> = {};
+      for (const key of Object.keys(nested).filter((k) => !k.startsWith("_"))) {
+        if (nested[key] && typeof nested[key] === "object") entries[key] = nested[key];
+      }
+      for (const key of CAREER_QUIZ_ORDER) {
+        if (entries[key]) continue;
+        const legacy = storedInsightFor(insightsData, key);
+        if (legacy) entries[key] = legacy;
+      }
+      const allKeys = Object.keys(entries);
+      if (!allKeys.length) return null;
       const sortedKeys = [
         ...CAREER_QUIZ_ORDER.filter((k) => allKeys.includes(k)),
         ...allKeys.filter((k) => !CAREER_QUIZ_ORDER.includes(k)),
       ];
-      const overall = groupData._overallInsight;
+      const overall = nested._overallInsight;
+      const overallTakeaways = listOf(overall?.keyTakeaways);
+      const overallSteps = listOf(overall?.nextSteps);
 
       const filterOptions = [
         { value: "all", label: "All" },
         ...sortedKeys.map((key) => ({
           value: key,
-          label: (groupData[key] as InsightEntry)?.title || key,
+          label: entries[key]?.title || key,
         })),
         ...(overall?.summary ? [{ value: "overall", label: "Overall Summary" }] : []),
       ];
@@ -155,7 +187,7 @@ export default function QuizInsights() {
 
       const cards = visibleKeys
         .map((key) => {
-          const entry = groupData[key] as InsightEntry;
+          const entry = entries[key];
           return renderInsightCard(entry?.title || key, entry);
         })
         .filter(Boolean);
@@ -191,13 +223,13 @@ export default function QuizInsights() {
                 Across All Your Quizzes
               </h3>
               <p className="text-sm leading-relaxed text-cream-subtle mb-4">{overall.summary}</p>
-              {overall.keyTakeaways?.length ? (
+              {overallTakeaways.length ? (
                 <div className="mb-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
                     Key takeaways
                   </p>
                   <ul className="space-y-1.5">
-                    {overall.keyTakeaways.map((item, idx) => (
+                    {overallTakeaways.map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-pale" />
                         {item}
@@ -206,13 +238,13 @@ export default function QuizInsights() {
                   </ul>
                 </div>
               ) : null}
-              {overall.nextSteps?.length ? (
+              {overallSteps.length ? (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-pale mb-2">
                     Next steps
                   </p>
                   <ul className="space-y-1.5">
-                    {overall.nextSteps.map((item, idx) => (
+                    {overallSteps.map((item, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-cream-subtle">
                         <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-forest-light" />
                         {item}
@@ -227,10 +259,14 @@ export default function QuizInsights() {
       );
     }
 
-    const single = insightsData[group] as InsightEntry | undefined;
-    const title = single?.title || groupTitles[group] || "Insight";
+    // A single quiz (old links name one): its nested entry, else the flat one.
+    const single = storedInsightFor(insightsData, group);
+    if (!single) return null;
+    const title = single.title || groupTitles[group] || "Insight";
     return <div className="grid gap-4">{renderInsightCard(title, single)}</div>;
   })();
+
+  const content = stored ?? fromNavigation;
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">

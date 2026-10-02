@@ -101,6 +101,35 @@ def build_quiz_insight_prompt(quiz_group: str, quizzes: list[dict]) -> list[dict
     ]
 
 
+def _as_text(value: object) -> str | None:
+    """A string field as a non-empty string or ``None``.
+
+    A list (the model sometimes answers a prose field with bullets) is joined
+    rather than dropped; anything else that is not text is ``None``.
+    """
+    if isinstance(value, str):
+        return value.strip() or None
+    if isinstance(value, list):
+        joined = " ".join(item.strip() for item in value if isinstance(item, str) and item.strip())
+        return joined or None
+    return None
+
+
+def _as_text_list(value: object) -> list[str]:
+    """A list field as a list of non-empty strings -- always a list.
+
+    The page calls ``.map`` on ``keyTakeaways`` and ``nextSteps``, so a bare
+    string, a number, or a dict from a non-compliant model response would
+    throw in the browser (2026-10-02 audit #14). A single string becomes a
+    one-item list; non-string items and blanks are dropped.
+    """
+    if isinstance(value, str):
+        return [value.strip()] if value.strip() else []
+    if isinstance(value, list):
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    return []
+
+
 def coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: list[dict]) -> dict:
     """Normalise the raw JSON returned by the OpenAI insight call.
 
@@ -123,7 +152,15 @@ def coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: lis
         return {}
     insights = payload.get("insights")
     raw_overall = payload.get("overallInsight")
-    overall_insight = raw_overall if isinstance(raw_overall, dict) else None
+    overall_insight = None
+    if isinstance(raw_overall, dict):
+        overall_insight = {
+            "summary": _as_text(raw_overall.get("summary")),
+            "keyTakeaways": _as_text_list(raw_overall.get("keyTakeaways")),
+            "nextSteps": _as_text_list(raw_overall.get("nextSteps")),
+        }
+        if not any(overall_insight.values()):
+            overall_insight = None
 
     if isinstance(insights, dict):
         insights = [insights]
@@ -141,11 +178,11 @@ def coerce_insight_payload(payload: dict, quiz_group: str, fallback_quizzes: lis
         normalized.append(
             {
                 "key": key or f"{quiz_group}-{idx+1}",
-                "title": item.get("title"),
-                "summary": item.get("summary"),
-                "keyTakeaways": item.get("keyTakeaways"),
-                "combinedMeaning": item.get("combinedMeaning"),
-                "nextSteps": item.get("nextSteps"),
+                "title": _as_text(item.get("title")),
+                "summary": _as_text(item.get("summary")),
+                "keyTakeaways": _as_text_list(item.get("keyTakeaways")),
+                "combinedMeaning": _as_text(item.get("combinedMeaning")),
+                "nextSteps": _as_text_list(item.get("nextSteps")),
             }
         )
 

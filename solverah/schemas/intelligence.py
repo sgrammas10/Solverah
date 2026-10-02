@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -12,6 +12,7 @@ __all__ = [
     "AgentChatMessage",
     "AgentChatRequest",
     "AgentMessagesRequest",
+    "LlmErrorResponse",
     "PathPreferencesDocument",
     "PathPreferencesPutRequest",
     "RecommendationsPage",
@@ -170,11 +171,30 @@ class RecommendationsResponse(SolverahModel):
     recommendations: List[Any] = Field(default_factory=list)
 
 
-class AgentChatMessage(SolverahModel):
-    model_config = ConfigDict(extra="allow")
+#: Abuse and cost caps on the agent and quiz-insight requests (2026-10-02 audit
+#: #5). Before these, both were unbounded: the guest quiz endpoint was an
+#: anonymous LLM proxy for any text up to the request size limit, and a chat
+#: turn could carry any history at all. The quiz values sit well above the
+#: largest real quiz (31 questions, option text under 100 characters); the agent
+#: values are what the SPA's own history trim stays inside.
+AGENT_MAX_MESSAGES = 40
+AGENT_MESSAGE_MAX_CHARS = 4000
+QUIZ_MAX_QUIZZES = 8
+QUIZ_MAX_ITEMS_PER_QUIZ = 40
+QUIZ_QUESTION_MAX_CHARS = 400
+QUIZ_SELECTED_MAX_CHARS = 300
 
-    role: str = Field(description='"user" or "assistant".')
-    content: str
+
+class AgentChatMessage(SolverahModel):
+    # "ignore", not the "allow" this had: the handler forwards only `role` and
+    # `content` to the provider, so an extra key (`name`, `tool_calls`) is
+    # dropped rather than smuggled through.
+    model_config = ConfigDict(extra="ignore")
+
+    # `system` is not accepted: the server writes the one system message itself,
+    # and a client-supplied one would sit beside it with the same authority.
+    role: Literal["user", "assistant"] = Field(description='"user" or "assistant".')
+    content: str = Field(max_length=AGENT_MESSAGE_MAX_CHARS)
 
 
 class AgentChatRequest(SolverahModel):
@@ -194,25 +214,27 @@ class AgentChatRequest(SolverahModel):
 
 
 class QuizItem(SolverahModel):
-    question: str
-    selected: str
+    question: str = Field(max_length=QUIZ_QUESTION_MAX_CHARS)
+    selected: str = Field(max_length=QUIZ_SELECTED_MAX_CHARS)
 
 
 class QuizPayload(SolverahModel):
-    key: str = Field(description="Echoed verbatim in the matching insight.")
-    title: str
-    items: List[QuizItem]
+    key: str = Field(max_length=64, description="Echoed verbatim in the matching insight.")
+    title: str = Field(max_length=120)
+    items: List[QuizItem] = Field(max_length=QUIZ_MAX_ITEMS_PER_QUIZ)
 
 
 class QuizInsightsRequest(SolverahModel):
     """Quizzes to generate insights for.
 
     A quiz with no key, no title, or no answered items is discarded before the
-    model is called; if that leaves nothing, the request is a 400.
+    model is called; if that leaves nothing, the request is a 400. Counts and
+    lengths are capped (a 422 past them) on the signed-in and the anonymous
+    endpoint alike, since both pay for the same completion.
     """
 
-    quizGroup: str
-    quizzes: List[QuizPayload]
+    quizGroup: str = Field(max_length=64)
+    quizzes: List[QuizPayload] = Field(max_length=QUIZ_MAX_QUIZZES)
 
 
 class QuizInsight(SolverahModel):
@@ -324,11 +346,32 @@ class AgentMessagesRequest(SolverahModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    # No `model` field: the server picks the model (SOLVERAH_AGENT_MODEL, else
+    # "openai/gpt-oss-20b"), and a client-sent one is dropped by extra="ignore".
     messages: List[AgentChatMessage] = Field(
-        min_length=1, description="Full conversation history; must be non-empty."
+        min_length=1,
+        max_length=AGENT_MAX_MESSAGES,
+        description=(
+            "Conversation history, oldest first; must be non-empty. The server "
+            "may drop the oldest turns to fit its context budget."
+        ),
     )
-    model: Optional[str] = Field(
-        default=None, description='Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).'
+
+
+class LlmErrorResponse(SolverahModel):
+    """A failure from an LLM-backed route.
+
+    ``error`` is generic, user-facing text; ``code`` is stable and
+    machine-readable. The provider's own exception text, its name, and the model
+    id are logged server-side and never sent (2026-10-02 audit #4).
+    """
+
+    error: str = Field(description="Human-readable failure message.")
+    code: str = Field(
+        description=(
+            '"insight_generation_failed", "insight_malformed", '
+            '"agent_unavailable", "agent_model_unavailable", or "agent_failed".'
+        )
     )
 
 

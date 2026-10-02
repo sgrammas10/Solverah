@@ -6,12 +6,14 @@ import * as guestQuiz from "../../../shared/lib/guestQuiz";
 vi.mock("../../../shared/lib/guestQuiz", () => ({
   hasCompletedGuestQuiz: vi.fn(),
   getPendingQuizSave: vi.fn(),
+  getGuestInsight: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(guestQuiz.hasCompletedGuestQuiz).mockReturnValue(false);
   vi.mocked(guestQuiz.getPendingQuizSave).mockReturnValue(null);
+  vi.mocked(guestQuiz.getGuestInsight).mockReturnValue(null);
 });
 
 function renderGuestQuizPreview() {
@@ -101,6 +103,26 @@ describe("GuestQuizPreview - locked state (completed quiz)", () => {
     });
     renderGuestQuizPreview();
     expect(screen.getByText(/already taken a guest quiz/i)).toBeInTheDocument();
+  });
+
+  // G20: the locked list was a dead end with no way back to the insight.
+  it("links to the stored insight when there is one", () => {
+    vi.mocked(guestQuiz.hasCompletedGuestQuiz).mockReturnValue(true);
+    vi.mocked(guestQuiz.getGuestInsight).mockReturnValue({
+      overallSummary: "S",
+      insights: [{ title: "T", summary: "x" }],
+    });
+    renderGuestQuizPreview();
+    expect(screen.getByRole("link", { name: /see your insight/i })).toHaveAttribute(
+      "href",
+      "/quiz-preview/insights",
+    );
+  });
+
+  it("offers no insight link when nothing is stored", () => {
+    vi.mocked(guestQuiz.hasCompletedGuestQuiz).mockReturnValue(true);
+    renderGuestQuizPreview();
+    expect(screen.queryByRole("link", { name: /see your insight/i })).toBeNull();
   });
 });
 

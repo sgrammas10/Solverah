@@ -844,7 +844,11 @@ def test_quiz_insights_are_written_as_one_key_with_the_same_value(client, monkey
     merged = _extra_key(user_id, "quizInsights")
     career_group = merged["careerQuizzes"]
     assert career_group["midCareer"] == {"summary": "kept too"}
-    assert career_group["_overallInsight"] == {"summary": "Career synthesis."}
+    # This post names earlyCareer only, and the group already holds midCareer:
+    # since 2026-10-02 (llm-features audit #6) a synthesis that did not see
+    # every stored quiz does not become the group's "Across all your quizzes"
+    # insight, so the group's (absent) synthesis is left as it was.
+    assert "_overallInsight" not in career_group
     assert career_group["_model"] == "gpt-4o-mini"
     assert career_group["earlyCareer"]["summary"] == "Drawn to fast-moving, hands-on roles."
     assert career_group["earlyCareer"]["generatedAt"] == career_group["_generatedAt"]

@@ -31,7 +31,9 @@ except Exception:  # pragma: no cover - the SDK is a hard dependency in practice
     OpenAI = None
 
 __all__ = [
+    "AGENT_MAX_COMPLETION_TOKENS",
     "DEFAULT_AGENT_MODEL",
+    "QUIZ_INSIGHT_MAX_COMPLETION_TOKENS",
     "default_agent_model",
     "get_agent_client",
     "get_openai_client",
@@ -43,6 +45,17 @@ __all__ = [
 #: until Groq retired it and every chat turn came back 422 "model not found";
 #: ``SOLVERAH_AGENT_MODEL`` now swaps the model without a deploy.
 DEFAULT_AGENT_MODEL = "openai/gpt-oss-20b"
+
+#: Output ceiling for one agent chat turn (2026-10-02 audit #5: there was none,
+#: so one turn's cost was bounded only by the model's own limit). On gpt-oss
+#: this budget includes the reasoning tokens, which ``reasoning_effort="low"``
+#: keeps to a few hundred -- 1,500 leaves room for a long, list-heavy answer.
+AGENT_MAX_COMPLETION_TOKENS = 1500
+
+#: Output ceiling for one quiz-insight call. Six quizzes at ~300 tokens each plus
+#: the cross-quiz synthesis is under 2,500; a truncated JSON body fails to parse
+#: and is answered as a generic 500, so this errs high rather than tight.
+QUIZ_INSIGHT_MAX_COMPLETION_TOKENS = 4000
 
 
 def get_openai_client():
@@ -88,7 +101,11 @@ def get_agent_client():
 
 
 def default_agent_model() -> str:
-    """The Groq model a chat turn uses when the client names none.
+    """The Groq model every chat turn uses.
+
+    The server alone picks it (2026-10-02 audit #5): a ``model`` sent by the
+    client is ignored, because letting a browser name the model let anyone
+    pick the most expensive one Groq serves on Solverah's key.
 
     ``SOLVERAH_AGENT_MODEL`` wins when set (read per call, like the key), so the
     next provider retirement is an env change rather than a code change.

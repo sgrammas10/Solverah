@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import GuestQuizInsights from "./GuestQuizInsights";
+import { completeGuestQuiz, markGuestQuizCompleted } from "../../../shared/lib/guestQuiz";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 });
 
 beforeEach(() => {
+  localStorage.clear();
   vi.clearAllMocks();
 });
 
@@ -121,5 +123,40 @@ describe("GuestQuizInsights - navigation", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/register");
+  });
+});
+
+// ─── persistence (G20) ────────────────────────────────────────────────────────
+
+describe("GuestQuizInsights - persisted insight", () => {
+  const save = {
+    quizGroup: "careerQuizzes",
+    quizResults: { careerQuizzes: { earlyCareer: { 1: 0 } } },
+    quizPayload: {
+      quizGroup: "careerQuizzes",
+      quizzes: [{ key: "earlyCareer", title: "Early", items: [{ question: "Q", selected: "A" }] }],
+    },
+  };
+
+  it("renders the stored insight in a fresh tab with no router state", () => {
+    completeGuestQuiz(save, MOCK_INSIGHT);
+    renderGuestQuizInsights();
+    expect(screen.getByText("Career Clarity")).toBeInTheDocument();
+    expect(screen.queryByText(/No insights found/i)).toBeNull();
+  });
+
+  it("a locked-out guest with nothing stored is offered sign-in, not the locked quiz list", () => {
+    markGuestQuizCompleted();
+    renderGuestQuizInsights();
+    expect(screen.queryByRole("button", { name: "Choose a quiz" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("does not crash on a list field that is not a list", () => {
+    renderGuestQuizInsights({
+      insights: [{ title: "Odd", summary: "x", keyTakeaways: "not a list", nextSteps: 3 }],
+    });
+    expect(screen.getByText("Odd")).toBeInTheDocument();
   });
 });
