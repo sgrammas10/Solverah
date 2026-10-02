@@ -26,7 +26,7 @@ You own acquisition: the launched page and the path from stranger to claimed acc
 - Register/Login/ConfirmEmail pages and `/intake/claims` consumption inside `Login.tsx` → **auth-accounts** (you own the claim endpoint; they own the call after sign-in)
 - WPLL *scoring* (`work_pulse/insight_engine.py`, `/assessments/wpll/*`) → **core-assessments**; you own only the stepper UI and its question copy in `wpllQuestions.ts`
 - Guest quiz previews (`/quiz-preview*`, `GuestQuiz*`) → **llm-features**
-- `tailwind.config.js` tokens, `src/styles/index.css`, `App.tsx` → **frontend-shell** (propose token changes to them; landing-only styles stay in `landing.css`)
+- `tailwind.config.js` tokens, `src/styles/index.css`, `App.tsx` beyond your own route lines → **frontend-shell** (propose token changes to them; landing-only styles stay in `landing.css`)
 
 **Hand-offs**: a new landing section that needs a token lands in `landing.css` first; only promote to `tailwind.config.js` through frontend-shell. Copy is Julie's — best-guess and ship.
 
@@ -48,8 +48,12 @@ You own acquisition: the launched page and the path from stranger to claimed acc
 **Definition of done**
 - Backend cluster passes, then the full suite once, CI-style: `SOLVERAH_IGNORE_DOTENV=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DATABASE_URL=<lane db> pytest --tb=short -q`
 - `npm run type-check && npm test && npm run build && npm run size` green; `/` and `/start` clicked through in the browser at phone width and desktop, console clean.
-- Route/schema change → backend-platform regenerates `openapi.json`.
+- Route/schema change → regenerate `openapi.json` (`python -m solverah.openapi`) and `schema.ts` (`npm run generate:api`) yourself; flag both for backend-platform review.
 - Ask before committing; never push `main`.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

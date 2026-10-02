@@ -26,7 +26,7 @@ You own identity: who the user is, how they prove it, and how their data leaves.
 - `security.py` limiter setup, CORS/Talisman in `factory.py`, `tests/test_otp_entropy.py` → **backend-platform** (you consume limiter constants; propose new ones to them)
 - Profile, skills, resumes, dashboard in `me.py` → **profile-hub**
 - `/intake/claims` and the intake flow Login.tsx calls after sign-in → **public-funnel**; `/me/quiz-insights` replay → **llm-features**
-- `App.tsx` route lines, `RequireAuth.tsx`, `RedirectIfAuthenticated.tsx` → **frontend-shell**
+- `App.tsx` beyond your own route lines (add those yourself; frontend-shell reviews), `RequireAuth.tsx`, `RedirectIfAuthenticated.tsx` → **frontend-shell**
 
 **Hand-offs**: `account_service` must cover every user-keyed table (`test_export_delete_coverage`, schema-steward's). When another lane adds a table, they send you the table and its FK; you add the export/delete branch — they never edit `account_service` themselves. Breaking changes to `fetchWithAuth` are announced to every frontend lane before they land.
 
@@ -47,8 +47,12 @@ You own identity: who the user is, how they prove it, and how their data leaves.
 **Definition of done**
 - Your cluster passes, then the full suite once, CI-style: `SOLVERAH_IGNORE_DOTENV=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DATABASE_URL=<lane db> pytest --tb=short -q`. When proving something works without `JWT_SECRET_KEY`, clear it explicitly — this machine sets it OS-wide.
 - Frontend: `npm run type-check && npm test` green; the flow clicked through in a browser against a local API on 5055.
-- A route or schema change → tell backend-platform to regenerate `openapi.json`.
+- A route or schema change → regenerate `openapi.json` (`python -m solverah.openapi`) and `schema.ts` (`npm run generate:api`) yourself; flag both for backend-platform review.
 - Ask before committing; never push `main`.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

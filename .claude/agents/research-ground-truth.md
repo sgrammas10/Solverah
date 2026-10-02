@@ -46,6 +46,10 @@ Julie-facing. You own the evidence, the raters, and the harness that turns compa
 - The CI suite is untouched by your change: `git diff --stat -- tests/ solverah/` is empty.
 - Ask before committing; never push `main`.
 
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
+
 ## After every task
 
 Update `.claude/agent-memory/research-ground-truth/`: one file per fact (packet/rater state, run results and where they live, rulings and why, what is waiting on Julie or Sebastian, open threads). Keep `MEMORY.md` a short index — one line per file. Delete stale entries.

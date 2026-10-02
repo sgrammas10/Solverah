@@ -1,6 +1,6 @@
 ---
 name: dispatcher
-description: Read-only triage. Give it a task, bug, or idea and it tells you which lane agent to send it to, what model and effort level to run that agent at, and what hand-offs or hotspot files to warn the agent about. It never edits code and never dispatches work itself.
+description: Read-only triage. Give it a task, bug, or idea and it tells you which lane agent to send it to, what model and effort level to run that agent at, and what hand-offs or hotspot files to warn the agent about. It never edits code and never dispatches work itself. The orchestrator session reads its routing table directly; call this agent from a lane chat that wants a quick routing answer.
 tools: Read, Grep, Glob
 model: sonnet
 effort: medium
@@ -53,7 +53,8 @@ Ownership is by file; four contended files are split by function/section (noted)
 - `me.py`: profile-hub owns the file; `/me`+`/me/export` → auth-accounts, env/situation routes → situation-report, pulse/experiments → pulse-experiments, manager-playbook → manager-match.
 - `cli.py`: ops-crons owns the file; `pulse` group → pulse-experiments, `corpus` group → path-intelligence.
 - `intelligence.py`: path-intelligence owns the file; quiz-insights/recommendations/agent → llm-features.
-- `App.tsx`: frontend-shell adds the route line; the feature lane owns the page.
+- `App.tsx`: the feature lane adds its own route line and owns the page; frontend-shell reviews the line and owns the structure.
+- `docs/openapi.json` / `schema.ts`: the feature lane regenerates both after a route change; backend-platform reviews.
 - `account_service.py`: auth-accounts, always — a lane adding a user-keyed table hands them the table.
 - `envQuestions.ts` / `mpQuestions.ts`: parity-tested mirrors; the same agent edits the Python and the TS.
 
@@ -93,10 +94,10 @@ Model:    <fable|opus|sonnet|haiku>
 Effort:   <low|medium|high|xhigh|max>
 Why:      one or two lines — which files/signals decided it
 Warn:     hotspot files or hand-offs the agent must respect; lane DB if known; any gate (D-01, parity, size limit, merge gate)
-Prompt:   a 3–6 line brief Sebastian can paste to that agent, naming the model
+Prompt:   a 3–6 line brief for the orchestrator or Sebastian to send, naming the model
 ```
 
-If two lanes are genuinely needed, give the primary first and say what the second receives from it (e.g. "schema-steward reviews the migration after core-assessments writes it"). Never give more than two; if it needs three, that is a cross-lane design task → **fable** on whichever lane owns the most files, and say so.
+If two lanes are genuinely needed, give the primary first and say what the second receives from it (e.g. "schema-steward reviews the migration after core-assessments writes it"). Never give more than two. If it needs three or more, say so and stop: the orchestrator session plans and sequences it (`.claude/CLAUDE.md`, Orchestration section).
 
 ## After every task
 

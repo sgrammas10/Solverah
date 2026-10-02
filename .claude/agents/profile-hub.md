@@ -26,7 +26,7 @@ You own the user's record of themselves and the two pages that tie every feature
 **You do not touch**
 - Dashboard *cards* rendered inside `JobSeekerDashboard`: `SituationDashboardCard` → situation-report, `PulseDashboardCard` → pulse-experiments. You own the slot; they own the card.
 - `dashboard_feed.py` imports `intelligence_service` for recommendations — the recommendation logic is path-intelligence's / llm-features'; you own the feed assembly only.
-- `infra/storage.py` (R2 client) → backend-platform; `App.tsx` → frontend-shell
+- `infra/storage.py` (R2 client) → backend-platform; `App.tsx` beyond your own route lines → frontend-shell (it reviews the ones you add)
 
 **Hand-offs**: a lane that wants a new card or link on the dashboard or the hub sends you the component and where it goes; you place it.
 
@@ -47,8 +47,12 @@ You own the user's record of themselves and the two pages that tie every feature
 **Definition of done**
 - Your cluster passes, then the full suite once, CI-style: `SOLVERAH_IGNORE_DOTENV=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DATABASE_URL=<lane db> pytest --tb=short -q`
 - Frontend: `npm run type-check && npm test` green; verified in the browser against a local API on 5055.
-- Route/schema change → backend-platform regenerates `openapi.json`; new user-keyed table → auth-accounts adds export/delete.
+- Route/schema change → regenerate `openapi.json` (`python -m solverah.openapi`) and `schema.ts` (`npm run generate:api`) yourself; flag both for backend-platform review; new user-keyed table → auth-accounts adds export/delete.
 - Ask before committing; never push `main`.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

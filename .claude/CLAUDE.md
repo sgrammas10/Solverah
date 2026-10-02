@@ -56,7 +56,8 @@ frontend/         # React + TypeScript
   mid-task, the answer comes from the SAME lane the session is already in (on
   2026-09-17 a model-lane session was offered a frontend signup bug and told "we are
   only working on the model here"). Other lanes have their own chats. Name
-  cross-lane items only if they BLOCK the lane in hand
+  cross-lane items only if they BLOCK the lane in hand. The orchestrator session is
+  the one exception: it works across lanes by design (see Orchestration below)
 - When a built-in check fires, test the check before the data. On 2026-09-17 the
   priors form's "repeated question" came back 3/10 vs 8/10 and the report led with
   "her numbers are too noisy to adopt" — but the two vignettes were not the same
@@ -130,6 +131,7 @@ make that test unable to fail.
 - Use subagents liberally to keep main context window clean
 - Offload research, exploration, and parallel analysis to subagents
 - One task per subagent for focused execution
+- Lane work follows the Orchestration section below
 
 **Self-improvement loop:**
 - After ANY correction from the user: update CLAUDE.md with a rule to prevent the same mistake
@@ -140,6 +142,76 @@ make that test unable to fail.
 
 **Autonomous bug fixing:**
 - When given a bug report: just fix it — point at logs, errors, failing tests, then resolve them
+
+## Orchestration (adopted 2026-10-02)
+
+One orchestrator, many lane workers. The orchestrator is the **main session**, never an
+agent file: subagents cannot spawn subagents, so only the main session can fan work out.
+The lane agents in `.claude/agents/` are specialist workers. Each owns a set of files and
+carries its lane's traps.
+
+**Routing.** The routing table, the contended-file splits, and the model and effort
+tables live in one place: `.claude/agents/dispatcher.md`. The orchestrator reads that file
+directly instead of calling the dispatcher agent and relaying its answer. The dispatcher
+agent stays available for a lane chat that wants a quick routing answer.
+
+**Pick the shape by how many lanes the task touches:**
+- **Small fix, two files or fewer, no shared invariant**: the orchestrator does it itself.
+  Starting an agent costs more than the fix.
+- **One lane**: dispatch that lane's agent directly (ruling 2026-09-29: "just give it to
+  an agent urself"), then report its result briefly.
+- **Two or more lanes**: write the plan first (lanes, order, what each hands the next,
+  who reviews). Show it to Sebastian once, then dispatch on his go. Run lanes in parallel
+  only when their file sets are disjoint. Worktree isolation is refused in this repo, so
+  file ownership is the only thing keeping parallel agents apart.
+- **A refactor that must prove the wire did not change**: dispatch backend-platform to
+  capture the contract baseline BEFORE the feature lane starts. The window closes once
+  the change lands.
+
+**Briefs.** A lane agent starts with no context and cannot ask a question mid-task. Each
+brief names the goal, the files in scope, what is already decided, the traps for this
+task, whether to run the full suite or the cluster only, and what to report back. Pass the
+model through the Agent tool's `model` parameter, chosen from the dispatcher's model table
+and the Fable calibration: Fable only when the agent must make judgment calls the brief
+cannot pre-make. Effort comes from the agent's frontmatter and cannot be set per dispatch,
+so state the verification depth in the brief instead.
+
+**The orchestrator owns:**
+- Sequencing, and the joins between lanes.
+- The one full CI-style suite run at the end of a multi-lane task. Workers run their
+  clusters only.
+- Reading each worker's diff before calling it done. A worker's "done" is a claim, not proof.
+- Asking Sebastian before any commit. Workers never commit.
+
+**Worker rules.** Every lane agent follows these when the orchestrator dispatched it. Where
+they differ from that lane's definition of done, these win.
+1. Do exactly the brief. Work you find in another lane is reported, not done.
+2. If blocked on a decision only Sebastian or Julie can make, stop and report the question
+   along with what you finished. Copy is still best-guess-and-ship.
+3. Run your cluster's tests. Run the full suite only if the brief says so.
+4. Never commit, never push.
+5. Your final message is all the orchestrator sees. Report the files you changed, the tests
+   you ran and their result, every shared file you touched (see the table below) so it can
+   be reviewed, anything the next lane needs, and open questions.
+6. Your lane file's "After every task" memory update still applies.
+
+**Shared files: the feature lane edits, the infrastructure lane reviews.**
+
+| Shared file | Feature lane may | Reviewer |
+|---|---|---|
+| `model.py` | edit classes in its own section; write its own migration | schema-steward |
+| `App.tsx` | add its own route line and lazy import inside the existing public, `RedirectIfAuthenticated`, or `RequireAuth` block | frontend-shell |
+| `docs/openapi.json`, `schema.ts` | regenerate with `python -m solverah.openapi`, then `npm run generate:api` | backend-platform |
+| `solverah/api/v1/__init__.py` | register its own blueprint | backend-platform |
+
+Structural edits to these files stay with the infrastructure lane: new layout routes,
+guards, cross-section model changes, the generators, and the contract baseline. The
+orchestrator dispatches the reviewer after the feature lane finishes. The reviewer reports
+findings and does not rewrite. `account_service` is NOT on this list: a new user-keyed
+table still goes to auth-accounts.
+
+**Lane count.** Fifteen lanes is the ceiling. Do not split a lane or add one. If tasks keep
+needing the same three or more lanes together, propose merging those lanes to Sebastian.
 
 ## Task Management
 

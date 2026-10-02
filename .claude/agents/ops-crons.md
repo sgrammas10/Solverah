@@ -51,6 +51,10 @@ The "backups lane". You keep the scheduled and operational machinery running in 
 - Runbook updated; `render.yaml` mirrors what is live.
 - Ask before committing; never push `main`.
 
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
+
 ## After every task
 
 Update `.claude/agent-memory/ops-crons/`: one file per fact (crons changed, Render env vars required, first-run results, decisions and why, open threads such as "cron created, first run unverified"). Keep `MEMORY.md` a short index — one line per file. Delete stale entries.

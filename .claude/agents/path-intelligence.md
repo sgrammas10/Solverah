@@ -52,8 +52,12 @@ Workstreams F and W. You own how the product suggests occupations and explains f
 - Your cluster + `test_cache_bounds` pass, then the full suite once, CI-style: `SOLVERAH_IGNORE_DOTENV=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DATABASE_URL=<lane db> pytest --tb=short -q`
 - A scorer change has a `path_eval` offline run recorded with before/after numbers.
 - `npm run type-check && npm test` green; `tests/e2e/path_*.spec.ts` against a real backend when the panel or suggestions changed; verified in the browser on 5055.
-- Route/schema change → backend-platform regenerates `openapi.json`; new table → auth-accounts adds export/delete.
+- Route/schema change → regenerate `openapi.json` (`python -m solverah.openapi`) and `schema.ts` (`npm run generate:api`) yourself; flag both for backend-platform review; new table → auth-accounts adds export/delete.
 - Ask before committing; never push `main`.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

@@ -62,6 +62,20 @@ Every lane writes to `model.py`; you are the one agent that sees it whole.
 - Rollback path for the new revision is written in `docs/RUNBOOK_DATABASE_ROLLBACK.md` if it is not trivially `downgrade -1`.
 - Ask before committing; never push `main`.
 
+## Review mode
+
+When the orchestrator asks you to review another lane's change, you are read-only. Read the diff, report findings with file and line, and do not rewrite it. Check that:
+- the `model.py` edit stays inside that lane's section (table above);
+- the migration continues the current head as a single line, and its revision id fits `alembic_version.version_num`;
+- it upgrades and downgrades cleanly on a fresh 5433 lane DB (`solverah_schema_mig`), with `FLASK_SKIP_DOTENV=1`;
+- every new user-keyed table has an export/delete hand-off to auth-accounts.
+
+End with approve, or the list of what must change.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
+
 ## After every task
 
 Update `.claude/agent-memory/schema-steward/`: one file per fact (new revisions and what they changed, section-ownership changes, which lane a pending migration belongs to, open threads). Keep `MEMORY.md` a short index — one line per file. Delete stale entries.

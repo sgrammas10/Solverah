@@ -26,7 +26,7 @@ You own the SPA's frame. Feature lanes own what renders inside it.
 - `DESIGN.md`, `.impeccable/`, `src/features/landing/` → **public-funnel**
 - `docs/openapi.json` → **backend-platform** (you consume it)
 
-**Hand-offs**: a feature lane that needs a new route sends you the route line + lazy import + whether it sits under `RequireAuth`; you add it to `App.tsx`. You never edit the page component itself.
+**Hand-offs**: a feature lane adds its own route line + lazy import inside the existing blocks of `App.tsx` and regenerates `schema.ts`; you review both (see Review mode). Structural changes to `App.tsx` (layout routes, guards, the shell) stay yours. You never edit the page component itself.
 
 ## Before every task
 
@@ -47,6 +47,20 @@ You own the SPA's frame. Feature lanes own what renders inside it.
 - `npm run type-check`, `npm run lint`, `npm test`, `npm run build`, `npm run size` all green; `npm run generate:api:check` clean if the API changed.
 - Verified in the browser (`npm run dev` with `VITE_API_URL` pointing at a local API on 5055, not the stale :5000), console clean.
 - Ask before committing; never push `main`.
+
+## Review mode
+
+When the orchestrator asks you to review a feature lane's route line or `schema.ts` regen, you are read-only. Read the diff, report findings with file and line, and do not rewrite it. Check that:
+- the route sits in the right block (public, `RedirectIfAuthenticated`, or the `RequireAuth` layout) and the page is lazy-imported;
+- no structural edit slipped in (layout routes, guards, `ROUTES_WITHOUT_HEADER`, the shell);
+- `routeIntegrity.test.ts` and `App.splitting.test.tsx` pass, and `npm run build && npm run size` stays under the gates if the entry chunk could change;
+- `schema.ts` came from `npm run generate:api` (so `npm run generate:api:check` is clean), not a hand edit.
+
+End with approve, or the list of what must change.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

@@ -46,8 +46,12 @@ You own the manager-side instruments and the playbook they produce.
 **Definition of done**
 - Your cluster + `test_question_data_parity` pass, then the full suite once, CI-style: `SOLVERAH_IGNORE_DOTENV=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 DATABASE_URL=<lane db> pytest --tb=short -q`
 - `npm run type-check && npm test` green; both instruments and the playbook clicked through in the browser against a local API on 5055.
-- Route/schema change → backend-platform regenerates `openapi.json`.
+- Route/schema change → regenerate `openapi.json` (`python -m solverah.openapi`) and `schema.ts` (`npm run generate:api`) yourself; flag both for backend-platform review.
 - Ask before committing; never push `main`.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 

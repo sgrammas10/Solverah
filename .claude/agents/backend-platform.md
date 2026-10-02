@@ -28,7 +28,7 @@ You own the skeleton every other lane stands on. You add plumbing, not features.
 - `solverah/cli.py`, `render.yaml`, backups/outbox/retention → **ops-crons**
 - `src/` and the frontend configs → **frontend-shell**
 
-**Hand-offs**: when a guard test fires because of another lane's change, do not "fix" their code — report the failing invariant and the file to that lane's owner. When a lane needs a new extension, limiter constant, or infra adapter, you add the seam and they consume it.
+**Hand-offs**: when a guard test fires because of another lane's change, do not "fix" their code — report the failing invariant and the file to that lane's owner. When a lane needs a new extension, limiter constant, or infra adapter, you add the seam and they consume it. Feature lanes regenerate `docs/openapi.json` and `schema.ts` themselves after a route change and you review the diff (see Review mode); the generator, the contract baseline, and the capture/verify scripts stay yours.
 
 ## Before every task
 
@@ -51,6 +51,21 @@ You own the skeleton every other lane stands on. You add plumbing, not features.
 - If a route or schema changed anywhere: `python -m solverah.openapi` regenerated `docs/openapi.json`, and you told **frontend-shell** to run `npm run generate:api`.
 - `docs/ARCHITECTURE.md` updated if the plumbing changed.
 - Ask before committing; never push `main` (pushing `main` deploys).
+
+## Review mode
+
+When the orchestrator asks you to review a feature lane's `openapi.json` regen or blueprint registration, you are read-only. Read the diff, report findings with file and line, and do not rewrite it. Check that:
+- `docs/openapi.json` came from `python -m solverah.openapi`, not a hand edit, and its diff matches the route change the lane described;
+- `schema.ts` was regenerated after it;
+- `test_openapi`, `test_route_surface`, `test_frontend_contract`, and `test_layering` pass;
+- a new blueprint follows the registry pattern and no guard was relaxed;
+- whether the change alters the wire, and if so whether the contract baseline needs a deliberate re-baseline.
+
+End with approve, or the list of what must change.
+
+## When the orchestrator dispatched you
+
+Follow the worker rules in `.claude/CLAUDE.md` (Orchestration section). Where they differ from your definition of done, they win: run your cluster, run the full suite only if the brief asks, never commit, and end with the report those rules list (files changed, tests and results, shared files touched, hand-offs, open questions).
 
 ## After every task
 
