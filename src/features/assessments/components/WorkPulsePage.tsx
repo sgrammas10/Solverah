@@ -2,11 +2,28 @@
  * WorkPulsePage -- the person-side culture assessment, shipped under the Work Pulse name.
  *
  * HISTORY. Work Pulse was originally a 12-question Likert quiz whose questions lived
- * client-side in src/data/wpQuestions.ts and fed an LLM narrative plus the retired
- * 7-dimension culture_preferences. That instrument is superseded: this page now serves the
- * 24-item forced-choice assessment behind the Bayesian matching model. The old questions,
- * hook (useWP) and results page remain only so users who completed the original quiz keep
- * access to their stored narrative at /work-pulse/results until they retake.
+ * client-side and fed an LLM narrative plus the 7-dimension culture_preferences. That
+ * instrument is superseded: this page serves the 24-item forced-choice assessment behind
+ * the Bayesian matching model. The old quiz was RETIRED on 2026-10-02 -- its questions,
+ * stepper and submit paths are deleted and its write routes answer 410 -- and only its
+ * stored narrative stays, read-only, at /work-pulse/results for users who took it.
+ *
+ * RETAKES (ruling 2026-10-02: retakeable, no cooldown "for now"). The completion card
+ * offers "Retake Work Pulse", which opens the normal form: same stepper, same resume
+ * prompt, same sessionStorage draft. Each finished sitting is stored as its own; the
+ * first is kept. The Situation Report stays pinned to the sitting it was built from
+ * until the user presses its Re-read button (situation-report owns that pin).
+ *
+ * WHILE A RETAKE IS UNFINISHED, WORK PULSE IS STILL COMPLETE. The in-progress answers
+ * live only in this tab's sessionStorage until Finish, so the server's
+ * `wp_v2_completed`, the dashboard and the hub all keep showing the finished state, and
+ * every finished result stays where it was. Nothing on the server knows a retake has
+ * started. Coming back to /work-pulse with a draft shows the completion card with
+ * "Continue your retake", which reopens the form at the resume prompt.
+ *
+ * A cooldown, if one is ever wanted, is `assessment_service.CORE_RETAKE_COOLDOWN` on the
+ * server. This page does not know about it: turning it on should come with a way for
+ * the card below to hide the Retake button inside the window.
  *
  * WHY THE QUESTIONS ARE NOT IN A DATA FILE. Item order is a correctness requirement, not a
  * presentation choice. The 24 items form a graduated-difficulty ladder, shuffled per
@@ -46,7 +63,7 @@ import AssessmentStepper from "./AssessmentStepper";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
-import { flattenItems, useAssessment } from "../useAssessment";
+import { flattenItems, hasAssessmentDraft, useAssessment } from "../useAssessment";
 import { situationReportKeys, useSituationReport } from "../useSituationReport";
 import { useAuth } from "../../auth";
 
@@ -61,15 +78,17 @@ export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
 export const SUBMIT_ERROR_MESSAGE =
   "We couldn't save your Work Pulse. Your answers are still here. Reload the questions, then press Finish again.";
 
-/** The live form. Mounted only while the current instrument is incomplete, so a completed
- * user's visit does not fetch (and rebuild) a form they will never see. */
-function WorkPulseForm({
-  showLegacyLink,
-  onCompleted,
-}: {
+/** The live form. Mounted only while the current instrument is incomplete or a retake is
+ * open, so a completed user's visit does not fetch (and rebuild) a form they did not ask
+ * for. */
+interface WorkPulseFormProps {
   showLegacyLink: boolean;
   onCompleted: () => void;
-}) {
+  /** Set when this is a second (or later) sitting; offers the way back to the card. */
+  onCancelRetake?: () => void;
+}
+
+function WorkPulseForm({ showLegacyLink, onCompleted, onCancelRetake }: WorkPulseFormProps) {
   const {
     items,
     answers,
@@ -142,6 +161,20 @@ function WorkPulseForm({
         <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
           Work Pulse
         </h1>
+        {onCancelRetake && (
+          <p className="text-sm text-ink-secondary">
+            You're retaking Work Pulse. This is a new sitting: the one you finished before
+            stays stored, and your Situation Report keeps reading it until you choose to
+            re-read the report.{" "}
+            <button
+              type="button"
+              onClick={onCancelRetake}
+              className="font-semibold text-forest-dark hover:underline"
+            >
+              Not now
+            </button>
+          </p>
+        )}
         <p className="text-sm text-ink-secondary">
           24 either-or questions about the conditions you do your best work in — about
           eight minutes.
@@ -226,9 +259,16 @@ export default function WorkPulsePage() {
   const queryClient = useQueryClient();
   const { user, updateProfile } = useAuth();
   const [justCompleted, setJustCompleted] = useState(false);
+  // A second (or later) sitting is open. Local state on purpose: nothing on the
+  // server changes until Finish, so completion holds while this is true.
+  const [retaking, setRetaking] = useState(false);
+  const [justRetook, setJustRetook] = useState(false);
 
   const isCompleted = justCompleted || Boolean(user?.wp_v2_completed);
   const hasLegacyResults = Boolean(user?.wpl_completed);
+  // Read on render: the form clears the draft on a successful submit, and the
+  // card is only drawn while the form is not mounted.
+  const retakeDraftSaved = isCompleted && !retaking && hasAssessmentDraft();
 
   // The report decides the next step, because it already knows the two cases
   // the plain "describe your job" bridge got wrong: a `first_job` user has no
@@ -254,6 +294,10 @@ export default function WorkPulsePage() {
   }
 
   function handleCompleted() {
+    if (retaking) {
+      setRetaking(false);
+      setJustRetook(true);
+    }
     // Optimistic local flip only -- the server derives the durable value from the stored
     // submission, so a refresh converges on the same answer.
     updateProfile({ wp_v2_completed: true });
@@ -282,7 +326,7 @@ export default function WorkPulsePage() {
           data-testid="work-pulse-panel"
           className="rounded-xl border border-cream-muted bg-cream-base/95 backdrop-blur-sm px-5 py-8 sm:px-8 shadow-sm"
         >
-        {isCompleted ? (
+        {isCompleted && !retaking ? (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
               ✦ Work Pulse Complete
@@ -329,10 +373,20 @@ export default function WorkPulsePage() {
             )}
             {nextStep === "see_report" && (
               <>
-                <p className="text-sm text-ink-secondary">
-                  You've already described your job, so both halves of your Situation
-                  Report are in. It's ready to read.
-                </p>
+                {justRetook ? (
+                  // The pin (situation-report's D-15 pin) does not follow a retake on
+                  // its own; saying so here is what makes the Re-read button findable.
+                  <p className="text-sm text-ink-secondary">
+                    Your Situation Report still reads the sitting it was built from. To
+                    move it to this one, open the report and choose “Re-read this against
+                    my latest Work Pulse”.
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-secondary">
+                    You've already described your job, so both halves of your Situation
+                    Report are in. It's ready to read.
+                  </p>
+                )}
                 <div className="mt-2">
                   <button
                     type="button"
@@ -374,9 +428,33 @@ export default function WorkPulsePage() {
                 Back to dashboard
               </button>
             </div>
+            {/* Retake (ruling 2026-10-02). Last on the card and secondary: the next
+                steps above are what most people want, and a retake is for when
+                something has changed, not a way to check a score -- there is none. */}
+            <div className="mt-6 border-t border-cream-muted pt-5 space-y-3">
+              <p className="text-sm text-ink-secondary">
+                {retakeDraftSaved
+                  ? "You started a new sitting and didn't finish it. Your answers so far are saved in this browser."
+                  : "If the way you work has changed, you can take Work Pulse again. Your earlier sitting stays stored."}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setJustRetook(false);
+                  setRetaking(true);
+                }}
+                className={secondary}
+              >
+                {retakeDraftSaved ? "Continue your retake →" : "Retake Work Pulse"}
+              </button>
+            </div>
           </div>
         ) : (
-          <WorkPulseForm showLegacyLink={hasLegacyResults} onCompleted={handleCompleted} />
+          <WorkPulseForm
+            showLegacyLink={hasLegacyResults && !isCompleted}
+            onCompleted={handleCompleted}
+            onCancelRetake={retaking ? () => setRetaking(false) : undefined}
+          />
         )}
         </div>
       </div>

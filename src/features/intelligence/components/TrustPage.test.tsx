@@ -138,6 +138,18 @@ describe("TrustPage", () => {
     expect(document.querySelector(".uppercase")).toBeNull();
   });
 
+  it("describes retakes as they now behave: available, kept, and not moving the report", () => {
+    // Work Pulse became retakeable on 2026-10-02. Before that this paragraph
+    // promised retake behaviour the UI gave no way to reach; it now has to match
+    // what /work-pulse and the Situation Report's pin actually do.
+    renderTrustPage();
+    expect(screen.getByText(/you can retake work pulse from its page/i)).toBeInTheDocument();
+    expect(screen.getByText(/each one is stored as its own/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/situation report stays on the sitting it was built from/i),
+    ).toBeInTheDocument();
+  });
+
   it("offers a way back to the hub", () => {
     renderTrustPage();
     expect(screen.getByRole("link", { name: /back to your intelligence hub/i })).toHaveAttribute(

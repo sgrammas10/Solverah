@@ -22,9 +22,12 @@ nothing on a miss.
 **Not every instrument moves, and the split is on what the scoring actually
 does.**  ``assessment_service.AssessmentKind.scored_by`` already records it:
 
-* ``work_pulse``, ``wpll``, ``manager_match`` are ``llm``.  Each makes a
-  blocking OpenAI call of seconds-to-tens-of-seconds, and each is why the
-  timeout is 120.  These move.
+* ``wpll`` and ``manager_match`` are ``llm``.  Each makes a blocking OpenAI
+  call of seconds-to-tens-of-seconds, and each is why the timeout is 120.
+  These move.  ``work_pulse`` was the third until it was retired on
+  2026-10-02; it is ``llm`` in the registry still, but it has no job endpoint
+  any more -- both of its job routes answer 410 -- and a job of that kind
+  queued before the retirement fails without a provider call.
 * ``core`` and ``focus_type`` are ``rules``.  They score in-process from
   deterministic tables -- no socket is opened -- and the contract capture
   measures them at 211 ms and 40 ms including the database writes and the HTTP
@@ -101,12 +104,13 @@ PATH_SUGGESTIONS = "path_suggestions"
 
 #: The instruments that score off the request path.
 #:
-#: Exactly the ``scored_by == "llm"`` three.  Kept as a literal rather than
+#: Exactly the ``scored_by == "llm"`` instruments that are not retired.  Kept
+#: as a literal rather than
 #: derived from ``ASSESSMENT_KINDS`` so that adding a sixth instrument is a
 #: deliberate decision here about whether it blocks on a provider, not an
 #: automatic consequence of a field somebody set for the catalogue's benefit.
 #: ``tests/test_scoring_jobs.py`` asserts the two stay consistent.
-JOB_ELIGIBLE_KINDS = ("work_pulse", "wpll", "manager_match")
+JOB_ELIGIBLE_KINDS = ("wpll", "manager_match")
 
 #: How long a job may sit in a non-terminal state before the sweep fails it.
 #:

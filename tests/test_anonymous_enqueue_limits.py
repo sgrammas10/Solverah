@@ -115,10 +115,15 @@ def test_the_wpll_per_ip_limit_is_not_looser_than_the_defaults_it_replaced():
     assert "200 per day" not in WPLL_ANON_PER_IP_LIMIT
 
 
-def test_the_four_authenticated_instruments_are_untouched():
-    """S1 changed one entry in this table. The other four are not its business."""
-    for kind in ("core", "work_pulse", "focus_type", "manager_match"):
+def test_the_authenticated_instruments_are_untouched():
+    """S1 changed one entry in this table. The others are not its business.
+
+    Three since the retired `work_pulse` lost its entry (2026-10-02): every
+    write door refuses it, and a refusal draws the default bucket.
+    """
+    for kind in ("core", "focus_type", "manager_match"):
         assert assessments.SUBMISSION_LIMITS[kind] == assessments.DEFAULT_SUBMISSION_LIMIT
+    assert "work_pulse" not in assessments.SUBMISSION_LIMITS
 
 
 def test_only_one_per_ip_bucket_is_attached_to_the_enqueue():

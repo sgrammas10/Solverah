@@ -1,208 +1,49 @@
 /**
- * WorkPulseResultsPage — Work Pulse, scored by a job rather than by the submit.
+ * WorkPulseResultsPage — the retired 12-question Work Pulse's stored narrative, read-only.
  *
- * Phase 3c: `work_pulse` is one of the three provider-scored instruments, so
- * generating a narrative now means `POST /assessments/work_pulse/scoring-jobs`
- * and then polling, instead of holding a request open for the tens of seconds
- * the OpenAI call can take (A19). The succeeded job's `result` is the same body
- * the synchronous submit returned, so everything downstream of it here is
- * unchanged.
+ * The original Work Pulse was retired on 2026-10-02 (the 24-item `core` instrument has
+ * served /work-pulse since 2026-08-19, and has no results screen by design). Every
+ * write door the old quiz had now answers 410 on the server, so this page no longer
+ * enqueues a scoring job, polls one, or resubmits answers after a missing narrative:
+ * those paths, and the answer draft they read, are deleted.
  *
- * `GET /me/assessments/work_pulse/result` — the "I already did this, show me
- * the stored one" path — is untouched. It reads a persisted row and opens no
- * socket; it was never the slow one.
+ * What it still does is the smaller of the two options the retirement offered: a user
+ * who finished the old quiz keeps a read-only view of the narrative stored for them
+ * (`GET /me/assessments/work_pulse/result`); anyone else, or a sitting with no stored
+ * narrative (a 404), is sent to /work-pulse. The route line in App.tsx is unchanged.
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { useWP } from "../useWP";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import type { WpApiResponse } from "../useWP";
+import { useWP } from "../useWP";
 import { useAuth } from "../../auth";
-import { profileKeys } from "../../profile";
-import {
-  isKnownScoringPhase,
-  useScoringJobStatus,
-  useStartScoringJob,
-  type ScoringJobResult,
-} from "../useScoringJob";
 import { useWorkPulseResult } from "../useWorkPulseResult";
-import { WP_QUESTIONS } from "../data/wpQuestions";
+import { ApiError } from "../../../shared/api/apiError";
 import { TierBar } from "../../intake";
-
-/**
- * The job's `result` in the shape this page renders.
- *
- * `WorkPulseResult` as generated from the OpenAPI document is deliberately open
- * — `emerging_signals?: unknown[]`, `archetype_description: string | null`,
- * plus an index signature — because the API documents it that way. `WpApiResponse`
- * is the narrower shape the page has always rendered, and the synchronous call
- * this replaces asserted exactly the same narrowing by writing
- * `fetchWithAuth<WpApiResponse>(...)`. The assertion has moved, not appeared.
- */
-function asWpApiResponse(result: ScoringJobResult<"work_pulse">): WpApiResponse {
-  return result as unknown as WpApiResponse;
-}
 
 export default function WorkPulseResultsPage() {
   const navigate = useNavigate();
-  const { user, updateProfile } = useAuth();
-  const { state, setCachedResult } = useWP();
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { state } = useWP();
 
   const hasCached = state.cachedResult !== null;
-  const hasFiredRef = useRef(false);
+  const legacyCompleter = Boolean(user?.wpl_completed);
 
-  const startScoring = useStartScoringJob("work_pulse");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const job = useScoringJobStatus("work_pulse", jobId);
-  // The enqueue failing is mutation state, but it arrives through a callback;
-  // this one flag captures it for render. The old `FetchState` machine that
-  // mirrored the rest of the job's lifecycle into local state is gone — the
-  // scoring/failed states are derived from the job hooks below, which is what
-  // the `useWorkPulseResult` dedup left this page still hand-rolling.
-  const [enqueueFailed, setEnqueueFailed] = useState(false);
+  // The stored result, shared with IntelligencePage through one query. Fetched only
+  // for a user the server says finished the old quiz and only when no screen has
+  // already put it in the cache.
+  const wpQuery = useWorkPulseResult({ enabled: legacyCompleter && !hasCached });
+  const result: WpApiResponse | null = state.cachedResult ?? wpQuery.data ?? null;
 
-  // A failed job and an unrecognised status are both terminal: the hook's
-  // refetchInterval has already stopped polling either one, so rendering the
-  // spinner through them would hang the screen (fail closed, as before). A
-  // rejected poll (404 on a stale handle) is terminal the same way. And a
-  // failed scoring must stay distinguishable from a slow one by more than the
-  // user's patience — the failed check comes before the spinner in render.
-  const jobFailed = job.data?.status === "failed";
-  const jobUnknown = job.data !== undefined && !isKnownScoringPhase(job.data.status);
-  const scoringFailed = enqueueFailed || jobFailed || Boolean(job.error) || jobUnknown;
-  const scoring = !scoringFailed && (startScoring.isPending || jobId !== null);
-  const scoringError = jobFailed ? (job.data?.error ?? null) : null;
+  // Nothing to show: never took the old quiz, or took it and no narrative was stored.
+  // Either way the instrument to take is the current one.
+  const notFound = wpQuery.error instanceof ApiError && wpQuery.error.status === 404;
+  if ((!legacyCompleter && !hasCached) || notFound) {
+    return <Navigate to="/work-pulse" replace />;
+  }
 
-  // The stored result, shared with IntelligencePage through one query.
-  // Enabled exactly when the old mount effect called fetchFromServer: no
-  // sessionStorage copy, and the server says the instrument is completed.
-  const wpQuery = useWorkPulseResult({
-    enabled: !hasCached && Boolean(user?.wpl_completed),
-  });
-
-  const result = state.cachedResult ?? wpQuery.data ?? null;
-
-  const submitAnswers = useCallback(() => {
-    setEnqueueFailed(false);
-    // Detach any previous (failed) job before enqueueing, so its terminal
-    // state does not render as this attempt's.
-    setJobId(null);
-    startScoring.mutate(
-      {
-        answers: state.answers.map((a) => ({
-          question_id: a.questionId,
-          option_id: a.optionId,
-        })),
-      },
-      {
-        onSuccess: (accepted) => setJobId(accepted.job_id),
-        // The enqueue itself failing (a 429 on the shared per-instrument budget,
-        // say) is a failure to start, not a failure to score, but the user's
-        // recovery is the same one: try again.
-        onError: () => setEnqueueFailed(true),
-      }
-    );
-  // `startScoring` is a stable mutation object from TanStack Query; including it
-  // would rebuild this callback on every mutation state change, and the mount
-  // effect below depends on it being stable across the submit it triggers.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.answers]);
-
-  // The one thing a terminal job still needs an effect for: the success side
-  // effects. The failure branches this effect used to hold are derived above,
-  // and the old "prime the cache from a landed read" effect is gone with them
-  // — `setCachedResult` writes `workPulseResultKeys.result()` now (see
-  // `useWP`'s header), so a landed read of that very key has nothing left to
-  // prime, and the fetch only fires when `wpl_completed` is already true.
-  useEffect(() => {
-    const data = job.data;
-    if (!data || data.status !== "succeeded" || !data.result) return;
-
-    // Writing the shared query key (`setCachedResult`) is what hands the
-    // narrative to every consumer of `useWorkPulseResult` — a consumer
-    // mounting after a retake must not be handed the pre-retake narrative for
-    // the staleTime window.
-    setCachedResult(asWpApiResponse(data.result));
-    // The session flag the shell gates on (IntelligencePage, JobSeekerDashboard).
-    updateProfile({ wpl_completed: true });
-    // And the profile document, which the server has now written this result
-    // into. Without this, a screen reading it through useProfile() shows a
-    // pre-completion copy for up to the 60 s staleTime.
-    queryClient.invalidateQueries({ queryKey: profileKeys.document() });
-    // Detach from the finished job so `scoring` derives false and the
-    // narrative renders.
-    setJobId(null);
-  }, [job.data, setCachedResult, updateProfile, queryClient]);
-
-  // Backend returns 422 when wpl_completed_at is set but wpl_result is missing
-  // (e.g. pending migration). Resubmit to regenerate the narrative if answers
-  // are still in sessionStorage. A 422 is not retryable in shouldRetry's
-  // classification, so it arrives here without retry delay.
-  const queryErrorMsg = wpQuery.error instanceof Error ? wpQuery.error.message : "";
-  const canResubmitAfterQueryError =
-    queryErrorMsg.includes("resubmit") && state.answers.length === WP_QUESTIONS.length;
-
-  useEffect(() => {
-    if (!wpQuery.error) return;
-    if (canResubmitAfterQueryError) {
-      submitAnswers();
-    }
-    // Narrow on purpose: refires per failed fetch, not per render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wpQuery.error]);
-
-  useEffect(() => {
-    if (hasCached && user?.wpl_completed) {
-      // Cache and server agree — nothing to do.
-      return;
-    }
-    if (hasCached && !user?.wpl_completed) {
-      // Stale cache: server has no record. Re-submit if answers are available,
-      // otherwise the cache is useless — redirect back to the quiz.
-      if (state.answers.length === WP_QUESTIONS.length) {
-        if (!hasFiredRef.current) {
-          hasFiredRef.current = true;
-          submitAnswers();
-        }
-      } else {
-        navigate("/work-pulse", { replace: true });
-      }
-      return;
-    }
-    // Fresh session: user already completed WP but sessionStorage was cleared —
-    // the stored result arrives through useWorkPulseResult, enabled for exactly
-    // this state.
-    if (user?.wpl_completed) {
-      return;
-    }
-    if (state.answers.length < WP_QUESTIONS.length) {
-      navigate("/work-pulse", { replace: true });
-      return;
-    }
-    if (!hasFiredRef.current) {
-      hasFiredRef.current = true;
-      submitAnswers();
-    }
-  }, []);  // intentionally runs once on mount; hasFiredRef guards against Strict Mode double-fire
-
-  const handleRetry = useCallback(() => {
-    if (state.answers.length === WP_QUESTIONS.length) {
-      // Prefer resubmitting when answers are available — covers both first-time
-      // and the case where the narrative blob failed to persist.
-      submitAnswers();
-    } else {
-      wpQuery.refetch();
-    }
-  }, [state.answers.length, wpQuery, submitAnswers]);
-
-  // `isError && isFetching` is the retry in flight: the error object survives
-  // a refetch, and rendering the card through it would make "Try again" look
-  // dead. It draws the spinner the hand-rolled "loading" state did.
-  if (
-    !scoring &&
-    (wpQuery.isLoading || (wpQuery.isError && wpQuery.isFetching))
-  ) {
+  // `isError && isFetching` is the retry in flight: the error object survives a
+  // refetch, and rendering the card through it would make "Try again" look dead.
+  if (wpQuery.isLoading || (wpQuery.isError && wpQuery.isFetching)) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -211,39 +52,18 @@ export default function WorkPulseResultsPage() {
     );
   }
 
-  // Pending. Says that the work is queued and still running, so that waiting is
-  // an informed choice rather than a guess about whether anything is happening.
-  if (scoring) {
-    return (
-      <div
-        className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
-        aria-live="polite"
-      >
-        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
-        <p className="text-sm text-ink-secondary">Analysing your responses…</p>
-        <p className="text-xs text-ink-tertiary">
-          This usually takes under a minute. You can leave this page open.
-        </p>
-      </div>
-    );
-  }
-
-  if (scoringFailed || (wpQuery.isError && !canResubmitAfterQueryError)) {
+  if (wpQuery.isError) {
     return (
       <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
         <div
           className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700"
           role="alert"
         >
-          <p className="font-medium mb-1">We couldn't generate your results right now.</p>
-          {/* The scorer's own message when it authored one. Never provider text
-              — the server sends either a validation message it wrote or a fixed
-              generic string, because provider text carries prompt fragments and
-              therefore the respondent's own answers. */}
-          <p className="text-xs">{scoringError || "Please try again in a moment."}</p>
+          <p className="font-medium mb-1">We couldn't load your results right now.</p>
+          <p className="text-xs">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={handleRetry}
+            onClick={() => wpQuery.refetch()}
             className="mt-3 text-xs font-semibold text-red-700 underline"
           >
             Try again
@@ -276,11 +96,20 @@ export default function WorkPulseResultsPage() {
         {/* Header */}
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            Your Work Pulse
+            Your original Work Pulse
           </p>
           <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
             Here's how you work
           </h1>
+          {/* Says what this page is now: a record of the retired quiz, kept for the
+              people who took it, not a result of the current instrument. */}
+          <p className="text-sm text-ink-secondary">
+            This is the analysis from the first version of Work Pulse, which has since been
+            replaced. It's kept here for you to read; it no longer changes.{" "}
+            <Link to="/work-pulse" className="font-semibold text-forest-dark hover:underline">
+              Go to the current Work Pulse →
+            </Link>
+          </p>
         </div>
 
         {/* Narrative */}

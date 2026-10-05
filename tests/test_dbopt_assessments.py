@@ -7,13 +7,12 @@ Four promises, each pinned against the real Postgres tables:
   SELECT and a write per dimension, and the sitting's ``public_id`` comes back
   from the INSERT's RETURNING instead of a second read. Two first sittings at
   once both land: select-then-insert lost that race with an IntegrityError.
-* **No paid provider call runs inside a transaction.** Work Pulse used to open
-  (and flush) its submission row before the call, and every provider-scored
+* **No paid provider call runs inside a transaction.** The retired Work Pulse
+  used to open (and flush) its submission row before the call, and every provider-scored
   path inherited the caller's user lookup, so a connection sat idle in
   transaction for the whole round trip. The state is recorded from inside the
   stubbed call itself -- the one moment that matters.
-* **One profile key is written as one key.** ``culture_preferences`` and
-  ``quizInsights`` go through ``update_extra_key``, which never reads the
+* **One profile key is written as one key.** ``quizInsights`` goes through ``update_extra_key``, which never reads the
   profile's lists; the stored value and the rule for when it is written are
   pinned unchanged.
 * **Result reads skip the prose, and nothing reloads the user.** The result
@@ -50,9 +49,6 @@ DIMENSIONS = ("autonomy", "pace", "collaboration", "feedback", "innovation", "de
 
 WP_ANSWERS = [
     {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
-]
-WP_RETAKE_ANSWERS = [
-    {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-a" % i} for i in range(1, 13)
 ]
 MM_ANSWERS = [
     {"question_id": "mm-q%d" % i, "choice": "a" if i % 2 == 0 else "b"} for i in range(1, 16)
@@ -273,6 +269,27 @@ def _queue(client, kind, answers, headers):
 
 def _poll(client, queued):
     return client.get("/api/v1" + queued.get_json()["status_url"])
+
+
+def _store_legacy_work_pulse(user_id):
+    """A retired-instrument Work Pulse sitting, written as it was before 2026-10-02."""
+    from app import app
+    from model import db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
+
+    with app.app_context():
+        row = assessment_repository.open_current(
+            user_id, "work_pulse", assessment_service.CLIENT_FORM_VERSION
+        )
+        row.answers = WP_ANSWERS
+        row.result = WP_LLM_RESPONSE
+        row.narrative = WP_LLM_RESPONSE["narrative"]
+        row.status = "scored"
+        row.completed_at = auth_domain.utcnow()
+        row.scored_at = auth_domain.utcnow()
+        db.session.commit()
 
 
 def _document(user_id):
@@ -602,112 +619,10 @@ def test_two_first_sittings_at_once_both_land(client, seed_user):
     assert {row["score"] for row in scores} == {0.75}
 
 
-# ── Work Pulse: nothing held across the provider call ───────────────────────
-
-
-def test_the_work_pulse_provider_call_holds_no_transaction(client, monkeypatch):
-    """Recorded from inside the stubbed call, on a first sitting and a retake.
-
-    Before: ``open_current`` ran first -- registering the form version, reading
-    the row and, on a first sitting, flushing its INSERT -- so the connection sat
-    idle in transaction (holding the new row's key, when there was one) for the
-    whole paid round trip.
-    """
-    headers, _user_id = _sign_in(client, "g1-wp-txn@example.test")
-    seen = []
-    _provider(monkeypatch, WP_LLM_RESPONSE, seen)
-
-    for answers in (WP_ANSWERS, WP_RETAKE_ANSWERS):
-        queued = _queue(client, "work_pulse", answers, headers)
-        assert queued.status_code == 202
-        assert _poll(client, queued).get_json()["status"] == "succeeded"
-
-    assert seen == [{"in_transaction": False, "pending": []}] * 2
-
-
-def test_work_pulse_writes_culture_preferences_as_one_key(client, monkeypatch):
-    """Same stored value, same rule (every successful sitting writes it), and the
-    rest of the document untouched -- without reading the profile's lists.
-
-    The value assertions come first so that, against the old code, they are
-    shown to hold before the list-read assertion fails.
-    """
-    from work_pulse.derive_preferences import derive_culture_preferences
-
-    headers, user_id = _sign_in(client, "g1-wp-prefs@example.test")
-    _write_document(
-        user_id,
-        headline="Staff engineer",
-        skills=["Python", "SQL"],
-        experience=[{"company": "Acme", "position": "Engineer"}],
-        culture_preferences={"pace": "stale value from an older sitting"},
-        path_preferences={"avoid": ["sales"]},
-    )
-    before = _document(user_id)
-    _provider(monkeypatch, WP_LLM_RESPONSE)
-
-    sent_per_sitting = []
-    for answers in (WP_ANSWERS, WP_RETAKE_ANSWERS):
-        with _statements() as sent:
-            queued = _queue(client, "work_pulse", answers, headers)
-        sent_per_sitting.append(sent)
-        assert queued.status_code == 202
-        assert _poll(client, queued).get_json()["status"] == "succeeded"
-
-        after = _document(user_id)
-        assert after.pop("culture_preferences") == derive_culture_preferences(answers)
-        assert after == {k: v for k, v in before.items() if k != "culture_preferences"}
-
-    for sent in sent_per_sitting:
-        assert _touching_profile_lists(sent) == []
-
-
-def test_a_failed_second_commit_still_leaves_the_sitting_complete(client, monkeypatch):
-    """The two-commit guarantee, unchanged by the reorder.
-
-    Commit 1 (answers, completion, culture_preferences) lands; commit 2's failure
-    is rolled back and logged, the job still answers with the result, and the
-    result endpoint answers 422 -- "resubmit", not "take the assessment".
-    """
-    from work_pulse.derive_preferences import derive_culture_preferences
-
-    headers, user_id = _sign_in(client, "g1-wp-commit2@example.test")
-    _provider(monkeypatch, WP_LLM_RESPONSE)
-
-    def _commit_two_fails(_user_id):
-        raise RuntimeError("commit 2 fails")
-
-    monkeypatch.setattr(
-        "solverah.repositories.path_fit_repository.invalidate", _commit_two_fails
-    )
-
-    queued = _queue(client, "work_pulse", WP_ANSWERS, headers)
-    poll = _poll(client, queued).get_json()
-    assert poll["status"] == "succeeded"
-    assert poll["result"] == WP_LLM_RESPONSE
-
-    row = _stored_row(user_id, "work_pulse")
-    assert row["status"] == "complete"
-    assert row["answers"] == WP_ANSWERS
-    assert row["completed_at"] is not None
-    assert row["result"] is None and row["narrative"] is None and row["scored_at"] is None
-    assert _extra_key(user_id, "culture_preferences") == derive_culture_preferences(WP_ANSWERS)
-
-    pending = client.get("/api/v1/me/assessments/work_pulse/result")
-    assert pending.status_code == 422
-
-
-def test_a_work_pulse_provider_failure_writes_nothing(client, monkeypatch):
-    headers, user_id = _sign_in(client, "g1-wp-fail@example.test")
-    _failing_provider(monkeypatch)
-
-    queued = _queue(client, "work_pulse", WP_ANSWERS, headers)
-    poll = _poll(client, queued).get_json()
-
-    assert poll["status"] == "failed"
-    assert poll["error"] == "Unable to generate Work Pulse results"
-    assert _stored_row(user_id, "work_pulse") is None
-    assert _extra_key(user_id, "culture_preferences") is None
+# The four Work Pulse tests that stood here (no transaction across its provider
+# call, culture_preferences written as one key, the two-commit guarantee, a
+# provider failure writing nothing) went with its scorer when the original
+# 12-question instrument was retired on 2026-10-02.
 
 
 def test_the_manager_match_provider_call_holds_no_transaction(client, monkeypatch):
@@ -727,7 +642,7 @@ def test_the_manager_match_provider_call_holds_no_transaction(client, monkeypatc
 
 
 @pytest.mark.parametrize(
-    "kind", ["work_pulse", "manager_match", "focus_type", "manager_profile"]
+    "kind", ["manager_match", "focus_type", "manager_profile"]
 )
 def test_a_submit_never_reloads_the_user_it_was_handed(client, monkeypatch, kind):
     """Ids are captured before the commits that expire the caller's user row.
@@ -747,7 +662,6 @@ def test_a_submit_never_reloads_the_user_it_was_handed(client, monkeypatch, kind
         _seed_manager_match(user_id)
 
     submits = {
-        "work_pulse": lambda u: assessment_service.submit_work_pulse(u, WP_ANSWERS, LOGGER),
         "manager_match": lambda u: assessment_service.submit_manager_match(
             u, MM_ANSWERS, LOGGER
         ),
@@ -890,8 +804,9 @@ def test_result_reads_skip_the_narrative_and_answer_the_same_payload(client, mon
         missing = client.get("/api/v1/me/assessments/%s/result" % kind)
         assert missing.status_code == 404
 
-    _provider(monkeypatch, WP_LLM_RESPONSE)
-    assert _poll(client, _queue(client, "work_pulse", WP_ANSWERS, headers)).status_code == 200
+    # The retired Work Pulse has no door any more: its row is one stored before
+    # the retirement, which is the only kind a reader can still meet.
+    _store_legacy_work_pulse(user_id)
     _provider(monkeypatch, MM_LLM_RESPONSE)
     assert _poll(client, _queue(client, "manager_match", MM_ANSWERS, headers)).status_code == 200
     assert client.post(

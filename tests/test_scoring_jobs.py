@@ -262,16 +262,17 @@ def _set_profile(email, extra):
 def test_the_job_eligible_kinds_are_exactly_the_provider_scored_ones():
     """`JOB_ELIGIBLE_KINDS` is a literal; this is what keeps it honest.
 
-    The three that move are the three whose scoring blocks on OpenAI. If a sixth
+    The ones that move are the ones whose scoring blocks on OpenAI. If a sixth
     instrument is added as `scored_by="llm"` and nobody decides whether it
-    queues, this fails rather than leaving the decision unmade.
+    queues, this fails rather than leaving the decision unmade. A retired kind
+    queues nothing at all (the original `work_pulse`, 2026-10-02).
     """
     from solverah.services import assessment_service, scoring_jobs
 
     llm_scored = {
         kind.key
         for kind in assessment_service.ASSESSMENT_KINDS
-        if kind.scored_by == "llm"
+        if kind.scored_by == "llm" and not kind.retired
     }
 
     assert set(scoring_jobs.JOB_ELIGIBLE_KINDS) == llm_scored
@@ -321,16 +322,16 @@ def test_core_is_absent_from_the_job_path_entirely(client, auth):
 # ── The happy path, per instrument ──────────────────────────────────────────
 
 
-def test_queueing_work_pulse_answers_202_with_a_handle(client, auth, monkeypatch):
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+def test_queueing_manager_match_answers_202_with_a_handle(client, auth, monkeypatch):
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
-    resp = _queue(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
+    resp = _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth)
 
     assert resp.status_code == 202
     body = resp.get_json()
     ScoringJobAccepted.model_validate(body)
     assert body["job_id"]
-    assert body["status_url"] == "/assessments/work_pulse/scoring-jobs/%s" % body["job_id"]
+    assert body["status_url"] == "/assessments/manager_match/scoring-jobs/%s" % body["job_id"]
     # `status` is deliberately not asserted, for the reason 3a's equivalent test
     # gives: under eager execution the task has already run inline by the time
     # the route serialises, so the field reads `succeeded` here and `queued`
@@ -340,7 +341,6 @@ def test_queueing_work_pulse_answers_202_with_a_handle(client, auth, monkeypatch
 @pytest.mark.parametrize(
     "kind, payload, llm_response",
     [
-        ("work_pulse", {"answers": WP_ANSWERS}, WP_LLM_RESPONSE),
         ("manager_match", {"answers": MM_ANSWERS}, MM_LLM_RESPONSE),
     ],
 )
@@ -406,7 +406,7 @@ def test_the_job_result_matches_what_the_service_scorer_returns(
     assert job_result == direct.body
 
 
-@pytest.mark.parametrize("kind", ["work_pulse", "wpll", "manager_match"])
+@pytest.mark.parametrize("kind", ["wpll", "manager_match"])
 def test_the_synchronous_submit_for_a_moved_kind_is_gone(
     client, auth, monkeypatch, kind
 ):
@@ -417,8 +417,7 @@ def test_the_synchronous_submit_for_a_moved_kind_is_gone(
     blocking provider call this phase existed to remove. The problem document
     names the replacement so a client that missed the cutover is told the fix.
     """
-    payload = {"answers": {"work_pulse": WP_ANSWERS, "wpll": WPLL_ANSWERS,
-                           "manager_match": MM_ANSWERS}[kind]}
+    payload = {"answers": {"wpll": WPLL_ANSWERS, "manager_match": MM_ANSWERS}[kind]}
 
     resp = _submit(client, kind, payload, auth)
 
@@ -428,6 +427,47 @@ def test_the_synchronous_submit_for_a_moved_kind_is_gone(
     assert body["type"] == "https://solverah.com/errors/gone"
     assert body["replaced_by"] == "/assessments/%s/scoring-jobs" % kind
     assert body["errors"] == [{"field": "kind", "code": "moved_to_scoring_jobs"}]
+
+
+def test_a_work_pulse_job_queued_before_the_retirement_fails_without_a_provider_call(
+    client, auth, monkeypatch
+):
+    """Retired 2026-10-02: no paid call may stay reachable for the legacy kind.
+
+    The routes refuse it, but a job enqueued before the retirement deployed is
+    still a row a worker will pick up. It must go terminal as `failed` with the
+    retirement text, call no provider, and write no submission.
+    """
+    from app import app
+    from model import AssessmentSubmission, ScoringJob, User, db
+    from solverah.services import assessment_service, scoring_jobs
+
+    provider = _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        row = ScoringJob(
+            user_id=user.id,
+            job_type=scoring_jobs.ASSESSMENT,
+            kind="work_pulse",
+            payload={"answers": WP_ANSWERS},
+            status="queued",
+        )
+        db.session.add(row)
+        db.session.commit()
+
+        assert scoring_jobs.run(row.id) == scoring_jobs.FAILED
+        assert provider.chat.completions.create.call_count == 0
+
+        db.session.expire_all()
+        assert (
+            db.session.get(ScoringJob, row.id).error
+            == assessment_service.RETIRED_WORK_PULSE_MESSAGE
+        )
+        assert (
+            AssessmentSubmission.query.filter_by(user_id=user.id, kind="work_pulse").count()
+            == 0
+        )
 
 
 # ── wpll: the anonymous instrument ──────────────────────────────────────────
@@ -495,16 +535,16 @@ def test_a_job_handle_is_scoped_to_its_owner(client, auth, other_user, monkeypat
         row = ScoringJob(
             user_id=other_user,
             job_type=scoring_jobs.ASSESSMENT,
-            kind="work_pulse",
+            kind="manager_match",
             payload={},
             status="succeeded",
-            result=dict(WP_LLM_RESPONSE),
+            result=dict(MM_LLM_RESPONSE),
         )
         db.session.add(row)
         db.session.commit()
         handle = row.public_id.hex
 
-    assert _poll(client, "work_pulse", handle).status_code == 404
+    assert _poll(client, "manager_match", handle).status_code == 404
 
 
 def test_a_handle_for_one_instrument_is_a_404_at_anothers_path(
@@ -512,26 +552,26 @@ def test_a_handle_for_one_instrument_is_a_404_at_anothers_path(
 ):
     """A12's per-discriminator promise, read from the poll side.
 
-    A Work Pulse job served at the ManagerMatch path would answer under
-    ManagerMatch's response model carrying a Work Pulse body -- the response
-    model would be a label rather than a contract.
+    A ManagerMatch job served at the WPLL path would answer under WPLL's
+    response model carrying a ManagerMatch body -- the response model would be
+    a label rather than a contract.
     """
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
-    job_id = _queue(client, "work_pulse", {"answers": WP_ANSWERS}, auth).get_json()[
+    job_id = _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth).get_json()[
         "job_id"
     ]
 
-    assert _poll(client, "work_pulse", job_id).status_code == 200
-    assert _poll(client, "manager_match", job_id).status_code == 404
+    assert _poll(client, "manager_match", job_id).status_code == 200
+    assert _poll(client, "wpll", job_id).status_code == 404
 
 
 def test_a_malformed_handle_is_a_404_not_a_500(client, auth):
-    assert _poll(client, "work_pulse", "not-a-uuid").status_code == 404
+    assert _poll(client, "manager_match", "not-a-uuid").status_code == 404
 
 
 def test_polling_requires_a_jwt_for_the_authenticated_instruments(client):
-    assert _poll(client, "work_pulse", "00000000000000000000000000000000").status_code == 401
+    assert _poll(client, "manager_match", "00000000000000000000000000000000").status_code == 401
 
 
 # ── A9: the budget bounds provider spend, so it gates the enqueue ───────────
@@ -560,11 +600,11 @@ def enforcing(client):
 
 
 def test_the_enqueue_is_rate_limited(enforcing, auth, monkeypatch):
-    """A user cannot queue a hundred Work Pulse scorings."""
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    """A user cannot queue a hundred ManagerMatch scorings."""
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     statuses = [
-        _queue(enforcing, "work_pulse", {"answers": WP_ANSWERS}, auth).status_code
+        _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth).status_code
         for _ in range(6)
     ]
 
@@ -575,7 +615,7 @@ def test_the_enqueue_is_rate_limited(enforcing, auth, monkeypatch):
 def test_queueing_and_submitting_share_one_budget(enforcing, auth, monkeypatch):
     """A9, stated as a number -- and 3c's deletion did not delete the join.
 
-    Five enqueues exhaust Work Pulse's 5-per-minute allowance; the sixth call
+    Five enqueues exhaust ManagerMatch's 5-per-minute allowance; the sixth call
     is a *submit* to the closed door, and the limiter refuses it before the
     tombstone can answer. The `shared_limit` expression carrying this is the
     same one that keeps `core` and `focus_type` on their own per-kind budgets
@@ -586,12 +626,12 @@ def test_queueing_and_submitting_share_one_budget(enforcing, auth, monkeypatch):
     which sub-divides one endpoint rather than joining two, and this test is
     what catches that.
     """
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     for _ in range(5):
-        assert _queue(enforcing, "work_pulse", {"answers": WP_ANSWERS}, auth).status_code == 202
+        assert _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth).status_code == 202
 
-    spent = _submit(enforcing, "work_pulse", {"answers": WP_ANSWERS}, auth)
+    spent = _submit(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
 
     assert spent.status_code == 429
 
@@ -620,19 +660,20 @@ def test_submitting_then_queueing_spends_the_same_budget(enforcing, auth, monkey
 def test_each_instrument_keeps_its_own_budget_on_the_job_path(
     enforcing, auth, monkeypatch
 ):
-    """Exhausting Work Pulse must not spend ManagerMatch's allowance.
+    """Exhausting ManagerMatch must not spend WPLL's allowance.
 
     The property A9 preserved when five handlers became one, asserted again for
-    the operation that could have lost it a second time.
+    the operation that could have lost it a second time. (Work Pulse was the
+    first instrument here until it was retired.)
     """
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     for _ in range(6):
-        spent = _queue(enforcing, "work_pulse", {"answers": WP_ANSWERS}, auth)
+        spent = _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
     assert spent.status_code == 429
 
-    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
-    other = _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
+    _mock_openai(monkeypatch, WPLL_LLM_RESPONSE)
+    other = _queue(enforcing, "wpll", {"answers": WPLL_ANSWERS})
 
     assert other.status_code != 429
 
@@ -664,7 +705,6 @@ def test_the_path_suggestion_enqueue_is_rate_limited(enforcing, auth, monkeypatc
 @pytest.mark.parametrize(
     "kind, bad_body",
     [
-        ("work_pulse", {"answers": [{"question_id": "wp-q1", "option_id": "wp-q1-b"}]}),
         ("manager_match", {"answers": [{"question_id": "mm-q1", "choice": "a"}]}),
         # Fifteen answers, so past the count: the precheck's run of the pure
         # scorer is what refuses this one (2026-10-02, manager-match F4).
@@ -698,7 +738,7 @@ def test_a_malformed_body_is_refused_before_the_enqueue_with_the_scorers_error(
     from model import ScoringJob, User, db
     from solverah.services import scoring_jobs
 
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     queued = _queue(client, kind, bad_body, auth)
     assert queued.status_code == 400
@@ -730,8 +770,8 @@ def test_a_refused_body_creates_no_job_row(client, auth, monkeypatch):
     from app import app
     from model import ScoringJob
 
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
-    _queue(client, "work_pulse", {"answers": []}, auth)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
+    _queue(client, "manager_match", {"answers": []}, auth)
 
     with app.app_context():
         assert ScoringJob.query.count() == 0
@@ -742,7 +782,7 @@ def test_a_refused_body_creates_no_job_row(client, auth, monkeypatch):
 
 @pytest.fixture()
 def queued_job(client, auth):
-    """A queued Work Pulse job for the signed-in user, created without running it."""
+    """A queued ManagerMatch job for the signed-in user, created without running it."""
     from app import app
     from model import ScoringJob, User, db
     from solverah.services import scoring_jobs
@@ -752,8 +792,8 @@ def queued_job(client, auth):
         row = ScoringJob(
             user_id=user.id,
             job_type=scoring_jobs.ASSESSMENT,
-            kind="work_pulse",
-            payload={"answers": WP_ANSWERS},
+            kind="manager_match",
+            payload={"answers": MM_ANSWERS},
             status="queued",
         )
         db.session.add(row)
@@ -762,7 +802,7 @@ def queued_job(client, auth):
 
 
 def test_a_queued_job_polls_as_queued_and_carries_no_result(client, auth, queued_job):
-    resp = _poll(client, "work_pulse", queued_job["public_id"])
+    resp = _poll(client, "manager_match", queued_job["public_id"])
 
     assert resp.status_code == 200
     body = resp.get_json()
@@ -782,7 +822,7 @@ def test_a_second_worker_cannot_claim_a_running_job(
     from app import app
     from solverah.services import scoring_jobs
 
-    provider = _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    provider = _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     with app.app_context():
         assert scoring_jobs.run(queued_job["id"]) == scoring_jobs.SUCCEEDED
@@ -813,7 +853,7 @@ def test_a_provider_failure_is_reported_without_leaking_provider_detail(
     with app.app_context():
         assert scoring_jobs.run(queued_job["id"]) == scoring_jobs.FAILED
 
-    resp = _poll(client, "work_pulse", queued_job["public_id"])
+    resp = _poll(client, "manager_match", queued_job["public_id"])
 
     assert resp.status_code == 200
     body = resp.get_json()
@@ -834,7 +874,7 @@ def test_a_terminal_job_no_longer_holds_the_submitted_answers(
     from model import ScoringJob, db
     from solverah.services import scoring_jobs
 
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     with app.app_context():
         scoring_jobs.run(queued_job["id"])
@@ -858,7 +898,7 @@ def test_a_stalled_job_is_failed_rather_than_polled_forever(client, auth, queued
 
         assert scoring_jobs.reap_stalled() == 1
 
-    resp = _poll(client, "work_pulse", queued_job["public_id"])
+    resp = _poll(client, "manager_match", queued_job["public_id"])
 
     assert resp.get_json()["status"] == "failed"
     assert resp.get_json()["error"] == scoring_jobs.GENERIC_FAILURE
@@ -871,7 +911,7 @@ def test_a_recent_job_is_not_reaped(client, auth, queued_job):
     with app.app_context():
         assert scoring_jobs.reap_stalled() == 0
 
-    assert _poll(client, "work_pulse", queued_job["public_id"]).get_json()["status"] == "queued"
+    assert _poll(client, "manager_match", queued_job["public_id"]).get_json()["status"] == "queued"
 
 
 def test_the_sweep_runs_jobs_whose_enqueue_was_lost(
@@ -881,12 +921,12 @@ def test_the_sweep_runs_jobs_whose_enqueue_was_lost(
     from app import app
     from solverah.tasks.scoring_tasks import sweep_scoring_jobs
 
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     with app.app_context():
         assert sweep_scoring_jobs()["requeued"] == 1
 
-    assert _poll(client, "work_pulse", queued_job["public_id"]).get_json()["status"] == "succeeded"
+    assert _poll(client, "manager_match", queued_job["public_id"]).get_json()["status"] == "succeeded"
 
 
 def test_terminal_jobs_are_purged_past_the_retention_window(client, auth, queued_job):
@@ -943,7 +983,7 @@ def test_an_ownerless_job_is_rejected_for_every_kind_but_wpll(client):
             ScoringJob(
                 user_id=None,
                 job_type=scoring_jobs.ASSESSMENT,
-                kind="work_pulse",
+                kind="manager_match",
                 payload={},
                 status="queued",
             )
@@ -956,7 +996,7 @@ def test_an_ownerless_job_is_rejected_for_every_kind_but_wpll(client):
 def test_a_path_suggestion_job_cannot_carry_an_assessment_kind(client):
     """`ck_scoring_jobs_kind_matches_type`.
 
-    A path-suggestion row carrying `kind='work_pulse'` would be served by the
+    A path-suggestion row carrying `kind='manager_match'` would be served by the
     assessment poll under that instrument's response model.
     """
     import sqlalchemy.exc
@@ -970,7 +1010,7 @@ def test_a_path_suggestion_job_cannot_carry_an_assessment_kind(client):
             ScoringJob(
                 user_id=None,
                 job_type=scoring_jobs.PATH_SUGGESTIONS,
-                kind="work_pulse",
+                kind="manager_match",
                 payload={},
                 status="queued",
             )
@@ -1164,13 +1204,13 @@ def test_an_assessment_handle_is_not_a_path_suggestion_handle(
 ):
     """`find_for_user` filters on `job_type`, not only on the owner.
 
-    One table holds both job types, so without that filter a user's own Work
-    Pulse job would be served by the path-suggestion poll under
+    One table holds both job types, so without that filter a user's own
+    ManagerMatch job would be served by the path-suggestion poll under
     `PathSuggestionJobStatus`.
     """
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
-    job_id = _queue(client, "work_pulse", {"answers": WP_ANSWERS}, auth).get_json()[
+    job_id = _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth).get_json()[
         "job_id"
     ]
 
@@ -1278,7 +1318,7 @@ def test_polling_is_not_throttled_by_the_global_default(enforcing, auth, queued_
     is longer than any scoring this queues.
     """
     statuses = [
-        _poll(enforcing, "work_pulse", queued_job["public_id"]).status_code
+        _poll(enforcing, "manager_match", queued_job["public_id"]).status_code
         for _ in range(55)
     ]
 

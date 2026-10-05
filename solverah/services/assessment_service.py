@@ -7,14 +7,12 @@ the five now write one storage shape, ``assessment_submissions``, instead of the
 four places they used to live in -- two column families on ``user_intake``, two
 keys inside the profile document, and the person-side tables.
 
+The original 12-question ``work_pulse`` was retired on 2026-10-02: its scorer
+and its two-commit write are gone, every write door answers 410, and only its
+stored result stays readable (see the RETIRED section below).
+
 Deliberately unchanged:
 
-* The **two-commit** sequence in :func:`submit_work_pulse`.  Answers and the
-  completion timestamp are committed first, then the narrative separately, so
-  that a failure writing the result still leaves the user marked complete rather
-  than losing a 12-question submission.  It reads better against the new schema
-  than it did against the old one: commit 1 leaves the row ``complete``, commit 2
-  makes it ``scored``, which is exactly what Part 4.4's ``status`` column is for.
 * Scoring the person-side assessment returns the submission id and the key
   version but **not the six dimension scores**.  Handing them back gives a
   retaking respondent a gradient to optimise against, which teaches the
@@ -25,11 +23,11 @@ Deliberately unchanged:
   sitting is *recorded* was not licence to widen what a sitting *exposes*.
 
 No provider call runs inside a transaction.  The caller's user lookup opens
-one -- the worker's ``find_by_id`` before it scores -- and Work Pulse used to
-open and flush its submission row before narrating as well, so a connection
-sat idle in transaction for the whole paid round trip, which is seconds and can
-be minutes when the SDK retries.  The two provider-scored submits with an
-account read what they need, copy it out as values (a commit expires every
+one -- the worker's ``find_by_id`` before it scores -- and the retired Work
+Pulse scorer used to open and flush its submission row before narrating as
+well, so a connection sat idle in transaction for the whole paid round trip,
+which is seconds and can be minutes when the SDK retries.  The provider-scored
+submit with an account (ManagerMatch) reads what it needs, copy it out as values (a commit expires every
 instance in the session), end that transaction, and write only once the reply
 is in.  The same goes for ``user.id``: every submit takes it once, before its
 first commit, so no commit is followed by a reload of the user row.
@@ -40,22 +38,20 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 
 from model import User, db
 from solverah.domain import auth as auth_domain
 from solverah.infra import llm
-from solverah.repositories import (
-    assessment_repository,
-    intake_repository,
-    path_fit_repository,
-    profile_repository,
-)
+from solverah.repositories import assessment_repository, path_fit_repository
 from solverah.services import assessment_prompts, path_cache
 
 __all__ = [
     "ASSESSMENT_KINDS",
     "AssessmentKind",
+    "CORE_RETAKE_COOLDOWN",
+    "RETIRED_WORK_PULSE_MESSAGE",
     "precheck",
     "AssessmentResult",
     "KINDS_BY_KEY",
@@ -65,18 +61,15 @@ __all__ = [
     "result",
     "submit",
     "MANAGER_MATCH_ANSWER_COUNT",
-    "WORK_PULSE_ANSWER_COUNT",
     "WPLL_MAX_ANSWERS",
     "completed_kinds",
     "get_manager_match_result",
     "get_work_pulse_result",
     "submit_focus_type",
     "submit_manager_match",
-    "submit_work_pulse",
     "wpll_insight",
 ]
 
-WORK_PULSE_ANSWER_COUNT = 12
 MANAGER_MATCH_ANSWER_COUNT = 15
 WPLL_MAX_ANSWERS = 5
 
@@ -199,111 +192,41 @@ def wpll_insight(answers: Any) -> AssessmentResult:
 
 
 # ---------------------------------------------------------------------------
-# Work Pulse (authenticated, 12 items)
+# Work Pulse, the original 12-question instrument (RETIRED 2026-10-02)
 # ---------------------------------------------------------------------------
+#
+# Retired by Sebastian's ruling of 2026-10-02. Nothing in the client could start
+# a sitting any more (the 24-item ``core`` instrument replaced it at /work-pulse
+# on 2026-08-19), yet its scorer still accepted twelve answers and paid for an
+# OpenAI narrative. The scorer is deleted rather than guarded: every door to it
+# answers 410 (``solverah/api/v1/assessments.py``), and :func:`submit` refuses
+# the kind as well, so a job queued before the deploy fails without a provider
+# call when a worker picks it up.
+#
+# What stays is the READ side. A user who finished the old quiz keeps their
+# stored narrative at ``GET /me/assessments/work_pulse/result``, and their rows
+# stay in ``assessment_submissions`` for export and deletion like any other.
 
-def submit_work_pulse(user: User, answers: Any, logger) -> AssessmentResult:
-    """Score, narrate, and persist a Work Pulse submission."""
-    from work_pulse.derive_preferences import derive_culture_preferences
-
-    if not isinstance(answers, list) or len(answers) != WORK_PULSE_ANSWER_COUNT:
-        return _error(400, "answers must be a list of exactly 12 items")
-
-    # Context for the narrative, from the two places it has always come from:
-    # the claimed WPLL sitting (now a submission of its own) and the intake
-    # row's statement selections (which are intake data, not an assessment, and
-    # stay where they are). Copied out as values, like the user's id, because
-    # the commit below expires every instance in the session.
-    user_id = user.id
-    wpll = assessment_repository.current_result(user_id, "wpll")
-    wpll_answers = (wpll.answers if wpll else None) or None
-    intake = intake_repository.find_user_intake(
-        user_id, only=("selected_statement_ids",)
-    )
-    selected_statement_ids = (intake.selected_statement_ids if intake else None) or None
-
-    # Nothing written and no transaction open while the provider works (see the
-    # module docstring). The row is opened after the reply, not before: opening
-    # it first held a flushed INSERT -- and its entry in
-    # `uq_assessment_submissions_current` -- across the whole round trip and
-    # bought nothing, since a concurrent duplicate waited on that entry and then
-    # paid for its own call anyway. `open_current` resolves the duplicate the
-    # same way at write time.
-    db.session.commit()
-
-    try:
-        result = _chat_json(
-            assessment_prompts.build_wp_narrative_prompt(
-                answers,
-                wpll_answers=wpll_answers,
-                selected_statement_ids=selected_statement_ids,
-            ),
-            "OPENAI_WP_MODEL",
-            "gpt-4o-mini",
-        )
-    except Exception:  # noqa: BLE001 -- logged with a traceback below
-        logger.exception("Work Pulse narrative generation failed")
-        return _error(500, "Unable to generate Work Pulse results")
-
-    required = ("narrative", "emerging_signals", "archetype", "archetype_description")
-    if not all(key in result for key in required):
-        return _error(500, "Malformed response from model")
-
-    # Commit 1: persist answers and mark the sitting complete. This must
-    # succeed before the narrative is attempted, so that completion is always
-    # recorded even if the second commit fails for any reason -- losing a
-    # 12-question submission is the outcome this ordering exists to prevent.
-    submission = assessment_repository.open_current(
-        user_id, "work_pulse", CLIENT_FORM_VERSION
-    )
-    submission.answers = answers
-    submission.completed_at = auth_domain.utcnow()
-    submission.status = "complete"
-
-    # One profile key, so it is written as one: the rest of the document is
-    # neither read nor rewritten. Every completed sitting overwrites it.
-    preferences = derive_culture_preferences(answers)
-    profile_repository.update_extra_key(
-        user_id, "culture_preferences", lambda _stored: preferences
-    )
-
-    db.session.commit()
-
-    # Commit 2: store the narrative and the full result (best-effort). If this
-    # fails the user is still complete; they see an error on the results page
-    # and can resubmit to regenerate the narrative. `get_work_pulse_result`
-    # answers 422 for exactly this state, which is what makes it actionable.
-    try:
-        submission.narrative = result["narrative"]
-        submission.result = result
-        submission.status = "scored"
-        submission.scored_at = auth_domain.utcnow()
-        # BUILD_PLAN F-5: the stored Tier-2 deep fits go with the Tier-1 cache.
-        # Inside the same transaction as the write that made them stale, so a
-        # crash between the two cannot leave a changed profile beside fits
-        # computed from the old one.
-        path_fit_repository.invalidate(user_id)
-        db.session.commit()
-        path_cache.invalidate(user_id)
-    except Exception:  # noqa: BLE001 -- see the comment above
-        db.session.rollback()
-        logger.exception("Work Pulse: failed to persist narrative/result")
-
-    return AssessmentResult(status=200, body=result)
+#: The problem text every write door gives the retired kind. Shared so the
+#: route refusal and a pre-deploy job's failure say the same thing.
+RETIRED_WORK_PULSE_MESSAGE = (
+    "The original 12-question Work Pulse was retired on 2026-10-02 and no longer "
+    "accepts submissions. The current Work Pulse is the core instrument: "
+    "GET /assessments/core/form."
+)
 
 
 def get_work_pulse_result(user: User) -> AssessmentResult:
-    """Return the stored Work Pulse narrative, for rehydrating a fresh session."""
-    submission = assessment_repository.current_result(user.id, "work_pulse")
-    if submission is None or submission.completed_at is None:
-        return _error(404, "No Work Pulse results found")
-    if not submission.result:
-        # Complete but not scored: the answers landed and the second commit did
-        # not. Tell the client to resubmit so the narrative can be regenerated --
-        # 422 rather than 404, because the distinction is actionable: one means
-        # "take the assessment", the other "try again".
-        return _error(422, "Work Pulse results pending — please resubmit")
+    """Return the stored narrative of a retired-instrument sitting, read-only.
 
+    404 for "nothing to show", whichever way it arose: never taken, or taken
+    with the narrative write failing. That second case used to be a 422 telling
+    the client to resubmit; with the scorer retired there is nothing to resubmit
+    to, so the honest answer is the same absence a never-taken user gets.
+    """
+    submission = assessment_repository.current_result(user.id, "work_pulse")
+    if submission is None or submission.completed_at is None or not submission.result:
+        return _error(404, "No Work Pulse results found")
     return AssessmentResult(status=200, body=submission.result)
 
 
@@ -312,8 +235,7 @@ def _store(user_id: int, kind: str, *, answers, result, narrative=None) -> None:
     instruments. Does not commit -- the caller owns the transaction.
 
     Only for the instruments whose whole result arrives in one request.
-    ``work_pulse`` does not use it, because its two-commit sequence needs the row
-    between the two commits; ``core`` does not, because its persistence is behind
+    ``core`` does not, because its persistence is behind
     ``assessment_store``; ``wpll`` does not, because its stored state arrives from
     an anonymous session being claimed rather than from a submission.
 
@@ -435,8 +357,48 @@ def get_manager_match_result(user: User) -> AssessmentResult:
     return AssessmentResult(status=200, body=submission.result)
 
 
+#: The minimum gap between two completed ``core`` sittings, or None for no
+#: cooldown at all.
+#:
+#: None by Sebastian's ruling of 2026-10-02: Work Pulse is retakeable, with no
+#: cooldown "for now". This constant is the whole server-side switch -- set it
+#: to e.g. ``timedelta(days=90)`` and :func:`submit_person_side` refuses a
+#: retake inside the window with a 409 whose error code is
+#: ``retake_cooldown``. Nothing tells the client about the window yet, so
+#: turning it on should come with a way for /work-pulse to hide its Retake
+#: action; otherwise a user answers 24 questions and is refused at Finish.
+CORE_RETAKE_COOLDOWN: Optional[timedelta] = None
+
+
+def _refuse_core_retake_inside_cooldown(user_id: int) -> None:
+    """Raise the 409 for a retake inside :data:`CORE_RETAKE_COOLDOWN`, if one is set.
+
+    A first sitting is never refused: the window runs from the user's latest
+    completed sitting, and a user with none has nothing to count from.
+    """
+    if CORE_RETAKE_COOLDOWN is None:
+        return
+    from assessment_store import latest_core_completed_at
+
+    last = latest_core_completed_at(user_id)
+    if last is not None and auth_domain.utcnow() - last < CORE_RETAKE_COOLDOWN:
+        from solverah.errors import ConflictError
+
+        raise ConflictError(
+            detail="Work Pulse was taken recently. A retake opens once the cooldown has passed.",
+            errors=[{"field": "core", "code": "retake_cooldown"}],
+            extra={"retake_available_at": (last + CORE_RETAKE_COOLDOWN).isoformat()},
+        )
+
+
 def submit_person_side(user: User, responses: Any) -> AssessmentResult:
     """Score and persist a completed person-side assessment.
+
+    A retake is an ordinary call. Each sitting appends its own submission row
+    and raw responses; the current scores move to the newest sitting, and the
+    Situation Report stays pinned to the sitting it was built from until the
+    user recalibrates (``assessment_store``'s RETAKE SEMANTICS). The only
+    retake-specific rule is :data:`CORE_RETAKE_COOLDOWN`, which is off.
 
     Everything correctness-critical -- the server-authoritative shuffle (D-04),
     the cross-dimension interleave, the opaque item tokens, the per-dimension
@@ -450,6 +412,8 @@ def submit_person_side(user: User, responses: Any) -> AssessmentResult:
     """
     from assessment_form import AssessmentError, submit_form
     from assessment_store import persist_submission, respondent_id_for_user
+
+    _refuse_core_retake_inside_cooldown(user.id)
 
     try:
         result = submit_form(respondent_id_for_user(user.id), responses)
@@ -534,6 +498,9 @@ class AssessmentKind:
         has_form: Whether the server serves the items. Only ``core`` does; the
             other four are rendered from definitions the client already holds.
         has_result: Whether a completed submission can be re-read later.
+        retired: The instrument no longer accepts submissions. Its stored
+            results stay readable; every write door answers 410. Only the
+            original 12-question ``work_pulse`` (retired 2026-10-02).
     """
 
     key: str
@@ -542,11 +509,12 @@ class AssessmentKind:
     scored_by: str
     has_form: bool
     has_result: bool
+    retired: bool = False
 
 
 ASSESSMENT_KINDS = (
     AssessmentKind("core", "Culture Assessment", True, "rules", True, False),
-    AssessmentKind("work_pulse", "Work Pulse", True, "llm", False, True),
+    AssessmentKind("work_pulse", "Work Pulse", True, "llm", False, True, retired=True),
     AssessmentKind("wpll", "Work Pulse Lite-Lite", False, "llm", False, False),
     AssessmentKind("focus_type", "FocusType", True, "rules", False, True),
     AssessmentKind("manager_match", "ManagerMatch", True, "llm", False, True),
@@ -564,20 +532,24 @@ def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], log
     """Route a submission to the instrument that scores it.
 
     Dispatch is explicit rather than a callable stashed on the registry entry,
-    because the five signatures genuinely differ -- three take a bare answers
+    because the signatures genuinely differ -- two take a bare answers
     list, one takes the whole payload, one takes no user -- and a uniform
     adapter would be five wrappers pretending to be one.
 
     Two callers since 3c, and the split is by ``scored_by``: the synchronous
     submit route reaches this only for ``core`` and ``focus_type`` (it answers
-    the other three 410), and the scoring-job worker reaches it only for the
-    three it refuses. One dispatcher for both is what guarantees a queued
+    the others 410), and the scoring-job worker reaches it only for ``wpll``
+    and ``manager_match``. One dispatcher for both is what guarantees a queued
     scoring and the synchronous one it replaced produce the same body.
+
+    A retired kind is refused here too, not only at the routes: a job queued
+    before the retirement deployed still reaches this from the worker, and it
+    must fail without a provider call.
     """
+    if kind.retired:
+        return _error(410, RETIRED_WORK_PULSE_MESSAGE)
     if kind.key == "core":
         return submit_person_side(user, data.get("responses"))
-    if kind.key == "work_pulse":
-        return submit_work_pulse(user, data.get("answers"), logger)
     if kind.key == "wpll":
         return wpll_insight(data.get("answers", []))
     if kind.key == "focus_type":
@@ -605,7 +577,8 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
     is held honest by ``tests/test_scoring_jobs.py``, which sends the same
     malformed body through the enqueue's precheck and through a directly-run
     job and asserts the two report the same error -- so the copy cannot drift
-    without a test failing. WPLL's guard is the exception: its per-answer
+    without a test failing. (Two since the retired ``work_pulse`` lost its
+    scorer.) WPLL's guard is the exception: its per-answer
     check grew past a length test, so both callers share
     :func:`_wpll_answers_error` rather than carry two copies of it.
 
@@ -613,12 +586,6 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
     promise the scoring will succeed: the provider can still fail, and that is
     a failed job rather than a 400, because by then the client has a handle.
     """
-    if kind.key == "work_pulse":
-        answers = data.get("answers")
-        if not isinstance(answers, list) or len(answers) != WORK_PULSE_ANSWER_COUNT:
-            return _error(400, "answers must be a list of exactly 12 items")
-        return None
-
     if kind.key == "manager_match":
         answers = data.get("answers")
         if not isinstance(answers, list) or len(answers) != MANAGER_MATCH_ANSWER_COUNT:

@@ -480,3 +480,116 @@ describe("WorkPulsePage - next step after completion", () => {
     expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
   });
 });
+
+// ─── Retakes (ruling 2026-10-02: retakeable, no cooldown for now) ────────────
+
+describe("WorkPulsePage - retake", () => {
+  const DRAFT_KEY = "solverah_assessment_answers";
+
+  beforeEach(() => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("offers 'Retake Work Pulse' on the completion card", () => {
+    // Regression: once complete, the card had no way to start a second sitting,
+    // though /trust and the Situation Report's Re-read both assumed one.
+    renderPage();
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retake Work Pulse" })).toBeInTheDocument();
+    expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("opens the normal stepper as a new sitting, saying the old one is kept", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+    expect(mocks.stepperProps.initialIndex).toBe(0);
+    expect(screen.getByText(/the one you finished before stays stored/i)).toBeInTheDocument();
+    // A retaker finished the current instrument; the old-quiz line is not for them.
+    expect(screen.queryByText(/previous analysis/i)).toBeNull();
+  });
+
+  it("'Not now' goes back to the completion card", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("an unfinished retake keeps Work Pulse complete and offers to continue it", () => {
+    // The in-progress answers live in this tab only; the server, the dashboard
+    // and the hub still see the finished sitting.
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ zulu: "A" }));
+    mocks.assessment.answers = { zulu: "A" };
+    renderPage();
+
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /continue your retake/i }));
+    // The normal resume prompt, not a silent jump into the stepper.
+    expect(screen.getByRole("button", { name: "Pick up where you left off" })).toBeInTheDocument();
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it("finishing a retake returns to the card and invalidates the report and dashboard", async () => {
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "second",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+    const spy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+    expect(spy).toHaveBeenCalledWith({ queryKey: situationReportKeys.all });
+    expect(spy).toHaveBeenCalledWith({ queryKey: dashboardKeys.all });
+  });
+
+  it("after a retake, tells a user with a report how to move it to the new sitting", async () => {
+    mocks.situation = {
+      data: { state: "complete", career_status: "employed" },
+      isPending: false,
+      isFetching: false,
+    };
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "second",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    expect(screen.queryByText(/still reads the sitting it was built from/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+
+    expect(screen.getByText(/still reads the sitting it was built from/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /see your situation report/i })).toBeInTheDocument();
+  });
+
+  it("a failed retake submit stays on the form", async () => {
+    mocks.assessment.submit = vi.fn().mockResolvedValue(null);
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+  });
+});

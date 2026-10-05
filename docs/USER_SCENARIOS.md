@@ -107,7 +107,10 @@ Read this list before you start or you will file five bugs that aren't.
 
 1. **Work Pulse has no results page.** Finishing the 24 questions shows a completion
    card in place and navigates nowhere. This is deliberate — returning dimension
-   scores hands a retaker a gradient to optimise against.
+   scores hands a retaker a gradient to optimise against. A retake (S8.8a) ends on the
+   same card, with nothing to compare.
+1a. **A retake does not move your Situation Report.** The report stays on the sitting
+   it was built from until you press its Re-read button (S11). Expected, not stale.
 2. **Work Pulse and Environment Report restart at question 1 after a reload.** Your
    answers are preserved and pre-selected with a ✓; only the position is lost.
    Manager Profile and ManagerMatch *do* resume at the right index. The
@@ -587,11 +590,26 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
   → Primary CTA **"Describe your job →"** → `/environment-report`. Secondaries: "Start
   FocusType →", "Start ManagerMatch →", "Back to dashboard".
 - **S8.8** — Navigate back to `/work-pulse`.
-  → The form never mounts again; you get the completion card.
+  → You get the completion card, not the form. At the bottom of the card, below a
+  rule: "If the way you work has changed, you can take Work Pulse again. Your earlier
+  sitting stays stored." and a secondary button **"Retake Work Pulse"** (since
+  2026-10-02).
+- **S8.8a** — Press **Retake Work Pulse**.
+  → The normal 24-question stepper, with a line above it: "You're retaking Work Pulse.
+  This is a new sitting: the one you finished before stays stored, and your Situation
+  Report keeps reading it until you choose to re-read the report." and a **Not now**
+  link-button that returns to the card. Answer a few, then reload the page.
+  → The completion card again (Work Pulse is still complete; the dashboard and hub do
+  not change), now offering **"Continue your retake →"**. Press it: the usual
+  "Pick up where you left off" / "Start over" prompt. Finish the retake.
+  → The completion card. If you already have a Situation Report, its text now reads
+  "Your Situation Report still reads the sitting it was built from. To move it to this
+  one, open the report and choose “Re-read this against my latest Work Pulse”." (S11.3).
 - **S8.9** — Open `/work-pulse/results`.
   → **Silently redirects** to `/work-pulse` unless you completed the retired
-  12-question instrument. No copy, no explanation. Judge whether that's acceptable
-  for anyone who bookmarked it.
+  12-question instrument and a narrative was stored for you; then it is a read-only
+  page headed "Your original Work Pulse" saying it is the analysis from the first
+  version, with a link to the current one. Nothing on it can re-score.
 - **S8.10** — **Do this BEFORE S8.6, not after** — confirmed 2026-09-15 the hard
   way: once `wp_v2_completed` is true, the completion card renders in the form's
   place and the component never mounts the query that fetches `core/form` at all.
@@ -722,8 +740,7 @@ strain card is a bug.
   → "Re-reading…", then **"Already reading your most recent Work Pulse sitting —
   nothing moved."** This is a **success**, not an error (§0.5). Nothing is written and
   nothing is logged.
-- **S11.3** — (If you can retake the core sitting on a second account.) Retake, then
-  recalibrate.
+- **S11.3** — Retake Work Pulse (S8.8a), come back here, then recalibrate.
   → "Re-pinned. This report now reads your most recent Work Pulse sitting."
 - **S11.4** — (Not reachable from ACC-1 once S8 is done, but the code path exists.)
   With no core sitting at all, the endpoint answers 409 `no_core_sitting` and the

@@ -1,5 +1,5 @@
 /**
- * useScoringJob.ts — the three provider-scored assessments, as a mutation + a poll.
+ * useScoringJob.ts — the provider-scored assessments, as a mutation + a poll.
  *
  * Phase 3c's ``202 + job handle`` replacing the synchronous
  * ``POST /assessments/{kind}/submissions`` in the UI. ``POST
@@ -12,10 +12,11 @@
  * polling that stops on an error rather than reading "no data yet" as "still
  * running", and fail-closed handling of a status nobody recognises.
  *
- * ── EXACTLY THREE INSTRUMENTS ARE HERE, AND THAT IS THE DESIGN (A19) ─────────
+ * ── EXACTLY TWO INSTRUMENTS ARE HERE, AND THAT IS THE DESIGN (A19) ───────────
  *
- * ``work_pulse``, ``wpll`` and ``manager_match`` block on an OpenAI call of
- * seconds to tens of seconds. ``core`` and ``focus_type`` score from
+ * ``wpll`` and ``manager_match`` block on an OpenAI call of seconds to tens of
+ * seconds. (``work_pulse`` was the third until the original 12-question
+ * instrument was retired on 2026-10-02; its job routes answer 410 now.) ``core`` and ``focus_type`` score from
  * deterministic tables without opening a socket -- 211 ms and 40 ms measured,
  * including the database writes and the HTTP round trip -- so handing their
  * callers a job to poll would spend two extra round trips to deliver a slower
@@ -30,8 +31,8 @@
  *
  * ``{kind}`` is in the poll path precisely because the response model differs
  * per instrument (A12): ``result`` is that instrument's own model and nothing
- * else. A hook returning ``WorkPulseScoringJobStatus | WpllScoringJobStatus |
- * ManagerMatchScoringJobStatus`` would hand every caller a union it has to
+ * else. A hook returning ``WpllScoringJobStatus | ManagerMatchScoringJobStatus``
+ * would hand every caller a union it has to
  * re-narrow by hand, which is the shared result envelope A12 rejected, rebuilt
  * in TypeScript. Threading the kind through as a type parameter means
  * ``useScoringJobStatus("wpll", id).data.result`` is a ``WpllResultResponse``
@@ -54,24 +55,22 @@ type ScoringJobAccepted = components["schemas"]["ScoringJobAccepted"];
  * `scoring_jobs.JOB_ELIGIBLE_KINDS` is the authority; this is its client-side
  * restatement. `core` and `focus_type` are absent on purpose -- see the header.
  */
-export type ScoringJobKind = "work_pulse" | "wpll" | "manager_match";
+export type ScoringJobKind = "wpll" | "manager_match";
 
 /**
  * `{kind}` -> the poll's response model.
  *
- * The three differ only in `result`, and that is the whole point of the path
+ * The two differ only in `result`, and that is the whole point of the path
  * parameter. Written as a map rather than a union so `ScoringJobStatusByKind[K]`
  * resolves to exactly one member for a known `K`.
  */
 export interface ScoringJobStatusByKind {
-  work_pulse: components["schemas"]["WorkPulseScoringJobStatus"];
   wpll: components["schemas"]["WpllScoringJobStatus"];
   manager_match: components["schemas"]["ManagerMatchScoringJobStatus"];
 }
 
 /** `{kind}` -> the enqueue's request body, which is the submit's body unchanged. */
 export interface ScoringJobRequestByKind {
-  work_pulse: components["schemas"]["WorkPulseSubmitRequest"];
   wpll: components["schemas"]["WpllSubmitRequest"];
   manager_match: components["schemas"]["ManagerMatchSubmitRequest"];
 }
@@ -97,7 +96,7 @@ export const scoringJobKeys = {
  * The server's real vocabulary for `status`.
  *
  * The OpenAPI field is a bare `string` -- no enum -- so openapi-typescript
- * cannot narrow it (confirmed against the three `*ScoringJobStatus` schemas in
+ * cannot narrow it (confirmed against the `*ScoringJobStatus` schemas in
  * `docs/openapi.json`). Reconstructed here by hand, as `useResumeParseJob` does
  * for the same reason.
  */

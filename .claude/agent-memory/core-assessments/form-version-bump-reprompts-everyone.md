@@ -9,4 +9,4 @@ metadata:
 
 **Why:** Julie owns instrument content and may edit item wording. Nothing forces or forbids a version bump on a content edit. The 2026-10-02 audit raised this as an open question for Sebastian.
 
-**How to apply:** for any item-bank edit, ask whether it is wording-only (keep form_version) or a new instrument (bump it; Situation Report pins then rescore old raw rows against the new file). Never rename an item_id casually. Also check `wpQuestions.ts`/`wpllQuestions.ts` mirrors by hand. See [[core-has-no-retake-entry]].
+**How to apply:** for any item-bank edit, ask whether it is wording-only (keep form_version) or a new instrument (bump it; Situation Report pins then rescore old raw rows against the new file). Never rename an item_id casually. Also check the `wpllQuestions.ts` mirror by hand (wpQuestions.ts was deleted 2026-10-02). See [[core-retakes-live]].

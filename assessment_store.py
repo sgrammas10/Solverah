@@ -18,6 +18,10 @@ would have put us in.
 
 RETAKE SEMANTICS
 ----------------
+Retakes are live since 2026-10-02 (Sebastian's ruling: retakeable, no cooldown for now; the
+switch is `assessment_service.CORE_RETAKE_COOLDOWN`). Before that date the UI offered no way
+to start a second sitting, though everything below already held.
+
 Raw responses are append-only: a retake writes 24 new rows under a new submission_id, and
 the old sitting stays readable forever. Derived scores are unique per
 (user, dimension, scoring_key_version), so a retake under the same key version UPDATES the
@@ -64,6 +68,7 @@ __all__ = [
     "get_dimension_scores",
     "has_completed_assessment",
     "latest_completed_core_submission_id",
+    "latest_core_completed_at",
     "persist_submission",
     "respondent_id_for_user",
 ]
@@ -358,6 +363,23 @@ def latest_completed_core_submission_id(user_id: int) -> str | None:
         .first()
     )
     return row.public_id.hex if row is not None else None
+
+
+def latest_core_completed_at(user_id: int):
+    """When this user's most recent `core` sitting completed (aware datetime), or None.
+
+    Read by `assessment_service.CORE_RETAKE_COOLDOWN`'s check and nothing else. Same row
+    and same order as `latest_completed_core_submission_id`.
+    """
+    from model import AssessmentSubmission
+
+    row = (
+        AssessmentSubmission.query.filter_by(user_id=user_id, kind="core")
+        .order_by(AssessmentSubmission.completed_at.desc(), AssessmentSubmission.id.desc())
+        .with_entities(AssessmentSubmission.completed_at)
+        .first()
+    )
+    return row[0] if row is not None else None
 
 
 def export_person_side(user_id: int) -> dict[str, list[dict]]:

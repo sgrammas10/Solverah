@@ -78,6 +78,19 @@ function readStoredAnswers(): AssessmentAnswers {
 }
 
 /**
+ * Whether an unfinished sitting is saved in this tab.
+ *
+ * For a screen that does not mount the form -- the /work-pulse completion card
+ * labels its retake button "Continue" rather than "Retake" when one exists. It
+ * cannot prune against the form's tokens the way `useAssessment` does, so a
+ * draft of another instrument version still counts here; the form prunes it on
+ * open and the resume prompt then simply does not appear.
+ */
+export function hasAssessmentDraft(): boolean {
+  return Object.keys(readStoredAnswers()).length > 0;
+}
+
+/**
  * Flatten the blocks into one ordered list.
  *
  * Block boundaries are NOT surfaced to the UI. Each block holds exactly one item per dimension,

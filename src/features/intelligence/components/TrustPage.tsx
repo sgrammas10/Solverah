@@ -110,7 +110,7 @@ const SECTIONS: TrustSection[] = [
     title: "Your answers",
     body: [
       "The Privacy Policy is the binding version and it is short; this is the part of it that bears on this page. Employers never see your individual answers or your dimension scores. Your answers are not sold and are not used for advertising. You can delete your account and the data behind it.",
-      "A retake does not overwrite the sitting before it — each one is stored as its own. That is what makes it possible, later, to tell a genuine change in your working life from ordinary noise.",
+      "You can retake Work Pulse from its page whenever your work has changed. A retake does not overwrite the sitting before it — each one is stored as its own. Your newest sitting is the one Solverah works from, with one exception: your Situation Report stays on the sitting it was built from until you choose to re-read it, so a retake never quietly rewrites a report you have already read. Keeping every sitting is what makes it possible, later, to tell a genuine change in your working life from ordinary noise.",
     ],
   },
 ];
