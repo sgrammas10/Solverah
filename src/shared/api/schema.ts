@@ -113,7 +113,7 @@ export interface paths {
          * Queue an assessment scoring and return a job handle
          * @description The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          *
-         *     Only the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.
+         *     Only the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.
          *
          *     **This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.
          */
@@ -135,7 +135,7 @@ export interface paths {
          * Report the state of a queued assessment scoring
          * @description `{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).
          *
-         *     `wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.
+         *     `wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.
          */
         get: operations["get_assessments_assessment_kind_scoring_job_status"];
         put?: never;
@@ -159,7 +159,9 @@ export interface paths {
          * Submit a completed assessment
          * @description Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.
          *
-         *     The three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.
+         *     `core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.
+         *
+         *     The two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.
          */
         post: operations["post_assessments_assessment_kind_submit"];
         delete?: never;
@@ -599,7 +601,7 @@ export interface paths {
         };
         /**
          * Retrieve a stored assessment result
-         * @description `{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.
+         * @description `{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `work_pulse` is the retired original instrument: its stored narrative stays readable here, read-only, and a sitting without one is a `404` like no sitting at all. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.
          */
         get: operations["get_assessments_assessment_kind_result"];
         put?: never;
@@ -1605,14 +1607,14 @@ export interface components {
         };
         /**
          * AssessmentScoringJobStatus
-         * @description Documentation-only union of the three poll responses.
+         * @description Documentation-only union of the two poll responses.
          *
          *     Which member comes back is determined by ``{kind}`` in the path, not by
          *     anything in the body -- the same reason ``AssessmentSubmissionResponse``
          *     cannot be an OpenAPI discriminated union.  Do not validate against this;
          *     validate against :data:`SCORING_JOB_RESPONSES`.
          */
-        AssessmentScoringJobStatus: components["schemas"]["WorkPulseScoringJobStatus"] | components["schemas"]["WpllScoringJobStatus"] | components["schemas"]["ManagerMatchScoringJobStatus"];
+        AssessmentScoringJobStatus: components["schemas"]["WpllScoringJobStatus"] | components["schemas"]["ManagerMatchScoringJobStatus"];
         /**
          * AssessmentSubmissionRequest
          * @description Documentation-only union of the five submission bodies.
@@ -1622,7 +1624,7 @@ export interface components {
          *     that fits -- which is precisely why the route enforces
          *     :data:`SUBMISSION_REQUESTS` per kind rather than this.
          */
-        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["WorkPulseSubmitRequest"] | components["schemas"]["WpllSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
+        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["WpllSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
         /**
          * AssessmentSubmissionResponse
          * @description Documentation-only union of the five submission results.
@@ -4755,11 +4757,13 @@ export interface components {
         };
         /**
          * WorkPulseResult
-         * @description Work Pulse narrative result.
+         * @description The retired original Work Pulse's narrative result.
          *
          *     Persisted to ``assessment_submissions.result`` since Phase 2d --
          *     ``user_intake.wpl_result`` before it -- and returned verbatim by
-         *     ``GET /me/assessments/work_pulse/result``.
+         *     ``GET /me/assessments/work_pulse/result``. Read-only since the instrument
+         *     was retired on 2026-10-02: nothing writes a new one, and its submit body
+         *     and job-status models are deleted with the write doors.
          */
         WorkPulseResult: {
             /** Archetype */
@@ -4775,40 +4779,6 @@ export interface components {
             narrative: string;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * WorkPulseScoringJobStatus
-         * @description ``GET /assessments/work_pulse/scoring-jobs/{job_id}``.
-         */
-        WorkPulseScoringJobStatus: {
-            /**
-             * Error
-             * @description Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.
-             * @default null
-             */
-            error: string | null;
-            /** Job Id */
-            job_id: string;
-            /**
-             * @description Present only on 'succeeded'.
-             * @default null
-             */
-            result: components["schemas"]["WorkPulseResult"] | null;
-            /**
-             * Status
-             * @description queued, running, succeeded or failed. The last two are terminal.
-             */
-            status: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /** WorkPulseSubmitRequest */
-        WorkPulseSubmitRequest: {
-            /**
-             * Answers
-             * @description Exactly 12 answers.
-             */
-            answers: components["schemas"]["WorkPulseAnswer"][];
         };
         /** WpllAnswer */
         WpllAnswer: {
@@ -5134,6 +5104,15 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -5173,6 +5152,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -5226,6 +5214,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Gone */
@@ -6172,15 +6169,6 @@ export interface operations {
             };
             /** @description Not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Validation failed */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };

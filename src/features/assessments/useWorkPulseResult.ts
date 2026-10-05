@@ -10,9 +10,10 @@
  * Retry behaviour is the shared default from `queryClient.ts` on purpose: a
  * 429/5xx gets `shouldRetry`'s two bounded retries, which the hand-rolled
  * fetches never had. That is safe here because Phase 3a removed every commit
- * from GET handlers — a retried read re-reads and nothing else. A 422 (result
- * row missing behind a set completion flag) is a client error and surfaces
- * immediately, which WorkPulseResultsPage relies on for its resubmit path.
+ * from GET handlers — a retried read re-reads and nothing else. A 404 (no stored
+ * legacy result; the 12-question kind is retired, 2026-10-02) is a client error
+ * and surfaces immediately, which WorkPulseResultsPage relies on to redirect to
+ * /work-pulse instead of showing a read-only view.
  *
  * `throwOnError` stays false (the default): both consumers own a real error
  * UI with a retry button, unlike the useProfile() consumers whose failures

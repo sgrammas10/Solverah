@@ -222,11 +222,12 @@ narrator on top of the corpus, and `GET /me/path-suggestions` is captured on a
 cache miss by design. It is pinned in `tests/test_path_wants_api.py` and
 `tests/test_path_scoring.py` instead.
 
-**The LLM is stubbed, and the prompt builders with it.** Three instruments call a
-provider; a fixture that depended on one could not produce stable bytes, and the
-narrative text is the whole payload for two of them. `_chat_json` is replaced by a
-lookup keyed off a marker the stubbed prompt builders emit, so Work Pulse and
-ManagerMatch -- which share `OPENAI_WP_MODEL` -- stay distinguishable. The
+**The LLM is stubbed, and the prompt builders with it.** Two instruments call a
+provider (three until Work Pulse was retired, A32); a fixture that depended on one
+could not produce stable bytes, and the narrative text is the whole payload for
+ManagerMatch. `_chat_json` is replaced by a lookup keyed off a marker the stubbed
+prompt builders emit, which is how Work Pulse and ManagerMatch -- which shared
+`OPENAI_WP_MODEL` -- were told apart. The
 builders are still *called* with whatever the handler passes them, so a handler
 that stopped being able to read its inputs still fails here; what those inputs
 contain is not on the wire and is asserted in `tests/test_assessment_storage.py`
@@ -277,6 +278,27 @@ and the agent's 422 -> 503 for an unavailable model are not pinned here. The
 dashboard's recommendation backstop moved from 3 to 6, but this scenario never
 has more than three, so `dashboard` and `dashboard-cached` stay byte-identical.
 After the recapture: 0 differences across 116.
+
+**Re-baselined for the Work Pulse retirement and core retakes (2026-10-05).** A
+deliberate change, and A32 (docs/ARCHITECTURE.md) is the ledger. The original
+12-question `work_pulse` answers 410 `kind_retired`, with no `replaced_by`, on
+every door it had. Its four steps stay in place and under their old names, so each
+door's tombstone is pinned. `queue-work-pulse` and `poll-work-pulse-job` used to be
+the `queue_and_poll` pair and are now written out, the poll on a fixed handle
+(`RETIRED_POLL_JOB_ID`). No step was added, removed or reordered. The scenario can
+no longer score a legacy sitting, so `_seed_legacy_work_pulse` writes the row the
+deleted scorer left, right after the four door steps. Without it, nine read steps
+would move (the result, catalogue, session, profile, three logins, dashboard and
+export), and they would be losing coverage of rows prod still holds, not
+reporting a wire change. Verified before the recapture on the standing baseline:
+10 field differences, all in the four door steps --
+`submit-work-pulse-sync-gone` (body only), `queue-work-pulse-too-few-answers`
+(400 -> 410), `queue-work-pulse` (202 -> 410) and `poll-work-pulse-job`
+(200 -> 410), the last three also moving to `application/problem+json`. The
+Situation Report's new default-pin rule does not reach this scenario: EMAIL has
+one core sitting, and one sitting short-circuits to itself. Core's 409
+`retake_cooldown` is off by default and not exercised. After the recapture:
+0 differences across 116.
 """
 
 from __future__ import annotations
@@ -335,6 +357,10 @@ WPLL_ANSWERS = [
 WP_ANSWERS = [
     {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
 ]
+#: The handle `poll-work-pulse-job` asks after. The retired kind can issue no
+#: handle, so this one is invented: well-formed (32 lowercase hex, what a real
+#: handle looks like) so the 410 cannot be blamed on a malformed id.
+RETIRED_POLL_JOB_ID = "0" * 32
 MM_ANSWERS = [{"question_id": "mm-q%d" % i, "choice": "a"} for i in range(1, 16)]
 MP_ANSWERS = [{"question_id": "mp-q%d" % i, "choice": "a"} for i in range(1, 17)]
 
@@ -361,15 +387,8 @@ FOCUS_TYPE_PAYLOAD = {
 }
 
 #: Canned provider replies, keyed by the marker the stubbed prompt builders emit.
-#: Work Pulse and ManagerMatch both run on `OPENAI_WP_MODEL`, so the model
-#: environment variable cannot tell them apart and the marker is what does.
+#: The retired Work Pulse's "WP" entry went with its submit path (A32).
 _LLM_REPLIES = {
-    "WP": {
-        "narrative": "You do your best work in long uninterrupted stretches.",
-        "emerging_signals": ["depth over breadth", "low tolerance for context switching"],
-        "archetype": "The Deep Worker",
-        "archetype_description": "Sustained focus is where your output comes from.",
-    },
     "MM": {
         "narrative": "You want a manager who sets direction and then gets out of the way.",
         "what_to_look_for": ["clear written goals", "few standing meetings"],
@@ -502,17 +521,17 @@ def _silence_outbound_email() -> None:
 
 
 def _stub_llm() -> None:
-    """Make the three provider-backed instruments deterministic.
+    """Make the two provider-backed instruments deterministic.
 
     Two things are replaced, and the split matters.
 
-    The **prompt builders** become markers. That is what lets one `_chat_json`
-    stub serve Work Pulse and ManagerMatch, which share `OPENAI_WP_MODEL` and are
-    therefore indistinguishable by the argument the real function dispatches on.
-    Replacing them here does *not* stop the handlers reading their inputs -- the
-    call site still evaluates `intake.wpll_answers` and
-    `intake.selected_statement_ids` before handing them over, so a handler that
-    lost access to them still fails this script.
+    The **prompt builders** become markers, which is what lets one `_chat_json`
+    stub serve ManagerMatch and WPLL. (Work Pulse shared `OPENAI_WP_MODEL` with
+    ManagerMatch, which is why markers rather than the model argument tell the
+    replies apart; its builder was deleted with the retirement, A32.)
+    Replacing them here does *not* stop the handlers reading their inputs --
+    the call site still evaluates them before handing them over, so a handler
+    that lost access to them still fails this script.
 
     `_chat_json` itself becomes a dict lookup. It is patched on the service
     module rather than on the OpenAI client because the client is constructed
@@ -521,9 +540,6 @@ def _stub_llm() -> None:
     """
     from solverah.services import assessment_prompts, assessment_service
 
-    assessment_prompts.build_wp_narrative_prompt = (
-        lambda *_a, **_k: [{"role": "system", "content": "WP"}]
-    )
     assessment_prompts.build_mm_narrative_prompt = (
         lambda *_a, **_k: [{"role": "system", "content": "MM"}]
     )
@@ -740,6 +756,57 @@ def _seed_company(db) -> None:
 #: token was ever presented.
 REFRESH_COOKIE = "refresh_token_cookie"
 REFRESH_PATH = "/api/v1/auth/refresh"
+
+
+#: What the retired Work Pulse stored for a sitting: the four keys its scorer
+#: required of the provider reply. The same canned reply the scenario's stub
+#: returned before the retirement, so a seeded sitting reads back byte for byte
+#: as the scored one did.
+LEGACY_WORK_PULSE_RESULT = {
+    "narrative": "You do your best work in long uninterrupted stretches.",
+    "emerging_signals": ["depth over breadth", "low tolerance for context switching"],
+    "archetype": "The Deep Worker",
+    "archetype_description": "Sustained focus is where your output comes from.",
+}
+
+
+def _seed_legacy_work_pulse(app, email: str) -> None:
+    """Give *email* the stored sitting a user who took the retired Work Pulse has.
+
+    The retirement (A32) closed every write door, but production still holds
+    these rows, and the promise that came with it is that they stay readable:
+    the result route, the catalogue's `completed`, the session's
+    `wpl_completed`, the profile's derived `culture_preferences`, the
+    dashboard's activity line and the export's `wpl_*` fields all read them.
+    A scenario that can no longer submit one would stop pinning every one of
+    those reads, so the row is written here, through the same repository calls
+    and in the same final state the deleted `submit_work_pulse` left behind.
+    """
+    from model import User, db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository, profile_repository
+    from solverah.services.assessment_service import CLIENT_FORM_VERSION
+    from work_pulse.derive_preferences import derive_culture_preferences
+
+    with app.app_context():
+        user_id = db.session.execute(
+            db.select(User.id).where(User.email == email)
+        ).scalar_one()
+        now = auth_domain.utcnow()
+        submission = assessment_repository.open_current(
+            user_id, "work_pulse", CLIENT_FORM_VERSION
+        )
+        submission.answers = WP_ANSWERS
+        submission.narrative = LEGACY_WORK_PULSE_RESULT["narrative"]
+        submission.result = dict(LEGACY_WORK_PULSE_RESULT)
+        submission.status = "scored"
+        submission.completed_at = now
+        submission.scored_at = now
+        preferences = derive_culture_preferences(WP_ANSWERS)
+        profile_repository.update_extra_key(
+            user_id, "culture_preferences", lambda _stored: preferences
+        )
+        db.session.commit()
 
 
 def _put_refresh_cookie(client, raw: str) -> None:
@@ -1013,11 +1080,12 @@ def run_scenario() -> List[Dict[str, Any]]:
         headers=csrf,
     )
 
-    # The three provider-scored instruments, each captured through both doors
+    # The two provider-scored instruments, each captured through both doors
     # (Phase 3c): the 410 tombstone on the old synchronous submit -- the
     # refusal and its `replaced_by` pointer are contract -- and the job pair
     # that took the scoring. Eager execution runs the job inside the enqueue,
     # so the 202 already reads `succeeded` and one poll carries the result.
+    # The retired `work_pulse` keeps its four steps between them (A32).
     def queue_and_poll(kind: str, body: dict, headers=None) -> None:
         queued = call(
             "queue-%s" % kind.replace("_", "-"),
@@ -1041,6 +1109,14 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     queue_and_poll("wpll", {"answers": WPLL_ANSWERS})
 
+    # The original 12-question `work_pulse` is retired (2026-10-02, A32): every
+    # door it had answers 410 `kind_retired` with no `replaced_by`. Its four
+    # steps are kept in place and under their old names, so each door's
+    # tombstone is pinned. The two enqueue steps differ on purpose: the short
+    # body would be a 400 if the body were read, so it proves the refusal comes
+    # first; the full one proves a valid body is refused too. The poll asks
+    # after a well-formed handle no enqueue issued -- none can be issued now,
+    # and the 410 is the answer for every handle.
     call(
         "submit-work-pulse-sync-gone",
         "POST",
@@ -1055,7 +1131,21 @@ def run_scenario() -> List[Dict[str, Any]]:
         json={"answers": WP_ANSWERS[:3]},
         headers=csrf,
     )
-    queue_and_poll("work_pulse", {"answers": WP_ANSWERS}, headers=csrf)
+    call(
+        "queue-work-pulse",
+        "POST",
+        "/api/v1/assessments/work_pulse/scoring-jobs",
+        json={"answers": WP_ANSWERS},
+        headers=csrf,
+    )
+    call(
+        "poll-work-pulse-job",
+        "GET",
+        "/api/v1/assessments/work_pulse/scoring-jobs/%s" % RETIRED_POLL_JOB_ID,
+    )
+    # Where the job used to score it: the stored sitting a pre-retirement user
+    # has, so every read of a legacy row below stays pinned (A32).
+    _seed_legacy_work_pulse(app, EMAIL)
 
     call(
         "submit-focus-type",

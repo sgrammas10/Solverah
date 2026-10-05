@@ -340,25 +340,19 @@
       "AssessmentScoringJobStatus": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/WorkPulseScoringJobStatus"
-          },
-          {
             "$ref": "#/components/schemas/WpllScoringJobStatus"
           },
           {
             "$ref": "#/components/schemas/ManagerMatchScoringJobStatus"
           }
         ],
-        "description": "Documentation-only union of the three poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
+        "description": "Documentation-only union of the two poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
         "title": "AssessmentScoringJobStatus"
       },
       "AssessmentSubmissionRequest": {
         "anyOf": [
           {
             "$ref": "#/components/schemas/AssessmentSubmitRequest"
-          },
-          {
-            "$ref": "#/components/schemas/WorkPulseSubmitRequest"
           },
           {
             "$ref": "#/components/schemas/WpllSubmitRequest"
@@ -5652,7 +5646,7 @@
       },
       "WorkPulseResult": {
         "additionalProperties": true,
-        "description": "Work Pulse narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``.",
+        "description": "The retired original Work Pulse's narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``. Read-only since the instrument\nwas retired on 2026-10-02: nothing writes a new one, and its submit body\nand job-status models are deleted with the write doors.",
         "properties": {
           "archetype": {
             "title": "Archetype",
@@ -5685,70 +5679,6 @@
           "archetype"
         ],
         "title": "WorkPulseResult",
-        "type": "object"
-      },
-      "WorkPulseScoringJobStatus": {
-        "additionalProperties": true,
-        "description": "``GET /assessments/work_pulse/scoring-jobs/{job_id}``.",
-        "properties": {
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
-            "title": "Error"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkPulseResult"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'succeeded'."
-          },
-          "status": {
-            "description": "queued, running, succeeded or failed. The last two are terminal.",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "status"
-        ],
-        "title": "WorkPulseScoringJobStatus",
-        "type": "object"
-      },
-      "WorkPulseSubmitRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "answers": {
-            "description": "Exactly 12 answers.",
-            "items": {
-              "$ref": "#/components/schemas/WorkPulseAnswer"
-            },
-            "title": "Answers",
-            "type": "array"
-          }
-        },
-        "required": [
-          "answers"
-        ],
-        "title": "WorkPulseSubmitRequest",
         "type": "object"
       },
       "WpllAnswer": {
@@ -6160,7 +6090,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs": {
       "post": {
-        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
+        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
         "operationId": "post_assessments_assessment_kind_scoring_job",
         "parameters": [
           {
@@ -6213,6 +6143,16 @@
             },
             "description": "Not found"
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -6240,7 +6180,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs/{job_id}": {
       "get": {
-        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.",
+        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.",
         "operationId": "get_assessments_assessment_kind_scoring_job_status",
         "parameters": [
           {
@@ -6281,6 +6221,16 @@
             },
             "description": "Not found"
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -6305,7 +6255,7 @@
     },
     "/api/v1/assessments/{kind}/submissions": {
       "post": {
-        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\nThe three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.",
+        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\n`core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.\n\nThe two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.",
         "operationId": "post_assessments_assessment_kind_submit",
         "parameters": [
           {
@@ -6357,6 +6307,16 @@
               }
             },
             "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "410": {
             "content": {
@@ -7582,7 +7542,7 @@
     },
     "/api/v1/me/assessments/{kind}/result": {
       "get": {
-        "description": "`{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.",
+        "description": "`{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `work_pulse` is the retired original instrument: its stored narrative stays readable here, read-only, and a sitting without one is a `404` like no sitting at all. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.",
         "operationId": "get_assessments_assessment_kind_result",
         "parameters": [
           {
@@ -7614,16 +7574,6 @@
               }
             },
             "description": "Not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Validation failed"
           },
           "default": {
             "content": {

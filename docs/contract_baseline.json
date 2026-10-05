@@ -262,34 +262,34 @@
     "status": 410,
     "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"detail\":\"work_pulse is scored off the request path since Phase 3c. Queue the scoring at POST /assessments/work_pulse/scoring-jobs and poll the job.\",\"errors\":[{\"code\":\"moved_to_scoring_jobs\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/submissions\",\"replaced_by\":\"/assessments/work_pulse/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
+    "body": "{\"detail\":\"The original 12-question Work Pulse was retired on 2026-10-02 and no longer accepts submissions. The current Work Pulse is the core instrument: GET /assessments/core/form.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/submissions\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "queue-work-pulse-too-few-answers",
     "method": "POST",
     "path": "/api/v1/assessments/work_pulse/scoring-jobs",
-    "status": 400,
-    "mimetype": "application/json",
+    "status": 410,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"error\":\"answers must be a list of exactly 12 items\"}\n"
+    "body": "{\"detail\":\"The original 12-question Work Pulse was retired on 2026-10-02 and no longer accepts submissions. The current Work Pulse is the core instrument: GET /assessments/core/form.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "queue-work-pulse",
     "method": "POST",
     "path": "/api/v1/assessments/work_pulse/scoring-jobs",
-    "status": 202,
-    "mimetype": "application/json",
+    "status": 410,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"job_id\":\"<JID>\",\"status\":\"succeeded\",\"status_url\":\"/assessments/work_pulse/scoring-jobs/<JID>\"}\n"
+    "body": "{\"detail\":\"The original 12-question Work Pulse was retired on 2026-10-02 and no longer accepts submissions. The current Work Pulse is the core instrument: GET /assessments/core/form.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "poll-work-pulse-job",
     "method": "GET",
     "path": "/api/v1/assessments/work_pulse/scoring-jobs/<JID>",
-    "status": 200,
-    "mimetype": "application/json",
+    "status": 410,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"archetype\":\"The Deep Worker\",\"archetype_description\":\"Sustained focus is where your output comes from.\",\"emerging_signals\":[\"depth over breadth\",\"low tolerance for context switching\"],\"narrative\":\"You do your best work in long uninterrupted stretches.\"},\"status\":\"succeeded\"}\n"
+    "body": "{\"detail\":\"The original 12-question Work Pulse was retired on 2026-10-02 and no longer accepts submissions. The current Work Pulse is the core instrument: GET /assessments/core/form.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/work_pulse/scoring-jobs/00000000000000000000000000000000\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "submit-focus-type",
