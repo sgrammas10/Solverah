@@ -93,9 +93,6 @@ vi.mock("./ExperienceTab", () => ({
 vi.mock("./EducationTab", () => ({
   default: () => <div data-testid="education-tab">Education Tab</div>,
 }));
-vi.mock("./PerformanceTab", () => ({
-  default: () => <div data-testid="performance-tab">Performance Tab</div>,
-}));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -152,12 +149,17 @@ describe("JobSeekerProfile - happy path", () => {
     expect(screen.getByTestId("personal-info-tab")).toBeInTheDocument();
   });
 
-  it("renders all four tab buttons", () => {
+  it("renders all three tab buttons", () => {
     renderJobSeekerProfile();
     expect(screen.getByRole("button", { name: /personal info/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /experience/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /education/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /performance/i })).toBeInTheDocument();
+  });
+
+  it("no longer renders a Performance tab (dead UI removal)", () => {
+    renderJobSeekerProfile();
+    expect(screen.queryByRole("button", { name: /performance/i })).toBeNull();
+    expect(screen.queryByTestId("performance-tab")).toBeNull();
   });
 });
 
@@ -174,12 +176,6 @@ describe("JobSeekerProfile - tab switching", () => {
     renderJobSeekerProfile();
     fireEvent.click(screen.getByRole("button", { name: /education/i }));
     expect(screen.getByTestId("education-tab")).toBeInTheDocument();
-  });
-
-  it("shows Performance tab when clicked", () => {
-    renderJobSeekerProfile();
-    fireEvent.click(screen.getByRole("button", { name: /performance/i }));
-    expect(screen.getByTestId("performance-tab")).toBeInTheDocument();
   });
 });
 
@@ -199,6 +195,14 @@ describe("JobSeekerProfile - URL param", () => {
   it("falls back to Personal Info for an unknown ?tab= (G12)", () => {
     // Used to become the active tab: no tab highlighted and an empty page.
     renderJobSeekerProfile("?tab=nonsense");
+    expect(screen.getByTestId("personal-info-tab")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /personal info/i }).className).toContain(
+      "border-forest-light",
+    );
+  });
+
+  it("falls back to Personal Info for the removed ?tab=performance (G12)", () => {
+    renderJobSeekerProfile("?tab=performance");
     expect(screen.getByTestId("personal-info-tab")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /personal info/i }).className).toContain(
       "border-forest-light",

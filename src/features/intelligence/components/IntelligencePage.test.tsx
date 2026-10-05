@@ -325,9 +325,16 @@ describe("IntelligencePage - completed without a narrative", () => {
     // coming-soon regardless of wp_v2_completed.
     renderIntelligencePage();
     expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Coming soon" })).toBeDisabled();
     expect(screen.queryByText(/matches are ready/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
+  });
+
+  it("no longer renders a disabled 'Coming soon' button on the CompanyLens card (dead UI removal)", () => {
+    // The button was disabled and did nothing when clicked -- unlike Path
+    // Intelligence's "Pro · coming soon" badge, which stays (09-28 ruling)
+    // because its button is live and navigates to /intelligence/paths.
+    renderIntelligencePage();
+    expect(screen.queryByRole("button", { name: "Coming soon" })).toBeNull();
   });
 
   it("labels the Pro badge as coming soon, not as a bare tier", () => {

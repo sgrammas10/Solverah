@@ -293,10 +293,10 @@ describe("JobSeekerDashboard - the job board is gone (D-6)", () => {
     expect(screen.queryByText("60%")).toBeNull();
   });
 
-  it("keeps matching reachable as a plain link, with no matching framing", async () => {
+  it("no longer offers a Search companies link (dead UI removal: led only to a coming-soon stub)", async () => {
     renderJobSeekerDashboard();
-    const search = screen.getByRole("link", { name: /Search companies and roles/i });
-    expect(search).toHaveAttribute("href", "/search");
+    expect(screen.queryByRole("link", { name: /Search companies and roles/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^Search$/i })).toBeNull();
   });
 });
 

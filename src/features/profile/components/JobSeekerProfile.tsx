@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
+import { User, Briefcase, GraduationCap, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
 import { readCareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
 import CareerStatusReturnDialog from "./CareerStatusReturnDialog";
@@ -9,13 +9,11 @@ import { invalidateProfileDependents, useSetCareerStatus } from "./useSetCareerS
 import PersonalInfoTab from "./PersonalInfoTab";
 import ExperienceTab from "./ExperienceTab";
 import EducationTab from "./EducationTab";
-import PerformanceTab from "./PerformanceTab";
 
 const tabs = [
   { id: "personal", label: "Personal Info", icon: User },
   { id: "experience", label: "Experience", icon: Briefcase },
   { id: "education", label: "Education", icon: GraduationCap },
-  { id: "performance", label: "Performance", icon: Star },
 ];
 
 const DEFAULT_TAB = "personal";
@@ -268,8 +266,6 @@ function JobSeekerProfile() {
             certificationLimitMsg={profile.certificationLimitMsg}
           />
         )}
-
-        {activeTab === "performance" && <PerformanceTab formData={profile.formData} />}
 
         {/* Save Button */}
         <div className="pt-6">

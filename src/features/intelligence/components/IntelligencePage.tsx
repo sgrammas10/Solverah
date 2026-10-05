@@ -546,17 +546,10 @@ export default function IntelligencePage() {
             <p className="text-xs text-ink-secondary mt-0.5 mb-2">
               Company environment and cultural alignment
             </p>
-            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+            <p className="text-xs text-ink-secondary leading-relaxed">
               Our matching model is still being built. Your Work Pulse results
               are already saved and will feed it the moment it's ready.
             </p>
-            <button
-              type="button"
-              disabled
-              className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
-            >
-              Coming soon
-            </button>
           </div>
 
           {/* Path Intelligence */}

@@ -442,19 +442,6 @@ function JobSeekerDashboard() {
             </button>
           </div>
         </div>
-
-        {/* Matching, demoted rather than deleted (§1: one output of the engine,
-            not the frame around it). A plain link below the fold — no tile, no
-            modal, and nothing promising a match, because CompanyLens is still
-            waiting on the causal model. */}
-        <div className="mt-10 border-t border-cream-muted pt-6">
-          <Link
-            to="/search"
-            className="text-sm text-ink-secondary hover:text-ink-primary hover:underline"
-          >
-            Search companies and roles →
-          </Link>
-        </div>
       </div>
     </div>
   );
