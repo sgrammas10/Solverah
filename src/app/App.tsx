@@ -87,9 +87,6 @@ import ForgotPasswordVerify from "../features/auth/components/ForgotPasswordVeri
 // ── Lazy: quiz components ───────────────────────────────────────────────────
 const CareerQuizzes = lazy(() => import("../features/intelligence/components/CareerQuizzes"));
 const NextChapterYourWayQuiz = lazy(() => import("../features/intelligence/components/NextChapterYourWayQuiz"));
-const SolverahYourFutureYourWayQuiz = lazy(
-  () => import("../features/intelligence/components/SolverahYourFutureYourWayQuiz"),
-);
 
 // ── Lazy: public pages behind an in-app navigation ──────────────────────────
 const GuestQuizPreview = lazy(() => import("../features/intelligence/components/GuestQuizPreview"));
@@ -275,7 +272,6 @@ function App() {
                 <Route path="/career-quizzes/mid-career" element={<CareerQuizzes quizKey="midCareer" />} />
                 <Route path="/career-quizzes/teen-focused" element={<CareerQuizzes quizKey="teenFocused" />} />
                 <Route path="/career-job-search" element={<NextChapterYourWayQuiz />} />
-                <Route path="/future-your-way" element={<SolverahYourFutureYourWayQuiz />} />
                 <Route path="/quiz-insights" element={<QuizInsights />} />
 
                 {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
