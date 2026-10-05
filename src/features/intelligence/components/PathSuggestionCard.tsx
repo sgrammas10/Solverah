@@ -116,8 +116,6 @@ export default function PathSuggestionCard({
   onVerdict,
   feedbackPending = false,
 }: PathSuggestionCardProps) {
-  const [showTooltip, setShowTooltip] = useState(false);
-
   const progressionLine = buildProgressionLine(careerStatus, currentTitle, suggestion.title);
   // Optional on the wire: a payload cached before W-4 shipped carries no
   // `reasons`, and a user who has stated no wants gets an empty list. Both mean
@@ -284,34 +282,6 @@ export default function PathSuggestionCard({
           })}
         </div>
       )}
-
-      {/* Set as target role — disabled CTA with hover tooltip */}
-      <div
-        className="relative inline-block"
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-      >
-        <button
-          type="button"
-          disabled
-          className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed opacity-60"
-        >
-          Set as target role
-        </button>
-        {showTooltip && (
-          // Below the button, not above it: `bottom-full` used to open the
-          // tooltip upward, straight over the Interesting / Too similar / Not
-          // for me row that sits above this CTA. The card has no `overflow`
-          // clipping, so a tooltip hanging below the last element is fine.
-          <div
-            role="tooltip"
-            className="absolute top-full left-0 mt-2 w-56 rounded bg-ink-primary px-3 py-2 text-xs text-white shadow-lg"
-          >
-            Coming soon — goal tracking is on the way
-          </div>
-        )}
-      </div>
-
     </div>
   );
 }

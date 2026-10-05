@@ -168,60 +168,18 @@ describe("PathSuggestionCard - progression line", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Disabled CTA button
+// "Set as target role" removed (Sebastian ruling 2026-10-02: no "coming soon"
+// controls on the card). Regression test: this must stay gone.
 // ---------------------------------------------------------------------------
 
-describe("PathSuggestionCard - Set as target role CTA", () => {
-  it("renders the Set as target role button", () => {
+describe("PathSuggestionCard - no 'coming soon' target-role control", () => {
+  it("renders no 'Set as target role' button or tooltip", () => {
     renderCard();
     expect(
-      screen.getByRole("button", { name: /set as target role/i })
-    ).toBeInTheDocument();
-  });
-
-  it("button is disabled", () => {
-    renderCard();
-    expect(
-      screen.getByRole("button", { name: /set as target role/i })
-    ).toBeDisabled();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tooltip on hover
-// ---------------------------------------------------------------------------
-
-describe("PathSuggestionCard - tooltip", () => {
-  it("shows the tooltip text when hovering the CTA wrapper", () => {
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "Coming soon — goal tracking is on the way"
-    );
-  });
-
-  it("opens below the button, never above it, so it cannot cover the verdict row", () => {
-    // `bottom-full` opens upward and used to sit on top of the Interesting /
-    // Too similar / Not for me row above this CTA.
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    const tooltip = screen.getByRole("tooltip");
-    expect(tooltip.className).not.toMatch(/\bbottom-full\b/);
-    expect(tooltip.className).toMatch(/\btop-full\b/);
-  });
-
-  it("hides the tooltip after the mouse leaves", () => {
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    expect(screen.getByRole("tooltip")).toBeInTheDocument();
-    fireEvent.mouseLeave(wrapper);
+      screen.queryByRole("button", { name: /set as target role/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
 });
 
