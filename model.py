@@ -1506,12 +1506,13 @@ class ManagerProfile(db.Model):
 # cannot hold that history itself; a retake would silently move every report that
 # read through it.
 #
-# The default pin needs no row here at all: "the first completed core sitting" is
-# `assessment_store.first_completed_core_submission_id`, a stable fact computed live
-# from the append-only `assessment_submissions`/`assessment_response` rows (adding a
-# LATER sitting never changes which one was first). This table exists only to hold
-# the EXPLICIT override an Enterprise "recalibrate" action writes -- absence means
-# "still pinned to the first sitting", not "unset".
+# The default pin needs no row here at all: it is the core sitting that was current
+# when the user's first Environment Report was filed
+# (`situation_report_service._default_pin`), a stable fact computed live from the
+# append-only `assessment_submissions`/`assessment_response`/`environment_report`
+# rows (adding a LATER sitting never changes which one was current then). This table
+# exists only to hold the EXPLICIT override an Enterprise "recalibrate" action
+# writes -- absence means "still on the default pin", not "unset".
 
 
 class SituationReportPin(db.Model):

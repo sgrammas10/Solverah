@@ -1289,3 +1289,207 @@ def test_two_interleaved_past_submits_file_exactly_one_past_report(client, monke
     assert isinstance(errors.get("second"), ConflictError), (results, errors)
     assert errors["second"].errors[0]["code"] == "past_report_limit"
     assert [h["subject"] for h in _history(email)] == ["past", "current"]
+
+
+# -- The default pin under core retakes (2026-10-05) --------------------------
+#
+# With no explicit pin, the report reads the core sitting that was current when the
+# user's FIRST current Environment Report was filed (the latest sitting at or before
+# it, else the first one after it), falling forward past a default that can no
+# longer be scored. `_UNIFORM` + a `mixed` environment is all-aligned; `_VARIED` is
+# not, so "which sitting is the report built from" is visible in the buckets.
+
+
+def _all_aligned(body):
+    return body["state"] == "complete" and all(
+        d["bucket"] == "aligned" for d in body["dimensions"]
+    )
+
+
+def _user_id(email):
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=email).first().id
+
+
+def _persist_unscoreable_sitting(email):
+    """A real `core` sitting row whose responses the CURRENT item file cannot score --
+    a sitting from before an item-bank change -- under a superseded scoring key, so it
+    also does not satisfy `has_completed_assessment`. Written through the one write
+    path (`persist_submission`), not the tables. Returns its submission_id."""
+    from app import app
+    from model import db
+    from assessment_form import ScoredSubmission
+    from assessment_store import persist_submission
+
+    dims = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"]
+    sitting = ScoredSubmission(
+        form_version="v2-2026-08-18",
+        scoring_key_version="v1-superseded+mean_pole",
+        scores={d: 0.5 for d in dims},
+        choices={f"{d[:2]}{rung}v2": "A" for d in dims for rung in range(1, 5)},
+        confidences={d: (None if d == "feedback" else 1.0) for d in dims},
+    )
+    user_id = _user_id(email)
+    with app.app_context():
+        submission_id = persist_submission(db, user_id, sitting)
+        db.session.commit()
+    return submission_id
+
+
+def _resolved_pin(email):
+    from app import app
+    import assessment_store
+    from solverah.services import situation_report_service
+
+    user_id = _user_id(email)
+    with app.app_context():
+        return (
+            situation_report_service._pinned_submission_id(user_id),
+            [sid for sid, _ in assessment_store.completed_core_sittings(user_id)],
+        )
+
+
+def test_a_retake_before_filing_builds_the_report_from_the_newer_sitting(client, monkeypatch):
+    """Regression: the default used to be the FIRST sitting, so a user who retook
+    before ever filing got a report built from a sitting they had replaced."""
+    email = "pin_retake_before@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)  # uniform: would be all-aligned
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "complete"
+    assert not _all_aligned(body)
+
+    pinned, sittings = _resolved_pin(email)
+    assert len(sittings) == 2 and pinned == sittings[-1]
+
+    # Already on the latest sitting, so Recalibrate has nothing to move. (Not compared
+    # with a second user's report: the core form is shuffled per user, so one answer
+    # pattern scores differently for two people.)
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is False
+    assert _get_report(client).get_json() == body
+
+
+def test_a_retake_after_filing_does_not_move_the_report_until_recalibrate(client, monkeypatch):
+    email = "pin_retake_after@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    filed = _get_report(client).get_json()
+    assert not _all_aligned(filed)
+
+    _complete_core(client, csrf)  # uniform again, after filing
+    assert _get_report(client).get_json() == filed
+    # Re-filing the Environment Report does not re-anchor the person side either.
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    assert _get_report(client).get_json()["dimensions"] == filed["dimensions"]
+    pinned, sittings = _resolved_pin(email)
+    assert len(sittings) == 3 and pinned == sittings[1]
+
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is True
+    assert _all_aligned(_get_report(client).get_json())
+
+
+def test_a_report_filed_before_any_core_sitting_pins_to_the_first_one_after_it(
+    client, monkeypatch
+):
+    email = "pin_env_first@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    _complete_core(client, csrf)  # the sitting that completed the report
+    first = _get_report(client).get_json()
+    assert _all_aligned(first)
+
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _get_report(client).get_json() == first
+
+
+@pytest.mark.parametrize("env_first", [False, True], ids=["core-then-env", "env-then-core"])
+def test_a_single_sitting_resolves_exactly_as_before(client, monkeypatch, env_first):
+    """No change for one-sitting users: the default is the only sitting, i.e. what
+    `first_completed_core_submission_id` (the old default) names."""
+    from app import app
+    import assessment_store
+
+    email = f"pin_single_{int(env_first)}@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    if env_first:
+        assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    _complete_core(client, csrf, pattern=_VARIED)
+    if not env_first:
+        assert _submit_env(client, csrf, pole="mixed").status_code == 200
+
+    pinned, sittings = _resolved_pin(email)
+    with app.app_context():
+        assert pinned == assessment_store.first_completed_core_submission_id(_user_id(email))
+    assert sittings == [pinned]
+    assert _get_report(client).get_json()["state"] == "complete"
+
+
+def test_an_unreadable_default_falls_forward_to_the_next_readable_sitting(client, monkeypatch):
+    """Regression: a first sitting the current item file cannot score used to leave
+    the report `core_unreadable` even after a readable retake. An unseen default
+    protects nothing, so it falls forward -- and stays put once it has."""
+    email = "pin_fall_forward@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    old = _persist_unscoreable_sitting(email)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200  # anchors on `old`
+    assert _get_report(client).get_json()["state"] == "needs_core"
+
+    _complete_core(client, csrf, pattern=_VARIED)
+    body = _get_report(client).get_json()
+    assert body["state"] == "complete", body
+    assert "core_unreadable" not in body
+    assert not _all_aligned(body)
+    pinned, sittings = _resolved_pin(email)
+    assert sittings[0] == old and pinned == sittings[1]
+
+    _complete_core(client, csrf)  # a later retake does not drag it further
+    assert _get_report(client).get_json() == body
+
+
+def test_an_explicit_pin_to_an_unreadable_sitting_still_gates(client, monkeypatch):
+    """Fall-forward is for the default only: a pin the user chose is never second-
+    guessed, and Recalibrate is its exit."""
+    email = "pin_explicit_unreadable@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    old = _persist_unscoreable_sitting(email)
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    assert _get_report(client).get_json()["state"] == "complete"
+
+    from app import app
+    from model import db
+    import situation_report_pin_store
+
+    with app.app_context():
+        situation_report_pin_store.set_pin(db, _user_id(email), old)
+        db.session.commit()
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is True
+    assert _get_report(client).get_json()["state"] == "complete"

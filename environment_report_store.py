@@ -22,11 +22,14 @@ ever returns a current row: a past report can never become "the user's job".
 
 D-15 pinning (⚑5) is out of scope here on purpose. The Situation Report pins to a named
 person-side snapshot, not to anything in this module -- see `model.py`'s "Environment side"
-section docstring for why storing such a pin here would be the wrong place for it.
+section docstring for why storing such a pin here would be the wrong place for it. The one
+thing the pin reads from here is a timestamp: `first_environment_report_submitted_at`, the
+instant the user's report first came into being, which anchors the DEFAULT pin.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Optional
 
 from model import ENV_DIMENSIONS, ENV_REPORT_SUBJECTS
@@ -36,6 +39,7 @@ __all__ = [
     "latest_environment_report",
     "environment_report_history",
     "count_environment_reports",
+    "first_environment_report_submitted_at",
 ]
 
 #: The subject every "the user's job" read filters on.
@@ -263,3 +267,25 @@ def count_environment_reports(user_id: int, subject: str) -> int:
             EnvironmentReport.user_id == user_id, EnvironmentReport.subject == subject
         )
     ).scalar_one()
+
+
+def first_environment_report_submitted_at(user_id: int) -> Optional[datetime]:
+    """When this user filed their FIRST current report (aware datetime), or None.
+
+    THE anchor for the Situation Report's default D-15 pin (⚑5,
+    `situation_report_service._default_pin`): the report came into being at this
+    instant, so the core sitting that was current then is the one it is built from.
+    Current reports only -- a past-job report can only be filed after a current one,
+    and it is never the Situation Report's subject. Stable by construction: rows are
+    append-only, so a later submission can never change which one was first.
+    Ascending (`submitted_at`, `id`), the mirror of `latest_environment_report`.
+    """
+    from model import EnvironmentReport
+
+    row = (
+        EnvironmentReport.query.filter_by(user_id=user_id, subject=CURRENT)
+        .order_by(EnvironmentReport.submitted_at.asc(), EnvironmentReport.id.asc())
+        .with_entities(EnvironmentReport.submitted_at)
+        .first()
+    )
+    return row[0] if row is not None else None

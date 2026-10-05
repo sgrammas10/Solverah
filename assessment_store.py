@@ -57,10 +57,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+from datetime import datetime
 
 from assessment_form import ScoredSubmission
 
 __all__ = [
+    "completed_core_sittings",
     "dimension_scores_for_submission",
     "export_person_side",
     "first_completed_core_submission_id",
@@ -297,10 +299,11 @@ def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | No
 
     Also None when the sitting's rows cannot be scored against the CURRENT item file
     -- a sitting from before an item-bank change whose item ids the file no longer
-    holds. The default pin (`first_completed_core_submission_id`) is deliberately not
-    keyed to the scoring-key version, so it can name such a sitting; raising here
-    turned that into a 500 on the Situation Report. An absence is the honest answer,
-    and the caller already has to handle one.
+    holds. The Situation Report's default pin (`situation_report_service._default_pin`,
+    over `completed_core_sittings`) is deliberately not keyed to the scoring-key
+    version, so it can name such a sitting; raising here turned that into a 500. An
+    absence is the honest answer: the default pin falls forward to the next readable
+    sitting on it, and an explicit pin gates on `core_unreadable`.
     """
     from model import AssessmentResponse
 
@@ -363,6 +366,45 @@ def latest_completed_core_submission_id(user_id: int) -> str | None:
         .first()
     )
     return row.public_id.hex if row is not None else None
+
+
+def completed_core_sittings(user_id: int) -> list[tuple[str, datetime]]:
+    """Every completed `core` sitting this user has, as `(submission_id, completed_at)`
+    pairs, oldest first. Empty list if none. Read-only.
+
+    The candidate list for BUILD_PLAN A-5's default D-15 pin (⚑5) once core became
+    retakeable (6babb39): `situation_report_service._default_pin` picks the sitting
+    that was current when the user's first Environment Report was filed, which needs
+    the sittings in time order rather than just the two ends of it. Same order as
+    `first_completed_core_submission_id` (`completed_at`, then `id`, ascending), so
+    element 0 is always that function's answer and element -1 is
+    `latest_completed_core_submission_id`'s.
+
+    Deliberately NOT keyed to the scoring-key version, like the two functions it
+    mirrors. The pin rule is about WHEN a sitting happened relative to the report, and
+    a version filter would silently drop the sitting that was current at filing time
+    and anchor on a different one. Whether a sitting can still be scored is
+    `dimension_scores_for_submission`'s question (it returns None for one it cannot),
+    and the caller asks it per candidate. `completed_at IS NULL` rows are excluded: a
+    `core` row is always written complete (`persist_submission`), and a sitting with no
+    completion time cannot be placed before or after anything.
+
+    Ids only, never answers or scores -- same D-01 reasoning as
+    `first_completed_core_submission_id`.
+    """
+    from model import AssessmentSubmission
+
+    rows = (
+        AssessmentSubmission.query.filter(
+            AssessmentSubmission.user_id == user_id,
+            AssessmentSubmission.kind == "core",
+            AssessmentSubmission.completed_at.isnot(None),
+        )
+        .order_by(AssessmentSubmission.completed_at.asc(), AssessmentSubmission.id.asc())
+        .with_entities(AssessmentSubmission.public_id, AssessmentSubmission.completed_at)
+        .all()
+    )
+    return [(public_id.hex, completed_at) for public_id, completed_at in rows]
 
 
 def latest_core_completed_at(user_id: int):

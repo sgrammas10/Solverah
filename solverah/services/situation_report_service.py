@@ -12,14 +12,37 @@ never imports either of the two gated person-side tables itself, and
 
 THE D-15 PIN, RESOLVED HERE
 ----------------------------
-"The first completed core sitting" needs no stored row at all -- it is
-`assessment_store.first_completed_core_submission_id`, stable by construction because
-`core` sittings are append-only (a later retake can never change which one was
-first). `situation_report_pin_store` holds only the EXPLICIT override an ⚑5
-recalibrate call writes. `_pinned_submission_id` below is the one place that
-resolves "override, or the first sitting" into what a read actually uses -- which is
-also what makes a plain core retake, with no recalibrate, leave `get_situation_report`
-byte-identical: nothing this function reads changes when a new sitting merely exists.
+The pin exists so a report the user has already seen cannot silently shift under a
+core retake. `situation_report_pin_store` holds only the EXPLICIT override an ⚑5
+recalibrate call writes. With no override, the DEFAULT pin is the sitting that was
+current when the report first came into being (`_default_pin`; Work Pulse retakes
+became a product path in 6babb39):
+
+* the latest completed core sitting at or before the user's FIRST current
+  Environment Report (`environment_report_store.first_environment_report_submitted_at`);
+* if every sitting is newer than that report (it was filed before core), the first
+  sitting after it -- the report came into being when that sitting completed;
+* with no Environment Report yet, the latest sitting -- what a report filed now
+  would be built from (only `recalibrate` asks before one exists).
+
+Every input is append-only -- core sittings and Environment Reports alike -- so the
+anchor never moves once it exists: a retake after filing, or a re-filed report,
+leaves the person side where it was until Recalibrate. A retake BEFORE the first
+filing is a sitting the user built their (not yet existing) report on, so it is the
+one used. A user with a single sitting resolves to it, exactly as before.
+
+FALL-FORWARD. A defaulted sitting that cannot be scored any more (an item-bank
+change since, `dimension_scores_for_submission` -> None) is skipped for the first
+readable sitting after it. Nothing a user saw is being protected there: an
+unreadable pin renders `needs_core` + `core_unreadable`, which shows no person side
+at all, and its copy tells them to take Work Pulse again -- which only helps if the
+retake is then read. Still deterministic: the first readable sitting after a fixed
+anchor never changes on a later retake. An EXPLICIT pin never falls forward; the
+user chose it, and Recalibrate is its exit.
+
+`_pinned_sitting` is the one place that resolves all of this into what a read uses.
+`causal_graph/v1_model/assemble_training_data.py` restates the rule in SQL, guarded
+by a tripwire test that compares it with `_pinned_submission_id`.
 
 PAST-JOB REPORTS (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01)
 -----------------------------------------------------------------
@@ -101,17 +124,64 @@ def _live_career_status(user_id: int) -> Optional[str]:
     return status
 
 
-def _pinned_submission_id(user_id: int) -> Optional[str]:
-    """The submission_id the Situation Report reads person-side scores through:
-    the explicit recalibrate override if one was ever written, else the first
-    completed core sitting (⚑5's default pin -- see the module docstring)."""
+def _default_pin(user_id: int) -> tuple[Optional[str], Optional[dict]]:
+    """(submission_id, person_scores) for a user with no explicit override -- the
+    rule in the module docstring. (None, None) when no core sitting row exists;
+    (anchor_id, None) when neither the anchor nor any later sitting is readable.
+
+    A single sitting needs no anchor: it is the only answer, so the Environment
+    Report timestamp is read only once there is a choice to make."""
+    import assessment_store
+    import environment_report_store
+
+    sittings = assessment_store.completed_core_sittings(user_id)
+    if not sittings:
+        return None, None
+
+    start = len(sittings) - 1
+    if len(sittings) > 1:
+        anchor_at = environment_report_store.first_environment_report_submitted_at(user_id)
+        if anchor_at is not None:
+            at_or_before = [
+                i for i, (_, completed_at) in enumerate(sittings) if completed_at <= anchor_at
+            ]
+            start = at_or_before[-1] if at_or_before else 0
+
+    for submission_id, _completed_at in sittings[start:]:
+        scores = assessment_store.dimension_scores_for_submission(submission_id)
+        if scores is not None:
+            return submission_id, scores
+    return sittings[start][0], None
+
+
+def _pinned_sitting(user_id: int) -> tuple[Optional[str], Optional[dict]]:
+    """(submission_id, person_scores) the Situation Report reads: the explicit
+    recalibrate override if one was ever written (never fallen forward from), else
+    `_default_pin`. Scores are None when the resolved sitting cannot be read."""
     import assessment_store
     import situation_report_pin_store
 
     override = situation_report_pin_store.explicit_pin(user_id)
     if override is not None:
+        submission_id = override["submission_id"]
+        return submission_id, assessment_store.dimension_scores_for_submission(submission_id)
+    return _default_pin(user_id)
+
+
+def _pinned_submission_id(user_id: int) -> Optional[str]:
+    """Just the submission_id half of `_pinned_sitting`. What `recalibrate` compares
+    with the latest sitting, and what the model lane's tripwire test
+    (`tests/test_assemble_environment_training_data.py`) checks its SQL against.
+
+    An explicit pin is returned without scoring it -- it never falls forward, so its
+    readability cannot change the answer. The default has to score its candidates:
+    fall-forward is part of which id it names."""
+    import situation_report_pin_store
+
+    override = situation_report_pin_store.explicit_pin(user_id)
+    if override is not None:
         return override["submission_id"]
-    return assessment_store.first_completed_core_submission_id(user_id)
+    return _default_pin(user_id)[0]
 
 
 def _check_past_report_allowed(user_id: int) -> None:
@@ -486,17 +556,13 @@ def _situation_report(user: User) -> SituationReportResult:
             },
         )
 
-    submission_id = _pinned_submission_id(user.id)
-    person_scores = (
-        assessment_store.dimension_scores_for_submission(submission_id)
-        if submission_id is not None
-        else None
-    )
+    _submission_id, person_scores = _pinned_sitting(user.id)
     if person_scores is None:
         # `has_completed_assessment` said a current-instrument sitting exists, but
         # the pinned one has no readable scores: no core submission row behind the
-        # person-side scores (`first_completed_core_submission_id` is None), or a
-        # pin naming a submission with no responses. There is no person side to
+        # person-side scores, an explicit pin naming a submission with no responses
+        # or one the current item file cannot score, or a default pin with no
+        # readable sitting from its anchor on. There is no person side to
         # diff against, which is `needs_core`'s situation -- flagged, so the page
         # can say "we couldn't read it" rather than "you haven't taken it".
         body = _needs_core_body(env, manager)

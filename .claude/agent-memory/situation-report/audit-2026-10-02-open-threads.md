@@ -11,12 +11,8 @@ wave on the same day (orchestrator dispatch, uncommitted) closed F1 (banner-only
 all-aligned), F5 (trend error state), F7 (past-mode return label, dead first_job check
 removed), and F9 (race test). Still open:
 
-1. F2 remainder (core-assessments' read API): the default pin
-   `first_completed_core_submission_id` is not keyed to scoring_key_version, while
-   `has_completed_assessment` is. After an instrument bump plus a retake,
-   `score_stored_choices` RAISES AssessmentError on the old sitting, which is a 500
-   that the None guard does not catch. It needs a version-keyed default, or
-   `dimension_scores_for_submission` returning None for a sitting it cannot score.
+1. F2 remainder: CLOSED 2026-10-05. `dimension_scores_for_submission` returns None for an
+   unscoreable sitting, and the default pin falls forward ([[default-pin-rule-2026-10-05]]).
 2. `core_unreadable` gate says "take Work Pulse again". That works when no submission
    row exists. It does NOT work for an explicit pin to a vanished sitting, because the
    override persists, so recalibrate is the real exit there. It is a rare edge case.
