@@ -107,7 +107,6 @@ def explain(url, email, source, draws, seed, run_id=None):
 
     os.environ["DATABASE_URL"] = url
 
-    import assessment_store
     import environment_report_store
     import match_scoring
     from app import app
@@ -121,14 +120,25 @@ def explain(url, email, source, draws, seed, run_id=None):
         if env is None:
             raise SystemExit("user %s has no environment report" % email)
 
-        # The pinned sitting, through the sanctioned doorway. Re-derived from the
-        # sitting's own stored answers rather than read from the current-score
-        # table, because that table is upserted in place: after any retake it
-        # describes a DIFFERENT sitting than the one this report is pinned to.
-        submission_id = assessment_store.first_completed_core_submission_id(user.id)
+        # The pinned sitting, resolved by the Situation Report's own resolver so
+        # this printout explains the report the user actually sees: an explicit
+        # recalibrate pin, else the sitting current at their first filing,
+        # fallen forward past one that can no longer be scored (the rule in
+        # situation_report_service's module docstring, since core became
+        # retakeable). Scores are re-derived from the sitting's own stored
+        # answers rather than read from the current-score table, because that
+        # table is upserted in place: after any retake it describes a DIFFERENT
+        # sitting than the one the report is pinned to.
+        from solverah.services import situation_report_service
+
+        submission_id, person_scores = situation_report_service._pinned_sitting(user.id)
         if submission_id is None:
             raise SystemExit("user %s has no completed core sitting" % email)
-        person_scores = assessment_store.dimension_scores_for_submission(submission_id)
+        if person_scores is None:
+            raise SystemExit(
+                "user %s: pinned core sitting %s cannot be scored under the current "
+                "item file (the report shows core_unreadable)" % (email, submission_id)
+            )
 
         label, cfg, weights = _load_weights(db, source, run_id)
         env_scores = env["dimension_scores"]

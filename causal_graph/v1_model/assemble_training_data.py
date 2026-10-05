@@ -445,7 +445,11 @@ RESPONDENT_SOURCES: tuple[str, ...] = (RESPONDENT_SOURCE_APP, RESPONDENT_SOURCE_
 PILOT_FORM_EMAIL_DOMAIN = "@pilotform.solverah.invalid"
 
 PIN_EXPLICIT = "explicit_override"
-PIN_FIRST_CORE = "first_core_sitting"
+#: Renamed from `PIN_FIRST_CORE = "first_core_sitting"` on 2026-10-05, when core
+#: became retakeable (6babb39) and the default stopped being the first sitting.
+#: Nothing stored carried the old value (no fit output, devfit report or
+#: pre-registration names it), so the label changed with the rule.
+PIN_DEFAULT = "default_core_sitting"
 
 CAPTURE_PATH = "self_report_environment"
 OUTCOME_SOURCE = "environment_report"
@@ -543,9 +547,12 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
         "row is dropped rather than scored across two eras."
     ),
     "pin_source": (
-        "'explicit_override' (a situation_report_pins row) or 'first_core_sitting' "
-        "(⚑5's default). Carried because the two say different things about what the "
-        "person side describes -- the default is deliberately the OLDEST sitting."
+        "'explicit_override' (a situation_report_pins row) or 'default_core_sitting' "
+        "(⚑5's default: the sitting that was current when the user's FIRST current "
+        "report was filed, fallen forward past any sitting that can no longer be "
+        "scored -- see _resolve_pinned_submissions). Carried because the two say "
+        "different things about what the person side describes: the default is the "
+        "person side the report was built from; the override is one the user chose."
     ),
     "report_ordinal": (
         "1-based position of this report among ALL that user's reports (current and "
@@ -984,42 +991,70 @@ def _fetch_respondent_sources(conn: Connection, user_ids: list[int]) -> dict:
     return {r[0]: RESPONDENT_SOURCE_PILOT_FORM for r in rows}
 
 
-def _core_sitting_precedes(candidate: dict, incumbent: dict) -> bool:
-    """`ORDER BY completed_at ASC, id ASC` under Postgres' ASC NULLS LAST, in
-    Python. Kept explicit rather than expressed as a sort key because a tuple
-    key has to invent a value for NULL, and inventing one is how the ordering
-    quietly stops matching the SQL it is supposed to mirror."""
-    a, b = candidate["completed_at"], incumbent["completed_at"]
-    if a is None and b is None:
-        return candidate["id"] < incumbent["id"]
-    if a is None:
-        return False
-    if b is None:
-        return True
-    if a != b:
-        return a < b
-    return candidate["id"] < incumbent["id"]
+def _default_pin_start(sittings: list[dict], anchor_at) -> int:
+    """Index into `sittings` (oldest first) of the sitting that was current when
+    the user's first current Environment Report was filed -- the anchor
+    `situation_report_service._default_pin` starts from. Pure, so the rule is
+    testable without a database.
+
+    One sitting: it, whatever the anchor. No anchor (no current report yet):
+    the latest. Otherwise the last sitting completed at or before the anchor,
+    or the first one after it when every sitting is newer than the report.
+    """
+    if len(sittings) <= 1 or anchor_at is None:
+        return len(sittings) - 1
+    at_or_before = [
+        i for i, row in enumerate(sittings) if row["completed_at"] <= anchor_at
+    ]
+    return at_or_before[-1] if at_or_before else 0
 
 
-def _resolve_pinned_submissions(conn: Connection, user_ids: list[int]) -> dict:
+def _resolve_pinned_submissions(
+    conn: Connection,
+    user_ids: list[int],
+    score_person: Optional[Callable[[dict], dict]] = None,
+) -> dict:
     """{user_id: (submission_id, pin_source)} -- the D-15 pin, resolved the way
     `solverah.services.situation_report_service._pinned_submission_id` resolves
-    it: the explicit recalibrate override if one was ever written, else the
-    FIRST completed core sitting.
+    it (the rule since core became retakeable, 6babb39 / 2026-10-05):
 
-    The two halves of that rule are `situation_report_pin_store.explicit_pin`
-    and `assessment_store.first_completed_core_submission_id`. Restated in SQL
-    here rather than called, so the model lane needs no Flask application
-    context to assemble a training set -- a fit run is offline, and giving it a
-    hard dependency on the web app's session would be the wrong trade. The
+    1. An explicit recalibrate override (`situation_report_pins`) wins outright
+       and is never fallen forward from -- the user chose it.
+    2. Otherwise the DEFAULT: of the user's completed core sittings, oldest
+       first by (completed_at, id), the latest one completed at or before the
+       user's FIRST current Environment Report (MIN(submitted_at) over
+       subject='current'); the first sitting after that report if every sitting
+       is newer; the latest sitting if no current report exists yet.
+    3. FALL-FORWARD from that anchor: the first sitting, anchor included, whose
+       responses exist and that `score_person` scores without raising. If none
+       is readable, the anchor itself -- the row then drops downstream with
+       `person_side_unscorable`, by name.
+
+    The service's halves are `situation_report_pin_store.explicit_pin`,
+    `assessment_store.completed_core_sittings`,
+    `environment_report_store.first_environment_report_submitted_at` and
+    `assessment_store.dimension_scores_for_submission`. Restated in SQL here
+    rather than called, so the model lane needs no Flask application context
+    to assemble a training set -- a fit run is offline, and giving it a hard
+    dependency on the web app's session would be the wrong trade. The
     restatement is the risk, so a tripwire test asserts this function agrees
     with the service's own resolver on every seeded case rather than trusting
     that the two descriptions match.
 
-    Why the first sitting and not the latest: PRODUCT_DECISIONS §2 / ⚑5. The
-    person side is sealed so a retake is not a watchable gradient, which is
-    also what makes a training row's person side stable while its environment
-    side is free to vary -- exactly the variation E-4 wants to fit on.
+    Why that sitting and not simply the first or the latest: the pin protects a
+    report the user has SEEN. Every input is append-only, so the anchor never
+    moves once the first report exists -- a retake after filing, or a re-filed
+    report, leaves the training row's person side where it was until the user
+    recalibrates. A retake BEFORE the first filing is the sitting they built
+    the report on, so it is the one used; the old first-sitting rule would have
+    paired the report with a sitting the user had already replaced. Falling
+    forward past an unreadable anchor protects nothing the user saw (the report
+    renders no person side for it) and is still deterministic: the first
+    readable sitting after a fixed anchor does not change on a later retake.
+
+    score_person: {item_id: choice} -> scores, raising on a sitting the current
+    item file cannot score. Default `assessment_form.score_stored_choices`, the
+    same scorer the service's readability check uses.
     """
     if not user_ids:
         return {}
@@ -1039,23 +1074,57 @@ def _resolve_pinned_submissions(conn: Connection, user_ids: list[int]) -> dict:
 
     # `public_id` is a uuid; assessment_store hands out `public_id.hex`, which
     # is the 32 characters with no dashes, and that is what the pin table and
-    # assessment_response.submission_id both hold.
+    # assessment_response.submission_id both hold. `completed_at IS NOT NULL`
+    # as in `completed_core_sittings`: a core row is always written complete,
+    # and a sitting with no completion time cannot be placed in time.
     rows = conn.execute(
         text(
             "SELECT id, user_id, completed_at, "
             "REPLACE(CAST(public_id AS VARCHAR), '-', '') AS submission_id "
-            "FROM assessment_submissions WHERE kind = 'core' AND user_id IN :uids"
+            "FROM assessment_submissions "
+            "WHERE kind = 'core' AND completed_at IS NOT NULL AND user_id IN :uids"
         ).bindparams(bindparam("uids", expanding=True)),
         {"uids": remaining},
     ).mappings().all()
+    sittings_of: dict = {}
+    for row in sorted(rows, key=lambda r: (r["completed_at"], r["id"])):
+        sittings_of.setdefault(row["user_id"], []).append(row)
+    if not sittings_of:
+        return resolved
 
-    first: dict = {}
-    for row in rows:
-        incumbent = first.get(row["user_id"])
-        if incumbent is None or _core_sitting_precedes(row, incumbent):
-            first[row["user_id"]] = row
-    for user_id, row in first.items():
-        resolved[user_id] = (row["submission_id"], PIN_FIRST_CORE)
+    anchors = conn.execute(
+        text(
+            "SELECT user_id, MIN(submitted_at) AS anchor_at FROM environment_reports "
+            "WHERE subject = :current AND user_id IN :uids GROUP BY user_id"
+        ).bindparams(bindparam("uids", expanding=True)),
+        {"uids": list(sittings_of), "current": SUBJECT_CURRENT},
+    ).mappings().all()
+    anchor_of = {r["user_id"]: r["anchor_at"] for r in anchors}
+
+    candidates_of = {
+        user_id: sittings[_default_pin_start(sittings, anchor_of.get(user_id)):]
+        for user_id, sittings in sittings_of.items()
+    }
+    choices_of, _versions = _fetch_pinned_responses(
+        conn,
+        sorted({row["submission_id"] for rows_ in candidates_of.values() for row in rows_}),
+    )
+    if score_person is None:
+        score_person = _app_assessment_form().score_stored_choices
+
+    for user_id, candidates in candidates_of.items():
+        chosen = candidates[0]["submission_id"]
+        for row in candidates:
+            choices = choices_of.get(row["submission_id"])
+            if not choices:
+                continue
+            try:
+                score_person(choices)
+            except Exception:  # noqa: BLE001 - any scoring refusal is "unreadable"
+                continue
+            chosen = row["submission_id"]
+            break
+        resolved[user_id] = (chosen, PIN_DEFAULT)
     return resolved
 
 
@@ -1179,7 +1248,7 @@ def assemble_environment_training_data(
     user_ids = sorted({r["user_id"] for r in reports})
 
     env_scores = _fetch_environment_dimension_scores(conn, report_ids)
-    pins = _resolve_pinned_submissions(conn, user_ids)
+    pins = _resolve_pinned_submissions(conn, user_ids, score_person)
     pinned_choices, pinned_form_versions = _fetch_pinned_responses(
         conn, sorted({sid for sid, _ in pins.values()})
     )

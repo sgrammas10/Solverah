@@ -305,7 +305,7 @@ def test_one_report_becomes_one_row_with_hand_computed_values(client, monkeypatc
     row = result.rows[0]
     assert row.capture_path == atd.CAPTURE_PATH == "self_report_environment"
     assert row.outcome_source == atd.OUTCOME_SOURCE == "environment_report"
-    assert row.pin_source == atd.PIN_FIRST_CORE
+    assert row.pin_source == atd.PIN_DEFAULT
     assert row.career_status == "employed"
     assert row.env_form_version == situation_items.FORM_VERSION
     assert row.report_ordinal == 1
@@ -479,9 +479,10 @@ def test_comp_not_sure_is_carried_as_null_and_not_imputed(client, monkeypatch):
 
 
 def test_core_retake_does_not_move_the_person_side(client, monkeypatch):
-    """⚑5's default pin is the FIRST completed core sitting, and a retake is not
-    a recalibration. The person-side score table is upserted in place, so it
-    moves; the training row must not."""
+    """⚑5's default pin is the sitting that was current when the user's first
+    report was filed, and a retake AFTER filing is not a recalibration. The
+    person-side score table is upserted in place, so it moves; the training row
+    must not."""
     email = "e4_retake@example.com"
     csrf = _register_and_login(client, monkeypatch, email)
     _set_career_status(client, csrf, "employed")
@@ -502,7 +503,7 @@ def test_core_retake_does_not_move_the_person_side(client, monkeypatch):
     after = _assemble()
     assert len(after.rows) == 1
     assert after.rows[0].person_submission_id == first_submission_id
-    assert after.rows[0].pin_source == atd.PIN_FIRST_CORE
+    assert after.rows[0].pin_source == atd.PIN_DEFAULT
     for dimension in ENV_DIMENSIONS:
         assert after.person[dimension][0] == pytest.approx(_UNIFORM_PERSON_SCORE)
         assert after.person[dimension][0] == pytest.approx(before.person[dimension][0])
@@ -547,59 +548,207 @@ def test_explicit_recalibrate_moves_the_person_side(client, monkeypatch):
         assert after.env[dimension][0] == pytest.approx(expected)
 
 
+def _user_ids(emails):
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return [User.query.filter_by(email=e).first().id for e in emails]
+
+
+def _sittings(user_id):
+    """This user's completed core sitting ids, oldest first, through the doorway."""
+    import assessment_store
+    from app import app
+
+    with app.app_context():
+        return [sid for sid, _ in assessment_store.completed_core_sittings(user_id)]
+
+
+def _service_pins(user_ids):
+    from app import app
+    from solverah.services import situation_report_service
+
+    with app.app_context():
+        return {uid: situation_report_service._pinned_submission_id(uid) for uid in user_ids}
+
+
+def _resolver_pins(user_ids, **kwargs):
+    from app import app
+    from model import db
+
+    with app.app_context():
+        with db.engine.connect() as conn:
+            return atd._resolve_pinned_submissions(conn, user_ids, **kwargs)
+
+
 def test_pin_resolution_agrees_with_the_situation_report_service(client, monkeypatch):
     """The tripwire for the one thing this module restates rather than calls.
 
     `_resolve_pinned_submissions` is SQL in the model lane;
     `situation_report_service._pinned_submission_id` is the app's own resolver.
     Two descriptions of one rule drift, so assert the agreement instead of
-    documenting it -- across all three states the rule has.
+    documenting it -- across every state the rule has, and against the sitting
+    each state is specified to name, so the two cannot agree by sharing a bug.
     """
-    from app import app
-    from model import User, db
-    from solverah.services import situation_report_service
-
-    # (a) no core at all, (b) core + retake, no override, (c) explicit re-pin.
+    # (a) no core at all.
     csrf_a = _register_and_login(client, monkeypatch, "e4_pin_a@example.com")
     _set_career_status(client, csrf_a, "employed")
     assert _post_env(client, csrf_a).status_code == 200
 
+    # (b) core, retake, THEN the first filing: the retake was current when the
+    # report came into being, so it is the pin (the old first-sitting rule
+    # would have named a sitting the user had already replaced).
     csrf_b = _register_and_login(client, monkeypatch, "e4_pin_b@example.com")
     _set_career_status(client, csrf_b, "employed")
     _complete_core(client, csrf_b, _UNIFORM)
     _complete_core(client, csrf_b, _VARIED)
     assert _post_env(client, csrf_b).status_code == 200
 
+    # (c) core, filing, retake, explicit re-pin to the retake.
     csrf_c = _register_and_login(client, monkeypatch, "e4_pin_c@example.com")
     _set_career_status(client, csrf_c, "employed")
     _complete_core(client, csrf_c, _UNIFORM)
-    _complete_core(client, csrf_c, _VARIED)
     assert _post_env(client, csrf_c).status_code == 200
-    assert client.post(
+    _complete_core(client, csrf_c, _VARIED)
+    resp = client.post(
         "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf_c}
-    ).status_code == 200
+    )
+    assert resp.status_code == 200 and resp.get_json()["recalibrated"] is True
 
-    emails = [
-        "e4_pin_a@example.com",
-        "e4_pin_b@example.com",
-        "e4_pin_c@example.com",
-    ]
-    with app.app_context():
-        user_ids = [User.query.filter_by(email=e).first().id for e in emails]
-        expected = {
-            uid: situation_report_service._pinned_submission_id(uid) for uid in user_ids
-        }
-        with db.engine.connect() as conn:
-            resolved = atd._resolve_pinned_submissions(conn, user_ids)
+    # (d) core, filing, retake, NO re-pin: the first sitting stays the pin.
+    csrf_d = _register_and_login(client, monkeypatch, "e4_pin_d@example.com")
+    _set_career_status(client, csrf_d, "employed")
+    _complete_core(client, csrf_d, _UNIFORM)
+    assert _post_env(client, csrf_d).status_code == 200
+    _complete_core(client, csrf_d, _VARIED)
+
+    # (e) filing BEFORE any core, then two sittings: the first sitting after
+    # the report is the one it came into being on.
+    csrf_e = _register_and_login(client, monkeypatch, "e4_pin_e@example.com")
+    _set_career_status(client, csrf_e, "employed")
+    assert _post_env(client, csrf_e).status_code == 200
+    _complete_core(client, csrf_e, _UNIFORM)
+    _complete_core(client, csrf_e, _VARIED)
+
+    # (f) a single sitting, filing after: unchanged from before retakes existed.
+    csrf_f = _register_and_login(client, monkeypatch, "e4_pin_f@example.com")
+    _set_career_status(client, csrf_f, "employed")
+    _complete_core(client, csrf_f, _UNIFORM)
+    assert _post_env(client, csrf_f).status_code == 200
+
+    # (g) two sittings and NO report yet: the latest. The assembler never asks
+    # about such a user (no report, no row), but the resolver is what the
+    # tripwire compares, so its answer has to match too.
+    csrf_g = _register_and_login(client, monkeypatch, "e4_pin_g@example.com")
+    _set_career_status(client, csrf_g, "employed")
+    _complete_core(client, csrf_g, _UNIFORM)
+    _complete_core(client, csrf_g, _VARIED)
+
+    a, b, c, d, e, f, g = _user_ids(
+        ["e4_pin_%s@example.com" % letter for letter in "abcdefg"]
+    )
+    user_ids = [a, b, c, d, e, f, g]
+    expected = _service_pins(user_ids)
+    resolved = _resolver_pins(user_ids)
 
     assert {uid: value[0] for uid, value in resolved.items()} == {
         uid: sid for uid, sid in expected.items() if sid is not None
     }
     # The state the service returns None for is the state with no row here.
-    assert [uid for uid, sid in expected.items() if sid is None] == [user_ids[0]]
-    assert user_ids[0] not in resolved
-    assert resolved[user_ids[1]][1] == atd.PIN_FIRST_CORE
-    assert resolved[user_ids[2]][1] == atd.PIN_EXPLICIT
+    assert [uid for uid, sid in expected.items() if sid is None] == [a]
+    assert a not in resolved
+
+    # Not just agreement -- each state names the sitting the rule says it does.
+    assert resolved[b] == (_sittings(b)[1], atd.PIN_DEFAULT)
+    assert resolved[c] == (_sittings(c)[1], atd.PIN_EXPLICIT)
+    assert resolved[d] == (_sittings(d)[0], atd.PIN_DEFAULT)
+    assert resolved[e] == (_sittings(e)[0], atd.PIN_DEFAULT)
+    assert resolved[f] == (_sittings(f)[0], atd.PIN_DEFAULT)
+    assert resolved[g] == (_sittings(g)[1], atd.PIN_DEFAULT)
+    assert all(len(_sittings(uid)) == 2 for uid in (b, c, d, e, g))
+
+
+def test_pin_falls_forward_past_an_unreadable_default_but_never_an_explicit_one(
+    client, monkeypatch
+):
+    """A defaulted sitting the current item file can no longer score is skipped
+    for the first readable sitting after it; an explicit pin is not. With
+    nothing readable, the anchor stands and the row drops by name downstream.
+
+    The item-bank change is simulated by wrapping the real scorer so that it
+    refuses the exact response set of the chosen sittings -- the way
+    `score_stored_choices` refuses a sitting whose item ids it no longer holds.
+    Both the service and the assembler read the scorer from `assessment_form`
+    at call time, so one patch reaches both resolvers.
+    """
+    import assessment_form
+    from app import app
+    from model import db
+
+    # (u) sitting 1 (to be unreadable), filing, sitting 2: falls forward to 2.
+    csrf_u = _register_and_login(client, monkeypatch, "e4_ff_u@example.com")
+    _set_career_status(client, csrf_u, "employed")
+    _complete_core(client, csrf_u, _UNIFORM)
+    assert _post_env(client, csrf_u).status_code == 200
+    _complete_core(client, csrf_u, _VARIED)
+
+    # (x) sitting 1, filing, sitting 2, explicit re-pin to 2, then 2 becomes
+    # unreadable: the explicit pin stays on 2.
+    csrf_x = _register_and_login(client, monkeypatch, "e4_ff_x@example.com")
+    _set_career_status(client, csrf_x, "employed")
+    _complete_core(client, csrf_x, _UNIFORM)
+    assert _post_env(client, csrf_x).status_code == 200
+    _complete_core(client, csrf_x, _VARIED)
+    resp = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf_x}
+    )
+    assert resp.status_code == 200 and resp.get_json()["recalibrated"] is True
+
+    # (n) one sitting, filing; the sitting becomes unreadable: nothing to fall
+    # forward to, so the anchor is still the answer.
+    csrf_n = _register_and_login(client, monkeypatch, "e4_ff_n@example.com")
+    _set_career_status(client, csrf_n, "employed")
+    _complete_core(client, csrf_n, _UNIFORM)
+    assert _post_env(client, csrf_n).status_code == 200
+
+    u, x, n = _user_ids(["e4_ff_%s@example.com" % letter for letter in "uxn"])
+    unreadable = {_sittings(u)[0], _sittings(x)[1], _sittings(n)[0]}
+
+    with app.app_context():
+        with db.engine.connect() as conn:
+            refused_choices, _ = atd._fetch_pinned_responses(conn, sorted(unreadable))
+    assert set(refused_choices) == unreadable
+    refused = [refused_choices[sid] for sid in sorted(unreadable)]
+
+    real_scorer = assessment_form.score_stored_choices
+
+    def _scorer_after_an_item_bank_change(choices):
+        if choices in refused:
+            raise assessment_form.AssessmentError("item ids no longer in the item file")
+        return real_scorer(choices)
+
+    monkeypatch.setattr(assessment_form, "score_stored_choices", _scorer_after_an_item_bank_change)
+
+    before = _service_pins([u, x, n])
+    resolved = _resolver_pins([u, x, n])
+    assert {uid: value[0] for uid, value in resolved.items()} == before
+    assert resolved[u] == (_sittings(u)[1], atd.PIN_DEFAULT)
+    assert resolved[x] == (_sittings(x)[1], atd.PIN_EXPLICIT)
+    assert resolved[n] == (_sittings(n)[0], atd.PIN_DEFAULT)
+
+    # Assembled: u's row reads sitting 2 (a real spread, not the flat 0.5 of
+    # the refused sitting); x's and n's drop by name rather than silently.
+    result = _assemble()
+    by_user = {r.user_id: r for r in result.rows}
+    assert set(by_user) == {u}
+    assert by_user[u].person_submission_id == _sittings(u)[1]
+    assert any(result.person[d][0] != pytest.approx(_UNIFORM_PERSON_SCORE) for d in ENV_DIMENSIONS)
+    dropped = {d["user_id"]: d["reason"] for d in result.dropped}
+    assert set(dropped) == {x, n}
+    for uid in (x, n):
+        assert len(dropped[uid]) == 1
+        assert dropped[uid][0].startswith("person_side_unscorable:AssessmentError")
 
 
 # ---------------------------------------------------------------------------
@@ -906,6 +1055,24 @@ def _assert_same_result(new, old, *, ignore_fields=("report_subject", "current_r
             assert getattr(new_row, name) == getattr(old_row, name), name
 
 
+#: What the default pin was labelled before core became retakeable (2026-10-05).
+#: Nothing stored carries it (no fit output, devfit report or pre-registration
+#: names the label), so the value changed with the rule; the historical
+#: assemblers below still emit it, and on one-sitting users -- all that the
+#: seeded datasets contain -- the two rules name the same sitting.
+_PRE_RETAKE_DEFAULT_PIN_LABEL = "first_core_sitting"
+
+
+def _assert_only_the_pin_label_was_renamed(new, old):
+    """`pin_source` is the one field the historical comparisons may not compare
+    byte for byte; make the one permitted difference explicit instead."""
+    assert atd.PIN_DEFAULT != _PRE_RETAKE_DEFAULT_PIN_LABEL
+    for new_row, old_row in zip(new.rows, old.rows):
+        assert old_row.pin_source == _PRE_RETAKE_DEFAULT_PIN_LABEL
+        assert new_row.pin_source == atd.PIN_DEFAULT
+        assert new_row.person_submission_id == old_row.person_submission_id
+
+
 def _seed_current_only_dataset(client, monkeypatch, prefix):
     """Several users, repeated reports, a NULL comp and a named industry -- the
     shapes the current path already handles."""
@@ -989,7 +1156,10 @@ def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
             old = old_atd.assemble_environment_training_data(conn, _cfg())
 
     assert len(new.rows) == 6 and len(new.dropped) == 1
-    _assert_same_result(new, old)
+    _assert_same_result(
+        new, old, ignore_fields=("report_subject", "current_report_ordinal", "pin_source")
+    )
+    _assert_only_the_pin_label_was_renamed(new, old)
     old_names = {f.name for f in dataclasses.fields(old.rows[0])}
     new_names = {f.name for f in dataclasses.fields(new.rows[0])}
     # respondent_source arrived later (pilot form, 2026-10-01); see the test below.
@@ -1030,7 +1200,8 @@ def test_app_rows_are_byte_identical_to_the_pre_provenance_assembler(client, mon
             old = old_atd.assemble_environment_training_data(conn, _cfg())
 
     assert len(new.rows) == 7 and len(new.dropped) == 1
-    _assert_same_result(new, old, ignore_fields=())
+    _assert_same_result(new, old, ignore_fields=("pin_source",))
+    _assert_only_the_pin_label_was_renamed(new, old)
     old_names = {f.name for f in dataclasses.fields(old.rows[0])}
     new_names = {f.name for f in dataclasses.fields(new.rows[0])}
     assert new_names - old_names == {"respondent_source"}
