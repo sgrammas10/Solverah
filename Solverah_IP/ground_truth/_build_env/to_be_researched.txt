@@ -35,6 +35,5 @@
 #   P-19 Centene  -- weakest pick: mostly repeats HCA's leans; mainly moves N toward the 15-20
 #                    size target. Chosen over The Hartford for industry balance and because
 #                    "Hartford" is a city-name homonym (D23 check). Cut this one first.
-P-17	HCA Healthcare
 P-18	Fifth Third Bank
 P-19	Centene

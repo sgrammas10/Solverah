@@ -1,108 +1,117 @@
 status  : COMPLETE
-company : P-16  Smartsheet   (started 2026-10-02 12:25 UTC, finished 2026-10-02 16:55 UTC)
+company : P-17  HCA Healthcare   (started 2026-10-03 ~23:15 UTC, finished 2026-10-04 ~01:10 UTC)
 
-## Run log
+---
 
-- 2026-10-02 12:25 UTC — Scheduled run fired. Connected folder: _build_env.
-- Pre-flight: `packets/` confirmed EMPTY before start.
-- Queue: took the topmost non-comment line of `to_be_researched.txt` = `P-16  Smartsheet`.
-- Collector prompt: **Company_Culture_Evidence_Collector_v4.11.md** (the only `v*.md` present),
-  read in full including the D1–D30 defect register and the change history.
+QUEUE
+  Took the topmost non-comment line of to_be_researched.txt: "P-17  HCA Healthcare".
+  Remaining on that list after this run: P-18 Fifth Third Bank, P-19 Centene.
+  Gate: packets/ was EMPTY at the start of the run. Checked and confirmed before anything else.
 
-## Company and queue state
+  Clock note: the two shells in this environment disagreed about the date at start of run (one
+  reported 2026-10-03 12:15, the other 2026-10-04 00:48 UTC). The authoritative session date is
+  2026-10-04 and every access date in the packet uses it.
 
-- Built: **P-16 Smartsheet**.
-- Remaining on `to_be_researched.txt` after this run: P-17 HCA Healthcare, P-18 Fifth Third
-  Bank, P-19 Centene.
+COLLECTOR VERSION
+  v4.11 (Company_Culture_Evidence_Collector_v4.11.md). Exactly one v*.md file was present, as the
+  README requires. Read in full, including the D1-D30 defect register.
 
-## Packet
+PACKET
+  packets/P-17_hca_healthcare/P-17_packet.txt   (63,122 bytes)
+  Section 1 parses to 50 blank-line-delimited excerpts, verified with a harness-equivalent split:
+      A careers / values      8   (minimum 5, maximum 8 - at the cap)
+      B employee reviews     15   (minimum 12, target 15 - at target)
+      C job postings         10   (minimum 6, target 10 - at target; 3 postings, 3 functions,
+                                   2 of them outside engineering)
+      D first-person          8 passages from 3 sources   (target 3)
+      E recent news           4   (3 independent + 1 company-authored, tagged, not counted)
+      F human capital         5   (target 3, maximum 6)
+  Terminal marker present as the last line. BUILD RECORD present as the first block.
+  No Section 1 excerpt points at a Section 2, 3 or 4 artifact.
 
-- Path: `packets/P-16_smartsheet/P-16_packet.txt` (73,258 bytes).
-- Collector version: v4.11. Model recorded in the BUILD RECORD: `claude-opus-5`.
-- Terminal marker `########## END OF PACKET ##########` present as the final line.
-- Blank-line parse check run against the raw build: **44 of 44 Section 1 excerpts parse** (no
-  stacked bullets).
+TWO RETRIEVAL METHODS
+  Available: the plain-fetch tool and a JavaScript renderer (the browser pane). Both were attempted
+  on every source that mattered. Two other routes were tried first and are unavailable here: direct
+  HTTP from the cloud side (the session egress policy refused CONNECT to every target host) and a
+  locally driven headless browser (that shell has no network at all).
+  The renderer is the confirming route for all 50 Section 1 excerpts, per v4.11's rule that plain
+  fetch is a route to a page and not an authority on its wording.
 
-### Section-by-section excerpt counts (against the prompt's minimums)
+NOT RETRIEVED - and the three states kept apart
+  DID NOT EXIST
+    - No engineering or product blog. The company publishes one general-interest newsroom; there is
+      no technical publication.
+    - No contribution guidelines, RFC threads or public discussions on the repository organisation.
+    - No technical conference talk by a named colleague, across two differently-phrased searches.
+      The only conference presence found is investor conferences announced by press release.
+    - No publication or modification date on any careers page, by either method. All 8 section A
+      excerpts are access-dated as a result, and the packet says so.
+  EXISTED BUT STALE
+    - Nothing. Every ladder rung that yielded anything yielded material inside the 18-month gate,
+      and no non-executive first-person material was found and rejected on age.
+  EXISTED BUT COULD NOT BE REACHED
+    - The optional review site's overall and category ratings. The renderer returned only the
+      article element holding the newest review, which is all the recency cross-check needs, so
+      2f's cross-site rating-divergence field is incomplete. Recorded, not guessed.
+    - The regulator's browse-edgar endpoint, refused by robots rules at every variant - register
+      D16 again, by a different mechanism than the empty documents previously recorded. Worked
+      around with the direct archive-document route, which succeeded.
+    - Plain fetch was refused by robots rules on the optional review site, the company's own job
+      search and that regulator endpoint. The renderer reached all three.
+    - A trade-press article returned an empty article element on the first renderer pass and the
+      full interview on the second, with no error between. Two Section E excerpts exist only
+      because I retried. Logged as a structural defect.
+    - Per-hospital review entities. The review site splits this employer across a company-level
+      profile, regional-brand profiles and a profile per individual hospital; four per-hospital
+      profiles turned up from two searches against a company operating 190 hospitals. I did not
+      merge them. Section 1's reviews come from the company-level profile only, the split is
+      recorded with counts, and the choice is logged as a structural defect.
 
-| Section | Yield | Minimum / target | Verdict |
-|---|---|---|---|
-| A careers / values | 8 | 5 min, 8 max | PASS (at cap) |
-| B employee reviews | 15 | 12 min, 15 target | PASS |
-| C job postings | 10 excerpts from 4 postings, 4 functions | 6 excerpts / 3 postings / 1 outside engineering | PASS |
-| D first-person | 7 passages from 2 sources | target 3 | PASS (ladder 7/7 rungs logged) |
-| E recent news | 3 independent (+1 company-authored, tagged, uncounted) | target 2, max 4 | PASS |
-| F human capital | 0 — N/A PRIVATE | ATTEMPT | N/A, recorded |
+NOTABLE FINDING FROM THIS BUILD
+  Three of the twenty most recent reviews on the required source are written by employees of an
+  unrelated Georgia hospital system whose name collides with one of this company's own Florida
+  facilities. All three name that other employer in their own text; the other system was confirmed
+  externally as a separate non-profit entity; all three were excluded. A fourth, from the same
+  region but naming no employer, is retained and flagged inline. The same profile's job-title index
+  separately lists retail, hospitality and domestic job titles that fit no hospital operator, which
+  corroborates that the pooling is a property of the profile rather than an incident. This is
+  register D23 at population scale rather than as a single review.
 
-- B reviews inside the 24-month gate: 10 of 15. Median review age 22.0 months. Newest
-  2026-08-27, oldest used 2024-06-27.
-- Recency cross-check against the optional review source: does **not** fire materially. The
-  required source's newest review is newer than the optional source's as returned by plain
-  fetch and ~10 weeks older than the renderer's. No B1a-REMEDY fragments admitted.
-- Two NOTE TO RATER blocks at the head of Section B: source truncation at 33.3% of the sample,
-  and a September 2026 structural event postdating the newest review.
+PROMPT DEFECTS SURFACED: 7 structural, 7 cosmetic. The freeze condition is NOT met.
+  Full text is in the operator handback. Structural, in short:
+    S1  B0's entity check has no termination rule when a review site splits an employer by
+        individual facility; it is unachievable as written at 190 hospitals.
+    S2  B0's off-company remedy is written for a single pooled review and gives no handling for a
+        confirmed population-level contamination rate.
+    S3  B0's homonym check assumes the colliding name is external to the company; here the company
+        owns a facility carrying it, so the name alone does not discriminate.
+    S4  Rule 6's date-order rule, the 15-review cap and the off-company exclusions interact to drop
+        current on-axis evidence, and the prompt does not say whether exclusions are backfilled.
+    S5  The retrieval environment grants one page load per approval; the prompt's seven- and
+        five-rung proof-of-absence ladders are specified as if retrieval were free.
+    S6  v4.11's renderer-confirmation rule has no procedure for a page the renderer returns empty
+        on one pass and in full on the next. D28's two-pass requirement covers truncation only.
+    S7  Section F's "rewrite the proper noun" rule contradicts both the instruction to keep real
+        names until anonymization and hard rule 2.
 
-## Could not retrieve — three different findings, kept apart
+DEFECTS IN MY OWN BUILD
+  1. Transcribing through tool output, I first wrote one section A excerpt with a straightened
+     apostrophe and two section C excerpts with curly quotation marks the rendered page does not
+     carry. Caught and corrected before assembly, but this is the same class of failure as D26 with
+     me as the layer rather than the tool, and it argues for writing excerpts from the rendered text
+     mechanically rather than by hand.
+  2. I wrote "41 Section 1 excerpts" into the fidelity note when the true count is 50. Caught by
+     the verification pass and corrected.
+  3. Section A sits at its maximum of 8 while two of the eight carry little on-axis content. A
+     tighter build would have spent those slots on the corporate culture-and-values page.
+  4. I left the optional review site's rating block unread as a deliberate economy, which leaves a
+     real gap in the vintage block rather than a recorded absence of data.
+  5. Feedback is marked THIN and I considered marking it COVERED. The reason line in 2b states the
+     base it rests on so the call can be re-judged downstream.
 
-**Did not exist**
-- No public employee handbook or "how we work" documentation (ladder rung D1), after a full
-  navigation-and-footer survey of the company site plus web search.
-- No independent technical-conference talk by company engineers (rung D7). The only conference
-  programming found is the company's own customer conference.
-- No current 10-K Item 1 Human Capital disclosure (Section F): the company ceased to be an SEC
-  reporting company in January 2025.
+LIST UPDATES - both done, in the prescribed order, after the packet was confirmed on disk
+  1. DONE  appended to to_be_scrubbed.txt:  "P-17<TAB>HCA Healthcare<TAB>researched 2026-10-04 (v4.11)"
+  2. DONE  removed "P-17<TAB>HCA Healthcare" from to_be_researched.txt (exactly one line matched)
+  Verified after the fact: the scrub line is present, and the research list now holds P-18 and P-19.
 
-**Existed but was stale (found, dated, rejected on the 18-month gate)**
-- Developer blog at developers.smartsheet.com/blog — newest post 2020-02-27.
-- Long-form employer profile at builtin.com with a named engineering leader describing how the
-  team works — 2018-05-04. The "right content, wrong vintage" case.
-
-**Existed but could not be reached (or not quotably)**
-- The careers page's interview-step panels. Plain fetch returned their text (assessment and
-  coding-interview language, good decision-basis material); the rendered DOM never exposes it,
-  including after clicking the panel controls. Withheld under the v4.11 renderer-confirmation
-  rule rather than promoted from plain fetch.
-- The session's own cloud container has **no general web egress** — its headless browser and
-  direct-fetch routes were refused by the egress gateway with 403 on CONNECT for every host,
-  including a control host. Treated as an organisation policy denial and not routed around.
-  All renderer work ran in the browser pane on the operator's machine over the device bridge,
-  which required a per-page-load access grant; on this run the grants were answered
-  automatically and nothing stalled.
-- `sec.gov/cgi-bin/browse-edgar` refused by the target's robots rules. Consistent with the
-  prompt's dead-route finding; not needed, since the company is private.
-
-## Defects I noticed in my own build
-
-Full report is **Section 5** of the packet: **6 structural, 6 cosmetic, 2 environment notes.**
-The structural ones, shortest form:
-
-1. **S1** — hard rule 8 and B6 disagree about per-review star ratings. Collected into Section 1
-   attribution lines, then removed all 15 and moved them to 2f on the stricter reading.
-2. **S2** — B7's truncation detection assumes a "Show more" marker that the renderer does not
-   print on this source, while v4.11 pushes the builder toward the renderer. The
-   prompt-compliant path yields 0% truncation here and drops a required NOTE TO RATER. I
-   measured it by character-length clustering across two renderer passes, cross-checked against
-   plain fetch's marker positions.
-3. **S3** — Section F's public/private binary has no state for a recently-public company.
-   Marked N/A PRIVATE; recorded the fork because PE take-privates will recur on the roster.
-4. **S4** — the `accessed` rule guarantees its own 8-of-8 finding and offers no vintage fallback.
-5. **S5** — D0 bounds the extra-rung search on voice seniority and is silent on voice
-   concentration; 5 of 7 D passages come from one article about one country's engineering team.
-6. **S6** — *brief-level, not collector-level:* `to_be_researched.txt`, the one file every run is
-   required to open, carries cross-run findings in its comment block (which poles are thin,
-   which packet is weakest, what leans the roster expects). Read before its contents were known.
-   No packet was opened and no other company influenced any collection decision. Cheap fix:
-   move the commentary out of the queue file.
-
-**D26 is confirmed present in this retrieval environment, not assumed** — four measured
-instances of the plain-fetch layer altering text, including a single-for-double quotation-mark
-substitution inside a review and silent removal of literal markdown a reviewer typed. Details in
-2e. Nothing in Section 1 rests on plain fetch.
-
-## List updates — confirmed done, in the required order
-
-1. Appended to `to_be_scrubbed.txt`: `P-16	Smartsheet	researched 2026-10-02 (v4.11)` — done
-   **after** the packet file existed on disk.
-2. Then removed `P-16	Smartsheet` from `to_be_researched.txt`.
-
-One company built. Open a fresh session for the next.
+One company built. A fresh session is required for the next.

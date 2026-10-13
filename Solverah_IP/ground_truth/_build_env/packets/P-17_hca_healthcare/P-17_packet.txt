@@ -1,0 +1,645 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5   (configured model identifier for this session; the runtime does
+                   not expose which model actually served each turn, and documented fallbacks exist,
+                   so this is the pinned identifier rather than a verified serving string)
+  built          : 2026-10-04
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+   SCOPE: The employee reviews in this packet come from frontline hospital staff — nursing,
+   patient-care technicians, food service, environmental services, security, supply chain and
+   unit clerical roles — with one corporate analyst and one IT support voice among them. Other
+   parts of this company — its software engineering, data and product organisation, its
+   physicians, and its senior corporate functions — are not represented in them. Company-authored
+   sources describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Above all else, we are committed to the care and improvement of human life."  — [careers site / values statement] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/about-us — accessed 2026-10-04
+
+   • "As a learning health system, HCA Healthcare analyzes data from more than 47 million patient encounters each year. This data helps develop technologies and best practices that improve patient care. We also share our learnings with the larger healthcare community and government agencies to improve care everywhere."  — [careers site / "Our Story"] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/about-us — accessed 2026-10-04
+
+   • "We believe that the successful management of the business of healthcare means better healthcare for everyone, whether you are a physician leading the way in medicine, a nurse who takes pride in making a difference by providing excellent treatment with kindness, or a patient looking for the best care possible."  — [careers site / "Our Story"] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/about-us — accessed 2026-10-04
+
+   • "Since our founding more than 50 years ago, we have followed a vision of healthcare the way it should be: patient-centered, constantly evolving and constantly improving, practiced with integrity and compassion. We all have a role in making this vision a reality."  — [careers site / job-family page, Information Technology Group] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/information-technology-group — accessed 2026-10-04
+
+   • "We are an amazing team that works hard to support each other and are seeking a phenomenal addition like you who feels patient care is as meaningful as we do!"  — [careers site / job-family page, Information Technology Group] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/information-technology-group — accessed 2026-10-04
+
+   • "We don’t build in isolation. Our engineers, product leaders, and data scientists work shoulder to shoulder with care teams inside hospitals and innovation hubs — identifying real challenges, rapidly testing solutions, and scaling what works across our national network."  — [careers site / job-family page, Digital Transformation and Innovation] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/digital-transformation-and-innovation — accessed 2026-10-04
+
+   • "We deliver real-time, actionable intelligence that empowers proactive decision-making. From predictive analytics to workflow nudges, our solutions reduce avoidable variation and help leaders operate with greater precision, speed and consistency."  — [careers site / job-family page, Digital Transformation and Innovation] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/digital-transformation-and-innovation — accessed 2026-10-04
+
+   • "Nashville is also home to our Executive Development Program, where exceptional individuals are groomed to take on CNO- and COO-level roles in our hospitals. This highly-selective program focuses on ethics, leadership and the financial and clinical knowledge required of professionals at this level of the industry."  — [careers site / job-family page, Corporate] — HCA Healthcare, company voice — https://careers.hcahealthcare.com/pages/corporate — accessed 2026-10-04
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+   NOTE TO RATER: the review profile used for this section was found to contain reviews written
+   by employees of a DIFFERENT, unrelated hospital system that is not part of this company. Three
+   such reviews sat inside the twenty most recent; each named that other employer in its own text,
+   the other employer was confirmed by external sources to be a separate organisation, and all
+   three were removed before this section was assembled. One further review, from the same region
+   and naming no employer, could not be confirmed either way; it is retained below and marked
+   inline. Read the marked entry as possibly describing a different company.
+
+   NOTE TO RATER: review bodies on this source are cut off mid-sentence when they run long. Three
+   of the fifteen below end mid-sentence and are marked with […]. The reviews that survive in
+   full are systematically the shorter ones.
+
+   • "The experience at that hospital is horrible. They treat you poorly because of your skin color. […]"  — [employee review] — reviewer headline: "Horrible disrespectful unfair treatment" · job title: Unarmed Security Officer · location: Florida — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-10-01
+
+   • "There were not a lot of opportunities to advance. Management did not try to get to know their employees. The pay is considerably low compared to other hospital."  — [employee review] — reviewer headline: "Lack of Opportunities" · job title: not stated (posted as “Anonymous”) · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-23
+
+   • "This is a very bad place to work they is very short handed and force the workers to over work themselves they threaten to send us home if we dont work multiple stations we dont have products to do our jobs the management sucks and its just a unhappy place to work"  — [employee review] — reviewer headline: "Kitchen" · job title: Cook · location: 1100 DR.MATHER LUTHER KING [sic — location string as printed by the source] — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-19
+
+   • "Company is ok been there for 9 years money could be better haven’t had a raise in years"  — [employee review] — reviewer headline: "Ok place to work" · job title: PCT / Unit Secretary · location: Saint Petersburg, FL — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-17
+
+   • "Worst environment I’ve ever worked in. Staff act like high school students, managers do not listen to your concerns. Cliques play a huge role here. Terrible experience do not recommend"  — [employee review] — reviewer headline: "I wish I could give no stars" · job title: LPN · location: Dickson, TN — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-12
+
+   • "Workplace culture is great, meaningful work is great, direct management is great and works to meet your schedule needs / The. Job is good and continues to show promise / Work life balance is challenging making the job difficult at times to manage workload. [three separate paragraphs in the source, shown here separated by “/”]"  — [employee review] — reviewer headline: "Work review" · job title: Sr. Reporting Analyst · location: Nashville, TN — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-12
+
+   • "Clean facilities and dedicated nursing staff who provide attentive, professional care during stressful moments. While administrative processes and emergency room wait times can occasionally be frustratingly long during peak hours, the quality of medical treatment and physician expertise consistently […]"  — [employee review] — reviewer headline: "great environment" · job title: not stated (posted as “Anonymous”) · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-09-04
+
+   • "I have been working here for more than 10 years, never had any issues, I just come, do my job and go home. I have everything I need to care for my patients, my hours are flexible and I have a great manager."  — [employee review] — reviewer headline: "good work enviroment" · job title: not stated (posted as “Anonymous”) · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-31
+
+   • "It gets easier as you keep working but long hours and understaffed. The coworkers make it a better place. Management is eh but they expect the numbers to be high all the time. Its a lot of walking and talking with pts/staff most of the time."  — [employee review] — reviewer headline: "Its okay" · job title: Hostess · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-27
+
+   • "Was a joy to work here and good work life balance . Great team members . The staff was always friendly and supportive. I enjoyed my time working here"  — [employee review] — reviewer headline: "Productive Great Benefits" · job title: Technical Support Specialist · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-24
+
+   • "the people I've worked around help me to learn a lot, made me feel like family, and we all worked well as a team. This company also offers pension plan."  — [employee review] — reviewer headline: "Room for growth and fun environment" · job title: Nurse Assistant · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-19
+
+   • "Good job for benefits and to make decent money while still looking for job you really want. Hours 6am - 2:30pm pretty good so you have whole day to still do stuff."  — [employee review] — reviewer headline: "decent pay great benefits." · job title: Supply Chain Technician · location: San Antonio, TX — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-17
+
+   • "After more than 20 years with HCA, I feel like it is finally time to say what I have been holding in. / Leaving a company after giving over two decades of your life is not something you do lightly. I gave HCA my time, my dedication, and many years of hard work. I stayed through good times and difficult […]"  — [employee review] — reviewer headline: "Tenured employee" · job title: PTAC · location: Richmond, VA — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-11
+
+   • "It is very difficult to get recognized for good work, there is a tendency to nitpick and find fault instead of offering praise or even areas of opportunity."  — [employee review] — reviewer headline: "Punitive and negative work culture" · job title: RN Staff Nurse · location: not stated — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-08
+
+   • "Good location, good management , pay not the best and hard to get promoted. They pick and choose who they want to promote. If you kiss a little butt you may get a chance."  — [employee review] [UNCONFIRMED — may describe a different employer; retained, not excluded] — reviewer headline: "Stable" · job title: Medical Assistant · location: Canton, GA — https://www.indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US — 2026-08-05
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+   • "This engineer is a highly motivated self-starter and is committed to delivering high quality solutions within agreed upon timelines. They are committed to engineering excellence and comfortable working in a fast paced complex environment."  — [job posting] — company voice, software engineering function — https://careers.hcahealthcare.com/jobs/4302181 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "This engineer can quickly learn, maintain and pragmatically improve existing solutions as well as design new ones."  — [job posting] — company voice, software engineering function — https://careers.hcahealthcare.com/jobs/4302181 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Ensure implementations are up to current standards for coding, naming, security, and versioning."  — [job posting] — company voice, software engineering function — https://careers.hcahealthcare.com/jobs/4302181 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Provide after hours/on-call support as needed"  — [job posting] — company voice, software engineering function — https://careers.hcahealthcare.com/jobs/4302181 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "your voice to influence patient care is valued and empowered at every turn –whether through open, collaborative relationships with your direct manager or more formal opportunities through hospital councils and national nursing initiatives."  — [job posting] — company voice, bedside nursing function — https://careers.hcahealthcare.com/jobs/4991959 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Collaborating with medical providers and the care team, you will provide personalized, comprehensive, and compassionate care, following established nursing models such as "Assess, Perform, Teach, and Manage.""  — [job posting] — company voice, bedside nursing function — https://careers.hcahealthcare.com/jobs/4991959 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Perform procedures, monitoring, or other functions as ordered by the medical provider(s), and ensure thorough and timely documentation of care administration in the patient's medical record."  — [job posting] — company voice, bedside nursing function — https://careers.hcahealthcare.com/jobs/4991959 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Ability to work as part of a team in an atmosphere that is variable paced at low pressure."  — [job posting] — company voice, environmental services function — https://careers.hcahealthcare.com/jobs/4761196 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Ability to operate autonomously on a varying set of tasks."  — [job posting] — company voice, environmental services function — https://careers.hcahealthcare.com/jobs/4761196 — accessed 2026-10-04; posting confirmed open on that date
+
+   • "Must be able to read, write, and follow oral and written instructions."  — [job posting] — company voice, environmental services function — https://careers.hcahealthcare.com/jobs/4761196 — accessed 2026-10-04; posting confirmed open on that date
+
+--- D. FIRST-PERSON ACCOUNT (yield: 8 passages from 3 sources · ladder fully attempted) ---
+
+   NOTE TO RATER: the voices below are mixed. Three passages are from non-management colleagues
+   describing their own work, three are from named senior executives, and two are from a
+   company-wide conduct document written in the organisation's institutional voice. Executive
+   description of how the organisation works is not evidence about the front line.
+
+   • "Though we promote the concept of management autonomy at local facilities in order to meet local needs, the standards set forth in the Code are mandatory and must be followed."  — [first-party conduct document] — company institutional voice — https://www.hcahealthcare.com/ethics-and-compliance/code-of-conduct — accessed 2026-10-04 (page undated; links a 2025 edition of the Code)
+
+   • "To provide additional guidance, we have developed a comprehensive set of compliance policies and procedures, which expands upon or supplements many of the principles articulated in the Code of Conduct."  — [first-party conduct document] — company institutional voice — https://www.hcahealthcare.com/ethics-and-compliance/code-of-conduct — accessed 2026-10-04 (page undated; links a 2025 edition of the Code)
+
+   • "A lot of the most important work happens through coordination, documentation, communication and making sure the right people have the right information at the right time"  — [first-party publication / colleague account] — Jacob Claudio, facility maintenance mechanic — NON-EXECUTIVE — https://hcahealthcaretoday.com/2026/09/01/how-hca-healthcare-prepares-for-emergencies-meet-the-enterprise-response-teams/ — 2026-09-01
+
+   • "When a response looks organized, it is because a lot of people have spent time preparing for moments they hope never happen"  — [first-party publication / colleague account] — Jacob Claudio, facility maintenance mechanic — NON-EXECUTIVE — https://hcahealthcaretoday.com/2026/09/01/how-hca-healthcare-prepares-for-emergencies-meet-the-enterprise-response-teams/ — 2026-09-01
+
+   • "But those patients, families, communities and our employees are the ones that can experience post-traumatic stress reactions and losses that may benefit from having additional mental health and chaplaincy support."  — [first-party publication / colleague account] — Doug Overall, lead chaplain and volunteer coordinator — NON-EXECUTIVE — https://hcahealthcaretoday.com/2026/09/01/how-hca-healthcare-prepares-for-emergencies-meet-the-enterprise-response-teams/ — 2026-09-01
+
+   • "Our responsibility is to anticipate what our caregivers may need, remove barriers wherever we can and bring the full strength of HCA Healthcare together so our teams can remain focused on what matters most — caring for our patients."  — [first-party publication / executive quote] — Melissa Harvey, vice president of Enterprise Emergency Operations — EXECUTIVE — https://hcahealthcaretoday.com/2026/09/01/how-hca-healthcare-prepares-for-emergencies-meet-the-enterprise-response-teams/ — 2026-09-01
+
+   • "What we want to do is harvest the best processes that we see and carry those to more of our hospitals. We think that technology will give us insights and give us the capability to move quicker."  — [first-party publication / leadership interview] — Sam Hazen, chief executive officer — EXECUTIVE — https://magazine.hcahealthcare.com/messages-from-the-ceo/a-conversation-with-the-ceo-2026/ — 2026-08-14 (interview conducted June 2026)
+
+   • "It’s cultural in our company to be high performers, and that’s because we have great leaders. I think the ultimate responsibility for leadership is to put their teams, in my case, the organization, in a position to succeed in achieving our mission."  — [first-party publication / leadership interview] — Sam Hazen, chief executive officer — EXECUTIVE — https://magazine.hcahealthcare.com/messages-from-the-ceo/a-conversation-with-the-ceo-2026/ — 2026-08-14 (interview conducted June 2026)
+
+--- E. RECENT NEWS (yield: 3 independent excerpts + 1 company-authored, not counted · searches logged) ---
+
+   • "The national healthcare provider cited rising costs, increases in uninsured patients and changing shifts in healthcare policy for the layoffs."  — [local television news reporting] — Brittney Baird, reporter — https://www.wkrn.com/news/local-news/nashville/hca-healthcare-layoffs/ — 2026-09-02
+
+   • "Nashville, Tenn.-based HCA Healthcare is bolstering its technology leadership as its digital innovation department has grown from a “startup team to a scaled operation,” a new executive told Becker’s."  — [trade press reporting] — Giles Bruce, reporter — https://www.beckershospitalreview.com/healthcare-information-technology/innovation/why-hca-expanded-its-digital-leadership/ — 2026-01-16
+
+   • "Hospitals are, by necessity, risk-averse environments, but innovation requires safe spaces to test and learn."  — [trade press reporting / interview answer] — Whitney Staub-Juergens, vice president and COO of digital transformation and innovation, speaking to the publication — https://www.beckershospitalreview.com/healthcare-information-technology/innovation/why-hca-expanded-its-digital-leadership/ — 2026-01-16
+
+   • "We made the difficult decision to eliminate a small percentage of positions across our corporate office and support functions."  — [company statement carried in news reporting] [company-authored — does not count toward yield] — HCA Healthcare, company statement — https://www.wkrn.com/news/local-news/nashville/hca-healthcare-layoffs/ — 2026-09-02
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 5 · public/private: PUBLIC) ---
+
+   All five excerpts below are from Item 1, Human Capital Resources, of the most recent annual
+   report. This is company-authored material in a legally accountable filing. Headcounts, dollar
+   figures and percentages have been removed at collection; one sentence naming a count of
+   unionised facilities was dropped entirely because it could not survive removing its figure.
+
+   • "We believe that excellent people make excellence happen and are committed to helping our leaders and colleagues consistently bring our mission to life."  — [annual report, Item 1 Human Capital Resources] [company-authored] — HCA Healthcare, Inc., filing voice — https://www.sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm — filed 2026-02-10 (fiscal year ended 2025-12-31)
+
+   • "We regularly connect with our colleagues, capturing their feedback through rounding, advisory groups, governance councils and surveys, and strive to take appropriate action on identified opportunities."  — [annual report, Item 1 Human Capital Resources] [company-authored] — HCA Healthcare, Inc., filing voice — https://www.sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm — filed 2026-02-10 (fiscal year ended 2025-12-31)
+
+   • "By empowering colleagues to lead with confidence and purpose, we strengthen our culture, elevate the quality of care delivered to patients, and position our organization for continued growth."  — [annual report, Item 1 Human Capital Resources] [company-authored] — HCA Healthcare, Inc., filing voice — https://www.sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm — filed 2026-02-10 (fiscal year ended 2025-12-31)
+
+   • "Through the award-winning HCA Healthcare Leadership Institute and enterprise learning resources, we build critical capabilities and strengthen our talent pipeline."  — [annual report, Item 1 Human Capital Resources] [company-authored] — HCA Healthcare, Inc., filing voice — https://www.sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm — filed 2026-02-10 (fiscal year ended 2025-12-31)
+
+   • "Nurse and medical support personnel availability and retention can present significant operational issues for our hospitals and other facilities, including capacity and growth constraints, reduced patient satisfaction, reduced physician satisfaction, impacts on services offered and increased costs."  — [annual report, Item 1 Human Capital Resources] [company-authored] — HCA Healthcare, Inc., filing voice — https://www.sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm — filed 2026-02-10 (fiscal year ended 2025-12-31)
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5        B reviews: 15/12      C excerpts: 10/6
+       C postings: 3/3        C outside engineering: 2/1
+       B reviews within 24 months: 15/15     ** denominator = number collected; see defect C1 **
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Not applicable. The company's own board returned 222 results for one engineering query,
+       12,248 for one nursing query and 2,604 for one environmental-services query on 2026-10-04,
+       and its job-family index printed four-figure opening counts per family.
+       Full fallback chain still worked and logged?  N/A — primary route succeeded.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 8 (from 3 sources)        ladder rungs logged: 7/7
+       D voice composition: 3 executive / 3 non-executive / 2 company-institutional
+                            (not all-executive, so the bounded extra rung under D0 was not
+                            required; no non-executive material was rejected on age)
+       E excerpts: 3 independent (+1 company-authored, tagged, not counted)   searches logged: 3
+       F excerpts: 5    public? YES    10-K filing date: 2026-02-10 (FY ended 2025-12-31)
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: THIN      innovation: COVERED   decision: COVERED
+
+       THIN/NONE reasons:
+         feedback: needed review-cycle cadence and accounts of how critique is delivered and
+           received ; searched sections A, B, C, D and F — no cadence statement exists anywhere in
+           the sourced material, and exactly one employee account describes delivery style, against
+           one company-authored statement of listening mechanisms ; optional source checked? YES —
+           the optional review site's newest entry was read for this specifically and its
+           dimension-bearing content sits in Pros/Cons bullet fragments that Section 1 may not
+           carry ; found on-axis material from one experiential voice and one company voice, which
+           is the thinnest base of the six dimensions in this packet
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: hcahealthcare.com/ethics-and-compliance/code-of-conduct
+                            outcome: FOUND, renderable HTML, current (links a 2025 edition of the
+                            Code). Two passages taken. A 2020 PDF edition also exists at
+                            hcahealthcare.com/util/forms/ethics/2020-Code-of-Conduct-a.pdf and was
+                            NOT used — superseded, and a PDF is not renderable.
+       D2 eng/product blog  attempted Y   URL: hcahealthcaretoday.com
+                            newest post date: 2026-09-29   outcome: FOUND, current, 168 index pages.
+                            Newest post (2026-09-29, awards ceremony) opened first per the prompt
+                            and yields no first-person account of working practice — third-person
+                            citations plus executive quotes only. A 2026-09-01 post on the
+                            enterprise response teams yields four passages, three of them
+                            non-executive. No separate engineering or product blog exists.
+       D3 culture microsite attempted Y   URL: hcahealthcare.com/about/culture-and-values
+                            outcome: FOUND, current (cites 2025 activity), narrative text present —
+                            but it is values and community-impact material of the same class already
+                            quoted in section A, so under the double-counting rule it does NOT count
+                            toward D. Nothing taken.
+       D4 leader interview  attempted Y   URL: magazine.hcahealthcare.com/messages-from-the-ceo/a-conversation-with-the-ceo-2026/
+                            date: 2026-08-14 (interview conducted June 2026)   outcome: FOUND,
+                            current, CEO in conversation with the chief nurse executive. Two
+                            passages taken.
+       D5 public repos      attempted Y   URL: github.com/HCA-Healthcare (and /elixir-hl7)
+                            outcome: FOUND — organisation under the company's exact name, 3 public
+                            repositories (HL7 v2.x and MLLP healthcare-interchange libraries),
+                            newest activity 2026-07-07, Apache-2.0, 10 contributors, a Jenkinsfile
+                            present. NO contribution guidelines, RFC threads or discussions. The
+                            organisation profile carries no description and nothing links it to the
+                            company, so ownership is CONSISTENT BUT NOT CONFIRMED. Nothing quoted —
+                            see defect C7.
+       D6 press profile     attempted Y   URL: beckershospitalreview.com/healthcare-information-technology/innovation/why-hca-expanded-its-digital-leadership/
+                            date: 2026-01-16   outcome: FOUND and current, but it is a trade-press
+                            Q&A with a newly appointed executive, i.e. rung-4 material carried by an
+                            outside publication, not a long-form profile. Used in section E rather
+                            than counted twice in D. No long-form independent profile of working
+                            practice was located: two searches returned recruiting-SEO pages,
+                            interview-prep sites, a vendor blog and a substack, all barred.
+       D7 conference talk   attempted Y   URL: searched sessionize.com/elixirconf-us-2026,
+                            googlecloudevents.com/next-vegas/speakers, HIMSS 2026 programmes
+                            date: n/a   outcome: NOT FOUND. Two differently-phrased searches
+                            surfaced no technical talk by a named colleague of this company. The only
+                            conference presence found is investor conferences announced by press
+                            release, which are financial rather than working-practice material —
+                            see defect C6.
+       Rungs rejected as stale (>18 months): NONE. Every rung that yielded anything yielded
+                            material inside the gate. No non-executive material was found and
+                            rejected on age.
+       C fallbacks tried: reviews-site job view NOT NEEDED  ATS param found NOT NEEDED
+                          greenhouse NOT NEEDED  lever NOT NEEDED  workday NOT NEEDED
+                          ashby NOT NEEDED  aggregator NOT NEEDED
+                          — the company's own board rendered full postings through the JS renderer
+                          at the first attempt, and each posting was opened individually and
+                          confirmed open on its own page (each carried a live Apply control and an
+                          explicit "we are reviewing applications" / "we are interviewing
+                          candidates" line). No removal notices seen.
+       E news searches run: 3
+         q1 "HCA Healthcare 2026 profile nurses workload staffing interviews reporting long form
+             investigation workplace" (aggregators and first-party domains excluded)
+         q2 "HCA Healthcare news 2026 layoffs restructuring leadership change return to office
+             nurses strike union"
+         q3 "HCA Healthcare 2026 artificial intelligence rollout nurse handoff documentation
+             reporting Becker's Modern Healthcare" (first-party domains excluded)
+
+2d. SOURCE ACCESS LOG   (R = JS renderer, P = plain fetch; both attempted on every source that mattered)
+
+    careers.hcahealthcare.com/                                    R ok (needed JS: Y)  · P ok
+    careers.hcahealthcare.com/pages/our-culture                   P 404 — guessed URL, wrong; nav survey gave the real paths
+    careers.hcahealthcare.com/pages/about-us                      R ok (needed JS: Y) — 3 excerpts
+    careers.hcahealthcare.com/pages/information-technology-group  R ok (needed JS: Y) — 2 excerpts
+    careers.hcahealthcare.com/pages/digital-transformation-and-innovation  R ok (needed JS: Y) — 2 excerpts
+    careers.hcahealthcare.com/pages/corporate                     R ok (needed JS: Y) — 1 excerpt
+    careers.hcahealthcare.com/pages/how-we-hire                   R ok (needed JS: Y) — opened, nothing on-axis taken
+    careers.hcahealthcare.com/search/jobs                         P REFUSED by robots rules · R ok (needed JS: Y)
+    careers.hcahealthcare.com/jobs/4302181                        R ok (needed JS: Y) — 4 excerpts, confirmed open
+    careers.hcahealthcare.com/jobs/4991959                        R ok (needed JS: Y) — 3 excerpts, confirmed open
+    careers.hcahealthcare.com/jobs/4761196                        R ok (needed JS: Y) — 3 excerpts, confirmed open
+    indeed.com/cmp/HCA-Healthcare/reviews?sort=date&fcountry=US   P ok · R ok (needed JS: Y — renderer
+                                                                  was NOT walled; it is the confirming
+                                                                  route for all 15 review excerpts)
+    indeed.com/cmp/HCA-Healthcare/job-titles                      P ok · R ok — counts agreed between methods
+    indeed.com/cmp/HCA-Houston-Healthcare/reviews                 located via search (2,118 reviews); NOT collected — see defect S1
+    indeed.com/cmp/HCA-Florida-Ocala-Hospital-1/reviews           located via search (158); NOT collected
+    indeed.com/cmp/HCA-Florida-South-Tampa-Hospital/reviews       located via search (120); NOT collected
+    indeed.com/cmp/HCA-Florida-Fort-Walton--destin-Hospital-2/reviews located via search (119); NOT collected
+    indeed.com/cmp/HCA-Florida-Woodmont-Hospital/reviews          located via search (92); NOT collected
+    glassdoor.com/Reviews/HCA-Healthcare-Reviews-E1437.htm        R ok but 404 page — guessed employer ID was wrong
+    glassdoor.com/Reviews/HCA-Healthcare-Reviews-E2062.htm        P REFUSED by robots rules · R ok (needed JS: Y) —
+                                                                  correct ID confirmed by search, not guessed;
+                                                                  no KO/KH keyword segment in the URL used
+    northside.com/about                                           R ok (needed JS: Y) — external confirmation for the off-company exclusions
+    hcahealthcaretoday.com/                                       R ok (needed JS: Y) · P ok
+    hcahealthcaretoday.com/2026/09/29/hca-healthcare-presents-2026-awards-of-distinction/  R ok — nothing taken
+    hcahealthcaretoday.com/2026/09/01/how-hca-healthcare-prepares-for-emergencies-meet-the-enterprise-response-teams/  R ok — 4 passages
+    magazine.hcahealthcare.com/messages-from-the-ceo/a-conversation-with-the-ceo-2026/  R ok — 2 passages
+    hcahealthcare.com/ethics-and-compliance/code-of-conduct       R ok (needed JS: N content, but renderer used as confirming route) — 2 passages
+    hcahealthcare.com/about/code-of-conduct.dot                   P 404 — guessed URL, wrong
+    hcahealthcare.com/about/culture-and-values                    R ok — rung-3 attempt, nothing taken
+    github.com/HCA-Healthcare                                     P ok
+    github.com/HCA-Healthcare/elixir-hl7                          R ok — nothing quoted (ownership unconfirmed)
+    wkrn.com/news/local-news/nashville/hca-healthcare-layoffs/    R ok (needed JS: Y) — 2 excerpts
+    beckershospitalreview.com/.../why-hca-expanded-its-digital-leadership/  R EMPTY on pass 1, FULL on pass 2
+                                                                  (needed JS: Y) · P ok — 2 excerpts; see defect S6
+    sec.gov/cgi-bin/browse-edgar?...&type=10-K                    P REFUSED by robots rules — route dead again (register D16)
+    sec.gov/Archives/edgar/data/860730/000119312526044769/hca-20251231.htm  R ok — Item 1 Human Capital extracted
+                                                                  from the rendered DOM; 5 excerpts
+    sec.gov/Archives/.../0001193125-26-044769-index.htm           P ok — filing date only
+    Cloud-side direct HTTP and a locally driven headless Chromium were both attempted first and are
+    unavailable in this environment: the session's egress policy refused CONNECT to every target
+    host, and the second shell has no network at all. The two retrieval methods actually available
+    were the plain-fetch tool and the JS renderer, and both were used as recorded above.
+
+2e. FIDELITY NOTE
+
+    [PARAPHRASE] markers used: NONE. No passage needed one.
+
+    ENTITY CHECK RESULT. Variants searched on the required review site: the company name as written,
+    the name with the legal suffix dropped, the regional operating brands, the state-branded arms and
+    the per-hospital brands. The site holds a company-level profile AND separate profiles for
+    regional brands and for individual hospitals; six entities are listed in 2f and the per-hospital
+    set is certainly larger, since four turned up from two searches against a company that operates
+    190 hospitals. Section 1's reviews come from the company-level profile only. This is a
+    defensible choice, not a complete merge, and it is recorded as defect S1.
+
+    IMPLAUSIBLE COUNTS. The company-level profile shows roughly five thousand reviews for an
+    employer of approximately 320,000 people. That is low for the headcount, and it is low because
+    the population is split across the per-hospital profiles above rather than because the reviews
+    do not exist. Stated explicitly as B0 requires.
+
+    OFF-COMPANY REVIEWS EXCLUDED FROM SECTION 1: three, all from the twenty most recent.
+      • 2026-09-24, Registered Nurse, Lawrenceville, GA — "Northside is an amazing organization to
+        work for..."
+      • 2026-09-04, Anonymous — "Northside Hospital has great facilities and work ethics... Especially
+        the Northside Hospital in Canton or Forsyth."
+      • 2026-08-04, RN, Canton, GA — "I really enjoyed working at Northside Hospital in Canton..."
+    CONFIRMING EVIDENCE: Northside Hospital's own about page (northside.com/about, rendered
+    2026-10-04) states it is a Georgia non-profit system of five acute-care hospitals — Atlanta,
+    Cherokee, Duluth, Forsyth and Gwinnett — with its own board, mission and values statement and
+    roughly 36,000 employees, and refers to "The State of Georgia requires non-profit hospitals to
+    provide certain financial and organizational documents on their websites." Northside Hospital
+    Cherokee is in Canton, GA and Northside Hospital Gwinnett is in Lawrenceville, GA. It is not
+    part of the subject company. CORRECTED POPULATION: 17 usable reviews on page one, of which the
+    15 most recent were taken.
+
+    SUSPECTED BUT NOT CONFIRMED, RETAINED AND FLAGGED INLINE: the 2026-08-05 Medical Assistant review
+    located in Canton, GA. Canton is the other system's territory, but the review names no employer
+    and the subject company does operate hospitals elsewhere in Georgia, so suspicion alone does not
+    exclude it. It is retained and marked in Section 1.
+
+    A HOMONYM INSIDE THE COMPANY MAKES THIS HARDER THAN D23 ANTICIPATES. The subject company itself
+    operates a hospital whose name contains "Northside" (in Florida), and one retained review in the
+    15 is from that facility's city and is legitimately the subject's. "Northside" alone is therefore
+    not a discriminator; only the state separates the two. See defect S3.
+
+    THE PROFILE'S JOB-TITLE INDEX CORROBORATES THE POOLING. On the same company-level profile the
+    index lists, among others, "CAP Team Associate", "Merchandise Flow Team Member", "Assistant Store
+    Manager", "Senior Buyer", "Bellman", "Pool Manager", "Babysitter/Nanny", "Printer", "Image
+    Consultant" and "Skilled Laborer" — retail, hospitality and domestic titles that fit no hospital
+    operator. Two Spanish-language titles ("Monitorista", "Coordinador/a de seguridad e higiene") are
+    also pooled under the same profile, the cross-language bucketing B4 describes. Recorded, not
+    acted on beyond the three confirmed exclusions.
+
+    POSTINGS WHOSE OPEN/CLOSED STATUS COULD NOT BE CONFIRMED: none. All three were opened
+    individually on their own pages and each carried a live apply control and an explicit statement
+    that applications or interviews are in progress.
+
+    PRESERVED SOURCE TYPOS AND NON-STANDARD STRINGS IN SECTION 1 (all reproduced as printed):
+      • a review's location field reads "1100 DR.MATHER LUTHER KING" — a street address in a city
+        field, with the honorific misspelled. Marked [sic] in Section 1.
+      • a review headline reads "good work enviroment"; another reads "Its okay" and its body "Its a
+        lot of walking"; a third body contains "dont" twice and "haven’t had a raise in years" with no
+        terminating punctuation.
+      • a review body reads "The. Job is good and continues to show promise" — stray period preserved.
+    OBSERVED BUT NOT QUOTED, recorded because they are unique strings a later step may encounter:
+    the conduct page lists "2025 El Digo de Conducta en Espanol" (for "Código"); the culture page
+    ends a value statement "the way we live our lives ." with a space before the period; the
+    enterprise-response article contains "Jacob’s background in background gives him a firsthand
+    understanding".
+
+    RETRIEVAL-LAYER FIDELITY — D26 RECURRED ON THIS BUILD, TWICE, AND IS CONFIRMED AGAIN.
+      • On the trade-press article, plain fetch returned the clause "AI has immediate potential to
+        alleviate both of those by automating key administrative tasks" wrapped in quotation marks and
+        introduced as "she states". On the rendered page that clause is unquoted prose inside a Q&A
+        answer. The words are the speaker's either way, but the quotation marks are the tool's.
+      • On the same article plain fetch presented "When developing the Nurse Handoff model, we tapped
+        into 21 nurses across four hospitals" as a direct quotation. That sentence does not appear
+        anywhere in the rendered text I read. It is not in Section 1 and must not be used.
+      • On the same article plain fetch presented a quoted clause as the executive "describing her
+        vision for the role" while the rendered page attributes that clause to a LinkedIn post, not to
+        the interview. Provenance silently lost.
+      • On the review page, plain fetch merged a three-paragraph review body into one paragraph joined
+        by periods, straightened a curly apostrophe, and appended "...Show more" markers to two
+        reviews the renderer shows complete.
+      • Where plain fetch was accurate: the job-title index. Every count and rating in that structured
+        list matched the renderer exactly — consistent with the register's observation that bullet and
+        list content survives while prose is rewritten.
+    CONSEQUENCE: every one of the 50 Section 1 excerpts was confirmed on a rendered copy of its page,
+    quotation marks included, and the `needed JS` field in 2d records the renderer as the confirming
+    route throughout.
+
+    A SECOND-ORDER FIDELITY LIMIT I CANNOT RESOLVE. The renderer hands me extracted text, not bytes.
+    Curly and straight apostrophes and quotation marks arrive as characters in that extraction, and I
+    cannot distinguish a straight apostrophe the page author typed from one the extraction normalised.
+    I reproduced what the extraction gave, which disagreed with plain fetch in at least one place
+    (noted above), and I did not silently regularise them — the inconsistency between excerpts is
+    reproduced, not tidied.
+
+    D27 CONFIRMED IN BOTH DIRECTIONS. The renderer was not walled on the review aggregator at all and
+    is the confirming route for all of section B; plain fetch was refused outright by robots rules on
+    the optional review site, the company's own job search and the regulator's search endpoint. On the
+    trade-press site plain fetch succeeded where the renderer's first pass returned nothing. Neither
+    method dominates; both were tried on every source that mattered.
+
+2f. VINTAGE BLOCK
+
+       Review entities found (URL · count · rating · claimed/unclaimed):
+         indeed.com/cmp/HCA-Healthcare/reviews · 5,053 · 3.3 · claimed status not displayed on the
+           reviews page by either method
+         indeed.com/cmp/HCA-Houston-Healthcare/reviews · 2,118 · not read · not read
+         indeed.com/cmp/HCA-Florida-Ocala-Hospital-1/reviews · 158 · not read · not read
+         indeed.com/cmp/HCA-Florida-South-Tampa-Hospital/reviews · 120 · not read · not read
+         indeed.com/cmp/HCA-Florida-Fort-Walton--destin-Hospital-2/reviews · 119 · not read · not read
+         indeed.com/cmp/HCA-Florida-Woodmont-Hospital/reviews · 92 · not read · not read
+         glassdoor.com/Reviews/HCA-Healthcare-Reviews-E2062.htm · 9,891 · not read · not read
+         ** the per-hospital set is incomplete by construction; see defect S1 **
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+         required site — 5,053 in the browser page-title element ("Working at HCA Healthcare: 5,053
+           Reviews | Indeed.com"); 5,053 again in the reviews-count heading immediately above the
+           sort control; 5,101 in the overall-rating block ("Based on 5,101 reviews")
+         required site, job-title index — the index's own headline element reads "14.7K Salaries",
+           a salaries count and not a review count; recorded because it is the only total that page
+           prints
+         optional site — 9,891 in the browser page-title element; 9,868 in the page-title element
+           of the same URL as indexed by a search engine on the same day
+
+       Conflicting counts observed on a single page: YES — 5,053 / 5,053 / 5,101 simultaneously on
+         the required site's reviews page. Also across renditions of one optional-site page:
+         9,891 live vs 9,868 as indexed.
+
+       Headline ratings BY SITE: required site — overall 3.3; work-life balance 3.3; pay and benefits
+         3.3; job security and advancement 3.1; management 3.0; culture 3.2. Optional site — NOT
+         RETRIEVED: the renderer returned only the article element holding the newest review, which
+         is all the recency cross-check needs. Divergence therefore cannot be computed; see defect C3.
+
+       Job titles sampled, each with review count and the element the count came from: NONE — the
+         frame is recency, not job title (v4.6), so no title was sampled. See defect C2. The title
+         INDEX was collected and is the population artifact; its counts, from each title's own
+         reviews-count element on indeed.com/cmp/HCA-Healthcare/job-titles, include:
+           Registered Nurse 881 · Patient Care Technician 164 · Medical Assistant 97 · Office
+           Specialist 95 · Nurse 93 · Nursing Assistant 55 · Analyst 52 · Certified Medical Assistant
+           46 · Licensed Practical Nurse 45 · Collection Agent 43 · Director 42
+         against the entire technology organisation in single digits:
+           Application Developer 4 · Senior Application Engineer 3 · Software Engineer 2 · Platform
+           Engineer 2 · ETL Developer 2 · Data Analyst 3 · Senior Data Analyst 3 · Business Analyst 5 ·
+           Senior Business Analyst 5 · Project Manager 11 · Financial Analyst 8
+         Job titles recorded per review as the reviewer wrote them, in Section 1.
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B
+
+       Achievability gate run on every percentage recorded anywhere in the packet: YES
+       Percentages struck for failing the gate, with title and figure: NONE — no percentage entered
+         the packet. Three were encountered and all three were kept out for reasons preceding the
+         gate: an engagement figure on the company's blog prints no n at all, so it is untestable and
+         is evaluative besides (rule 8); retirement-match and stock-discount percentages in job
+         postings are benefit terms rather than statistics; a repository language bar is not a
+         statistic. The gate was run and had nothing to strike.
+
+       Titles present but NOT sampled, with counts: not applicable under the recency frame; the full
+         index is the artifact and its shape is recorded above.
+
+       Interview write-ups excluded from review lists: 0 — none appeared in the 20 most recent.
+
+       Reviews excluded as confirmed off-company: 3 (see 2e).
+
+       Newest review date BY SITE: required site 2026-10-01 · optional site 2026-10-01.
+         ** NO DIVERGENCE. The recency cross-check does not fire, materially or otherwise, so
+         B1a-REMEDY is not triggered and no Pros/Cons fragments appear in Section 1. **
+
+       Oldest review used: 2026-08-05
+       Median age of reviews used: approximately 1 month (median date 2026-08-31 against an access
+         date of 2026-10-04)
+
+       Reviews truncated at source: 3/15 used = 20%  (and 5/20 across the full page-one set = 25%)
+         ** BOTH PASSES DISAGREED AND THE DISAGREEMENT STRADDLES THE THRESHOLD. Plain fetch marked 8
+         of the 20 with "...Show more" (40%); the renderer shows 5 of 20 (25%), and shows two of plain
+         fetch's eight as complete. Under v4.11 the renderer is the authority, so the measured figure
+         is 25% / 20% and B7's one-third threshold is NOT crossed. Had plain fetch been trusted it
+         would have been. This is register D28 recurring. A note was written to the rater anyway,
+         because three of the fifteen do end mid-sentence and that is worth knowing. **
+
+       Source-site duplicates retained: 0
+
+       Newest careers-page modification date: NOT PUBLISHED. No careers page carries a publication or
+         modification date by either retrieval method, which is why all eight section A excerpts are
+         access-dated. The careers footer prints "Copyright 1999-2020 C-HCA, Inc." — a copyright range
+         ending six years before the access date, which is not a modification date and is recorded
+         here only so that it is not mistaken for one. See defect C4. 8 of 8 section A excerpts are
+         access-dated; the rater is told nothing about that section's vintage, and that is the finding.
+
+       Structural events found and their dates:
+         2026-01 (early) — first vice president and COO of digital transformation and innovation
+           appointed; the digital organisation described by its own new executive as having "grown
+           from a startup team to a scaled operation"
+         2026-02-10 — FY2025 annual report filed
+         2026 — a leadership award established honouring a former chief nurse executive; a chief nurse
+           executive is in post and appears in the 2026 leadership interview
+         2026-09-02 — layoffs announced across corporate office and support functions, reported by
+           local television news; the company cited rising costs, more uninsured patients and
+           healthcare-policy shifts
+
+       Does any structural event postdate the newest review?  NO. The most recent structural event
+         (2026-09-02 layoffs) precedes the newest review used (2026-10-01) by about a month, and 6 of
+         the 15 reviews postdate it. Section B and Section E describe the same organisation at the
+         same moment, which is the condition the P-04 failure was about.
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide mission and values, plus two named job
+                              families (information technology, and corporate campus roles)
+       B employee reviews     population: frontline hospital staff — security officer, cook, patient
+                              care technician / unit secretary, LPN, hostess, nurse assistant, supply
+                              chain technician, patient transport, RN staff nurse, medical assistant,
+                              plus one senior reporting analyst and one technical support specialist,
+                              and four reviews posted with no job title
+       C job postings         population: software engineering, bedside nursing, environmental
+                              services
+       D first-person         population: an enterprise emergency-response programme (facilities
+                              maintenance, chaplaincy, medical transport), the executive office, and
+                              a company-wide conduct document
+       E news                 population: corporate office and support functions (the layoffs), and
+                              the digital and technology organisation (the leadership change)
+       F human capital        population: company-wide
+
+       Working environments known to exist in this company but ABSENT from the review population:
+         the software engineering, data, platform and product organisation — the review site's own
+         title index puts Software Engineer at 2 reviews, Platform Engineer at 2, Application
+         Developer at 4 and Data Analyst at 3, against Registered Nurse at 881, so this is an absence
+         of evidence rather than a sampling choice and no sampling rule can repair it; physicians in
+         any meaningful volume (Physician, 29); senior corporate and finance functions; and the United
+         Kingdom operations entirely. Section C and Section E both speak for the technology
+         organisation, and Section B does not.
+
+       Does the company-authored evidence (A, F) describe a wider population than the experiential
+       evidence (B)?  YES.
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: approximately 320,000 employees as of 2025-12-31, including approximately
+  90,000 part-time and PRN employees, stated in Item 1 of the company's own annual report filed
+  2026-02-10. HIGH CONFIDENCE — company-sourced in a legally accountable filing, not a third-party
+  estimate. The careers site independently prints "320K+ colleagues" (accessed 2026-10-04).
+- Stage/size cues: public company, common stock on the New York Stock Exchange under HCA,
+  incorporated in Delaware, commission file number 1-11239, headquartered in Nashville, Tennessee.
+  Founded 1968 as Hospital Corporation of America. Operates 190 hospitals and 2,500+ sites of care
+  across 19 states and the United Kingdom (company-stated, accessed 2026-10-04). Mature, listed,
+  no funding stage. Revenue not recorded here — not needed for stage placement and the filing's
+  financial statements were deliberately not quarried.
+- Pay-posture EVIDENCE vs. talent-market peers (NO band assigned). Correct reference class: large
+  US multi-hospital operators and health systems competing for the same clinical labour pool — NOT
+  technology employers, even though the company employs engineers, because the review population and
+  the bulk of the workforce are clinical.
+  Evidence that cash pay sits at or below that class: multiple current reviews state pay is low
+  relative to other hospitals ("The pay is considerably low compared to other hospital"; "pay not the
+  best and hard to get promoted"; "money could be better haven't had a raise in years"). The filing
+  concedes "We may be required to enhance wages and benefits to recruit and retain nurses and other
+  medical support personnel" and that labour costs "could increase at rates in excess of historical
+  levels".
+  Evidence that non-cash compensation is positioned strongly: postings describe a retirement plan
+  with a full employer match on a band of pay, an employee stock purchase plan at a discount,
+  tuition and student-loan assistance, and an employee health assistance fund offering free
+  employee-only coverage based on income; several reviews single benefits out as the reason people
+  stay. The company's own hiring guidance states it takes "into account your years of experience, and
+  pay equity to peers in the same job at the company".
+  The two sides point in opposite directions and are recorded unreconciled.
+- Industry: HEALTHCARE. Acute-care hospital operator — its own filing describes it as a provider of
+  healthcare services whose revenue comes from hospitals and sites of care, and its workforce,
+  regulation and labour market are all clinical. Note for any modelling that it is simultaneously a
+  substantial in-house technology employer, which is a property of its size, not of its industry.
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME: "HCA Healthcare" and "HCA" appear throughout Section 1 — in excerpt bodies (section A
+  repeatedly; a review body "After more than 20 years with HCA"; a D passage "bring the full strength
+  of HCA Healthcare together"; an E excerpt "Nashville, Tenn.-based HCA Healthcare"; an F excerpt
+  "the award-winning HCA Healthcare Leadership Institute"), in every attribution line, and inside
+  every URL. "C-HCA, Inc." appears in the careers footer. Former name: "Hospital Corporation of
+  America".
+EXECUTIVE AND AUTHOR NAMES: Sam Hazen (CEO); Erica Rossitto (chief nurse executive); Melissa Harvey
+  (VP, enterprise emergency operations); Whitney Staub-Juergens (VP/COO, digital transformation and
+  innovation); Michael Schlosser (SVP, chief transformation officer); Jen Berres (CHRO); Thomas
+  Frist, Sr., Thomas Frist, Jr. and Jack Massey (founders); Sammie Mosier (former chief nurse
+  executive). Reporters: Giles Bruce, Brittney Baird.
+NON-EXECUTIVE COLLEAGUES NAMED IN SECTION 1: Jacob Claudio (facility maintenance mechanic); Doug
+  Overall (lead chaplain). These are private individuals, not public figures — flagged as a higher
+  anonymization priority than the executives, not a lower one.
+NAMED INTERNAL PROGRAMMES AND TOOLS: HCA Healthcare Leadership Institute; Executive Development
+  Program; Enterprise Response Teams; Enterprise Emergency Operations Center; Mental Health Response
+  Team; Incident Support Team; NICU Transport Response Team; Digital Transformation & Innovation
+  (DT&I); Information Technology Group (ITG); ITG Accelerated Technologies; Nurse Handoff; Timpani;
+  Innovation Hubs; Galen College of Nursing; Frist Humanitarian Award; Excellence in Nursing Award;
+  Sammie Mosier Leadership Award; Code of Conduct; Mission and Value Statement; Hope Fund;
+  Progyny; Abenity; AirMed.
+  ** SECTION F HANDLING, per the register's D15 rule. One F excerpt names an internal leadership
+  programme, and in that section the identifying content and the dimension-bearing content are the
+  same sentence. Do NOT drop the excerpt. Rewrite the proper noun and keep the clause: "Through the
+  award-winning HCA Healthcare Leadership Institute and enterprise learning resources" becomes
+  "Through an award-winning named enterprise leadership institute and enterprise learning
+  resources". The name is left verbatim in this build because OUTPUT FORMAT says to keep real names
+  until the anonymization step and rule 2 forbids altering a quote — see defect S7. **
+FACILITY AND ORGANISATION NAMES IN ATTRIBUTIONS OR BODIES: Medical City Dallas; Overland Park
+  Regional Medical Center; HCA Florida Northside Hospital; TriStar Centennial Medical Center;
+  TriStar Division; Park View Hospital; HCA Midwest Health; HCA Houston Healthcare Southeast;
+  Southern Hills Hospital & Medical Center; Portsmouth Regional Hospital; Rio Grande Regional
+  Hospital; Medical City Arlington; HCA Florida Kendall Hospital; UCF Lake Nona Hospital. The
+  unrelated same-named system (Northside Hospital, Georgia) is named only in Section 2 and must not
+  leak into Section 1 — its presence there would name a third party and a city.
+REVIEW LOCATIONS — DO NOT DELETE, TOKENISE: Florida; Lawrenceville, GA (excluded review);
+  Saint Petersburg, FL; Dickson, TN; Nashville, TN; San Antonio, TX; Richmond, VA; Canton, GA;
+  Inverness, FL; and the literal string "1100 DR.MATHER LUTHER KING". Replace with [Site A],
+  [Site B]... preserving the distinction between sites so the dispersion field survives. The
+  honorific-and-address string is a UNIQUE IDENTIFIER and must be tokenised, not reproduced.
+CORPORATE ADDRESS AND CONTACT STRINGS PRESENT ON SOURCE PAGES (not quoted into Section 1, flagged in
+  case a later pass re-reads them): One Park Plaza, Nashville, Tennessee 37203; a published
+  applicant telephone number; "HCAhrAnswers".
+VERBATIM SELF-DESCRIPTIONS — SEARCHABLE EVEN AFTER THE NAME IS REMOVED, FLAGGED SEPARATELY:
+  • "Above all else, we are committed to the care and improvement of human life." (the mission
+    statement; appears in Section 1 more than once and is a verbatim string unique to this company)
+  • "we are people taking care of people. We will always be people taking care of people."
+  • "Bricks and mortar do not make a hospital. People do." (attributed founder quotation)
+  • "we have followed a vision of healthcare the way it should be: patient-centered, constantly
+    evolving and constantly improving, practiced with integrity and compassion"
+  • "Though we promote the concept of management autonomy at local facilities in order to meet local
+    needs, the standards set forth in the Code are mandatory and must be followed."
+  • "We believe that excellent people make excellence happen"
+  • "Ability to work as part of a team in an atmosphere that is variable paced at low pressure."
+    (an unusual phrase; likely traceable to this employer's posting templates)
+  • "creating clarity, reducing friction, and building the structural calm that allows innovation to
+    scale responsibly"
+  • "harvest the best processes that we see and carry those to more of our hospitals"
+DISTINCTIVE NON-NAME IDENTIFIERS: the figure "47 million patient encounters" and the counts "190
+  hospitals", "2,500+ sites of care", "19 states", "320K+ colleagues" — jointly these identify the
+  company precisely and appear in section A and section E excerpt bodies. The C4 architecture model,
+  the ReactJS/TypeScript/Python/GCP stack and the HL7/MLLP Elixir repositories are weaker but real
+  fingerprints.
+PRESERVED SOURCE TYPOS ARE UNIQUE-STRING IDENTIFIERS — flagged: "1100 DR.MATHER LUTHER KING";
+  "good work enviroment"; "The. Job is good"; "Its okay" / "Its a lot of walking"; "dont" (twice in
+  one body); "haven’t had a raise in years" (unterminated). Each is individually searchable against
+  the source review.
+URLS: every URL in Section 1 contains the company name or its ticker-linked regulator path and
+  re-identifies it immediately. The regulator URL additionally contains the company's filer number.
+
+########## END OF PACKET ##########
