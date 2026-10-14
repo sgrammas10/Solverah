@@ -34,6 +34,21 @@ FOLLOW-UP CONSENT (2026-10-02)
 `followup_ok` is True only for an explicit "yes" from a respondent who also left an email:
 a yes with no address cannot be acted on, so it is read as no. Blank means no. It never
 reaches the database -- it travels with the email to emails.csv, outside the repo.
+
+ACCEPTING AN OLDER FORM (2026-10-13, Amendment 3)
+--------------------------------------------------
+`pilot-v2-2026-10-13` added five optional outcome items after `experienced`. A form built
+from the previous structure, `pilot-v1-2026-10-01`, may already be in the field -- Sebastian
+may have sent it out before the bump -- and its sixteen required items are unchanged, so its
+answers still score correctly. `resolve_mapping` tries the CURRENT committed mapping first,
+then each frozen snapshot in `LEGACY_MAPPING_PATHS`, and uses whichever one's columns match
+the CSV header exactly; `ParsedResponse.pilot_form_version` / `.env_form_version` record
+which one matched. A legacy response's five outcome columns are simply never answered (the
+form never offered them) -- `JobAnswers.outcomes` is empty, and `parse_row` notes it.
+
+Only `pilot-v1-2026-10-01` is listed: it is the one form Sebastian could already have sent.
+A CSV from anything else (a hand-edited form, a version this module has never heard of)
+is refused, same as before -- see `test_a_header_that_is_not_this_form_is_refused`.
 """
 
 from __future__ import annotations
@@ -59,6 +74,14 @@ from .spec import (
 
 MAPPING_PATH = Path(PACKAGE_DIR) / "form_mapping.json"
 
+#: Frozen mappings for form structures that predate the current one, in the order they
+#: are tried after the current mapping. Never regenerated -- each one is exactly what a
+#: form built at that time actually asked. See the module docstring, "ACCEPTING AN OLDER
+#: FORM".
+LEGACY_MAPPING_PATHS = (
+    Path(PACKAGE_DIR) / "legacy" / "pilot-v1-2026-10-01" / "form_mapping.json",
+)
+
 #: Which job slot the career-status answer routes to. first_job has none.
 SLOT_FOR_STATUS = {
     "employed": SLOT_CURRENT_PRESENT,
@@ -82,6 +105,30 @@ def load_mapping(path: Path = MAPPING_PATH) -> dict:
     return json.loads(Path(path).read_text(encoding="ascii"))
 
 
+def load_legacy_mappings() -> list[dict]:
+    return [json.loads(p.read_text(encoding="ascii")) for p in LEGACY_MAPPING_PATHS]
+
+
+def resolve_mapping(header: list, mapping: Optional[dict] = None) -> tuple[dict, dict]:
+    """(mapping_used, resolved_columns) for a CSV header. If `mapping` is given, only it
+    is tried -- the shape every existing test and the sample-CSV helpers rely on. If not
+    (the CLI's path, via `read_csv`), the current mapping is tried first, then each
+    legacy snapshot in order; the first one whose columns match exactly wins. Raises
+    MappingMismatch naming every mapping tried if none match."""
+    candidates = [mapping] if mapping is not None else (
+        [load_mapping()] + load_legacy_mappings()
+    )
+    errors = []
+    for candidate in candidates:
+        try:
+            return candidate, resolve_columns(header, candidate)
+        except MappingMismatch as exc:
+            errors.append("%s: %s" % (candidate["pilot_form_version"], exc))
+    raise MappingMismatch(
+        "the CSV does not match any known pilot form -- %s" % "; ".join(errors)
+    )
+
+
 @dataclass
 class JobAnswers:
     """One job section, already in the shape `POST /me/environment-report` takes."""
@@ -93,6 +140,9 @@ class JobAnswers:
     comp: Any
     industry: Any
     experienced: Any
+    #: {outcome item_id: 1..5}, present only for an item the respondent actually
+    #: answered. Empty for a legacy-form response, which never offered them.
+    outcomes: dict = field(default_factory=dict)
 
     def payload(self) -> dict:
         return {
@@ -102,6 +152,7 @@ class JobAnswers:
             "industry": self.industry,
             "experienced": self.experienced,
             "subject": self.subject,
+            **self.outcomes,
         }
 
 
@@ -120,6 +171,13 @@ class ParsedResponse:
     skip_reason: Optional[str] = None
     #: Parts that were not imported, with why -- the respondent is still imported.
     notes: list = field(default_factory=list)
+    #: Which mapping matched this CSV (`resolve_mapping`) -- the form this respondent
+    #: actually answered, which may differ from the currently-generated one. This is
+    #: the only place that version survives: `environment_reports.version` always
+    #: stamps the APP's current live FORM_VERSION (situation_report_service), not the
+    #: version the pilot form was built from -- see responses.py's module docstring.
+    pilot_form_version: Optional[str] = None
+    env_form_version: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -201,9 +259,13 @@ def _answer(column: dict, cell: str):
     raise ValueError("unrecognised answer to %s" % (column["item_id"] or column["qid"]))
 
 
-def _job(slot: str, cells: dict) -> tuple[Optional[JobAnswers], Optional[str]]:
+def _job(slot: str, cells: dict,
+        outcome_cells: Optional[dict] = None) -> tuple[Optional[JobAnswers], Optional[str]]:
     """(answers, None) for a complete section, (None, reason) for an incomplete one,
-    (None, None) for a section nobody touched."""
+    (None, None) for a section nobody touched. `outcome_cells` holds the five optional
+    outcome items, keyed the same way as `cells`; unlike the required items, a missing
+    or unanswered outcome item never makes the section incomplete -- it is simply
+    absent from `JobAnswers.outcomes` (empty for a legacy-form response)."""
     columns = cells.get(slot, {})
     answered = {item_id: v for item_id, (ok, v) in columns.items() if ok}
     if not answered:
@@ -212,6 +274,8 @@ def _job(slot: str, cells: dict) -> tuple[Optional[JobAnswers], Optional[str]]:
     if missing:
         return None, "%s section incomplete (%d of %d answered; first missing: %s)" % (
             slot, len(answered), len(columns), missing[0])
+    outcome_columns = (outcome_cells or {}).get(slot, {})
+    outcomes = {item_id: v for item_id, (ok, v) in outcome_columns.items() if ok}
     return JobAnswers(
         slot=slot,
         subject=SLOTS[slot][1],
@@ -220,6 +284,7 @@ def _job(slot: str, cells: dict) -> tuple[Optional[JobAnswers], Optional[str]]:
         comp=answered["comp"],
         industry=answered["industry"],
         experienced=answered["experienced"],
+        outcomes=outcomes,
     ), None
 
 
@@ -233,6 +298,7 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
 
     core: dict = {}
     by_slot: dict = {}
+    outcome_by_slot: dict = {}
     gate = status = None
     try:
         for index, column in columns.items():
@@ -262,6 +328,8 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
                 gate = value if ok else None
             elif role in ("env", "context"):
                 by_slot.setdefault(column["slot"], {})[column["item_id"]] = (ok, value)
+            elif role == "outcome":
+                outcome_by_slot.setdefault(column["slot"], {})[column["item_id"]] = (ok, value)
     except ValueError as exc:
         parsed.skip_reason = str(exc)
         return parsed
@@ -285,7 +353,10 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
     for slot in (SLOT_CURRENT_PRESENT, SLOT_CURRENT_PAST):
         # The form's branching makes this unreachable; an edited form or a merged export
         # could not, and an answer about the wrong tense is not silently re-labelled.
-        if slot != wanted and any(ok for ok, _v in by_slot.get(slot, {}).values()):
+        if slot != wanted and (
+            any(ok for ok, _v in by_slot.get(slot, {}).values())
+            or any(ok for ok, _v in outcome_by_slot.get(slot, {}).values())
+        ):
             parsed.notes.append("answers in the %s section ignored: career status is %s"
                                 % (slot, status))
     if wanted is None:
@@ -294,12 +365,12 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
             parsed.notes.append("previous-job answers ignored for first_job")
         return parsed
 
-    parsed.current, reason = _job(wanted, by_slot)
+    parsed.current, reason = _job(wanted, by_slot, outcome_by_slot)
     if parsed.current is None:
         parsed.notes.append(reason or "%s section empty" % wanted)
         parsed.notes.append("no environment report written, as in the app")
 
-    previous, reason = _job(SLOT_PREVIOUS, by_slot)
+    previous, reason = _job(SLOT_PREVIOUS, by_slot, outcome_by_slot)
     if gate == GATE_YES:
         if previous is None:
             parsed.notes.append(reason or "previous-job section empty")
@@ -311,24 +382,34 @@ def parse_row(row: list, row_number: int, columns: dict, mapping: dict) -> Parse
     elif previous is not None or reason:
         parsed.notes.append("previous-job answers ignored: the gate answer was %s"
                             % (gate or "blank"))
+
+    has_outcome_columns = any(c["role"] == "outcome" for c in mapping["columns"])
+    if not has_outcome_columns and (parsed.current is not None or parsed.previous is not None):
+        parsed.notes.append(
+            "answered on pilot_form_version=%s (env %s); the five optional outcome "
+            "items were not offered on this form"
+            % (mapping["pilot_form_version"], mapping["env_form_version"])
+        )
     return parsed
 
 
 def parse_csv(text: str, mapping: Optional[dict] = None) -> list:
     """Every data row of a response CSV, parsed. Raises MappingMismatch on a header that
-    does not match. Rows whose pilot_id repeats an earlier row are marked as duplicates."""
-    mapping = load_mapping() if mapping is None else mapping
+    matches no known mapping (see `resolve_mapping`). Rows whose pilot_id repeats an
+    earlier row are marked as duplicates."""
     reader = csv.reader(io.StringIO(text.lstrip("﻿")))
     rows = list(reader)
     if not rows:
         raise MappingMismatch("the CSV is empty")
-    columns = resolve_columns(rows[0], mapping)
+    used_mapping, columns = resolve_mapping(rows[0], mapping)
     parsed = []
     seen: set = set()
     for number, row in enumerate(rows[1:], start=1):
         if not any(_norm(c) for c in row):
             continue
-        response = parse_row(row, number, columns, mapping)
+        response = parse_row(row, number, columns, used_mapping)
+        response.pilot_form_version = used_mapping["pilot_form_version"]
+        response.env_form_version = used_mapping["env_form_version"]
         if response.pilot_id in seen:
             response.skip_reason = "duplicate of an earlier row in this file"
         seen.add(response.pilot_id)

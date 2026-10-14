@@ -206,6 +206,7 @@ thresholds.
 | `import_responses.py` | Writes those answers through the app's own code into `solverah_pilot`. |
 | `report_back.py` | One person's report as plain text. |
 | `sample_csv.py` | Builds a fake export from the mapping, for tests and trying things out. |
+| `legacy/` | Frozen mappings for form structures that predate the current one -- never regenerated. `import_responses` accepts a CSV matching any of them so an already-distributed older form keeps working. |
 
 ## How the form differs from the app
 
@@ -214,11 +215,28 @@ thresholds.
   app would show one particular person. The same rules hold (no two questions about the same
   thing back to back), but everyone sees the same sequence.
 - **Pages, not one question per screen.** The how-you-work questions come eight to a page;
-  the job questions in four pages (the setup, two pages about the work, then "Overall, how
-  well is this role working for you?" alone on its own page, so it is answered last).
+  the job questions in five pages (the setup, two pages about the work, "Overall, how well
+  is this role working for you?" alone on its own page so it is answered last, then the five
+  optional outcome questions below).
 - **Tense.** The app picks present or past tense from your profile. The form asks "Where
   are you in your career?" and sends people to a present-tense or past-tense copy of the job
   questions.
+
+## The five optional outcome questions (2026-10-13)
+
+Each job section ends with an extra, optional page: satisfaction, performance, engagement,
+sustainability, and whether they expect to still be in the role a year from now. They come
+**after** "Overall, how well is this role working for you?", never before it -- that question
+is still the one the model is fitted on, and it must stay unprimed by anything evaluative.
+The five are exploratory only (pre-registration Amendment 3): they inform nothing today,
+change no score or report, and a respondent can skip any or all of them.
+
+**If you already sent out a form built before this date** (pilot-v1-2026-10-01, without
+these questions), its responses still import. The sixteen required questions are unchanged,
+so they score exactly as before; the five outcome columns are simply left blank for those
+rows. You do not need to rebuild or resend that form -- `import_responses` recognises either
+export and uses whichever mapping matches. You only need to rebuild the form (step 2) if you
+want new respondents to see the five outcome questions.
 
 ## Where the rows go next
 

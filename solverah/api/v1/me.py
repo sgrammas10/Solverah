@@ -481,7 +481,11 @@ SITUATION_REPORT_SUBMIT_LIMIT = "5 per minute"
         "`current_report_required` before any current report exists, and "
         "`past_report_limit` once one is filed. A past report is stored and "
         "exported but never changes `GET /me/situation-report` beyond its "
-        "`past_job_report_filed` flag. The response echoes `subject`."
+        "`past_job_report_filed` flag. The response echoes `subject`. Five optional "
+        "exploratory outcomes follow `experienced` (`satisfaction`, `performance`, "
+        "`engagement`, `sustainability`, `retention_intention`; PRODUCT_DECISIONS.md "
+        "§2, 2026-10-13): each 1..5 or null/absent for skipped, stored raw, echoed "
+        "back, and never read by the Situation Report."
     ),
 )
 @me_bp.route("/me/environment-report", methods=["POST"])
@@ -521,7 +525,12 @@ def post_my_environment_report():
         "from the one the report was filed under, so the frontend can ask them to "
         "describe the job again (the report itself is not re-sliced). `needs_core` "
         "carries `core_unreadable: true` when a core sitting exists but the pinned one "
-        "has no readable scores. Every state carries "
+        "has no readable scores. `complete` also carries `tolerance_applied` (bool: "
+        "whether the user's stated per-trait tolerance set the buckets), and each of "
+        "its dimensions carries `must_have` (bool; must-haves order first within their "
+        "bucket) and `within_tolerance` (bool: aligned only because of that tolerance). "
+        "A user who never answered the tolerance step gets all three false and "
+        "today's buckets and order. Every state carries "
         "`past_job_report_filed` (bool): whether the user's one past-job environment "
         "report exists. Only reports about the current job feed the report itself."
     ),

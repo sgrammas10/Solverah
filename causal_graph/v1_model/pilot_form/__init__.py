@@ -14,6 +14,9 @@ app row in every column and differs only in its provenance label.
     responses.py             pure: response CSV -> parsed respondents, or a skip reason
     import_responses.py      CLI: parsed respondents -> local solverah_pilot* database
     report_back.py           CLI: one pilot id -> the Situation Report text, words only
+    legacy/                  frozen mappings for form structures that predate the current
+                            one (never regenerated), so an already-distributed older form
+                            still imports -- see responses.py's module docstring
 
 Everything that touches a database goes through `devfit.guard` with PILOT_DB_PREFIX: local
 host only, a `solverah_pilot*` database name only, never APP_ENV=production, no override.

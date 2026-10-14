@@ -626,7 +626,7 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
 
 ### S9 · The Environment Report
 
-**Account** ACC-1 · **Route** `/environment-report` · **16 questions, ~5 minutes**
+**Account** ACC-1 · **Route** `/environment-report` · **16 questions + 5 optional, ~5 minutes**
 
 Draft storage: `sessionStorage["env_report_answers"]`.
 
@@ -635,15 +635,17 @@ Draft storage: `sessionStorage["env_report_answers"]`.
   → Eyebrow "Situation Report"; H1 "Now the other half — your job"; "Work Pulse asked
   how you work. These ask what your role actually offers — how much of the how is
   yours, what the tempo is, how decisions get made. Twelve questions about the work,
-  plus four about the setup. About five minutes."; "Describe the job as it actually
+  plus four about the setup, then five optional ones about how it's going. About five
+  minutes."; "Describe the job as it actually
   is, not as it was advertised or as it ought to be…"; "This is a private working
   note. Nobody at your employer is told you filled it in, and nobody there can see
   it."
 - **S9.3** — Start. Note the order — it is load-bearing and must not change:
   `stage_size` first, then `comp`, then `industry` (optional), then the **12 dimension items** (two each for
   autonomy, pace, collaboration, feedback, innovation, decision-making), then
-  `experienced` **last**. The last-place position of `experienced` is an anti-halo
-  measure.
+  `experienced` straight after them, then the **five optional outcome questions**
+  (2026-10-13). Nothing sits between the twelve and `experienced`: that position is an
+  anti-halo measure.
 - **S9.4** — Question 1.
   → "How big is the organization you work for — the whole organization, not your
   team?" Options run from "An early-stage startup — a handful of people, still
@@ -655,13 +657,17 @@ Draft storage: `sessionStorage["env_report_answers"]`.
   compares." Choosing it counts as answered.
 - **S9.6** — Question 3.
   → "How much say do you have over how your work gets done?"
-- **S9.7** — Reload mid-way. → Back to the intro, then "Question 1 of 16" with your
+- **S9.7** — Reload mid-way. → Back to the intro, then "Question 1 of 21" with your
   answers pre-selected. Same pattern as S8.4.
 - **S9.8** — Question 16.
   → "Overall, how well is this role working for you?" — "It isn't working at all." /
   "It isn't working well." / "A mixed picture." / "It's working well." / "It's working
-  very well."
-- **S9.9** — Finish.
+  very well." Required: no Skip button.
+- **S9.8b** — Questions 17-21: satisfaction, performance, engagement, sustainability,
+  retention intention. Each says "Optional. Skip any of these you'd rather not answer."
+  and has a **Skip** button beside a disabled Next. Skip one and answer the rest.
+  → A skipped question is stored as null; the report itself never reads these.
+- **S9.9** — Finish (or Skip on question 21).
   → Full-screen spinner + **"Building your Situation Report…"**, then navigation to
   `/situation-report`.
 - **S9.10** — (If you can force a submit failure.) → Inline, above the nav row: "We
@@ -1345,8 +1351,8 @@ Report turns forward-facing.
   actually offered…" and "Describe the role as it actually was…", plus an extra line:
   "Because that role is behind you, your report comes back facing forward — what to
   look for next, rather than what to change where you are."
-- **S22.3** — Walk all 16 questions and **check every prompt is past tense.** This is
-  the highest-volume copy risk in the product — 16 prompts plus all their options have
+- **S22.3** — Walk all 21 questions and **check every prompt is past tense.** This is
+  the highest-volume copy risk in the product — 21 prompts plus all their options have
   twins, and a single present-tense straggler will read as a bug to a user who just
   lost a job.
 - **S22.4** — Submit and read the report.

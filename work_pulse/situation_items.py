@@ -2,7 +2,9 @@
 
 The other half of the Situation Report. Core asks twenty-four questions about
 the person; this asks twelve about the job, plus four context items, and the
-report is the gap between the two. `work_pulse/situation.py` (A-3) turns the
+report is the gap between the two. Five optional exploratory outcome items
+follow `experienced`, the last context item (`OUTCOME_ITEMS`, 2026-10-13); the
+report never reads them. `work_pulse/situation.py` (A-3) turns the
 answers here into 0–1 dimension scores and diffs them against the sealed
 person-side snapshot; `work_pulse/situation_content.py` (A-6) holds the words
 that come back. This file holds only the questions.
@@ -33,9 +35,11 @@ Item design rules (see SITUATION_ITEMS_BIAS_REVIEW.md)
   * Both poles are legitimate. "Directed" is not worse than "self-directed",
     "steady" not worse than "fast" — the rubric's own first gate, applied to
     the user-facing text. An option that reads as *the good job* is a defect.
-  * `experienced` is the single evaluative item in the whole instrument, on
-    purpose: it is the model's outcome node. It is asked last so its verdict
-    cannot colour the twelve descriptive items.
+  * `experienced` is the evaluative item the model is fitted on, on purpose:
+    it is the model's outcome node. It is asked after every descriptive item
+    so its verdict cannot colour the twelve. The five optional exploratory
+    outcome items (`OUTCOME_ITEMS`) come after it, never between it and the
+    twelve.
   * **Anchor-order balance.** Within every dimension exactly one item is
     presented low-pole-first and one high-pole-first, so a respondent who
     straight-lines a position lands every dimension on exactly 0.5 rather than
@@ -82,7 +86,12 @@ DIMENSIONS: tuple[str, ...] = (
 #: (PRODUCT_DECISIONS.md §2, 2026-10-01). A NULL `industry` on a v1 row means
 #: "never asked"; on a v2 row it means "not sure / prefer not to say". This
 #: stamp is the only thing that tells the two apart.
-FORM_VERSION = "env-v2-2026-10-01"
+#:
+#: Bumped to `env-v3-2026-10-13` when the five optional exploratory outcome items
+#: joined after `experienced` (PRODUCT_DECISIONS.md §2, 2026-10-13). The same
+#: rule applies: a NULL outcome on a v1/v2 row means "never asked", on a v3 row
+#: "skipped".
+FORM_VERSION = "env-v3-2026-10-13"
 
 #: Option pole name -> 0–1 score. Five bands, not two: the rubric anchors on
 #: five and the person-side scale is continuous in [0, 1], so collapsing to a
@@ -867,11 +876,114 @@ CONTEXT_COLUMNS: dict[str, str] = {
     "experienced": "experienced_outcome",
 }
 
+# ---------------------------------------------------------------------------
+# The five exploratory outcome items (PRODUCT_DECISIONS.md §2, 2026-10-13)
+# ---------------------------------------------------------------------------
+# Asked AFTER `experienced`, never before it: `experienced` stays the boundary
+# between the twelve descriptive items and anything evaluative, and the
+# pre-registered primary outcome is answered before any of these can colour it.
+# Each is OPTIONAL. There is no "not sure" option: the form offers a skip, and
+# a skipped item (absent key or explicit null) is stored as NULL. Each is a 1..5
+# rating stored RAW, like `experienced`; mapping to 0..1 as (rating - 1) / 4
+# happens at analysis time (Solverah_IP/match_model_alignment/
+# 02_OUTCOME_DEFINITIONS.md), never in storage. Exploratory only: none of them
+# changes the pre-registered primary analysis.
+#
+# Wording is a best-guess draft from 02_OUTCOME_DEFINITIONS.md; Julie revises.
+# Tense follows `experienced`: the past variant is shown for a past-tense status
+# or a past-job report.
+SATISFACTION_ITEM: ContextItem = {
+    "item_id": "satisfaction",
+    "prompt": "All things considered, how satisfied are you with this job?",
+    "prompt_past": "All things considered, how satisfied were you with that job?",
+    "options": [
+        {"value": 1, "text": "Not at all satisfied.", "text_past": "Not at all satisfied."},
+        {"value": 2, "text": "Not very satisfied.", "text_past": "Not very satisfied."},
+        {"value": 3, "text": "Somewhat satisfied.", "text_past": "Somewhat satisfied."},
+        {"value": 4, "text": "Satisfied.", "text_past": "Satisfied."},
+        {"value": 5, "text": "Very satisfied.", "text_past": "Very satisfied."},
+    ],
+}
+
+PERFORMANCE_ITEM: ContextItem = {
+    "item_id": "performance",
+    "prompt": "How well do you think you’re performing in this role?",
+    "prompt_past": "How well do you think you were performing in that role?",
+    "options": [
+        {"value": 1, "text": "Not well at all.", "text_past": "Not well at all."},
+        {"value": 2, "text": "Not very well.", "text_past": "Not very well."},
+        {"value": 3, "text": "Reasonably well.", "text_past": "Reasonably well."},
+        {"value": 4, "text": "Well.", "text_past": "Well."},
+        {"value": 5, "text": "Very well.", "text_past": "Very well."},
+    ],
+}
+
+ENGAGEMENT_ITEM: ContextItem = {
+    "item_id": "engagement",
+    "prompt": "How energised are you by the work itself?",
+    "prompt_past": "How energised were you by the work itself?",
+    "options": [
+        {"value": 1, "text": "Not at all.", "text_past": "Not at all."},
+        {"value": 2, "text": "A little.", "text_past": "A little."},
+        {"value": 3, "text": "Somewhat.", "text_past": "Somewhat."},
+        {"value": 4, "text": "Quite a lot.", "text_past": "Quite a lot."},
+        {"value": 5, "text": "A great deal.", "text_past": "A great deal."},
+    ],
+}
+
+SUSTAINABILITY_ITEM: ContextItem = {
+    "item_id": "sustainability",
+    "prompt": "Could you keep working the way you do now for another year?",
+    "prompt_past": "Could you have kept working the way you did then for another year?",
+    "options": [
+        {"value": 1, "text": "No, not for a year.", "text_past": "No, not for a year."},
+        {"value": 2, "text": "Probably not.", "text_past": "Probably not."},
+        {"value": 3, "text": "Only just.", "text_past": "Only just."},
+        {"value": 4, "text": "Probably, yes.", "text_past": "Probably, yes."},
+        {"value": 5, "text": "Yes, comfortably.", "text_past": "Yes, comfortably."},
+    ],
+}
+
+RETENTION_INTENTION_ITEM: ContextItem = {
+    "item_id": "retention_intention",
+    "prompt": "How likely is it that you’ll still be in this role a year from now?",
+    "prompt_past": "Back then, how likely did it seem that you’d still be in that role a year later?",
+    "options": [
+        {"value": 1, "text": "Very unlikely.", "text_past": "Very unlikely."},
+        {"value": 2, "text": "Unlikely.", "text_past": "Unlikely."},
+        {"value": 3, "text": "About even.", "text_past": "About even."},
+        {"value": 4, "text": "Likely.", "text_past": "Likely."},
+        {"value": 5, "text": "Very likely.", "text_past": "Very likely."},
+    ],
+}
+
+#: Form order, after `experienced`. Every one is optional.
+OUTCOME_ITEMS: list[ContextItem] = [
+    SATISFACTION_ITEM,
+    PERFORMANCE_ITEM,
+    ENGAGEMENT_ITEM,
+    SUSTAINABILITY_ITEM,
+    RETENTION_INTENTION_ITEM,
+]
+
+#: `OUTCOME_ITEMS` item_id -> its nullable `environment_reports` column. Kept apart
+#: from `CONTEXT_COLUMNS`, which the training assembler restates as "confounders
+#: plus the primary outcome"; these are neither.
+OUTCOME_COLUMNS: dict[str, str] = {
+    "satisfaction": "outcome_satisfaction",
+    "performance": "outcome_performance",
+    "engagement": "outcome_engagement",
+    "sustainability": "outcome_sustainability",
+    "retention_intention": "outcome_retention_intention",
+}
+
 EXPECTED_DIMENSION_ITEM_COUNT = len(ENVIRONMENT_ITEMS)
 EXPECTED_CONTEXT_ITEM_COUNT = len(CONTEXT_ITEMS)
+EXPECTED_OUTCOME_ITEM_COUNT = len(OUTCOME_ITEMS)
 
 _ITEMS_BY_ID: dict[str, EnvironmentItem] = {i["item_id"]: i for i in ENVIRONMENT_ITEMS}
 _CONTEXT_BY_ID: dict[str, ContextItem] = {i["item_id"]: i for i in CONTEXT_ITEMS}
+_OUTCOME_BY_ID: dict[str, ContextItem] = {i["item_id"]: i for i in OUTCOME_ITEMS}
 
 
 # ---------------------------------------------------------------------------
@@ -986,6 +1098,21 @@ def context_level(item_id: str, value: str | None) -> str | None:
     return value
 
 
+def outcome_value(item_id: str, value: int | None) -> int | None:
+    """Validate an answer to one exploratory outcome item and return it unchanged:
+    a 1..5 int, or None for a skipped item. Stored raw, like `experienced`."""
+    item = _OUTCOME_BY_ID.get(item_id)
+    if item is None:
+        raise ValueError(f"Unknown outcome item id {item_id!r}")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{item_id} answer must be an int from 1 to 5, got {value!r}")
+    if value not in {o["value"] for o in item["options"]}:
+        raise ValueError(f"{item_id} has no option with value {value!r}")
+    return value
+
+
 def is_categorical(item: ContextItem) -> bool:
     """Whether a context item answers with a level key rather than a 1..5 int.
     Read off the options themselves, so a new item cannot forget a flag."""
@@ -1041,6 +1168,25 @@ def render_context_items(career_status: str) -> list[dict]:
             ],
         }
         for item in CONTEXT_ITEMS
+    ]
+
+
+def render_outcome_items(career_status: str) -> list[dict]:
+    """The five optional outcome items with one tense resolved, in form order."""
+    past = is_past_tense(career_status)
+    return [
+        {
+            "item_id": item["item_id"],
+            "prompt": item["prompt_past"] if past else item["prompt"],
+            "options": [
+                {
+                    "value": o["value"],
+                    "text": o["text_past"] if past else o["text"],
+                }
+                for o in item["options"]
+            ],
+        }
+        for item in OUTCOME_ITEMS
     ]
 
 

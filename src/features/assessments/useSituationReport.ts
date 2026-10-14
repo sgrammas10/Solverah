@@ -92,10 +92,24 @@ export interface SituationRegisters {
   rarely_moves?: RarelyMovesCell;
 }
 
+/** Per-dimension flags from the user's stated tolerance and must-haves
+ *  (PRODUCT_DECISIONS §2, "The six-trait match model", 2026-10-13). Booleans
+ *  only -- no tolerance step or zone ever comes back (D-15). The server always
+ *  sends both in `complete`; optional here so fixtures written before them
+ *  still type-check, the same way `career_status_changed` is. */
+interface ToleranceFlags {
+  /** The user marked this trait a must-have. Must-haves sort first within
+   *  their bucket; they never jump a bucket. */
+  must_have?: boolean;
+  /** Aligned only because of the user's own tolerance: past the default band,
+   *  inside the range they said is fine. Never true on a strained row. */
+  within_tolerance?: boolean;
+}
+
 /** A dimension the gap engine bucketed `aligned`: one note, no direction, no
  *  registers. Dropped entirely from the needs-forward rendering -- an
  *  alignment does not survive the move (`aligned_note_for`'s docstring). */
-export interface AlignedDimensionEntry {
+export interface AlignedDimensionEntry extends ToleranceFlags {
   dimension: SituationDimension;
   env_score: number;
   bucket: "aligned";
@@ -105,7 +119,7 @@ export interface AlignedDimensionEntry {
 }
 
 /** A dimension the gap engine bucketed `notable` or `straining`. */
-export interface StrainDimensionEntry {
+export interface StrainDimensionEntry extends ToleranceFlags {
   dimension: SituationDimension;
   env_score: number;
   bucket: "notable" | "straining";
@@ -186,6 +200,10 @@ export interface SituationComplete extends SituationReportCommon {
    *  the job again. The server always sends it in `complete`; optional here so
    *  fixtures written before it existed still type-check. */
   career_status_changed?: boolean;
+  /** True when the user's stated tolerance (not the default band) set the
+   *  buckets. False for a user who never answered that step. Optional for the
+   *  same fixture reason as `career_status_changed`. */
+  tolerance_applied?: boolean;
 }
 
 export type SituationReport =
@@ -209,6 +227,12 @@ export interface EnvironmentReportSubmission {
   /** A level key, or `null` for "not sure / rather not say". */
   industry: EnvIndustry | null;
   experienced: number;
+  /** The five optional exploratory outcomes, 1..5, or `null` when skipped. */
+  satisfaction?: number | null;
+  performance?: number | null;
+  engagement?: number | null;
+  sustainability?: number | null;
+  retention_intention?: number | null;
   /** Which job this describes; the server defaults a missing one to current. */
   subject: EnvReportSubject;
 }
@@ -224,6 +248,11 @@ export interface EnvironmentReportSubmitResponse {
   career_status: string;
   version: string;
   subject: EnvReportSubject;
+  satisfaction?: number | null;
+  performance?: number | null;
+  engagement?: number | null;
+  sustainability?: number | null;
+  retention_intention?: number | null;
 }
 
 export const situationReportKeys = {

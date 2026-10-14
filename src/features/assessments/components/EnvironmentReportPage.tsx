@@ -39,8 +39,16 @@
  * error card, never an open form: rendering the intro anyway would let this
  * user reach a form the page never got to confirm they may submit.
  *
+ * OPTIONAL OUTCOME STEPS (PRODUCT_DECISIONS §2, 2026-10-13). Five exploratory
+ * outcome questions follow `experienced`, never precede it. Each can be
+ * skipped: `Next` / `Finish` behave as on every other step (disabled until an
+ * option is chosen), and an unanswered optional step also offers a separate
+ * "Skip" button. A skip is recorded in the draft as `null` (key presence, like
+ * comp's "not sure"), so a resumed draft does not land back on it, and it is
+ * sent as null.
+ *
  * PAST MODE (`subject="past"`, `/environment-report/past`; PRODUCT_DECISIONS
- * §2, 2026-10-01). The same sixteen questions about the job before the
+ * §2, 2026-10-01). The same questions about the job before the
  * user's current or most recent one -- one such report per user, only once a
  * current one exists. Always past tense, its own draft key (useEnvReport), and
  * it never builds or changes the Situation Report, so it ends on a thank-you
@@ -69,7 +77,7 @@ import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 import type { EnvReportDraft, EnvReportSubject } from "../useEnvReport";
-import type { EnvIndustry, EnvStep } from "../data/envQuestions";
+import type { EnvIndustry, EnvOutcomeItemId, EnvStep } from "../data/envQuestions";
 
 /** `work_pulse.situation_items.TENSE_BY_CAREER_STATUS`, client side. Unknown
  *  or unset statuses render present tense -- the common case by far, and the
@@ -92,7 +100,8 @@ function hasCurrentReport(report: SituationReport): boolean {
 /** Where a past-mode gate or the done screen sends the user back to. */
 const PAST_HOME = { path: "/intelligence", label: "Back to your Intelligence Hub →" };
 
-/** Answered = key PRESENCE (see useEnvReport: comp's and industry's "not sure" is a stored null). */
+/** Answered = key PRESENCE (see useEnvReport: comp's and industry's "not sure",
+ *  and a skipped outcome step, are a stored null). */
 function isStepAnswered(draft: EnvReportDraft, step: EnvStep): boolean {
   return step.kind === "dimension"
     ? draft.answers[step.item.itemId] !== undefined
@@ -118,6 +127,11 @@ function GateCard({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+/** The five optional outcome steps' item ids, in form order. */
+const OUTCOME_ITEM_IDS: EnvOutcomeItemId[] = ENV_FORM_STEPS.flatMap((st) =>
+  st.kind === "outcome" ? [st.item.itemId] : [],
+);
 
 const PRIMARY_BUTTON =
   "w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors";
@@ -294,7 +308,7 @@ function PastIntro({ onStart }: { onStart: () => void }) {
       <p className="text-sm text-ink-secondary leading-relaxed">
         The same questions you answered about your work, asked about the job before
         your current or most recent one. Twelve about the work, four about the
-        setup. About five minutes.
+        setup, and five optional ones at the end. About five minutes.
       </p>
       <p className="text-sm text-ink-secondary leading-relaxed">
         Describe it as it actually was. It won't change your Situation Report — it
@@ -328,8 +342,8 @@ function Intro({ past, onStart }: { past: boolean; onStart: () => void }) {
       </h1>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
-          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus four about the setup. About five minutes."
-          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus four about the setup. About five minutes."}
+          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus four about the setup, then five optional ones about how it went. About five minutes."
+          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus four about the setup, then five optional ones about how it's going. About five minutes."}
       </p>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
@@ -453,12 +467,26 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
   const isLast = stepIndex === total - 1;
 
   const isAnswered = isStepAnswered(draft, step);
+  const isOptional = step.kind === "outcome";
 
-  function handleNext() {
+  /** Skipping an optional step records it as decided (null), so a resumed
+   *  draft moves past it, then advances like Next. */
+  function handleSkip() {
+    setContext(step.item.itemId, null);
+    handleNext({ [step.item.itemId]: null });
+  }
+
+  /** `skipped` carries a skip made this instant: the submit reads it directly
+   *  rather than waiting for that state update to land. */
+  function handleNext(skipped: Record<string, null> = {}) {
     if (!isLast) {
       setStepIndex((i) => i + 1);
       return;
     }
+    const context = { ...draft.context, ...skipped };
+    const outcomes = Object.fromEntries(
+      OUTCOME_ITEM_IDS.map((id) => [id, (context[id] as number | null | undefined) ?? null]),
+    ) as Record<EnvOutcomeItemId, number | null>;
     const body: EnvironmentReportSubmission = {
       answers: Object.fromEntries(
         ENV_ITEMS.map((item) => [item.itemId, draft.answers[item.itemId]]),
@@ -467,6 +495,7 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
       comp: (draft.context.comp as number | null | undefined) ?? null,
       industry: (draft.context.industry as EnvIndustry | null | undefined) ?? null,
       experienced: draft.context.experienced as number,
+      ...outcomes,
       subject,
     };
     submitMutation.mutate(body, {
@@ -570,6 +599,11 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
         <h2 className="font-display text-xl sm:text-2xl font-semibold text-ink-primary mt-6">
           {prompt}
         </h2>
+        {isOptional && (
+          <p className="text-sm text-ink-secondary">
+            Optional. Skip any of these you'd rather not answer.
+          </p>
+        )}
 
         {/* Rendered in the order authored. Do not sort, do not randomise:
             within each dimension one item runs low-pole-first and one
@@ -661,14 +695,26 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
           ) : (
             <div />
           )}
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!isAnswered || submitMutation.isPending}
-            className="bg-forest-dark text-white font-semibold px-8 py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLast ? "Finish" : "Next"}
-          </button>
+          <div className="flex items-center gap-4">
+            {isOptional && !isAnswered && (
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={submitMutation.isPending}
+                className="text-sm text-ink-secondary hover:text-ink-primary"
+              >
+                Skip
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleNext()}
+              disabled={!isAnswered || submitMutation.isPending}
+              className="bg-forest-dark text-white font-semibold px-8 py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLast ? "Finish" : "Next"}
+            </button>
+          </div>
         </div>
       </div>
     </Shell>

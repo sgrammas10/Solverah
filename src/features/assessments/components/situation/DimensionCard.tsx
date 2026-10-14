@@ -16,6 +16,11 @@
  * open on screen, and the experiment control inside keeps its hook state.
  *
  * Words only, never numbers -- see SituationReportPage.tsx's header (D-15).
+ *
+ * Tolerance (PRODUCT_DECISIONS §2, 2026-10-13): a small "Must-have" marker on a
+ * trait the user flagged, and one plain line on a row that is aligned only
+ * because of the range the user said is fine. Both are booleans from the server;
+ * no tolerance step or zone is ever shown.
  */
 import { Link } from "react-router-dom";
 
@@ -220,6 +225,11 @@ export default function DimensionCard({
             <h3 className="font-headline text-[1.15rem] font-bold leading-tight text-ink-primary">
               {name}
             </h3>
+            {entry.must_have && (
+              <span className="rounded-full bg-forest-pale px-2 py-0.5 text-[0.75rem] font-semibold text-forest-dark">
+                Must-have
+              </span>
+            )}
             <p className="text-[0.88rem]">
               <span className={`font-semibold ${accent.word}`}>{BUCKET_LABELS[entry.bucket]}</span>
               {!aligned && (
@@ -233,6 +243,13 @@ export default function DimensionCard({
             </p>
           </div>
           <p className="text-[0.98rem] leading-[1.5] text-ink-primary">{takeaway}</p>
+          {/* Only ever on an aligned row, and aligned rows exist only in the
+              current-role rendering, so there is no past-tense variant. */}
+          {entry.within_tolerance && (
+            <p className="text-[0.9rem] leading-[1.5] text-ink-secondary">
+              This isn't quite what you prefer, but it's inside the range you said you're fine with.
+            </p>
+          )}
         </div>
         {hasMore && (
           <button

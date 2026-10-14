@@ -39,16 +39,25 @@ def core_answers(m: dict, pattern: str = "AB") -> dict:
 
 
 def job_answers(m: dict, slot: str, *, env_key: str = "c", stage_size=2, comp=3,
-                industry="tech", experienced=4, env_keys: dict | None = None) -> dict:
-    """{qid: option text} for one complete job section."""
+                industry="tech", experienced=4, env_keys: dict | None = None,
+                outcomes: dict | None = None) -> dict:
+    """{qid: option text} for one complete job section. `outcomes` is
+    {outcome item_id: 1..5}; an item left out of it is left unanswered (a blank cell),
+    same as a respondent who skipped it -- the realistic default, since the items are
+    optional. A mapping with no outcome columns at all (a legacy-form export) simply
+    has none to fill."""
     out = {}
     values = {"stage_size": stage_size, "comp": comp, "industry": industry,
               "experienced": experienced}
+    outcomes = outcomes or {}
     for column in m["columns"]:
         if column["slot"] != slot:
             continue
         if column["role"] == "context":
             out[column["qid"]] = text_for(column, values[column["item_id"]])
+        elif column["role"] == "outcome":
+            if column["item_id"] in outcomes:
+                out[column["qid"]] = text_for(column, outcomes[column["item_id"]])
         else:
             key = (env_keys or {}).get(column["item_id"], env_key)
             out[column["qid"]] = text_for(column, key)

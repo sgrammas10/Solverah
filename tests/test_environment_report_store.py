@@ -729,3 +729,114 @@ def test_subject_vocabulary_agrees_across_orm_instrument_and_wire():
     from work_pulse.situation_items import SUBJECTS
 
     assert ENV_REPORT_SUBJECTS == SUBJECTS == get_args(Subject) == ("current", "past")
+
+
+# ---------------------------------------------------------------------------
+# The five optional exploratory outcomes (PRODUCT_DECISIONS.md §2, 2026-10-13)
+# ---------------------------------------------------------------------------
+
+OUTCOMES = {
+    "outcome_satisfaction": 4,
+    "outcome_performance": 5,
+    "outcome_engagement": 2,
+    "outcome_sustainability": 1,
+    "outcome_retention_intention": 3,
+}
+
+
+def test_outcome_columns_agree_with_the_instrument_and_are_nullable():
+    from model import ENV_OUTCOME_COLUMNS, EnvironmentReport
+    from work_pulse.situation_items import OUTCOME_COLUMNS, OUTCOME_ITEMS
+
+    assert list(OUTCOME_COLUMNS) == [i["item_id"] for i in OUTCOME_ITEMS]
+    assert tuple(OUTCOME_COLUMNS.values()) == ENV_OUTCOME_COLUMNS
+    for column in ENV_OUTCOME_COLUMNS:
+        assert EnvironmentReport.__table__.c[column].nullable is True
+
+
+def test_outcomes_round_trip_raw_through_latest_and_history(client, seed_user):
+    """Stored RAW (1..5), not mapped to 0..1 -- the mapping is the analysis's."""
+    from app import app
+    from environment_report_store import environment_report_history, latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1, outcomes=OUTCOMES)
+        db.session.commit()
+
+        for result in (
+            latest_environment_report(1),
+            latest_environment_report(1, include_raw_answers=False),
+            environment_report_history(1)[0],
+        ):
+            for column, value in OUTCOMES.items():
+                assert result[column] == value, column
+
+
+def test_outcomes_left_out_or_none_are_null_and_still_serialized(client, seed_user):
+    """Skipped: an omitted outcome (and every caller written before 2026-10-13)
+    stores NULL, and the key is present on the read, never silently absent."""
+    from app import app
+    from environment_report_store import latest_environment_report
+    from model import ENV_OUTCOME_COLUMNS, db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1, outcomes={"outcome_engagement": None, "outcome_performance": 3})
+        db.session.commit()
+
+        result = latest_environment_report(1)
+        for column in ENV_OUTCOME_COLUMNS:
+            assert column in result
+        assert result["outcome_performance"] == 3
+        assert result["outcome_engagement"] is None
+        assert result["outcome_satisfaction"] is None
+
+        _write(db, user_id=1)
+        db.session.commit()
+        assert all(latest_environment_report(1)[c] is None for c in ENV_OUTCOME_COLUMNS)
+
+
+def test_an_unknown_outcome_key_is_refused_before_anything_is_written(client, seed_user):
+    from app import app
+    from model import EnvironmentReport, db
+
+    seed_user(1)
+    with app.app_context():
+        with pytest.raises(ValueError, match="outcomes"):
+            _write(db, user_id=1, outcomes={"satisfaction": 4})
+        db.session.rollback()
+        assert EnvironmentReport.query.filter_by(user_id=1).count() == 0
+
+
+@pytest.mark.parametrize("column", [
+    "outcome_satisfaction", "outcome_performance", "outcome_engagement",
+    "outcome_sustainability", "outcome_retention_intention",
+])
+@pytest.mark.parametrize("bad", [0, 6])
+def test_outcome_outside_one_to_five_is_rejected_by_the_check(client, seed_user, column, bad):
+    """ck_envreport_<column>_range, at the database, behind the service's guard.
+    The store flushes the header row for its id, so the CHECK fires inside the write."""
+    from app import app
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        with pytest.raises(IntegrityError):
+            _write(db, user_id=1, outcomes={column: bad})
+        db.session.rollback()
+
+
+@pytest.mark.parametrize("value", [None, 1, 5])
+def test_outcome_check_accepts_the_ends_of_the_scale_and_null(client, seed_user, value):
+    """Sibling VALID-row test (S-40 lesson) for the CHECK above."""
+    from app import app
+    from environment_report_store import latest_environment_report
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write(db, user_id=1, outcomes={"outcome_sustainability": value})
+        db.session.commit()
+        assert latest_environment_report(1)["outcome_sustainability"] == value

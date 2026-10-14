@@ -1,6 +1,7 @@
 /**
  * The environment-side instrument: sixteen questions about the user's ROLE
- * (BUILD_PLAN A-1 / A-7).
+ * (BUILD_PLAN A-1 / A-7), then five optional exploratory outcome questions
+ * (PRODUCT_DECISIONS §2, 2026-10-13) -- twenty-one steps in all.
  *
  * Mirrors `work_pulse/situation_items.py` verbatim -- same item ids, same
  * option keys, same prompts, same option text in both tenses. That module is
@@ -14,10 +15,11 @@
  *
  *  1. `ENV_FORM_STEPS` is the form order: the three neutral context facts
  *     (stage/size, pay posture, industry), then the twelve descriptive dimension
- *     items, then the single evaluative item. `experienced` is last on
- *     purpose -- it is the model's outcome node and the only evaluative item
- *     in the instrument, so its verdict must not colour the twelve
- *     descriptions that precede it. `comp` sits at position two rather than
+ *     items, then the evaluative item. `experienced` comes after every
+ *     descriptive item on purpose -- it is the model's outcome node, so its
+ *     verdict must not colour the twelve descriptions that precede it. The
+ *     five optional outcome items come after it, never between it and the
+ *     twelve. `comp` sits at position two rather than
  *     beside `experienced` for the same family of reason: adjacency between a
  *     pay question and the outcome question inflates a correlation the causal
  *     model is later asked to estimate.
@@ -50,6 +52,14 @@ export type EnvDimension =
 export type EnvOptionKey = "a" | "b" | "c" | "d" | "e";
 
 export type EnvContextItemId = "stage_size" | "comp" | "industry" | "experienced";
+
+/** `situation_items.OUTCOME_ITEMS`: the five optional exploratory outcomes. */
+export type EnvOutcomeItemId =
+  | "satisfaction"
+  | "performance"
+  | "engagement"
+  | "sustainability"
+  | "retention_intention";
 
 /** `situation_items.INDUSTRY_LEVELS`: the causal model's `industry` levels, in config order. */
 export type EnvIndustry = "tech" | "finance" | "healthcare" | "retail" | "other";
@@ -84,8 +94,17 @@ export interface EnvContextItem {
   options: EnvContextOption[];
 }
 
+/** One optional exploratory outcome: 1..5, no "not sure" option -- the form
+ *  offers a skip instead, and a skipped item is sent as `null`. */
+export interface EnvOutcomeItem {
+  itemId: EnvOutcomeItemId;
+  prompt: string;
+  promptPast: string;
+  options: EnvContextOption[];
+}
+
 /** `EnvironmentReport.version` -- which item set produced a stored answer blob. */
-export const ENV_FORM_VERSION = "env-v2-2026-10-01";
+export const ENV_FORM_VERSION = "env-v3-2026-10-13";
 
 
 /** The twelve dimension items, in `item_list_in_form_order()` order. */
@@ -630,13 +649,190 @@ export const EXPERIENCED_ITEM: EnvContextItem = {
   ],
 };
 
-/** One step of the form: a context item or a dimension item, discriminated. */
+/* -- The five optional exploratory outcome items (PRODUCT_DECISIONS §2,
+ * 2026-10-13). Asked after `experienced`; each can be skipped. -- */
+
+export const SATISFACTION_ITEM: EnvOutcomeItem = {
+  itemId: "satisfaction",
+  prompt: "All things considered, how satisfied are you with this job?",
+  promptPast: "All things considered, how satisfied were you with that job?",
+  options: [
+    {
+      value: 1,
+      text: "Not at all satisfied.",
+      textPast: "Not at all satisfied.",
+    },
+    {
+      value: 2,
+      text: "Not very satisfied.",
+      textPast: "Not very satisfied.",
+    },
+    {
+      value: 3,
+      text: "Somewhat satisfied.",
+      textPast: "Somewhat satisfied.",
+    },
+    {
+      value: 4,
+      text: "Satisfied.",
+      textPast: "Satisfied.",
+    },
+    {
+      value: 5,
+      text: "Very satisfied.",
+      textPast: "Very satisfied.",
+    },
+  ],
+};
+
+export const PERFORMANCE_ITEM: EnvOutcomeItem = {
+  itemId: "performance",
+  prompt: "How well do you think you’re performing in this role?",
+  promptPast: "How well do you think you were performing in that role?",
+  options: [
+    {
+      value: 1,
+      text: "Not well at all.",
+      textPast: "Not well at all.",
+    },
+    {
+      value: 2,
+      text: "Not very well.",
+      textPast: "Not very well.",
+    },
+    {
+      value: 3,
+      text: "Reasonably well.",
+      textPast: "Reasonably well.",
+    },
+    {
+      value: 4,
+      text: "Well.",
+      textPast: "Well.",
+    },
+    {
+      value: 5,
+      text: "Very well.",
+      textPast: "Very well.",
+    },
+  ],
+};
+
+export const ENGAGEMENT_ITEM: EnvOutcomeItem = {
+  itemId: "engagement",
+  prompt: "How energised are you by the work itself?",
+  promptPast: "How energised were you by the work itself?",
+  options: [
+    {
+      value: 1,
+      text: "Not at all.",
+      textPast: "Not at all.",
+    },
+    {
+      value: 2,
+      text: "A little.",
+      textPast: "A little.",
+    },
+    {
+      value: 3,
+      text: "Somewhat.",
+      textPast: "Somewhat.",
+    },
+    {
+      value: 4,
+      text: "Quite a lot.",
+      textPast: "Quite a lot.",
+    },
+    {
+      value: 5,
+      text: "A great deal.",
+      textPast: "A great deal.",
+    },
+  ],
+};
+
+export const SUSTAINABILITY_ITEM: EnvOutcomeItem = {
+  itemId: "sustainability",
+  prompt: "Could you keep working the way you do now for another year?",
+  promptPast: "Could you have kept working the way you did then for another year?",
+  options: [
+    {
+      value: 1,
+      text: "No, not for a year.",
+      textPast: "No, not for a year.",
+    },
+    {
+      value: 2,
+      text: "Probably not.",
+      textPast: "Probably not.",
+    },
+    {
+      value: 3,
+      text: "Only just.",
+      textPast: "Only just.",
+    },
+    {
+      value: 4,
+      text: "Probably, yes.",
+      textPast: "Probably, yes.",
+    },
+    {
+      value: 5,
+      text: "Yes, comfortably.",
+      textPast: "Yes, comfortably.",
+    },
+  ],
+};
+
+export const RETENTION_INTENTION_ITEM: EnvOutcomeItem = {
+  itemId: "retention_intention",
+  prompt: "How likely is it that you’ll still be in this role a year from now?",
+  promptPast: "Back then, how likely did it seem that you’d still be in that role a year later?",
+  options: [
+    {
+      value: 1,
+      text: "Very unlikely.",
+      textPast: "Very unlikely.",
+    },
+    {
+      value: 2,
+      text: "Unlikely.",
+      textPast: "Unlikely.",
+    },
+    {
+      value: 3,
+      text: "About even.",
+      textPast: "About even.",
+    },
+    {
+      value: 4,
+      text: "Likely.",
+      textPast: "Likely.",
+    },
+    {
+      value: 5,
+      text: "Very likely.",
+      textPast: "Very likely.",
+    },
+  ],
+};
+/** The five outcome items in form order. */
+export const ENV_OUTCOME_ITEMS: EnvOutcomeItem[] = [
+  SATISFACTION_ITEM,
+  PERFORMANCE_ITEM,
+  ENGAGEMENT_ITEM,
+  SUSTAINABILITY_ITEM,
+  RETENTION_INTENTION_ITEM,
+];
+
+/** One step of the form: a context, dimension or optional outcome item, discriminated. */
 export type EnvStep =
   | { kind: "context"; item: EnvContextItem }
-  | { kind: "dimension"; item: EnvItem };
+  | { kind: "dimension"; item: EnvItem }
+  | { kind: "outcome"; item: EnvOutcomeItem };
 
 /**
- * The sixteen steps in form order -- `work_pulse.situation_items`' own
+ * The twenty-one steps in form order -- `work_pulse.situation_items`' own
  * ordering comment, made executable. See the header's point 1 for why this
  * order is a correctness requirement rather than a layout decision.
  */
@@ -646,4 +842,9 @@ export const ENV_FORM_STEPS: EnvStep[] = [
   { kind: "context", item: INDUSTRY_ITEM },
   ...ENV_ITEMS.map((item) => ({ kind: "dimension" as const, item })),
   { kind: "context", item: EXPERIENCED_ITEM },
+  { kind: "outcome", item: SATISFACTION_ITEM },
+  { kind: "outcome", item: PERFORMANCE_ITEM },
+  { kind: "outcome", item: ENGAGEMENT_ITEM },
+  { kind: "outcome", item: SUSTAINABILITY_ITEM },
+  { kind: "outcome", item: RETENTION_INTENTION_ITEM },
 ];

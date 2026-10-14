@@ -687,6 +687,45 @@ describe("SituationReportPage", () => {
       expect(screen.queryByRole("region", { name: "Dimension by dimension" })).not.toBeInTheDocument();
       expectNoScoresLeaked();
     });
+
+    // Tolerance and must-haves (PRODUCT_DECISIONS §2, 2026-10-13): booleans
+    // from the server, rendered as a word and a sentence, never a number.
+    it("marks a must-have trait and says when a gap sits inside the user's tolerance", async () => {
+      serve({
+        ...COMPLETE,
+        tolerance_applied: true,
+        dimensions: [
+          { ...STRAINING_AUTONOMY, must_have: true, within_tolerance: false },
+          { ...NOTABLE_FEEDBACK, must_have: false, within_tolerance: false },
+          { ...ALIGNED_PACE, must_have: false, within_tolerance: true },
+        ],
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(within(cardFor("Autonomy")).getByText("Must-have")).toBeInTheDocument();
+      expect(within(cardFor("Feedback")).queryByText("Must-have")).not.toBeInTheDocument();
+      expect(
+        within(cardFor("Pace")).getByText(/inside the range you said you're fine with/),
+      ).toBeInTheDocument();
+      expect(
+        within(cardFor("Autonomy")).queryByText(/inside the range you said/),
+      ).not.toBeInTheDocument();
+      expectNoScoresLeaked();
+    });
+
+    it("shows neither marker for a user who never answered the tolerance step", async () => {
+      serve({
+        ...COMPLETE,
+        tolerance_applied: false,
+        dimensions: COMPLETE.dimensions.map((d) => ({ ...d, must_have: false, within_tolerance: false })),
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByText("Must-have")).not.toBeInTheDocument();
+      expect(screen.queryByText(/inside the range you said/)).not.toBeInTheDocument();
+    });
   });
 
   // The one past-job report (PRODUCT_DECISIONS §2, 2026-10-01). Same gate as

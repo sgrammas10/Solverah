@@ -161,6 +161,78 @@ def test_the_rows_are_stamped_with_the_apps_own_versions(client, mapping):
     assert {r.person_form_version for r in result.rows} == {mapping["core_form_version"]}
 
 
+@pytest.fixture(scope="module")
+def legacy_mapping():
+    [legacy] = responses.load_legacy_mappings()
+    return legacy
+
+
+def test_a_legacy_form_response_imports_with_outcomes_null(client, legacy_mapping):
+    """A CSV from the pilot-v1-2026-10-01 form (no outcome questions) still imports:
+    the sixteen required items are unchanged, so it scores correctly, and the five
+    outcome columns are simply never written (NULL at the ORM default).
+
+    `environment_reports.version` is NOT the form the respondent actually answered --
+    `situation_report_service.submit_environment_report` (situation-report's file, not
+    this lane's) always stamps the APP's current live FORM_VERSION, regardless of what
+    the caller's payload came from. The true version survives only in this lane's own
+    bookkeeping: `ParsedResponse.pilot_form_version` / `.env_form_version`, set by
+    `responses.resolve_mapping` at parse time, and the note recorded in the import
+    summary. See responses.py's module docstring and import_responses.py's
+    check_bank_versions comment."""
+    from model import EnvironmentReport, User
+    from work_pulse import situation_items
+
+    row = sample_csv.respondent(legacy_mapping, status="employed", timestamp="t1")
+    [parsed] = responses.parse_csv(sample_csv.to_csv(legacy_mapping, [row]))
+    assert parsed.pilot_form_version == legacy_mapping["pilot_form_version"]
+    assert parsed.env_form_version == legacy_mapping["env_form_version"]
+    assert parsed.env_form_version != situation_items.FORM_VERSION
+
+    summary = _import([parsed])
+    assert summary.imported == 1 and summary.failed == []
+
+    from app import app
+
+    with app.app_context():
+        user = User.query.filter_by(email=import_responses.pilot_email(parsed.pilot_id)).first()
+        report = EnvironmentReport.query.filter_by(user_id=user.id).one()
+        for column in (
+            "outcome_satisfaction", "outcome_performance", "outcome_engagement",
+            "outcome_sustainability", "outcome_retention_intention",
+        ):
+            assert getattr(report, column) is None
+        # The DB column itself is stamped with the app's current version, not the
+        # form's -- the limitation this test documents.
+        assert report.version == situation_items.FORM_VERSION
+
+
+def test_a_current_form_response_imports_with_outcomes_stored(client, mapping):
+    from model import EnvironmentReport, User
+    from work_pulse import situation_items
+
+    row = sample_csv.respondent(
+        mapping, status="employed", timestamp="t1",
+        outcomes={"satisfaction": 4, "performance": 5, "engagement": 3,
+                 "sustainability": 2, "retention_intention": 5})
+    [parsed] = responses.parse_csv(sample_csv.to_csv(mapping, [row]))
+    assert parsed.pilot_form_version == spec.PILOT_FORM_VERSION
+    assert parsed.env_form_version == situation_items.FORM_VERSION
+
+    summary = _import([parsed])
+    assert summary.imported == 1 and summary.failed == []
+
+    from app import app
+
+    with app.app_context():
+        user = User.query.filter_by(email=import_responses.pilot_email(parsed.pilot_id)).first()
+        report = EnvironmentReport.query.filter_by(user_id=user.id).one()
+        assert (report.outcome_satisfaction, report.outcome_performance,
+                report.outcome_engagement, report.outcome_sustainability,
+                report.outcome_retention_intention) == (4, 5, 3, 2, 5)
+        assert report.version == situation_items.FORM_VERSION
+
+
 def test_app_users_stay_app_beside_pilot_respondents(client, mapping):
     import assessment_store
     import environment_report_store

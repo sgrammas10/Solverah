@@ -4,8 +4,9 @@
  * `useMP`'s shape, with one difference that matters: this instrument has two
  * kinds of answer. The twelve dimension items store an option KEY ("a".."e"),
  * because the server owns the key -> pole -> score mapping and the client must
- * never learn it. The four context items store a RAW value (1..5, or a level
- * key for `industry`), which is itself the answer
+ * never learn it. The four context items and the five optional outcome items
+ * store a RAW value (1..5, or a level key for `industry`), which is itself the
+ * answer
  * (`work_pulse.situation_items.context_value` / `context_level` are
  * pass-throughs with a guard, deliberately).
  *
@@ -15,14 +16,15 @@
  * same kind of option ("not sure, or I'd rather not say", 2026-10-01). So
  * "answered" is key PRESENCE in `context`, never a truthiness or null check:
  * an unanswered item is a missing key and an answered one may hold `null`.
+ * A skipped optional outcome item is stored the same way, as `null`.
  *
- * sessionStorage, like `useMP`, so a mid-form reload does not throw sixteen
- * answers away. Nothing here is a durable record -- the append-only row the
+ * sessionStorage, like `useMP`, so a mid-form reload does not throw
+ * twenty-one answers away. Nothing here is a durable record -- the append-only row the
  * server writes on submit is.
  *
  * ONE DRAFT PER SUBJECT. The current-job form and the past-job form
  * (`/environment-report/past`, PRODUCT_DECISIONS §2, 2026-10-01) ask the same
- * sixteen questions about two different jobs, so they keep separate keys: a
+ * questions about two different jobs, so they keep separate keys: a
  * half-finished description of one job must never resume as the other.
  */
 import { useState } from "react";
@@ -39,8 +41,8 @@ export const ENV_REPORT_DRAFT_KEYS: Record<EnvReportSubject, string> = {
 export interface EnvReportDraft {
   /** dimension item id -> chosen option key. */
   answers: Record<string, string>;
-  /** context item id -> raw 1..5 (or industry's level key), or null for
-   *  comp's / industry's "not sure". */
+  /** context or outcome item id -> raw 1..5 (or industry's level key), or
+   *  null for comp's / industry's "not sure" or a skipped outcome item. */
   context: Record<string, number | string | null>;
 }
 

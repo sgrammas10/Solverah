@@ -525,7 +525,8 @@ export default function SituationReportPage() {
       <Gate title="One half to go">
         <p className={LEAD}>
           Work Pulse told us how you work. Now sixteen questions about your job, in your
-          own words. About five minutes, and the report comes back straight away.
+          own words, and five optional ones at the end. About five minutes, and the
+          report comes back straight away.
         </p>
         <div className="pt-2">
           <button type="button" onClick={() => navigate("/environment-report")} className={PRIMARY}>

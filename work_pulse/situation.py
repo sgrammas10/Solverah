@@ -45,10 +45,20 @@ one you can hold, more autonomy than you want). `direction` is sign-only -- `und
 dimension has no direction to report. Neither field is styled as good or bad
 here -- that judgment, if any, belongs to A-4/A-6's guidance content, not to
 this module.
+
+**Tolerance and must-haves (PRODUCT_DECISIONS.md §2, "The six-trait match
+model", 2026-10-13).** A user may state, per trait, how far a job may sit
+from their preference in each direction, and flag up to two traits as
+must-haves. `classify_gap` then reads a per-user, per-direction flat zone
+(`solverah.domain.trait_preferences.flat_zones`) instead of the fixed 0.15 /
+0.25, and `rank_dimensions` orders must-haves first within a severity tier.
+A user who never answered passes `zones=None` and no must-haves, and gets
+exactly the behaviour this module had before (pinned by
+`test_unanswered_tolerance_is_bit_identical`).
 """
 from __future__ import annotations
 
-from typing import Mapping, Sequence, TypedDict
+from typing import Collection, Mapping, Sequence, TypedDict
 
 # Fixed, matching BUILD_PLAN A-1's six environment-side dimensions and the
 # sealed person-side profile's own dimension keys. A gap is only meaningful
@@ -88,6 +98,8 @@ class SituationDimensionReport(TypedDict):
     bucket: str
     direction: str | None
     rank: int
+    must_have: bool
+    within_tolerance: bool
 
 
 def _items_by_dimension(
@@ -269,30 +281,82 @@ STRAINING_THRESHOLDS: dict[str, float] = {
 }
 
 
-def classify_gap(dimension: str, gap: float) -> str:
+#: Per-user flat zones, `{dimension: (under_zone, over_zone)}` --
+#: `solverah.domain.trait_preferences.flat_zones`' return shape. Each zone is
+#: `max(0.15, steps * 0.25)`, so never below today's aligned band.
+FlatZones = Mapping[str, tuple[float, float]]
+
+#: Width of the `notable` band above a user's flat zone (PRODUCT_DECISIONS.md
+#: §2, "The six-trait match model", 2026-10-13). Today's 0.15 / 0.25 split is
+#: the special case zone = 0.15: 0.15 + 0.10 = 0.25.
+NOTABLE_WIDTH = 0.10
+
+
+def _zone_for(dimension: str, gap: float, zones: FlatZones) -> float:
+    """The flat zone for the direction `gap` points in. UNDER (the role gives
+    less than the user prefers) is `gap < 0` in THIS module's convention
+    (`gap = env - person`); OVER is `gap > 0`. A zero gap is aligned under
+    either zone, since every zone is at least 0.15."""
+    if dimension not in zones:
+        raise ValueError(f"zones missing dimension {dimension!r}")
+    under_zone, over_zone = zones[dimension]
+    return under_zone if gap < 0 else over_zone
+
+
+def classify_gap(dimension: str, gap: float, zones: FlatZones | None = None) -> str:
     """One of `aligned` / `notable` / `straining`, by |gap| magnitude alone --
     never by sign (2026-09-10 rename, PRODUCT_DECISIONS.md §2). `gap` must
     already be rounded (see `signed_gaps`) -- this function does not round
     again. See `gap_direction` for the sign.
+
+    `zones` is the user's stated tolerance (`flat_zones`), or None for a user
+    who never answered it. None takes exactly today's path: the per-dimension
+    0.15 / 0.25 thresholds, untouched (`test_unanswered_tolerance_is_bit_identical`
+    pins it against a frozen copy). With zones the classification becomes
+    sign-aware: the zone for the gap's own direction decides, `aligned` below
+    it, `notable` below it plus `NOTABLE_WIDTH`, `straining` beyond. The sign
+    only picks the zone; the bucket is still magnitude.
     """
     if dimension not in ALIGNED_THRESHOLDS:
         raise ValueError(f"Unknown dimension {dimension!r}")
     magnitude = abs(gap)
-    if magnitude < ALIGNED_THRESHOLDS[dimension]:
+    if zones is None:
+        if magnitude < ALIGNED_THRESHOLDS[dimension]:
+            return ALIGNED
+        if magnitude < STRAINING_THRESHOLDS[dimension]:
+            return NOTABLE
+        return STRAINING
+    zone = _zone_for(dimension, gap, zones)
+    if magnitude < zone:
         return ALIGNED
-    if magnitude < STRAINING_THRESHOLDS[dimension]:
+    # Rounded like the gap itself, so float dust in the sum never moves a boundary.
+    if magnitude < round(zone + NOTABLE_WIDTH, GAP_PRECISION):
         return NOTABLE
     return STRAINING
 
 
-def gap_direction(dimension: str, gap: float) -> str | None:
+def gap_direction(dimension: str, gap: float, zones: FlatZones | None = None) -> str | None:
     """`under` / `over` from the sign of `gap`, or `None` exactly where
-    `classify_gap` returns `aligned` -- an aligned dimension has no direction
-    to report (PRODUCT_DECISIONS.md §2).
+    `classify_gap` (with the same `zones`) returns `aligned` -- an aligned
+    dimension has no direction to report (PRODUCT_DECISIONS.md §2).
     """
-    if classify_gap(dimension, gap) == ALIGNED:
+    if classify_gap(dimension, gap, zones) == ALIGNED:
         return None
     return OVER if gap > 0 else UNDER
+
+
+def within_tolerance(dimension: str, gap: float, zones: FlatZones | None) -> bool:
+    """True when the user's stated tolerance is what makes this gap `aligned`:
+    aligned under `zones`, but not under today's thresholds. False for a user
+    with no zones, and for a gap that is aligned either way -- a gap inside the
+    measurement-noise floor is not something the tolerance did.
+
+    Carries no more resolution than the bucket already does: it says the gap is
+    past the 0.15 floor, which is the same boundary `notable` reports today.
+    """
+    if zones is None:
+        return False
+    return classify_gap(dimension, gap, zones) == ALIGNED and classify_gap(dimension, gap) != ALIGNED
 
 
 class DimensionWeight(TypedDict):
@@ -369,10 +433,19 @@ def dimension_cost(dimension: str, gap: float, weight: DimensionWeight) -> float
 
 
 def rank_dimensions(
-    gaps: Mapping[str, float], weights: Mapping[str, DimensionWeight] | None = None
+    gaps: Mapping[str, float],
+    weights: Mapping[str, DimensionWeight] | None = None,
+    zones: FlatZones | None = None,
+    must_haves: Collection[str] = frozenset(),
 ) -> list[str]:
-    """Dimensions ordered worst first: severity bucket, then weighted
-    directional cost within a bucket, then `DIMENSIONS` order.
+    """Dimensions ordered worst first: severity bucket, then must-have, then
+    weighted directional cost within a bucket, then `DIMENSIONS` order.
+
+    `zones` and `must_haves` are the user's tolerance and must-have traits
+    (PRODUCT_DECISIONS.md §2, "The six-trait match model"). With neither --
+    a user who never answered -- the must-have key is the same for every
+    dimension and the ordering is exactly today's. A must-have never jumps a
+    severity tier: it orders first among rows that share a bucket word.
 
     The bucket comes from `classify_gap` on these same gaps -- derived here,
     never a parameter, so a caller cannot rank one payload against a
@@ -392,11 +465,15 @@ def rank_dimensions(
     missing = [d for d in DIMENSIONS if d not in weights]
     if missing:
         raise ValueError(f"weights missing dimension(s): {', '.join(missing)}")
+    unknown = sorted(set(must_haves) - set(DIMENSIONS))
+    if unknown:
+        raise ValueError(f"must_haves name unknown dimension(s): {', '.join(unknown)}")
 
-    def sort_key(dim: str) -> tuple[int, float, int]:
-        bucket = classify_gap(dim, gaps[dim])
+    def sort_key(dim: str) -> tuple[int, int, float, int]:
+        bucket = classify_gap(dim, gaps[dim], zones)
         cost = dimension_cost(dim, gaps[dim], weights[dim])
-        return (-BUCKET_SEVERITY[bucket], -cost, DIMENSIONS.index(dim))
+        must_have_first = 0 if dim in must_haves else 1
+        return (-BUCKET_SEVERITY[bucket], must_have_first, -cost, DIMENSIONS.index(dim))
 
     return sorted(DIMENSIONS, key=sort_key)
 
@@ -405,12 +482,20 @@ def build_situation_report(
     env_scores: Mapping[str, float],
     person_scores: Mapping[str, float],
     weights: Mapping[str, DimensionWeight] | None = None,
+    zones: FlatZones | None = None,
+    must_haves: Collection[str] = frozenset(),
 ) -> list[SituationDimensionReport]:
     """Env scores + sealed person scores -> the D-15-conforming per-dimension
     list, in `DIMENSIONS` order. Per entry: `env_score` (an echo of the
-    user's own answer), `bucket`, `direction` (`None` on `aligned`), and
-    `rank` (0 = worst, by `rank_dimensions`' severity-then-cost order). No
+    user's own answer), `bucket`, `direction` (`None` on `aligned`), `rank`
+    (0 = worst, by `rank_dimensions`' severity, must-have, cost order),
+    `must_have`, and `within_tolerance` (see `within_tolerance`). No
     `person_score` or `gap` field anywhere in the return value.
+
+    `zones` / `must_haves` are the user's tolerance and must-have traits, or
+    None / empty for a user who never answered: then bucket, direction and rank
+    are exactly today's, `must_have` and `within_tolerance` are False on every
+    row.
 
     Rows come back in `DIMENSIONS` order, NOT rank order -- this module is
     order-stable by contract, and presentation order is the caller's to
@@ -420,16 +505,18 @@ def build_situation_report(
     """
     _validate_scores(env_scores, "environment")
     gaps = signed_gaps(env_scores, person_scores)
-    order = rank_dimensions(gaps, weights)
+    order = rank_dimensions(gaps, weights, zones, must_haves)
     rank_by_dim = {dim: position for position, dim in enumerate(order)}
 
     return [
         {
             "dimension": dim,
             "env_score": env_scores[dim],
-            "bucket": classify_gap(dim, gaps[dim]),
-            "direction": gap_direction(dim, gaps[dim]),
+            "bucket": classify_gap(dim, gaps[dim], zones),
+            "direction": gap_direction(dim, gaps[dim], zones),
             "rank": rank_by_dim[dim],
+            "must_have": dim in must_haves,
+            "within_tolerance": within_tolerance(dim, gaps[dim], zones),
         }
         for dim in DIMENSIONS
     ]

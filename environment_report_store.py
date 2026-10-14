@@ -30,9 +30,9 @@ instant the user's report first came into being, which anchors the DEFAULT pin.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
-from model import ENV_DIMENSIONS, ENV_REPORT_SUBJECTS
+from model import ENV_DIMENSIONS, ENV_OUTCOME_COLUMNS, ENV_REPORT_SUBJECTS
 
 __all__ = [
     "write_environment_report",
@@ -83,6 +83,7 @@ def write_environment_report(
     employer_name_normalized: Optional[str] = None,
     industry: Optional[str] = None,
     subject: str = CURRENT,
+    outcomes: Optional[Mapping[str, Optional[int]]] = None,
 ) -> int:
     """Write one submission: the header row plus its six dimension-score rows.
 
@@ -111,12 +112,24 @@ def write_environment_report(
     `subject` is `"current"` (the default) or `"past"` (model.ENV_REPORT_SUBJECTS).
     This function does not enforce who may file a past report -- the service does;
     the column's CHECKs hold the vocabulary and refuse a past `first_job` row.
+
+    `outcomes` holds the five optional exploratory outcomes (PRODUCT_DECISIONS.md §2,
+    2026-10-13), keyed by column name (`model.ENV_OUTCOME_COLUMNS`), each a raw 1..5 int
+    or `None` for skipped. A column left out is stored NULL, the same as `None`. Stored
+    raw: the 0..1 mapping is the analysis's, not this function's. The columns' CHECKs
+    refuse anything outside 1..5 at flush; an unknown key is refused here.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
     _require_all_dimensions(dimension_scores)
     if subject not in ENV_REPORT_SUBJECTS:
         raise ValueError("subject must be one of %r, got %r" % (ENV_REPORT_SUBJECTS, subject))
+    outcomes = dict(outcomes or {})
+    unknown = sorted(set(outcomes) - set(ENV_OUTCOME_COLUMNS))
+    if unknown:
+        raise ValueError(
+            "outcomes may only name %r; got unknown %r" % (ENV_OUTCOME_COLUMNS, unknown)
+        )
 
     report = EnvironmentReport(
         user_id=user_id,
@@ -129,6 +142,7 @@ def write_environment_report(
         employer_name_normalized=employer_name_normalized,
         version=version,
         subject=subject,
+        **{column: outcomes.get(column) for column in ENV_OUTCOME_COLUMNS},
     )
     db.session.add(report)
     db.session.flush()  # need report.id for the child rows below
@@ -171,6 +185,7 @@ def _serialize(
             "subject": report.subject,
         }
     )
+    serialized.update({column: getattr(report, column) for column in ENV_OUTCOME_COLUMNS})
     return serialized
 
 

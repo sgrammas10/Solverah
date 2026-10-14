@@ -1493,3 +1493,285 @@ def test_an_explicit_pin_to_an_unreadable_sitting_still_gates(client, monkeypatc
     )
     assert recal.get_json()["recalibrated"] is True
     assert _get_report(client).get_json()["state"] == "complete"
+
+
+# ── Tolerance and must-haves (PRODUCT_DECISIONS.md §2, "The six-trait match
+# model", 2026-10-13). Gap convention in the report: gap = env - person. ─────
+
+
+def _put_trait_preferences(client, csrf, steps=None, must=()):
+    """PUT /me/trait-preferences (C1's route): every trait at 0/0 unless *steps*
+    names it as (under_steps, over_steps)."""
+    from work_pulse.situation import DIMENSIONS
+
+    steps = steps or {}
+    resp = client.put(
+        "/api/v1/me/trait-preferences",
+        json={
+            "traits": [
+                {
+                    "dimension_key": dim,
+                    "under_steps": steps.get(dim, (0, 0))[0],
+                    "over_steps": steps.get(dim, (0, 0))[1],
+                    "must_have": dim in must,
+                }
+                for dim in DIMENSIONS
+            ]
+        },
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+
+def _complete_with_every_gap_over_by_point_four(client, monkeypatch, email):
+    """Core answered uniformly (every person score 0.5) and every environment
+    item at the `high` pole (0.9): six gaps of +0.4, all OVER, all straining
+    under today's thresholds."""
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert set(_person_scores(email).values()) == {0.5}, "fixture precondition"
+    assert _submit_env(client, csrf, pole="high").status_code == 200
+    return csrf
+
+
+def test_unanswered_tolerance_leaves_the_report_as_it_was(client, monkeypatch):
+    """No tolerance sitting: today's buckets, and every new flag false."""
+    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_unanswered@example.com")
+    del csrf
+
+    body = _get_report(client).get_json()
+
+    assert body["state"] == "complete"
+    assert body["tolerance_applied"] is False
+    assert [d["bucket"] for d in body["dimensions"]] == ["straining"] * 6
+    assert all(d["must_have"] is False for d in body["dimensions"])
+    assert all(d["within_tolerance"] is False for d in body["dimensions"])
+
+
+def test_unanswered_report_is_byte_identical_to_one_built_without_the_tolerance_read(
+    client, monkeypatch
+):
+    """The service's tolerance read changes nothing for a user who never
+    answered: the same response as a run where the read is replaced by a
+    hard-coded "unanswered"."""
+    from solverah.domain.trait_preferences import unanswered_preferences
+
+    email = "c4_unanswered_bytes@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf, pattern=_VARIED)
+    _submit_env_by_dimension(client, csrf, {"autonomy": "high", "pace": "low", "decision": "leaning_low"})
+
+    live = _get_report(client)
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            "assessment_store.get_trait_preferences",
+            lambda _db, _user_id: unanswered_preferences(),
+        )
+        forced = _get_report(client)
+
+    assert live.status_code == forced.status_code == 200
+    assert live.get_data() == forced.get_data()
+
+
+def test_a_two_step_over_tolerance_puts_a_point_four_gap_in_aligned(client, monkeypatch):
+    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_zone@example.com")
+    # Two steps MORE pace is fine (over zone 0.5); two steps LESS autonomy is
+    # fine, which says nothing about an OVER gap (over zone stays 0.15).
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2), "autonomy": (2, 0)})
+
+    body = _get_report(client).get_json()
+    by_dim = {d["dimension"]: d for d in body["dimensions"]}
+
+    assert body["tolerance_applied"] is True
+    assert by_dim["pace"]["bucket"] == "aligned"
+    assert by_dim["pace"]["direction"] is None
+    assert by_dim["pace"]["within_tolerance"] is True
+    assert "aligned_note" in by_dim["pace"]
+    assert by_dim["autonomy"]["bucket"] == "straining"
+    assert by_dim["autonomy"]["within_tolerance"] is False
+    # The aligned row sorts below every straining one.
+    assert body["dimensions"][-1]["dimension"] == "pace"
+
+
+def test_a_must_have_ranks_first_within_its_tier(client, monkeypatch):
+    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_must@example.com")
+
+    before = [d["dimension"] for d in _get_report(client).get_json()["dimensions"]]
+    last = before[-1]
+    _put_trait_preferences(client, csrf, must=(last,))
+
+    body = _get_report(client).get_json()
+    after = [d["dimension"] for d in body["dimensions"]]
+
+    assert after[0] == last
+    assert after[1:] == [d for d in before if d != last]
+    assert [d["rank"] for d in body["dimensions"]] == list(range(6))
+    assert [d["must_have"] for d in body["dimensions"]] == [True] + [False] * 5
+
+
+def test_tolerance_report_still_carries_no_person_side_number(client, monkeypatch):
+    """D-15 holds with tolerance on: the new fields are booleans, nothing else."""
+    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_d15@example.com")
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)}, must=("feedback",))
+
+    body = _get_report(client).get_json()
+
+    for key, value in _walk(body):
+        assert "person" not in key.lower()
+        assert "gap" not in key.lower()
+        assert "zone" not in key.lower()
+        # `under_steps` / `over_steps` (the stated tolerance) never echo back.
+        # Bare `steps` is the change_in_place register's guidance list.
+        assert "_steps" not in key.lower()
+    for dim in body["dimensions"]:
+        assert isinstance(dim["must_have"], bool)
+        assert isinstance(dim["within_tolerance"], bool)
+
+
+def test_needs_forward_report_with_tolerance_still_drops_aligned_rows(client, monkeypatch):
+    email = "c4_needs_forward@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "between_jobs")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf, pole="high").status_code == 200
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)}, must=("decision",))
+
+    body = _get_report(client).get_json()
+
+    assert body["needs_forward"] is True
+    dims = [d["dimension"] for d in body["dimensions"]]
+    assert "pace" not in dims
+    assert dims[0] == "decision"
+    assert body["dimensions"][0]["must_have"] is True
+
+
+# ── The five optional exploratory outcomes (PRODUCT_DECISIONS.md §2, 2026-10-13) ──
+
+_OUTCOMES = {
+    "satisfaction": 4,
+    "performance": 5,
+    "engagement": 2,
+    "sustainability": 1,
+    "retention_intention": 3,
+}
+
+
+def test_outcomes_are_stored_raw_and_echoed(client, monkeypatch):
+    email = "c4_outcomes@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf, **_OUTCOMES)
+
+    assert submit.status_code == 200, submit.get_json()
+    body = submit.get_json()
+    assert body["version"] == "env-v3-2026-10-13"
+    for item_id, value in _OUTCOMES.items():
+        assert body[item_id] == value
+    stored = _stored_report(email)
+    for item_id, column in situation_items.OUTCOME_COLUMNS.items():
+        assert stored[column] == _OUTCOMES[item_id], column
+    assert stored["experienced_outcome"] == 3
+
+
+def test_outcomes_are_optional_absent_and_null_both_store_null(client, monkeypatch):
+    email = "c4_outcomes_skipped@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf, satisfaction=None, engagement=5)
+
+    assert submit.status_code == 200, submit.get_json()
+    body = submit.get_json()
+    assert body["satisfaction"] is None
+    assert body["performance"] is None  # absent
+    assert body["engagement"] == 5
+    stored = _stored_report(email)
+    assert stored["outcome_satisfaction"] is None
+    assert stored["outcome_performance"] is None
+    assert stored["outcome_engagement"] == 5
+
+
+@pytest.mark.parametrize("bad", [0, 6, "3", True])
+def test_out_of_range_outcome_is_rejected_and_nothing_is_stored(client, monkeypatch, bad):
+    email = "c4_outcomes_bad_%s@example.com" % str(bad).lower()
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _post_env_with(client, csrf, sustainability=bad)
+
+    assert res.status_code in (400, 422)
+    assert _stored_report(email) is None
+
+
+@pytest.mark.parametrize("bad", [0, 6, "3", True, 2.0])
+def test_service_refuses_a_bad_outcome_even_without_the_route_validator(client, monkeypatch, bad):
+    """The service reads the raw body; the route's schema is the first gate, this the second."""
+    from app import app
+    from model import User
+    from solverah.services import situation_report_service as service
+
+    email = "c4_outcomes_service_%s@example.com" % str(bad).lower().replace(".", "_")
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    body = {
+        "answers": _env_answers("mixed"), "stage_size": 3, "comp": 3, "experienced": 3,
+        "retention_intention": bad,
+    }
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        result = service.submit_environment_report(user, body)
+    assert result.status == 400
+    assert "retention_intention" in result.body["error"]
+    assert _stored_report(email) is None
+
+
+def test_outcomes_on_a_past_tense_report_are_stored(client, monkeypatch):
+    """A between_jobs user's current report renders past tense; the stored
+    outcomes do not depend on tense."""
+    email = "c4_outcomes_between@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "between_jobs")
+
+    submit = _post_env_with(client, csrf, **_OUTCOMES)
+
+    assert submit.status_code == 200, submit.get_json()
+    stored = _stored_report(email)
+    assert stored["career_status"] == "between_jobs"
+    assert stored["outcome_retention_intention"] == 3
+
+
+def test_outcomes_on_a_past_job_report_are_stored_on_that_row(client, monkeypatch):
+    email = "c4_outcomes_past@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _post_env_with(client, csrf).status_code == 200
+
+    res = _submit_past(client, csrf, satisfaction=2, sustainability=5)
+
+    assert res.status_code == 200, res.get_json()
+    past = next(r for r in _history(email) if r["subject"] == "past")
+    current = next(r for r in _history(email) if r["subject"] == "current")
+    assert past["outcome_satisfaction"] == 2
+    assert past["outcome_sustainability"] == 5
+    assert past["outcome_performance"] is None
+    assert current["outcome_satisfaction"] is None
+
+
+def test_outcomes_never_change_the_situation_report(client, monkeypatch):
+    """Exploratory only: re-filing the same description with outcome answers
+    leaves the report byte-identical. (One user, not two: the core form is
+    shuffled per user, so reports are never compared across users.)"""
+    email = "c4_outcomes_report@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _post_env_with(client, csrf).status_code == 200
+    without = _get_report(client).get_data()
+
+    assert _post_env_with(client, csrf, satisfaction=1, engagement=1, retention_intention=5).status_code == 200
+    with_outcomes = _get_report(client).get_data()
+
+    assert with_outcomes == without

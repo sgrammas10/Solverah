@@ -5,8 +5,9 @@
 carries `environment`, `needs_environment_report` carries
 `can_submit_environment_report`, `complete` carries `dimensions`,
 `guidance_notice`, `events_since_report` -- BUILD_PLAN B-4's Pulse-event
-resubmission prompt, `{'type', 'date'}` per event, never a `note` -- and
-`career_status_changed`, the live-vs-snapshot tense flag; `needs_core` may carry
+resubmission prompt, `{'type', 'date'}` per event, never a `note` --
+`career_status_changed`, the live-vs-snapshot tense flag, and `tolerance_applied`,
+with `must_have` and `within_tolerance` on each dimension; `needs_core` may carry
 `core_unreadable`), and a closed
 model over the union would either flatten every field to `Any` or lie about
 which state guarantees which key. `state`, `manager` and `past_job_report_filed`
@@ -37,6 +38,20 @@ Industry = Literal["tech", "finance", "healthcare", "retail", "other"]
 Subject = Literal["current", "past"]
 
 
+def _outcome_field(question: str):
+    """One optional exploratory outcome (PRODUCT_DECISIONS.md §2, 2026-10-13):
+    `work_pulse.situation_items.OUTCOME_ITEMS`, asked after `experienced`."""
+    return Field(
+        default=None,
+        ge=1,
+        le=5,
+        description=(
+            "Optional exploratory outcome, 1..5, stored raw: '%s' Null or absent means "
+            "skipped." % question
+        ),
+    )
+
+
 class EnvironmentReportSubmitRequest(SolverahModel):
     answers: Dict[str, str] = Field(
         description=(
@@ -60,6 +75,13 @@ class EnvironmentReportSubmitRequest(SolverahModel):
     )
     experienced: int = Field(
         ge=1, le=5, description="Overall, how well is this role working for you?"
+    )
+    satisfaction: Optional[int] = _outcome_field("All things considered, how satisfied are you with this job?")
+    performance: Optional[int] = _outcome_field("How well do you think you are performing in this role?")
+    engagement: Optional[int] = _outcome_field("How energised are you by the work itself?")
+    sustainability: Optional[int] = _outcome_field("Could you keep working the way you do now for another year?")
+    retention_intention: Optional[int] = _outcome_field(
+        "How likely is it that you will still be in this role a year from now?"
     )
     employer_name: Optional[str] = Field(
         default=None,
@@ -89,6 +111,11 @@ class EnvironmentReportSubmitResponse(SolverahModel):
     career_status: str
     version: str
     subject: Subject
+    satisfaction: Optional[int] = None
+    performance: Optional[int] = None
+    engagement: Optional[int] = None
+    sustainability: Optional[int] = None
+    retention_intention: Optional[int] = None
 
 
 class SituationReportResponse(SolverahModel):

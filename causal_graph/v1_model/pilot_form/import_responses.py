@@ -115,6 +115,12 @@ def _ascii(text: str) -> str:
 # ---------------------------------------------------------------------------
 # Version check: the form must have been generated from the banks the app scores with
 # ---------------------------------------------------------------------------
+# This checks only the CURRENT committed mapping (`load_mapping()`), i.e. that the
+# generator was actually re-run after the last bank edit -- not every mapping an
+# incoming CSV might match. A CSV from a frozen `responses.LEGACY_MAPPING_PATHS`
+# snapshot is accepted without this check: each one is hand-reviewed once, when it is
+# added, to confirm its required items still match the live banks (see
+# responses.py's module docstring, "ACCEPTING AN OLDER FORM").
 def check_bank_versions(mapping: dict) -> None:
     import assessment_form
     from work_pulse import situation_items

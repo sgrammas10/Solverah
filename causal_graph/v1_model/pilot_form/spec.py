@@ -44,7 +44,11 @@ from . import MODEL_DIR  # noqa: F401  -- sys.path side effects
 
 #: Bumped whenever the generated form's STRUCTURE changes (not when a bank changes -- the
 #: bank versions are recorded beside it in the mapping and checked on import).
-PILOT_FORM_VERSION = "pilot-v1-2026-10-01"
+#: pilot-v2-2026-10-13: added the five optional exploratory outcome items after
+#: `experienced` in every job section (Amendment 3). The previous structure,
+#: pilot-v1-2026-10-01, is snapshotted under legacy/ -- see responses.py's
+#: LEGACY_MAPPING_PATHS -- because a form built from it may already be in the field.
+PILOT_FORM_VERSION = "pilot-v2-2026-10-13"
 
 #: The respondent id whose app-side core order the pilot reuses. Any fixed string works;
 #: fixed is the point. Changing it reorders the committed form.
@@ -299,15 +303,42 @@ def _context_question(item: dict, slot: str) -> Question:
     )
 
 
+def _outcome_question(item: dict, slot: str) -> Question:
+    """One of the five optional exploratory outcome items (Amendment 3, 2026-10-13).
+    Shaped like `_context_question` -- a 1..5 value, not an option key -- but
+    `required=False` and its own role so the importer and the completeness check
+    never treat a skip as a gap in the instrument."""
+    return Question(
+        qid="outcome:%s:%s" % (slot, item["item_id"]),
+        title=item["prompt"],
+        kind="choice",
+        required=False,
+        role="outcome",
+        item_id=item["item_id"],
+        slot=slot,
+        choices=tuple(Choice(o["text"], o["value"]) for o in item["options"]),
+    )
+
+
+OUTCOME_PAGE_DESCRIPTION = (
+    "Optional. These are exploratory -- skip any or all of them. They never change "
+    "your report."
+)
+
+
 def _job_pages(slot: str, *, after: Optional[str]) -> list[Page]:
-    """Context page, two dimension pages, then `experienced` alone. `after` is where the
-    last page leads when it is not simply the next page."""
+    """Context page, two dimension pages, `experienced` alone, then the five optional
+    outcome items on their own page. `after` is where the last page leads when it is
+    not simply the next page -- now the outcomes page, since it comes after
+    `experienced` (situation_items module doc: outcomes come after `experienced`,
+    never between it and the twelve)."""
     from work_pulse import situation_items
 
     tense_status, _subject = SLOTS[slot]
     heading, intro = _SLOT_FRAMING[slot]
     context = {i["item_id"]: i for i in situation_items.render_context_items(tense_status)}
     dims = situation_items.render_items(tense_status)
+    outcomes = situation_items.render_outcome_items(tense_status)
 
     pages = [
         Page(
@@ -349,6 +380,14 @@ def _job_pages(slot: str, *, after: Optional[str]) -> list[Page]:
             page_id="%s_overall" % slot,
             title="%s: one last question" % heading,
             questions=(_context_question(context["experienced"], slot),),
+        )
+    )
+    pages.append(
+        Page(
+            page_id="%s_outcomes" % slot,
+            title="%s: a few optional extras" % heading,
+            description=OUTCOME_PAGE_DESCRIPTION,
+            questions=tuple(_outcome_question(item, slot) for item in outcomes),
             go_to=after,
         )
     )
@@ -363,10 +402,10 @@ def build_spec() -> FormSpec:
         status            employed -> current_present_context
                           between  -> current_past_context
                           first    -> final
-        current_present_* (4 pages), then -> gate
-        current_past_*    (4 pages), then the gate (next page)
+        current_present_* (5 pages), then -> gate
+        current_past_*    (5 pages), then the gate (next page)
         gate              yes -> previous_context, no -> final
-        previous_*        (4 pages), then final (next page)
+        previous_*        (5 pages), then final (next page)
         final             optional email
     """
     from work_pulse import situation_items

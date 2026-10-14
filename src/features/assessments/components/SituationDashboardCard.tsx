@@ -103,7 +103,7 @@ export function nextActionFor(
       return {
         to: "/environment-report",
         label: "Describe your job",
-        hint: "Sixteen questions about the role you're in, about five minutes.",
+        hint: "Sixteen questions about the role you're in, plus five optional, about five minutes.",
       };
     }
     // `first_job`: there is no job to describe, so the useful move is the half

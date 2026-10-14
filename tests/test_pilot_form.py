@@ -148,7 +148,7 @@ def test_core_pages_do_not_break_on_the_apps_block_boundaries(form):
     (spec.SLOT_PREVIOUS, True),
 ])
 def test_each_job_section_is_the_environment_form_in_its_tense(form, slot, past):
-    questions = _questions(form, slot=slot)
+    questions = [q for q in _questions(form, slot=slot) if q.role != "outcome"]
     expected_ids = (
         ["stage_size", "comp", "industry"]
         + [i["item_id"] for i in situation_items.item_list_in_form_order()]
@@ -182,11 +182,31 @@ def test_comp_and_industry_keep_their_not_sure_options_as_null(form):
 
 
 def test_experienced_sits_alone_on_the_last_page_of_every_job_section(form):
+    """`experienced` is still the last REQUIRED question, immediately before the
+    optional outcomes page -- never after it (situation_items module doc)."""
     for slot in spec.SLOTS:
         page = form.page("%s_overall" % slot)
         assert [q.item_id for q in page.questions] == ["experienced"]
         slot_pages = [p.page_id for p in form.pages if p.page_id.startswith(slot + "_")]
-        assert slot_pages[-1] == page.page_id
+        assert slot_pages[-2] == page.page_id
+        assert slot_pages[-1] == "%s_outcomes" % slot
+
+
+def test_the_five_outcome_items_are_optional_and_follow_experienced(form):
+    for slot in spec.SLOTS:
+        page = form.page("%s_outcomes" % slot)
+        assert [q.item_id for q in page.questions] == [
+            i["item_id"] for i in situation_items.OUTCOME_ITEMS
+        ]
+        for q in page.questions:
+            assert q.role == "outcome" and q.required is False
+            item = next(i for i in situation_items.OUTCOME_ITEMS if i["item_id"] == q.item_id)
+            past = slot != spec.SLOT_CURRENT_PRESENT
+            assert q.title == (item["prompt_past"] if past else item["prompt"])
+            assert [c.answer for c in q.choices] == [o["value"] for o in item["options"]]
+            assert [c.text for c in q.choices] == [
+                o["text_past"] if past else o["text"] for o in item["options"]
+            ]
 
 
 def test_alternating_pole_order_reaches_the_form(form):
@@ -222,10 +242,11 @@ def test_gate_and_section_jumps(form):
     assert {c.answer: c.go_to for c in gate.choices} == {"yes": "previous_context",
                                                          "no": "final"}
     ids = [p.page_id for p in form.pages]
-    # Linear order the branching relies on.
-    assert ids.index("current_past_overall") + 1 == ids.index("gate")
-    assert ids.index("previous_overall") + 1 == ids.index("final")
-    assert form.page("current_present_overall").go_to == "gate"
+    # Linear order the branching relies on. The optional outcomes page, not
+    # `_overall`, is now the last page of each job section.
+    assert ids.index("current_past_outcomes") + 1 == ids.index("gate")
+    assert ids.index("previous_outcomes") + 1 == ids.index("final")
+    assert form.page("current_present_outcomes").go_to == "gate"
     assert ids[-1] == "final"
 
 
@@ -248,9 +269,11 @@ def test_script_settings_shuffle_off_and_no_automatic_email_collection():
     assert "UrlFetchApp" not in script
 
 
-def test_the_only_optional_questions_are_the_email_and_the_followup_consent(form):
+def test_the_only_optional_questions_are_outcomes_email_and_followup(form):
     optional = [q.qid for q in form.questions() if not q.required]
-    assert optional == ["email", "followup"]
+    outcome_qids = [q.qid for q in form.questions() if q.role == "outcome"]
+    assert len(outcome_qids) == 5 * len(spec.SLOTS)
+    assert optional == outcome_qids + ["email", "followup"]
     final = form.page("final").questions
     assert [q.qid for q in final] == ["email", "followup"]
     assert final[0].kind == "email"
@@ -290,7 +313,7 @@ def test_mapping_columns_are_unique_and_follow_form_order(form, mapping):
 def test_only_the_two_past_tense_sections_share_titles(mapping):
     repeated = [c for c in mapping["columns"] if c["occurrence"] > 1]
     assert {c["slot"] for c in repeated} == {spec.SLOT_PREVIOUS}
-    assert len(repeated) == 16
+    assert len(repeated) == 16 + 5  # the twelve dims + four context items + five outcomes
 
 
 def test_validate_spec_refuses_duplicate_option_texts(form):
@@ -342,6 +365,88 @@ def test_an_employed_respondent_maps_to_a_current_report_payload(mapping):
     assert (payload["stage_size"], payload["comp"], payload["industry"],
             payload["experienced"]) == (4, 2, "finance", 5)
     assert p.previous is None and p.notes == []
+    assert p.pilot_form_version == spec.PILOT_FORM_VERSION
+    assert p.env_form_version == situation_items.FORM_VERSION
+
+
+def test_outcome_answers_are_optional_and_stored_when_given(mapping):
+    [answered] = _parse(mapping, [sample_csv.respondent(
+        mapping, status="employed", timestamp="t1",
+        outcomes={"satisfaction": 4, "retention_intention": 2})])
+    payload = answered.current.payload()
+    assert payload["satisfaction"] == 4
+    assert payload["retention_intention"] == 2
+    assert "performance" not in payload and "engagement" not in payload
+
+    [skipped] = _parse(mapping, [sample_csv.respondent(
+        mapping, status="employed", timestamp="t2")])
+    payload = skipped.current.payload()
+    for item_id in situation_items.OUTCOME_COLUMNS:
+        assert item_id not in payload
+    assert skipped.notes == []
+
+
+# ---------------------------------------------------------------------------
+# 6b. Accepting a form built before the outcome items existed (Amendment 3)
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def legacy_mapping():
+    [legacy] = responses.load_legacy_mappings()
+    return legacy
+
+
+def test_the_legacy_mapping_still_matches_the_live_banks_on_required_items(mapping, legacy_mapping):
+    """The one check that lets `check_bank_versions` skip legacy CSVs: every column that
+    isn't an outcome item must be byte-identical between the frozen v1 snapshot and a
+    fresh generation, because those are the columns a legacy respondent's answers get
+    scored against today. If this ever fails, the live banks changed a REQUIRED item
+    and pilot-v1-2026-10-01 must stop being accepted."""
+    required = [c for c in mapping["columns"] if c["role"] != "outcome"]
+    legacy_required = [c for c in legacy_mapping["columns"] if c["role"] != "outcome"]
+    assert required == legacy_required
+    assert legacy_mapping["core_form_version"] == mapping["core_form_version"]
+
+
+def test_a_legacy_csv_is_recognised_and_resolves_to_the_old_mapping(legacy_mapping):
+    header = sample_csv.header(legacy_mapping)
+    used_mapping, _columns = responses.resolve_mapping(header, None)
+    assert used_mapping["pilot_form_version"] == legacy_mapping["pilot_form_version"]
+
+
+def test_a_legacy_form_response_imports_with_outcomes_null_and_the_old_version_recorded(
+    legacy_mapping,
+):
+    [p] = responses.parse_csv(sample_csv.to_csv(legacy_mapping, [sample_csv.respondent(
+        legacy_mapping, status="employed", timestamp="t1")]))
+    assert p.skip_reason is None
+    assert p.pilot_form_version == legacy_mapping["pilot_form_version"]
+    assert p.env_form_version == legacy_mapping["env_form_version"]
+    assert p.env_form_version != situation_items.FORM_VERSION
+    assert p.current.outcomes == {}
+    payload = p.current.payload()
+    for item_id in situation_items.OUTCOME_COLUMNS:
+        assert item_id not in payload
+    assert any("pilot_form_version=%s" % legacy_mapping["pilot_form_version"] in n
+               for n in p.notes)
+
+
+def test_a_current_form_response_imports_with_outcomes_stored_and_the_new_version_recorded(
+    mapping,
+):
+    [p] = responses.parse_csv(sample_csv.to_csv(mapping, [sample_csv.respondent(
+        mapping, status="employed", timestamp="t1", outcomes={"satisfaction": 5})]))
+    assert p.skip_reason is None
+    assert p.pilot_form_version == spec.PILOT_FORM_VERSION
+    assert p.env_form_version == situation_items.FORM_VERSION
+    assert p.current.outcomes == {"satisfaction": 5}
+    assert not any("outcome items were not offered" in n for n in p.notes)
+
+
+def test_a_csv_matching_no_known_mapping_is_refused(mapping):
+    text = sample_csv.to_csv(mapping, [])
+    with pytest.raises(responses.MappingMismatch) as exc:
+        responses.parse_csv(text.replace(mapping["columns"][0]["title"], "Something else"))
+    assert "any known pilot form" in str(exc.value)
 
 
 def test_not_sure_maps_to_null_not_to_a_guess(mapping):

@@ -722,3 +722,103 @@ def test_item_spec_conforms_to_what_a3_actually_requires() -> None:
     employed_scores = situation.score_environment(answers, item_spec("employed"))
     between_scores = situation.score_environment(answers, item_spec("between_jobs"))
     assert employed_scores == between_scores
+
+
+# ---------------------------------------------------------------------------
+# The five optional exploratory outcome items (PRODUCT_DECISIONS.md §2, 2026-10-13)
+# ---------------------------------------------------------------------------
+
+from work_pulse.situation_items import (  # noqa: E402
+    EXPECTED_OUTCOME_ITEM_COUNT,
+    OUTCOME_COLUMNS,
+    OUTCOME_ITEMS,
+    outcome_value,
+    render_outcome_items,
+)
+
+
+def test_form_version_is_bumped_for_the_outcome_items() -> None:
+    """A NULL outcome on an env-v3 row means "skipped", on an older row "never
+    asked"; only the version stamp tells them apart. envQuestions.ts must carry the
+    same stamp (tests/test_question_data_parity.py)."""
+    assert FORM_VERSION == "env-v3-2026-10-13"
+
+
+def test_outcome_items_are_the_five_exploratory_outcomes_in_order() -> None:
+    assert [i["item_id"] for i in OUTCOME_ITEMS] == [
+        "satisfaction", "performance", "engagement", "sustainability", "retention_intention",
+    ]
+    assert EXPECTED_OUTCOME_ITEM_COUNT == 5
+
+
+def test_outcome_items_stay_out_of_the_context_items_and_their_columns() -> None:
+    """`experienced` remains the last context item and the boundary after the
+    twelve; the training assembler restates CONTEXT_COLUMNS as confounders plus
+    the primary outcome, which these are not."""
+    assert CONTEXT_ITEMS[-1]["item_id"] == "experienced"
+    outcome_ids = {i["item_id"] for i in OUTCOME_ITEMS}
+    assert not outcome_ids & {i["item_id"] for i in CONTEXT_ITEMS}
+    assert not outcome_ids & set(CONTEXT_COLUMNS)
+
+
+def test_outcome_items_are_one_to_five_with_no_not_sure_option() -> None:
+    """Skipping is the form's job (a null), not an option on the scale."""
+    for item in OUTCOME_ITEMS:
+        assert [o["value"] for o in item["options"]] == [1, 2, 3, 4, 5], item["item_id"]
+
+
+def test_outcome_items_carry_both_tenses_and_are_questions() -> None:
+    for item in OUTCOME_ITEMS:
+        assert item["prompt"].endswith("?") and item["prompt_past"].endswith("?")
+        assert item["prompt"] != item["prompt_past"], item["item_id"]
+        assert "last worked" not in item["prompt_past"], item["item_id"]
+        for option in item["options"]:
+            for field in ALL_TEXT_FIELDS:
+                assert option[field].strip(), f"{item['item_id']}: {field}"
+        for field in ALL_TEXT_FIELDS:
+            texts = [o[field] for o in item["options"]]
+            assert len(texts) == len(set(texts)), f"{item['item_id']}: {field}"
+
+
+def test_item_ids_stay_unique_across_all_three_banks() -> None:
+    ids = [i["item_id"] for i in ENVIRONMENT_ITEMS + CONTEXT_ITEMS + OUTCOME_ITEMS]
+    assert len(ids) == len(set(ids))
+
+
+def test_outcome_items_render_in_one_tense_each() -> None:
+    present = render_outcome_items("employed")
+    past = render_outcome_items("between_jobs")
+
+    assert [i["item_id"] for i in present] == [i["item_id"] for i in past]
+    for rendered, item in zip(present, OUTCOME_ITEMS):
+        assert rendered["prompt"] == item["prompt"]
+        assert "prompt_past" not in rendered
+        assert [set(o) for o in rendered["options"]] == [{"value", "text"}] * 5
+    for rendered, item in zip(past, OUTCOME_ITEMS):
+        assert rendered["prompt"] == item["prompt_past"]
+    assert render_outcome_items("first_job") == past
+
+
+@pytest.mark.parametrize("item_id", ["satisfaction", "performance", "engagement",
+                                     "sustainability", "retention_intention"])
+def test_outcome_value_accepts_the_scale_and_a_skip(item_id: str) -> None:
+    for value in (1, 2, 3, 4, 5):
+        assert outcome_value(item_id, value) == value
+    assert outcome_value(item_id, None) is None
+
+
+@pytest.mark.parametrize("value", [0, 6, -1])
+def test_outcome_value_rejects_out_of_range(value: int) -> None:
+    with pytest.raises(ValueError, match="no option with value"):
+        outcome_value("satisfaction", value)
+
+
+@pytest.mark.parametrize("value", [True, 3.0, "3"])
+def test_outcome_value_rejects_non_ints(value: object) -> None:
+    with pytest.raises(ValueError, match="must be an int"):
+        outcome_value("engagement", value)  # type: ignore[arg-type]
+
+
+def test_outcome_value_rejects_an_unknown_item() -> None:
+    with pytest.raises(ValueError, match="Unknown outcome item"):
+        outcome_value("experienced", 3)

@@ -724,13 +724,18 @@ def test_report_entries_carry_no_person_score_or_numeric_gap() -> None:
     report = build_situation_report(env, person)
 
     for entry in report:
-        assert set(entry) == {"dimension", "env_score", "bucket", "direction", "rank"}
+        # `must_have` / `within_tolerance` (2026-10-13) are booleans, never a magnitude.
+        assert set(entry) == {
+            "dimension", "env_score", "bucket", "direction", "rank",
+            "must_have", "within_tolerance",
+        }
         for key, value in entry.items():
             assert "gap" not in key.lower()
             assert "person" not in key.lower()
             if key == "direction":
                 assert value in (None, UNDER, OVER)
         assert entry["bucket"] in (ALIGNED, NOTABLE, STRAINING)
+        assert entry["must_have"] is False and entry["within_tolerance"] is False
 
 
 def test_report_is_deterministic() -> None:
@@ -759,3 +764,252 @@ def test_report_missing_environment_dimension_raises() -> None:
 
     with pytest.raises(ValueError, match="decision"):
         build_situation_report(partial_env, _flat_scores())
+
+
+# ---------------------------------------------------------------------------
+# Tolerance and must-haves (PRODUCT_DECISIONS.md §2, "The six-trait match
+# model", 2026-10-13). Gap convention here: gap = env - person, so UNDER
+# (the role gives less than preferred) is gap < 0 and OVER is gap > 0.
+# ---------------------------------------------------------------------------
+
+import itertools  # noqa: E402
+import random  # noqa: E402
+
+from solverah.domain.trait_preferences import (  # noqa: E402
+    TraitPreference,
+    flat_zones,
+    must_have_keys,
+    unanswered_preferences,
+)
+from work_pulse.situation import NOTABLE_WIDTH, within_tolerance  # noqa: E402
+
+
+# -- A verbatim copy of classify_gap / gap_direction / rank_dimensions as they
+# stood before the tolerance change (HEAD 2010721). Frozen on purpose: the
+# bit-identical test below compares the live code against THIS, not itself.
+
+def _frozen_classify_gap(dimension: str, gap: float) -> str:
+    if dimension not in ALIGNED_THRESHOLDS:
+        raise ValueError(f"Unknown dimension {dimension!r}")
+    magnitude = abs(gap)
+    if magnitude < ALIGNED_THRESHOLDS[dimension]:
+        return ALIGNED
+    if magnitude < STRAINING_THRESHOLDS[dimension]:
+        return NOTABLE
+    return STRAINING
+
+
+def _frozen_gap_direction(dimension: str, gap: float):
+    if _frozen_classify_gap(dimension, gap) == ALIGNED:
+        return None
+    return OVER if gap > 0 else UNDER
+
+
+_FROZEN_BUCKET_SEVERITY = {ALIGNED: 0, NOTABLE: 1, STRAINING: 2}
+
+
+def _frozen_rank_dimensions(gaps, weights=None):
+    if weights is None:
+        weights = {dim: {"mag": -1.0, "dir": 0.0} for dim in DIMENSIONS}
+
+    def sort_key(dim):
+        bucket = _frozen_classify_gap(dim, gaps[dim])
+        cost = dimension_cost(dim, gaps[dim], weights[dim])
+        return (-_FROZEN_BUCKET_SEVERITY[bucket], -cost, DIMENSIONS.index(dim))
+
+    return sorted(DIMENSIONS, key=sort_key)
+
+
+#: Every gap the real instrument can produce (env bands are multiples of 0.1, the
+#: person lattice of 0.25), plus a finer sweep and both boundaries' neighbours.
+_GAP_GRID = sorted(
+    {round(env - person, 6) for env in [i / 10 for i in range(1, 10)]
+     for person in (0.0, 0.25, 0.5, 0.75, 1.0)}
+    | {round(i / 100, 6) for i in range(-100, 101)}
+    | {0.149999, 0.15, 0.150001, 0.249999, 0.25, 0.250001,
+       -0.149999, -0.15, -0.150001, -0.249999, -0.25, -0.250001}
+)
+
+_ASYMMETRIC_WEIGHTS = {
+    "autonomy": {"mag": -1.2, "dir": 0.3},
+    "pace": {"mag": -0.8, "dir": -0.5},
+    "collaboration": {"mag": -1.0, "dir": 0.0},
+    "feedback": {"mag": -0.6, "dir": 0.6},
+    "innovation": {"mag": -0.9, "dir": -0.2},
+    "decision": {"mag": -0.4, "dir": -0.4},
+}
+
+
+def _answered(steps: dict, must: tuple = ()):
+    """A real answered sitting (C1's value object), so the zones under test are
+    the ones `flat_zones` actually produces, not hand-built tuples."""
+    return {
+        dim: TraitPreference(
+            dimension_key=dim,
+            under_steps=steps.get(dim, (0, 0))[0],
+            over_steps=steps.get(dim, (0, 0))[1],
+            must_have=dim in must,
+            answered=True,
+        )
+        for dim in DIMENSIONS
+    }
+
+
+def test_unanswered_tolerance_is_bit_identical() -> None:
+    """A user who never answered: `flat_zones` is None, and classify_gap,
+    gap_direction, rank_dimensions and build_situation_report all reproduce the
+    frozen pre-change behaviour exactly, over every gap the instrument can make,
+    on every dimension, under flat and asymmetric weights."""
+    prefs = unanswered_preferences()
+    zones = flat_zones(prefs)
+    must_haves = must_have_keys(prefs)
+    assert zones is None
+    assert must_haves == frozenset()
+
+    for dim in DIMENSIONS:
+        for gap in _GAP_GRID:
+            assert classify_gap(dim, gap, zones) == _frozen_classify_gap(dim, gap), (dim, gap)
+            assert gap_direction(dim, gap, zones) == _frozen_gap_direction(dim, gap), (dim, gap)
+            assert within_tolerance(dim, gap, zones) is False
+
+    rng = random.Random(20261013)
+    bands = [i / 10 for i in range(1, 10)]
+    for _ in range(400):
+        env = {d: rng.choice(bands) for d in DIMENSIONS}
+        person = {d: rng.choice((0.0, 0.25, 0.5, 0.75, 1.0)) for d in DIMENSIONS}
+        gaps = signed_gaps(env, person)
+        for weights in (None, _ASYMMETRIC_WEIGHTS):
+            order = _frozen_rank_dimensions(gaps, weights)
+            assert rank_dimensions(gaps, weights, zones, must_haves) == order
+            report = build_situation_report(env, person, weights, zones, must_haves)
+            frozen = [
+                {
+                    "dimension": d,
+                    "env_score": env[d],
+                    "bucket": _frozen_classify_gap(d, gaps[d]),
+                    "direction": _frozen_gap_direction(d, gaps[d]),
+                    "rank": order.index(d),
+                }
+                for d in DIMENSIONS
+            ]
+            stripped = [
+                {k: v for k, v in row.items() if k not in ("must_have", "within_tolerance")}
+                for row in report
+            ]
+            assert stripped == frozen
+            assert all(r["must_have"] is False and r["within_tolerance"] is False for r in report)
+
+
+def test_zero_step_tolerance_reproduces_todays_thresholds() -> None:
+    """An answered user who allows 0 steps gets the 0.15 floor both ways, and
+    0.15 + NOTABLE_WIDTH = 0.25: the same buckets as today, boundaries included."""
+    zones = flat_zones(_answered({}))
+    for dim in DIMENSIONS:
+        for gap in _GAP_GRID:
+            assert classify_gap(dim, gap, zones) == _frozen_classify_gap(dim, gap), (dim, gap)
+
+
+def test_a_zone_of_one_half_puts_a_gap_of_point_four_in_aligned() -> None:
+    zones = flat_zones(_answered({"pace": (2, 2)}))
+    assert zones["pace"] == (0.5, 0.5)
+
+    for sign in (1, -1):
+        assert classify_gap("pace", sign * 0.4, zones) == ALIGNED
+        assert gap_direction("pace", sign * 0.4, zones) is None
+        assert within_tolerance("pace", sign * 0.4, zones) is True
+        # zone .. zone + 0.10 is notable; beyond is straining.
+        assert classify_gap("pace", sign * 0.5, zones) == NOTABLE
+        assert classify_gap("pace", sign * 0.55, zones) == NOTABLE
+        assert classify_gap("pace", sign * 0.6, zones) == STRAINING
+    # Today's rule would have called 0.4 straining.
+    assert _frozen_classify_gap("pace", 0.4) == STRAINING
+
+
+def test_under_and_over_use_different_zones() -> None:
+    """Two steps of tolerance for LESS autonomy than preferred, none for more."""
+    zones = flat_zones(_answered({"autonomy": (2, 0)}))
+    assert zones["autonomy"] == (0.5, 0.15)
+
+    # gap < 0: the role gives less than preferred -> the under zone (0.5).
+    assert classify_gap("autonomy", -0.4, zones) == ALIGNED
+    assert classify_gap("autonomy", -0.2, zones) == ALIGNED
+    # gap > 0: the role gives more -> the over zone (0.15), today's band.
+    assert classify_gap("autonomy", 0.4, zones) == STRAINING
+    assert classify_gap("autonomy", 0.2, zones) == NOTABLE
+    assert gap_direction("autonomy", 0.2, zones) == OVER
+
+    # And the mirror image on another trait.
+    zones = flat_zones(_answered({"feedback": (0, 1)}))
+    assert zones["feedback"] == (0.15, 0.25)
+    assert classify_gap("feedback", 0.2, zones) == ALIGNED
+    assert classify_gap("feedback", -0.2, zones) == NOTABLE
+    assert classify_gap("feedback", 0.3, zones) == NOTABLE
+    assert classify_gap("feedback", 0.35, zones) == STRAINING
+    assert gap_direction("feedback", -0.2, zones) == UNDER
+
+
+def test_within_tolerance_is_only_what_the_tolerance_did() -> None:
+    zones = flat_zones(_answered({"innovation": (1, 1)}))
+    # Inside the 0.15 floor: aligned anyway, so not the tolerance's doing.
+    assert within_tolerance("innovation", 0.1, zones) is False
+    assert within_tolerance("innovation", 0.0, zones) is False
+    # Past the floor, inside the user's 0.25: the tolerance made it aligned.
+    assert within_tolerance("innovation", 0.2, zones) is True
+    assert within_tolerance("innovation", -0.2, zones) is True
+    # Past the zone: not aligned at all.
+    assert within_tolerance("innovation", 0.3, zones) is False
+
+
+def test_a_must_have_orders_first_within_its_tier_but_never_jumps_one() -> None:
+    # pace and decision both straining; autonomy notable; the rest aligned.
+    env = {**_flat_scores(0.5), "pace": 0.9, "decision": 0.8, "autonomy": 0.7}
+    person = _flat_scores(0.5)
+    gaps = signed_gaps(env, person)
+    prefs = _answered({}, must=("decision", "autonomy"))
+    zones = flat_zones(prefs)
+    must = must_have_keys(prefs)
+
+    without = rank_dimensions(gaps, None, zones)
+    with_must = rank_dimensions(gaps, None, zones, must)
+
+    assert without[:3] == ["pace", "decision", "autonomy"]  # widest gap first
+    # decision is a must-have: first among the two straining rows ...
+    assert with_must[:2] == ["decision", "pace"]
+    # ... and autonomy, also a must-have, stays below both: notable never
+    # outranks straining, must-have or not.
+    assert with_must[2] == "autonomy"
+
+    report = build_situation_report(env, person, None, zones, must)
+    by_dim = {r["dimension"]: r for r in report}
+    assert by_dim["decision"]["rank"] == 0 and by_dim["decision"]["must_have"] is True
+    assert by_dim["pace"]["must_have"] is False
+
+
+def test_must_have_ordering_also_holds_among_aligned_rows() -> None:
+    gaps = {d: 0.0 for d in DIMENSIONS}
+    order = rank_dimensions(gaps, None, None, frozenset({"innovation"}))
+    assert order[0] == "innovation"
+    assert order[1:] == [d for d in DIMENSIONS if d != "innovation"]
+
+
+def test_must_haves_naming_an_unknown_dimension_raise() -> None:
+    with pytest.raises(ValueError, match="must_haves"):
+        rank_dimensions({d: 0.0 for d in DIMENSIONS}, None, None, frozenset({"salary"}))
+
+
+def test_zones_missing_a_dimension_raise() -> None:
+    zones = {d: (0.15, 0.15) for d in DIMENSIONS if d != "pace"}
+    with pytest.raises(ValueError, match="pace"):
+        classify_gap("pace", 0.3, zones)
+
+
+def test_tolerance_never_moves_the_bucket_boundary_below_todays_floor() -> None:
+    """Every answerable tolerance gives a zone of at least 0.15, so a gap that is
+    aligned today stays aligned for every answered user."""
+    for under, over in itertools.product((0, 1, 2), repeat=2):
+        zones = flat_zones(_answered({d: (under, over) for d in DIMENSIONS}))
+        for dim in DIMENSIONS:
+            for gap in _GAP_GRID:
+                if _frozen_classify_gap(dim, gap) == ALIGNED:
+                    assert classify_gap(dim, gap, zones) == ALIGNED, (under, over, dim, gap)
+    assert NOTABLE_WIDTH == pytest.approx(0.10)

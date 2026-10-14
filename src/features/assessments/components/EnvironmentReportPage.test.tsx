@@ -12,8 +12,10 @@
  * FORM ORDER IS ASSERTED, not assumed. `experienced` last, and `comp` and
  * `industry` at positions two and three, are anti-halo decisions in
  * `work_pulse/situation_items.py`, and a reorder that "tidied" the form would
- * silently change what the instrument measures. The test walks all sixteen
- * steps and checks the ends.
+ * silently change what the instrument measures. The test walks all twenty-one
+ * steps and checks the ends: `experienced` straight after the twelve, then the
+ * five optional outcome steps (PRODUCT_DECISIONS §2, 2026-10-13), which can be
+ * skipped.
  */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -25,9 +27,13 @@ import { ApiError } from "../../../shared/api/apiError";
 import {
   COMP_ITEM,
   ENV_FORM_STEPS,
+  ENV_FORM_VERSION,
   ENV_ITEMS,
+  ENV_OUTCOME_ITEMS,
   EXPERIENCED_ITEM,
   INDUSTRY_ITEM,
+  RETENTION_INTENTION_ITEM,
+  SATISFACTION_ITEM,
   STAGE_SIZE_ITEM,
 } from "../data/envQuestions";
 
@@ -71,7 +77,7 @@ function serve({ careerStatus = "employed", report = NEEDS_ENV, submit }: ServeO
             industry: null,
             experienced: 3,
             career_status: careerStatus,
-            version: "env-v2-2026-10-01",
+            version: ENV_FORM_VERSION,
             subject: init?.body ? JSON.parse(init.body).subject ?? "current" : "current",
           });
     }
@@ -102,17 +108,56 @@ async function start(past = false) {
   fireEvent.click(screen.getByRole("button", { name: "Start" }));
 }
 
-/** Answer every step, choosing option `pick(stepIndex)`, and press Finish. */
-async function answerAll(pick: (i: number) => number = () => 0) {
+/** Answer every step, choosing option `pick(stepIndex)`, and press Finish.
+ *  `pick` returning null skips that step (optional outcome steps only). */
+async function answerAll(pick: (i: number) => number | null = () => 0) {
   const total = ENV_FORM_STEPS.length;
   for (let i = 0; i < total; i += 1) {
     await screen.findByText(`Question ${i + 1} of ${total}`);
-    const advance = screen.getByRole("button", { name: i === total - 1 ? "Finish" : "Next" });
+    const last = i === total - 1;
+    const optional = ENV_FORM_STEPS[i].kind === "outcome";
+    const choice = pick(i);
+    const advance = screen.getByRole("button", { name: last ? "Finish" : "Next" });
+    // Next / Finish are disabled until answered on every step, optional or not;
+    // an optional step adds a separate Skip.
     expect(advance).toBeDisabled();
-    fireEvent.click(screen.getAllByRole("radio")[pick(i)]);
+    const skip = screen.queryByRole("button", { name: "Skip" });
+    if (optional) expect(skip).toBeEnabled();
+    else expect(skip).toBeNull();
+    if (choice === null) {
+      fireEvent.click(skip!);
+      continue;
+    }
+    fireEvent.click(screen.getAllByRole("radio")[choice]);
     await waitFor(() => expect(advance).toBeEnabled());
     fireEvent.click(advance);
   }
+}
+
+/** The body the page sent to `POST /me/environment-report`. */
+async function submittedBody() {
+  await waitFor(() =>
+    expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+      "/me/environment-report",
+      expect.objectContaining({ method: "POST" }),
+    ),
+  );
+  const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+  return JSON.parse(call![1].body as string);
+}
+
+/** Index of the first optional outcome step. */
+const FIRST_OUTCOME = ENV_FORM_STEPS.findIndex((st) => st.kind === "outcome");
+
+/** Answer every required step with its first option, stopping on the first outcome step. */
+async function answerUpToTheOutcomes() {
+  const total = ENV_FORM_STEPS.length;
+  for (let i = 0; i < FIRST_OUTCOME; i += 1) {
+    await screen.findByText(`Question ${i + 1} of ${total}`);
+    fireEvent.click(screen.getAllByRole("radio")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  }
+  await screen.findByText(`Question ${FIRST_OUTCOME + 1} of ${total}`);
 }
 
 describe("EnvironmentReportPage", () => {
@@ -170,20 +215,99 @@ describe("EnvironmentReportPage", () => {
     expect(await screen.findByText(ENV_ITEMS[0].prompt)).toBeInTheDocument();
   });
 
-  it("asks the one evaluative item last", async () => {
+  it("asks the evaluative item straight after the twelve, then the optional outcomes", async () => {
     serve();
     renderPage();
     await start();
 
     const total = ENV_FORM_STEPS.length;
-    for (let i = 0; i < total - 1; i += 1) {
+    expect(total).toBe(21);
+    // stage_size, comp, industry, the twelve -- then experienced, nothing between.
+    expect(FIRST_OUTCOME).toBe(3 + ENV_ITEMS.length + 1);
+    for (let i = 0; i < FIRST_OUTCOME - 1; i += 1) {
       await screen.findByText(`Question ${i + 1} of ${total}`);
       fireEvent.click(screen.getAllByRole("radio")[0]);
       fireEvent.click(screen.getByRole("button", { name: "Next" }));
     }
 
     expect(await screen.findByText(EXPERIENCED_ITEM.prompt)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Finish" })).toBeInTheDocument();
+    // experienced is required, like every step before it: no Skip.
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
+    fireEvent.click(screen.getAllByRole("radio")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText(SATISFACTION_ITEM.prompt)).toBeInTheDocument();
+    expect(screen.getByText(/Optional\. Skip any of these/)).toBeInTheDocument();
+    for (let i = FIRST_OUTCOME; i < total - 1; i += 1) {
+      await screen.findByText(`Question ${i + 1} of ${total}`);
+      fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    }
+    expect(await screen.findByText(RETENTION_INTENTION_ITEM.prompt)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Skip" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Finish" })).toBeDisabled();
+  });
+
+  it("renders the outcome questions in the past tense for a user between jobs", async () => {
+    serve({ careerStatus: "between_jobs" });
+    renderPage();
+    await start(true);
+    await answerUpToTheOutcomes();
+
+    expect(screen.getByText(SATISFACTION_ITEM.promptPast)).toBeInTheDocument();
+    expect(screen.queryByText(SATISFACTION_ITEM.prompt)).not.toBeInTheDocument();
+  });
+
+  it("renders the outcome questions in the past tense on the past-job form", async () => {
+    serve({
+      report: {
+        state: "complete",
+        manager: { has_profile: false },
+        past_job_report_filed: false,
+        career_status: "employed",
+        needs_forward: false,
+        dimensions: [],
+        guidance_notice: "",
+        events_since_report: [],
+      },
+    });
+    renderPage("past");
+    fireEvent.click(await screen.findByRole("button", { name: "Start" }));
+    await answerUpToTheOutcomes();
+
+    expect(screen.getByText(SATISFACTION_ITEM.promptPast)).toBeInTheDocument();
+    expect(screen.queryByText(SATISFACTION_ITEM.prompt)).not.toBeInTheDocument();
+  });
+
+  it("sends a skipped outcome as null and an answered one as its raw value", async () => {
+    serve();
+    renderPage();
+    await start();
+    // Skip satisfaction and retention_intention; answer the middle three with option 3 (value 4).
+    await answerAll((i) => {
+      if (i === FIRST_OUTCOME || i === ENV_FORM_STEPS.length - 1) return null;
+      return i > FIRST_OUTCOME ? 3 : 0;
+    });
+
+    const body = await submittedBody();
+    expect(body).toHaveProperty("satisfaction", null);
+    expect(body.performance).toBe(4);
+    expect(body.engagement).toBe(4);
+    expect(body.sustainability).toBe(4);
+    expect(body).toHaveProperty("retention_intention", null);
+  });
+
+  it("remembers a skip, so a resumed draft moves past it", async () => {
+    serve();
+    renderPage();
+    await start();
+    await answerUpToTheOutcomes();
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    await screen.findByText(`Question ${FIRST_OUTCOME + 2} of ${ENV_FORM_STEPS.length}`);
+
+    const draft = JSON.parse(sessionStorage.getItem("env_report_answers")!);
+    expect(draft.context).toHaveProperty("satisfaction", null);
   });
 
   it("offers comp's 'not sure' option", async () => {
@@ -249,21 +373,14 @@ describe("EnvironmentReportPage", () => {
     expect(screen.getAllByRole("radio")[0]).toHaveAttribute("aria-checked", "true");
   });
 
-  it("submits the twelve item keys and the four raw context values", async () => {
+  it("submits the twelve item keys, the four raw context values and the five outcomes", async () => {
     serve();
     renderPage();
     await start();
     await answerAll(() => 0);
 
-    await waitFor(() =>
-      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
-        "/me/environment-report",
-        expect.objectContaining({ method: "POST" }),
-      ),
-    );
-
-    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
-    const body = JSON.parse(call![1].body as string);
+    const body = await submittedBody();
+    ENV_OUTCOME_ITEMS.forEach((item) => expect(body[item.itemId]).toBe(item.options[0].value));
 
     expect(Object.keys(body.answers).sort()).toEqual(ENV_ITEMS.map((i) => i.itemId).sort());
     // Option KEYS, never poles or scores -- the client does not know the mapping.

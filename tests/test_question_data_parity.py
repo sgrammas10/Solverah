@@ -38,11 +38,18 @@ from manager_match.manager_profile import EXPECTED_ANSWER_COUNT, MANAGER_PROFILE
 from manager_match.questions import QUESTIONS as MANAGER_MATCH_QUESTIONS
 from work_pulse.situation_items import (
     COMP_ITEM,
+    ENGAGEMENT_ITEM,
     EXPECTED_DIMENSION_ITEM_COUNT,
+    EXPECTED_OUTCOME_ITEM_COUNT,
     EXPERIENCED_ITEM,
     INDUSTRY_ITEM,
     OPTION_KEYS,
+    OUTCOME_ITEMS,
+    PERFORMANCE_ITEM,
+    RETENTION_INTENTION_ITEM,
+    SATISFACTION_ITEM,
     STAGE_SIZE_ITEM,
+    SUSTAINABILITY_ITEM,
     item_list_in_form_order,
 )
 
@@ -125,15 +132,34 @@ def test_env_dimension_items_match_situation_items_py():
         assert ts_texts_past == [o["text_past"] for o in py_item["options"]], py_item["item_id"]
 
 
+#: (python item, TS start marker, TS end marker) for every non-dimension item, in
+#: file order: the four context items, then the five optional outcome items
+#: (PRODUCT_DECISIONS.md §2, 2026-10-13).
+_ENV_SINGLE_ITEM_SECTIONS = [
+    (STAGE_SIZE_ITEM, "export const STAGE_SIZE_ITEM", "export const COMP_ITEM"),
+    (COMP_ITEM, "export const COMP_ITEM", "export const INDUSTRY_ITEM"),
+    (INDUSTRY_ITEM, "export const INDUSTRY_ITEM", "export const EXPERIENCED_ITEM"),
+    (EXPERIENCED_ITEM, "export const EXPERIENCED_ITEM", "export const SATISFACTION_ITEM"),
+    (SATISFACTION_ITEM, "export const SATISFACTION_ITEM", "export const PERFORMANCE_ITEM"),
+    (PERFORMANCE_ITEM, "export const PERFORMANCE_ITEM", "export const ENGAGEMENT_ITEM"),
+    (ENGAGEMENT_ITEM, "export const ENGAGEMENT_ITEM", "export const SUSTAINABILITY_ITEM"),
+    (SUSTAINABILITY_ITEM, "export const SUSTAINABILITY_ITEM", "export const RETENTION_INTENTION_ITEM"),
+    (RETENTION_INTENTION_ITEM, "export const RETENTION_INTENTION_ITEM", "export const ENV_OUTCOME_ITEMS"),
+]
+
+
+def test_every_outcome_item_has_a_parity_section():
+    """A sixth outcome item added to the Python bank must fail here rather than
+    go unchecked by the section list above."""
+    covered = [py["item_id"] for py, _, _ in _ENV_SINGLE_ITEM_SECTIONS[4:]]
+    assert len(OUTCOME_ITEMS) == EXPECTED_OUTCOME_ITEM_COUNT == 5
+    assert covered == [i["item_id"] for i in OUTCOME_ITEMS]
+
+
 def test_env_context_items_match_situation_items_py():
     text = _read(ENV_TS)
 
-    for py_item, start_marker, end_marker in [
-        (STAGE_SIZE_ITEM, "export const STAGE_SIZE_ITEM", "export const COMP_ITEM"),
-        (COMP_ITEM, "export const COMP_ITEM", "export const INDUSTRY_ITEM"),
-        (INDUSTRY_ITEM, "export const INDUSTRY_ITEM", "export const EXPERIENCED_ITEM"),
-        (EXPERIENCED_ITEM, "export const EXPERIENCED_ITEM", "export type EnvStep"),
-    ]:
+    for py_item, start_marker, end_marker in _ENV_SINGLE_ITEM_SECTIONS:
         block = _section(text, start_marker, end_marker)
 
         item_ids = _field(r'\bitemId:\s*"([^"]*)"', block)
@@ -163,20 +189,31 @@ def test_env_context_items_match_situation_items_py():
 
 def test_env_form_steps_order_and_version_match_situation_items_py():
     """The form order is load-bearing (context facts first, `experienced`
-    last), and the TS stamps the same FORM_VERSION the server writes."""
+    straight after the twelve, the optional outcome items after it), and the TS
+    stamps the same FORM_VERSION the server writes."""
     from work_pulse.situation_items import CONTEXT_ITEMS, FORM_VERSION
 
     text = _read(ENV_TS)
     steps = _section(text, "export const ENV_FORM_STEPS: EnvStep[] = [", "\n];")
-    names = re.findall(r'\{ kind: "context", item: (\w+) \}|(\.\.\.ENV_ITEMS)', steps)
-    order = [a or b for a, b in names]
+    names = re.findall(
+        r'\{ kind: "(context|outcome)", item: (\w+) \}|(\.\.\.ENV_ITEMS)', steps
+    )
+    order = [(kind, name or spread) for kind, name, spread in names]
     ts_ids = {
         "STAGE_SIZE_ITEM": "stage_size", "COMP_ITEM": "comp",
         "INDUSTRY_ITEM": "industry", "EXPERIENCED_ITEM": "experienced",
+        "SATISFACTION_ITEM": "satisfaction", "PERFORMANCE_ITEM": "performance",
+        "ENGAGEMENT_ITEM": "engagement", "SUSTAINABILITY_ITEM": "sustainability",
+        "RETENTION_INTENTION_ITEM": "retention_intention",
         "...ENV_ITEMS": "<twelve>",
     }
     py_ids = [i["item_id"] for i in CONTEXT_ITEMS]
-    assert [ts_ids[n] for n in order] == py_ids[:-1] + ["<twelve>", py_ids[-1]]
+    outcome_ids = [i["item_id"] for i in OUTCOME_ITEMS]
+    assert [ts_ids[n] for _, n in order] == (
+        py_ids[:-1] + ["<twelve>", py_ids[-1]] + outcome_ids
+    )
+    # Only the five outcome items are rendered as optional steps.
+    assert [ts_ids[n] for kind, n in order if kind == "outcome"] == outcome_ids
 
     assert re.search(r'ENV_FORM_VERSION = "([^"]*)"', text).group(1) == FORM_VERSION
 

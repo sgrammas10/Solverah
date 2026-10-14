@@ -44,6 +44,14 @@ user chose it, and Recalibrate is its exit.
 `causal_graph/v1_model/assemble_training_data.py` restates the rule in SQL, guarded
 by a tripwire test that compares it with `_pinned_submission_id`.
 
+TOLERANCE AND MUST-HAVES (PRODUCT_DECISIONS.md §2, "The six-trait match model")
+--------------------------------------------------------------------------------
+The `complete` read also fetches the user's per-trait tolerance and must-have flags
+(`assessment_store.get_trait_preferences`, the D-01 doorway) and hands the flat
+zones to `work_pulse.situation`. Unlike the person-side scores these are NOT
+pinned: they are the user's own statement of what is fine, read from the latest
+sitting. A user who never answered gets `zones=None` and today's report.
+
 PAST-JOB REPORTS (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01)
 -----------------------------------------------------------------
 `POST /me/environment-report` with `subject: "past"` files a report about the one
@@ -277,6 +285,12 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
         # explicit null both mean "not sure / prefer not to say".
         industry = situation_items.context_level("industry", payload.get("industry"))
         experienced = situation_items.context_value("experienced", payload.get("experienced"))
+        # The five exploratory outcomes (PRODUCT_DECISIONS.md §2, 2026-10-13): each
+        # optional, so an absent key and an explicit null both store NULL.
+        outcome_answers = {
+            item_id: situation_items.outcome_value(item_id, payload.get(item_id))
+            for item_id in situation_items.OUTCOME_COLUMNS
+        }
     except ValueError as exc:
         return _error(400, str(exc))
 
@@ -302,6 +316,10 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
         version=situation_items.FORM_VERSION,
         employer_name_normalized=employer_name_normalized,
         subject=subject,
+        outcomes={
+            situation_items.OUTCOME_COLUMNS[item_id]: value
+            for item_id, value in outcome_answers.items()
+        },
     )
     db.session.commit()
 
@@ -316,6 +334,7 @@ def submit_environment_report(user: User, payload: Any) -> SituationReportResult
             "career_status": career_status,
             "version": situation_items.FORM_VERSION,
             "subject": subject,
+            **outcome_answers,
         },
     )
 
@@ -518,7 +537,11 @@ def get_situation_report(user: User) -> SituationReportResult:
     Every state also carries `past_job_report_filed`. Nothing else here reads a
     past-job report: the latest-report read is current-only by construction.
 
-    `complete` also carries `career_status_changed` (see `_career_status_changed`).
+    `complete` also carries `career_status_changed` (see `_career_status_changed`)
+    and `tolerance_applied` (whether the user's stated tolerance set the buckets),
+    and each of its dimensions carries `must_have` and `within_tolerance`
+    (`work_pulse.situation.within_tolerance`). All three are False for a user who
+    never answered the tolerance step, whose report is otherwise unchanged.
     `needs_core` carries `core_unreadable: true` when a current-instrument sitting
     exists but the pinned one has no readable scores -- a graceful state, never a 500.
     """
@@ -535,6 +558,7 @@ def _situation_report(user: User) -> SituationReportResult:
     """`get_situation_report` minus the past-report flag."""
     import assessment_store
     import environment_report_store
+    from solverah.domain import trait_preferences
     from work_pulse import situation, situation_content, situation_items
 
     # No state of this page shows the raw answers, so their JSONB stays in the database.
@@ -569,9 +593,21 @@ def _situation_report(user: User) -> SituationReportResult:
         body["core_unreadable"] = True
         return SituationReportResult(status=200, body=body)
 
+    # The user's stated tolerance and must-haves, read through the D-01 doorway
+    # (PRODUCT_DECISIONS.md §2, "The six-trait match model"). Latest sitting, not
+    # pinned: it is the user's own statement of what is fine, not a measurement.
+    # Never answered -> zones None, no must-haves -> today's report exactly.
+    trait_prefs = assessment_store.get_trait_preferences(db, user.id)
+    zones = trait_preferences.flat_zones(trait_prefs)
+    must_haves = trait_preferences.must_have_keys(trait_prefs)
+
     env_scores = env["dimension_scores"]
     report_rows = situation.build_situation_report(
-        env_scores, person_scores, weights=_dimension_weights()
+        env_scores,
+        person_scores,
+        weights=_dimension_weights(),
+        zones=zones,
+        must_haves=must_haves,
     )
     # `build_situation_report` is order-stable by contract and returns fixed
     # DIMENSIONS order; `rank` is the ranking. Both frontends render the list in
@@ -600,6 +636,8 @@ def _situation_report(user: User) -> SituationReportResult:
                     "bucket": bucket,
                     "direction": None,
                     "rank": row["rank"],
+                    "must_have": row["must_have"],
+                    "within_tolerance": row["within_tolerance"],
                     "aligned_note": situation_content.aligned_note_for(dim, row["env_score"]),
                 }
             )
@@ -615,6 +653,8 @@ def _situation_report(user: User) -> SituationReportResult:
                 "bucket": bucket,
                 "direction": row["direction"],
                 "rank": row["rank"],
+                "must_have": row["must_have"],
+                "within_tolerance": row["within_tolerance"],
                 **sliced,
             }
         )
@@ -630,6 +670,7 @@ def _situation_report(user: User) -> SituationReportResult:
             "manager": manager,
             "events_since_report": _events_since_report(user.id, env["submitted_at"]),
             "career_status_changed": _career_status_changed(user.id, career_status_snapshot),
+            "tolerance_applied": zones is not None,
         },
     )
 

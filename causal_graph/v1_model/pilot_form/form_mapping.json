@@ -1,8 +1,8 @@
 {
   "_generated_by": "causal_graph/v1_model/pilot_form/generate_form_script.py -- do not edit",
-  "pilot_form_version": "pilot-v1-2026-10-01",
+  "pilot_form_version": "pilot-v2-2026-10-13",
   "core_form_version": "v2-2026-08-18",
-  "env_form_version": "env-v2-2026-10-01",
+  "env_form_version": "env-v3-2026-10-13",
   "core_item_order": [
     "de2v2",
     "co1v2",
@@ -1015,6 +1015,161 @@
       ]
     },
     {
+      "qid": "outcome:current_present:satisfaction",
+      "title": "All things considered, how satisfied are you with this job?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "satisfaction",
+      "slot": "current_present",
+      "required": false,
+      "answers": [
+        [
+          "Not at all satisfied.",
+          1
+        ],
+        [
+          "Not very satisfied.",
+          2
+        ],
+        [
+          "Somewhat satisfied.",
+          3
+        ],
+        [
+          "Satisfied.",
+          4
+        ],
+        [
+          "Very satisfied.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_present:performance",
+      "title": "How well do you think you\u2019re performing in this role?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "performance",
+      "slot": "current_present",
+      "required": false,
+      "answers": [
+        [
+          "Not well at all.",
+          1
+        ],
+        [
+          "Not very well.",
+          2
+        ],
+        [
+          "Reasonably well.",
+          3
+        ],
+        [
+          "Well.",
+          4
+        ],
+        [
+          "Very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_present:engagement",
+      "title": "How energised are you by the work itself?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "engagement",
+      "slot": "current_present",
+      "required": false,
+      "answers": [
+        [
+          "Not at all.",
+          1
+        ],
+        [
+          "A little.",
+          2
+        ],
+        [
+          "Somewhat.",
+          3
+        ],
+        [
+          "Quite a lot.",
+          4
+        ],
+        [
+          "A great deal.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_present:sustainability",
+      "title": "Could you keep working the way you do now for another year?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "sustainability",
+      "slot": "current_present",
+      "required": false,
+      "answers": [
+        [
+          "No, not for a year.",
+          1
+        ],
+        [
+          "Probably not.",
+          2
+        ],
+        [
+          "Only just.",
+          3
+        ],
+        [
+          "Probably, yes.",
+          4
+        ],
+        [
+          "Yes, comfortably.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_present:retention_intention",
+      "title": "How likely is it that you\u2019ll still be in this role a year from now?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "retention_intention",
+      "slot": "current_present",
+      "required": false,
+      "answers": [
+        [
+          "Very unlikely.",
+          1
+        ],
+        [
+          "Unlikely.",
+          2
+        ],
+        [
+          "About even.",
+          3
+        ],
+        [
+          "Likely.",
+          4
+        ],
+        [
+          "Very likely.",
+          5
+        ]
+      ]
+    },
+    {
       "qid": "context:current_past:stage_size",
       "title": "How big was the organization you worked for in that role \u2014 the whole organization, not your team?",
       "occurrence": 1,
@@ -1514,6 +1669,161 @@
         ],
         [
           "It was working very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_past:satisfaction",
+      "title": "All things considered, how satisfied were you with that job?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "satisfaction",
+      "slot": "current_past",
+      "required": false,
+      "answers": [
+        [
+          "Not at all satisfied.",
+          1
+        ],
+        [
+          "Not very satisfied.",
+          2
+        ],
+        [
+          "Somewhat satisfied.",
+          3
+        ],
+        [
+          "Satisfied.",
+          4
+        ],
+        [
+          "Very satisfied.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_past:performance",
+      "title": "How well do you think you were performing in that role?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "performance",
+      "slot": "current_past",
+      "required": false,
+      "answers": [
+        [
+          "Not well at all.",
+          1
+        ],
+        [
+          "Not very well.",
+          2
+        ],
+        [
+          "Reasonably well.",
+          3
+        ],
+        [
+          "Well.",
+          4
+        ],
+        [
+          "Very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_past:engagement",
+      "title": "How energised were you by the work itself?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "engagement",
+      "slot": "current_past",
+      "required": false,
+      "answers": [
+        [
+          "Not at all.",
+          1
+        ],
+        [
+          "A little.",
+          2
+        ],
+        [
+          "Somewhat.",
+          3
+        ],
+        [
+          "Quite a lot.",
+          4
+        ],
+        [
+          "A great deal.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_past:sustainability",
+      "title": "Could you have kept working the way you did then for another year?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "sustainability",
+      "slot": "current_past",
+      "required": false,
+      "answers": [
+        [
+          "No, not for a year.",
+          1
+        ],
+        [
+          "Probably not.",
+          2
+        ],
+        [
+          "Only just.",
+          3
+        ],
+        [
+          "Probably, yes.",
+          4
+        ],
+        [
+          "Yes, comfortably.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:current_past:retention_intention",
+      "title": "Back then, how likely did it seem that you\u2019d still be in that role a year later?",
+      "occurrence": 1,
+      "role": "outcome",
+      "item_id": "retention_intention",
+      "slot": "current_past",
+      "required": false,
+      "answers": [
+        [
+          "Very unlikely.",
+          1
+        ],
+        [
+          "Unlikely.",
+          2
+        ],
+        [
+          "About even.",
+          3
+        ],
+        [
+          "Likely.",
+          4
+        ],
+        [
+          "Very likely.",
           5
         ]
       ]
@@ -2037,6 +2347,161 @@
         ],
         [
           "It was working very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:previous:satisfaction",
+      "title": "All things considered, how satisfied were you with that job?",
+      "occurrence": 2,
+      "role": "outcome",
+      "item_id": "satisfaction",
+      "slot": "previous",
+      "required": false,
+      "answers": [
+        [
+          "Not at all satisfied.",
+          1
+        ],
+        [
+          "Not very satisfied.",
+          2
+        ],
+        [
+          "Somewhat satisfied.",
+          3
+        ],
+        [
+          "Satisfied.",
+          4
+        ],
+        [
+          "Very satisfied.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:previous:performance",
+      "title": "How well do you think you were performing in that role?",
+      "occurrence": 2,
+      "role": "outcome",
+      "item_id": "performance",
+      "slot": "previous",
+      "required": false,
+      "answers": [
+        [
+          "Not well at all.",
+          1
+        ],
+        [
+          "Not very well.",
+          2
+        ],
+        [
+          "Reasonably well.",
+          3
+        ],
+        [
+          "Well.",
+          4
+        ],
+        [
+          "Very well.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:previous:engagement",
+      "title": "How energised were you by the work itself?",
+      "occurrence": 2,
+      "role": "outcome",
+      "item_id": "engagement",
+      "slot": "previous",
+      "required": false,
+      "answers": [
+        [
+          "Not at all.",
+          1
+        ],
+        [
+          "A little.",
+          2
+        ],
+        [
+          "Somewhat.",
+          3
+        ],
+        [
+          "Quite a lot.",
+          4
+        ],
+        [
+          "A great deal.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:previous:sustainability",
+      "title": "Could you have kept working the way you did then for another year?",
+      "occurrence": 2,
+      "role": "outcome",
+      "item_id": "sustainability",
+      "slot": "previous",
+      "required": false,
+      "answers": [
+        [
+          "No, not for a year.",
+          1
+        ],
+        [
+          "Probably not.",
+          2
+        ],
+        [
+          "Only just.",
+          3
+        ],
+        [
+          "Probably, yes.",
+          4
+        ],
+        [
+          "Yes, comfortably.",
+          5
+        ]
+      ]
+    },
+    {
+      "qid": "outcome:previous:retention_intention",
+      "title": "Back then, how likely did it seem that you\u2019d still be in that role a year later?",
+      "occurrence": 2,
+      "role": "outcome",
+      "item_id": "retention_intention",
+      "slot": "previous",
+      "required": false,
+      "answers": [
+        [
+          "Very unlikely.",
+          1
+        ],
+        [
+          "Unlikely.",
+          2
+        ],
+        [
+          "About even.",
+          3
+        ],
+        [
+          "Likely.",
+          4
+        ],
+        [
+          "Very likely.",
           5
         ]
       ]
