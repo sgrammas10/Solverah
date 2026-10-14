@@ -14,7 +14,7 @@ do not edit it here).
 An open question recorded here is not a soft decision; it is a question. Do not
 build against one without asking.
 
-Last updated 2026-09-10.
+Last updated 2026-10-13.
 
 ---
 
@@ -81,8 +81,113 @@ The copy promising "a personalized narrative, your work archetype" was removed
 from the Intelligence page on 2026-09-08 for that reason. Anything that
 re-introduces such a promise is a bug until an instrument produces one.
 
+### The six-trait match model: scope, inputs, evidence, penalties (CompanyLens build)
+Sebastian, 2026-10-13, in answer to Julie's *Product & Match Model Alignment*
+brief (October 2026, working draft; shared in chat as a PDF, not in the repo)
+and the orchestrator's follow-up questions. **Build all of it now**; it is not
+staged behind launch.
+
+**Scope and output.**
+- The six traits (autonomy, pace, collaboration, feedback, innovation, decision)
+  are **one signal layer** inside the wider system (Reflection Engine,
+  Understanding, Guidance), not the full matching intelligence. Shown as their
+  own section, never blended into one number with other layers.
+- The engine is the **causal Bayesian model** (`match_scoring.py` →
+  `causal_graph/v1_model/`). Tolerance changes the gap it reads; must-have,
+  unknown and mixed rules are a gate layer on top of it. The interim
+  `culture_fit_score` is retired by this build, per "two scorers" below.
+- **No probability reaches a user** until real outcome data has trained the
+  model. Users see per-trait reads, coverage and flags.
+- Everything company-side surfaces in **CompanyLens**. This supersedes "CompanyLens
+  is blocked on the causal model" below: the pipeline that feeds the model and
+  CompanyLens is now in scope.
+
+**Outcome ("doing well").** The primary outcome stays as pre-registered: the
+1–5 `experienced` rating, "doing well" = 4 or 5 (ruling 2026-09-17). Further
+outcomes (satisfaction, performance, engagement, sustainability, retention —
+each defined on a 0–1 scale) are added as **exploratory**, via a new amendment
+to `Solverah_IP/PREREGISTRATION_2026-10-01_FIRST_OUTCOME_FIT.md`.
+
+**Person side.**
+- The 24 core items are the user's **current stated preferences**, not "the
+  person's trait".
+- Per trait, one asymmetric **tolerance** range (how much more is fine, how much
+  less is fine), in steps of the person lattice (0, 1 or 2), plus a **must-have**
+  flag, max 2 per user. Asked as a short separate step after core; core itself
+  (the D-01 path) is not changed. Users who have not answered get no must-haves
+  and a 1-step tolerance.
+- The flat zone is the larger of the user's tolerance and the existing 0.15
+  `aligned` band (the measurement-noise floor). Inside it: no penalty. Outside:
+  growing penalty. A must-have broken on a **known** trait: the company is
+  flagged and sorted last, never hidden.
+- The same tolerance applies to the **Situation Report**: a gap inside it is
+  aligned there too.
+- Retakeable at any time; no forced cadence. Situational and lasting-vs-current
+  questions belong to the Reflection Engine, not this layer.
+
+**Company side: scope.**
+- Every piece of evidence carries a scope: company, division/location, or role.
+- A **job posting the user pastes** is a role-level source scored against the
+  same rubric. No fetching or scraping. Posting vs company disagreement is shown
+  to the user.
+- Confidence scales with company size (fixed size buckets, provisional
+  discount).
+- Manager/team uncertainty becomes guidance: for the user's must-have traits,
+  an authored interview-question bank (trait × status × direction; best-guess
+  drafts, Julie revises). Teams are not modelled. Manager Match stays separate.
+
+**Company side: each trait is a record, not a number.** `estimate` (0–1, only
+with enough evidence), `confidence`, `status` (known / mixed / unknown),
+`scope`, and evidence (count, dates, **paraphrased** excerpts — no verbatim
+third-party quotes).
+- **unknown**: no gap, no penalty, left out of the match and flagged; on a
+  must-have it becomes an Investigate step.
+- **mixed**: never averaged. First check whether scope or time (review date,
+  last 24 months vs older) explains the split; then score both ends; a worst
+  case that breaks a must-have is a risk flag (not a disqualification). The
+  user is told the evidence disagrees, with paraphrased evidence from both sides.
+- **known**: scored normally.
+- The scorer scores each evidence item separately, with an explicit
+  `insufficient_evidence` abstain (the v3.1 rubric skip); mixed is read from the
+  spread.
+- **Coverage** is reported ("based on 4 of 6 traits"), never silently rescaled.
+  Below 3 of 6 known: "not enough evidence" instead of a match.
+- "Known" thresholds (min count, recency, consistency) are ours, provisional,
+  and go through the sensitivity test.
+
+**Gap penalties.** `priors.yaml` (Julie's elicited, already asymmetric values)
+is the penalty table; it gains a "why" and a date per entry rather than a second
+file. Shape: flat inside tolerance, linear outside (the hinge) is the serving
+default now; linear-from-zero becomes the comparison in the pre-registration.
+Trait weights equal by default, personalised by must-haves. Compounding pairs
+(e.g. low autonomy + high pace) are listed (drafted from Julie's notes, she
+edits) but ignored by v1 math. Per-outcome penalties stay expert defaults.
+
+**Pipeline calls (Sebastian, 2026-10-13, on the build plan).**
+- CompanyLens covers **any company a user names**, researched on demand in the
+  background and cached, plus a batch command to pre-fill a starter set.
+- Research step on **Anthropic** (the method the packets were validated with; a
+  new app vendor, so it gets a `VENDOR_REGISTER` entry); scoring stays on the
+  validated `gpt-5.5` snapshot.
+- A user who has not answered tolerance keeps **exactly today's behaviour**
+  (0.15 floor), replacing the "1-step default" above.
+- Automated collection from review sites is built now; **attorney review before
+  it is public** (output is paraphrase-only per GAP-14; collection is a separate
+  question, cf. ZenSearch paused 2026-08-20).
+
+**What changes the weights, cheapest first.** (1) versioned table with why +
+date; (2) sensitivity test — nudge each weight, see whether rankings move
+(synthetic people × round-2 scored companies; a weight "matters" if top-5
+overlap drops below 4/5 or rank correlation below 0.8); (3) blind raters on
+person/company pairs — raters who did not set the weights (not Julie, not
+Sebastian if he sets them), unpaid; (4) after launch, 90-day check-ins via
+Pulse, linked by an "I took this job" action, directional only; (5) long term,
+fit penalties to outcome data with the expert weights as priors — the only
+thing that would justify showing a probability.
+
 ### CompanyLens is blocked on the causal model, and that is expected
-Sebastian, 2026-09-08.
+Sebastian, 2026-09-08. *Superseded 2026-10-13 by the six-trait entry above:
+CompanyLens and its pipeline are now being built.*
 
 `GET /api/v1/me/matches` returns 400 for every current user. This is **not** a
 defect to chase. It waits on the causal Bayesian model, which waits on Julie's
@@ -105,6 +210,8 @@ Sebastian, 2026-09-08. The interim `culture_fit_score` scorer is being replaced,
 so measuring its output measures something about to be deleted. Revisit when the
 causal model lands. (The xlsx company seeder is separately bit-rotted — 14 of 20
 rows parse as "Unknown" — which will need fixing before any seeded run.)
+*2026-10-13: the revisit point has arrived (six-trait entry above). The
+sensitivity test runs on round-2 scored companies, not seeded ones.*
 
 ### `Solverah_IP/` stays tracked in this repo
 Sebastian, 2026-09-08. ~6 MB tracked (the 32 MB figure was on-disk, dominated by
@@ -393,7 +500,7 @@ invitation and skips the request entirely.
 
 | Blocked | On | Notes |
 |---|---|---|
-| CompanyLens / all matching | The causal model ← Julie's priors + anchors | Julie has the hypothesis form; asked 2026-09-06, chased 2026-09-08 |
+| ~~CompanyLens / all matching~~ | ~~The causal model ← Julie's priors + anchors~~ | Unblocked: priors returned 2026-09-17, anchors v3.1 applied 2026-09-29; build approved 2026-10-13 (§2, six-trait entry) |
 | Launch / publicity gate | Sebastian + an attorney | `[ENTITY NAME]` ×8, `[ENTITY STATE]` ×6, `[EFFECTIVE DATE]` ×4, plus dispute resolution. Requires an incorporated entity — real calendar lead time, and nothing downstream moves without it. See `Solverah_IP/AGENT_DECISION_QUEUE.md`. |
 
 ---
