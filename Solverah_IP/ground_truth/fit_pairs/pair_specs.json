@@ -1,0 +1,5333 @@
+{
+  "schema": "fit_pairs_spec_v1",
+  "design_version": "fp-v1-2026-10-13",
+  "generated_by": "Solverah_IP/ground_truth/fit_pairs/design.py",
+  "trait_keys": [
+    "autonomy",
+    "pace",
+    "collaboration",
+    "feedback",
+    "innovation",
+    "decision"
+  ],
+  "conventions": {
+    "person_scores": "core dimension score on the person lattice 0, 0.25, 0.5, 0.75, 1",
+    "tolerance": "under_steps / over_steps as trait_preferences.TraitPreference; under = company offers LESS than preferred (match_core gap > 0)",
+    "company_estimates": "scorer band values 0.1..0.9; mixed records carry low_end/high_end",
+    "headcount_and_confounders": "None / empty for every company: constant within a block",
+    "design_check": "weight-free gate restatement from design.py; matching-model must NOT read it; the analysis cross-checks the model's flags against it"
+  },
+  "persons": [
+    {
+      "person_id": "P1",
+      "name": "Rosa",
+      "scores": {
+        "autonomy": 1.0,
+        "pace": 0.5,
+        "collaboration": 0.25,
+        "feedback": 0.75,
+        "innovation": 0.75,
+        "decision": 0.5
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 1,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "decision": {
+          "under_steps": 2,
+          "over_steps": 2
+        }
+      },
+      "must_haves": [
+        "autonomy"
+      ]
+    },
+    {
+      "person_id": "P2",
+      "name": "Tom",
+      "scores": {
+        "autonomy": 0.5,
+        "pace": 0.0,
+        "collaboration": 0.75,
+        "feedback": 0.25,
+        "innovation": 0.25,
+        "decision": 0.75
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 1,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "decision": {
+          "under_steps": 1,
+          "over_steps": 1
+        }
+      },
+      "must_haves": [
+        "pace",
+        "feedback"
+      ]
+    },
+    {
+      "person_id": "P3",
+      "name": "Lena",
+      "scores": {
+        "autonomy": 0.75,
+        "pace": 0.75,
+        "collaboration": 0.5,
+        "feedback": 0.5,
+        "innovation": 0.5,
+        "decision": 0.25
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "feedback": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 0,
+          "over_steps": 0
+        }
+      },
+      "must_haves": []
+    },
+    {
+      "person_id": "P4",
+      "name": "Marcus",
+      "scores": {
+        "autonomy": 0.5,
+        "pace": 0.5,
+        "collaboration": 0.75,
+        "feedback": 0.25,
+        "innovation": 0.5,
+        "decision": 0.5
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "feedback": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 0,
+          "over_steps": 0
+        }
+      },
+      "must_haves": []
+    },
+    {
+      "person_id": "P5",
+      "name": "Ade",
+      "scores": {
+        "autonomy": 0.75,
+        "pace": 0.25,
+        "collaboration": 0.25,
+        "feedback": 0.25,
+        "innovation": 0.5,
+        "decision": 0.75
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "feedback": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 0,
+          "over_steps": 0
+        }
+      },
+      "must_haves": [
+        "innovation"
+      ]
+    },
+    {
+      "person_id": "P6",
+      "name": "Jun",
+      "scores": {
+        "autonomy": 0.25,
+        "pace": 0.5,
+        "collaboration": 0.5,
+        "feedback": 0.75,
+        "innovation": 0.5,
+        "decision": 0.25
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 0,
+          "over_steps": 1
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 1,
+          "over_steps": 1
+        }
+      },
+      "must_haves": [
+        "feedback",
+        "collaboration"
+      ]
+    },
+    {
+      "person_id": "P7",
+      "name": "Sam",
+      "scores": {
+        "autonomy": 0.5,
+        "pace": 0.5,
+        "collaboration": 0.5,
+        "feedback": 0.5,
+        "innovation": 0.75,
+        "decision": 0.5
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 2
+        },
+        "pace": {
+          "under_steps": 2,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "innovation": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "decision": {
+          "under_steps": 1,
+          "over_steps": 1
+        }
+      },
+      "must_haves": [
+        "innovation"
+      ]
+    },
+    {
+      "person_id": "P8",
+      "name": "Nadia",
+      "scores": {
+        "autonomy": 0.25,
+        "pace": 0.75,
+        "collaboration": 0.75,
+        "feedback": 0.5,
+        "innovation": 0.25,
+        "decision": 0.75
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "feedback": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "innovation": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "decision": {
+          "under_steps": 0,
+          "over_steps": 0
+        }
+      },
+      "must_haves": [
+        "collaboration",
+        "decision"
+      ]
+    },
+    {
+      "person_id": "P9",
+      "name": "Ines",
+      "scores": {
+        "autonomy": 0.5,
+        "pace": 0.5,
+        "collaboration": 0.75,
+        "feedback": 0.25,
+        "innovation": 0.5,
+        "decision": 0.75
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 1,
+          "over_steps": 1
+        }
+      },
+      "must_haves": []
+    },
+    {
+      "person_id": "P10",
+      "name": "Kofi",
+      "scores": {
+        "autonomy": 0.75,
+        "pace": 0.5,
+        "collaboration": 0.25,
+        "feedback": 0.75,
+        "innovation": 0.5,
+        "decision": 0.25
+      },
+      "tolerance": {
+        "autonomy": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "pace": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "collaboration": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "feedback": {
+          "under_steps": 1,
+          "over_steps": 1
+        },
+        "innovation": {
+          "under_steps": 0,
+          "over_steps": 0
+        },
+        "decision": {
+          "under_steps": 1,
+          "over_steps": 1
+        }
+      },
+      "must_haves": [
+        "feedback"
+      ]
+    }
+  ],
+  "companies": [
+    {
+      "company_id": "B1-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Nobody tells you what to do; you set your own priorities and own the outcome."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You work on your own tasks and pull others in when needed."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company launches several new products a year."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some decisions use metrics, others rely on experience."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B1-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Many new projects; experiments are encouraged."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A mix of analysis and leadership judgement."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B1-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Employees describe near-total freedom over what they work on and how."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Very fast turnarounds and frequent late nights."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Almost everything is done together, in the room, as a group."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe candid feedback between colleagues as the norm."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Little appetite for new ideas; the focus is reliability."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Data and judgement weigh about equally."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B1-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Nobody tells you what to do; you set your own priorities and own the outcome."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "decision": {
+          "status": "unknown",
+          "evidence": []
+        }
+      }
+    },
+    {
+      "company_id": "B1-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Very little oversight; staff decide their own approach from start to finish."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company is known for taste-led, intuitive decisions."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B9-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B9-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Priorities come from above, but people mostly decide how to get there."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe a high-intensity, always-on environment."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B9-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work is organised in small cross-functional squads."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Almost all the work is building things that never existed."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B9-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Little appetite for new ideas; the focus is reliability."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B9-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most work comes with a set procedure, and changes need sign-off from two levels up."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B2-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Deadlines are generous and the rhythm of the work is calm and predictable."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work is organised in small cross-functional squads."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Mostly improving what exists, with small new features."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B2-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "mixed",
+          "low_end": 0.1,
+          "high_end": 0.7,
+          "split_explained_by": "scope",
+          "evidence": [
+            {
+              "side": "low",
+              "label": "At head office (employee review)",
+              "text": "Reviewers mention a sustainable pace and rarely working late."
+            },
+            {
+              "side": "high",
+              "label": "At field sites (news report)",
+              "text": "The company ships updates every couple of weeks."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some new projects, but the core is tuning current work."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B2-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Priorities come from above, but people mostly decide how to get there."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm is known for long planning cycles and few rush jobs."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Regular check-ins; feedback is honest but tactful."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Investment goes mainly to upgrading existing services."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B2-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You are given a goal and mostly left to work out the approach."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Deadlines are generous and the rhythm of the work is calm and predictable."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe a meeting-heavy, all-hands-on-deck culture."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Decisions are gated on experiments and detailed analytics."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B2-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviewers mention a sustainable pace and rarely working late."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most work is done alone and heads-down, with few meetings."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some new projects, but the core is tuning current work."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B10-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "People are trusted to plan their own work; check-ins are light."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You work on your own tasks and pull others in when needed."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers decide on judgement and check a couple of figures."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B10-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You are given a goal and mostly left to work out the approach."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Deadlines are generous and the rhythm of the work is calm and predictable."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Decisions lean on the experience of senior staff."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B10-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe small teams that make their own calls."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Mostly individual work, with a weekly team meeting."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe candid feedback between colleagues as the norm."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Little appetite for new ideas; the focus is reliability."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Experience matters most, with a few numbers to back it up."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B10-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "People are trusted to plan their own work; check-ins are light."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You work on your own tasks and pull others in when needed."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Described as a research-led firm focused on new inventions."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers decide on judgement and check a couple of figures."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B10-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Clear processes, with a little flexibility for experienced staff."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Decisions lean on the experience of senior staff."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B3-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe small teams that make their own calls."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Short deadlines are normal; some evenings are needed."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A middle-of-the-road approach to performance feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Experience matters most, with a few numbers to back it up."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B3-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Priorities come from above, but people mostly decide how to get there."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company launches several new products a year."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some decisions use metrics, others rely on experience."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B3-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You are given a goal and mostly left to work out the approach."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Deadlines are generous and the rhythm of the work is calm and predictable."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work splits between individual tasks and team projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Feedback comes about monthly, direct when it needs to be."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Decisions lean on the experience of senior staff."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B3-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Teams follow a central plan; local managers can adjust the details."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Short deadlines are normal; some evenings are needed."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe daily, unfiltered critique."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Experience matters most, with a few numbers to back it up."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B3-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "People are trusted to plan their own work; check-ins are light."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company ships updates every couple of weeks."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "feedback": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "innovation": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "decision": {
+          "status": "unknown",
+          "evidence": []
+        }
+      }
+    },
+    {
+      "company_id": "B4-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work is organised in small cross-functional squads."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A mix of analysis and leadership judgement."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B4-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm runs on detailed standard procedures, with approval needed for most decisions."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Very fast turnarounds and frequent late nights."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Data and judgement weigh about equally."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B4-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Nobody tells you what to do; you set your own priorities and own the outcome."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm is known for long planning cycles and few rush jobs."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some decisions use metrics, others rely on experience."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B4-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work is organised in small cross-functional squads."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Almost all the work is building things that never existed."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company is known for taste-led, intuitive decisions."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B4-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Very fast turnarounds and frequent late nights."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Feedback is infrequent and diplomatic."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Data and judgement weigh about equally."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B5-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "People are trusted to plan their own work; check-ins are light."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Projects run on quarterly timelines with the occasional crunch."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You work on your own tasks and pull others in when needed."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B5-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You are given a goal and mostly left to work out the approach."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Things move quickly and priorities shift often."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A balance of new projects and looking after existing ones."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B5-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe small teams that make their own calls."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Work moves at a measured pace; urgent requests are uncommon."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe candid feedback between colleagues as the norm."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B5-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some room to choose how to do a task, but managers set the priorities."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Projects run on quarterly timelines with the occasional crunch."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You work on your own tasks and pull others in when needed."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Occasional feedback, usually kind and indirect."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers decide on judgement and check a couple of figures."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B5-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "You are given a goal and mostly left to work out the approach."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Mostly steady, with one busy stretch around year-end."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviews twice a year; criticism is softened."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B6-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Teams follow a central plan; local managers can adjust the details."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe candid feedback between colleagues as the norm."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Experience matters most, with a few numbers to back it up."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B6-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some room to choose how to do a task, but managers set the priorities."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm is known for long planning cycles and few rush jobs."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some projects are team efforts, others are individual."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm grows by refining a long-standing product line."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers decide on judgement and check a couple of figures."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B6-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Clear processes, with a little flexibility for experienced staff."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Constant urgency; everything is needed yesterday."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work splits between individual tasks and team projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Managers say what they think, quickly and plainly."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Almost all the work is building things that never existed."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Decisions lean on the experience of senior staff."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B6-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Teams follow a central plan; local managers can adjust the details."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "mixed",
+          "low_end": 0.3,
+          "high_end": 0.7,
+          "split_explained_by": "time",
+          "recent_side": "high",
+          "evidence": [
+            {
+              "side": "low",
+              "label": "Older reviews (news report)",
+              "text": "Feedback is infrequent and diplomatic."
+            },
+            {
+              "side": "high",
+              "label": "Recent reviews (employee review)",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Experience matters most, with a few numbers to back it up."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B6-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some room to choose how to do a task, but managers set the priorities."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A moderate pace that picks up before launches."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some projects are team efforts, others are individual."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Effort is split between new products and the core business."
+            }
+          ]
+        },
+        "decision": {
+          "status": "mixed",
+          "low_end": 0.1,
+          "high_end": 0.9,
+          "split_explained_by": null,
+          "evidence": [
+            {
+              "side": "low",
+              "label": "Some sources (employee review)",
+              "text": "Leaders go with their gut; data is rarely asked for."
+            },
+            {
+              "side": "high",
+              "label": "Other sources (news report)",
+              "text": "Decisions are gated on experiments and detailed analytics."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B7-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some teams run themselves, others work to a checklist; overall a balance."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work splits between individual tasks and team projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Feedback comes about monthly, direct when it needs to be."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Many new projects; experiments are encouraged."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A mix of analysis and leadership judgement."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B7-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Employees describe near-total freedom over what they work on and how."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviewers mention a sustainable pace and rarely working late."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A middle-of-the-road approach to performance feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams often build things from scratch."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Data and judgement weigh about equally."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B7-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most work comes with a set procedure, and changes need sign-off from two levels up."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe a high-intensity, always-on environment."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some projects are team efforts, others are individual."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Regular check-ins; feedback is honest but tactful."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company launches several new products a year."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some decisions use metrics, others rely on experience."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B7-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Busy weeks and quiet weeks in roughly equal measure."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Feedback comes about monthly, direct when it needs to be."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "unknown",
+          "evidence": []
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A mix of analysis and leadership judgement."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B7-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff have a say in how they work, within goals set by leadership."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some urgency, but deadlines are usually realistic."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "A mix of solo work and group sessions."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "A middle-of-the-road approach to performance feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "mixed",
+          "low_end": 0.5,
+          "high_end": 0.9,
+          "split_explained_by": null,
+          "evidence": [
+            {
+              "side": "low",
+              "label": "Some sources (employee review)",
+              "text": "Roughly half the roadmap is new; half is improvement."
+            },
+            {
+              "side": "high",
+              "label": "Other sources (news report)",
+              "text": "Described as a research-led firm focused on new inventions."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Data and judgement weigh about equally."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B8-C1",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some room to choose how to do a task, but managers set the priorities."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The company ships updates every couple of weeks."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Regular check-ins; feedback is honest but tactful."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Investment goes mainly to upgrading existing services."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B8-C2",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Clear processes, with a little flexibility for experienced staff."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Things move quickly and priorities shift often."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff mainly work independently, with some joint projects."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Feedback comes about monthly, direct when it needs to be."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Mostly improving what exists, with small new features."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B8-C3",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Employees describe near-total freedom over what they work on and how."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Reviewers mention a sustainable pace and rarely working late."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Lots of teamwork and regular group problem-solving."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe daily, unfiltered critique."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Some new projects, but the core is tuning current work."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most decisions need a business case with numbers."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B8-C4",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Priorities come from above, but people mostly decide how to get there."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff describe a high-intensity, always-on environment."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Most tasks are done in small groups; meetings are frequent."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Frequent one-to-ones with direct, specific feedback."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.1,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "The firm grows by refining a long-standing product line."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Teams test ideas and look at the metrics before deciding."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "company_id": "B8-C5",
+      "headcount": null,
+      "confounders": {},
+      "traits": {
+        "autonomy": {
+          "status": "known",
+          "estimate": 0.9,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Very little oversight; staff decide their own approach from start to finish."
+            }
+          ]
+        },
+        "pace": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Things move quickly and priorities shift often."
+            }
+          ]
+        },
+        "collaboration": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Work is organised in small cross-functional squads."
+            }
+          ]
+        },
+        "feedback": {
+          "status": "known",
+          "estimate": 0.5,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Feedback comes about monthly, direct when it needs to be."
+            }
+          ]
+        },
+        "innovation": {
+          "status": "known",
+          "estimate": 0.3,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "Employee review",
+              "text": "Mostly improving what exists, with small new features."
+            }
+          ]
+        },
+        "decision": {
+          "status": "known",
+          "estimate": 0.7,
+          "evidence": [
+            {
+              "side": "only",
+              "label": "News report",
+              "text": "Staff accounts describe a data-driven company."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "blocks": [
+    {
+      "block_id": "B1",
+      "person_id": "P1",
+      "pair_ids": [
+        "B1-C1",
+        "B1-C2",
+        "B1-C3",
+        "B1-C4",
+        "B1-C5"
+      ]
+    },
+    {
+      "block_id": "B9",
+      "person_id": "P9",
+      "pair_ids": [
+        "B9-C1",
+        "B9-C2",
+        "B9-C3",
+        "B9-C4",
+        "B9-C5"
+      ]
+    },
+    {
+      "block_id": "B2",
+      "person_id": "P2",
+      "pair_ids": [
+        "B2-C1",
+        "B2-C2",
+        "B2-C3",
+        "B2-C4",
+        "B2-C5"
+      ]
+    },
+    {
+      "block_id": "B10",
+      "person_id": "P10",
+      "pair_ids": [
+        "B10-C1",
+        "B10-C2",
+        "B10-C3",
+        "B10-C4",
+        "B10-C5"
+      ]
+    },
+    {
+      "block_id": "B3",
+      "person_id": "P3",
+      "pair_ids": [
+        "B3-C1",
+        "B3-C2",
+        "B3-C3",
+        "B3-C4",
+        "B3-C5"
+      ]
+    },
+    {
+      "block_id": "B4",
+      "person_id": "P4",
+      "pair_ids": [
+        "B4-C1",
+        "B4-C2",
+        "B4-C3",
+        "B4-C4",
+        "B4-C5"
+      ]
+    },
+    {
+      "block_id": "B5",
+      "person_id": "P5",
+      "pair_ids": [
+        "B5-C1",
+        "B5-C2",
+        "B5-C3",
+        "B5-C4",
+        "B5-C5"
+      ]
+    },
+    {
+      "block_id": "B6",
+      "person_id": "P6",
+      "pair_ids": [
+        "B6-C1",
+        "B6-C2",
+        "B6-C3",
+        "B6-C4",
+        "B6-C5"
+      ]
+    },
+    {
+      "block_id": "B7",
+      "person_id": "P7",
+      "pair_ids": [
+        "B7-C1",
+        "B7-C2",
+        "B7-C3",
+        "B7-C4",
+        "B7-C5"
+      ]
+    },
+    {
+      "block_id": "B8",
+      "person_id": "P8",
+      "pair_ids": [
+        "B8-C1",
+        "B8-C2",
+        "B8-C3",
+        "B8-C4",
+        "B8-C5"
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "pair_id": "B1-C1",
+      "block": "B1",
+      "person_id": "P1",
+      "company_id": "B1-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B1-C2",
+      "block": "B1",
+      "person_id": "P1",
+      "company_id": "B1-C2",
+      "case": "must_have_break",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": true,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B1-C3",
+      "block": "B1",
+      "person_id": "P1",
+      "company_id": "B1-C3",
+      "case": "multi_big",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace",
+          "collaboration",
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B1-C4",
+      "block": "B1",
+      "person_id": "P1",
+      "company_id": "B1-C4",
+      "case": "unknown_heavy",
+      "design_check": {
+        "known": 3,
+        "mixed": 0,
+        "unknown": 3,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B1-C5",
+      "block": "B1",
+      "person_id": "P1",
+      "company_id": "B1-C5",
+      "case": "inside_tolerance",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": [
+          "innovation",
+          "decision"
+        ]
+      }
+    },
+    {
+      "pair_id": "B9-C1",
+      "block": "B9",
+      "person_id": "P9",
+      "company_id": "B9-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B9-C2",
+      "block": "B9",
+      "person_id": "P9",
+      "company_id": "B9-C2",
+      "case": "single_pace_faster",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B9-C3",
+      "block": "B9",
+      "person_id": "P9",
+      "company_id": "B9-C3",
+      "case": "single_innovation_more",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B9-C4",
+      "block": "B9",
+      "person_id": "P9",
+      "company_id": "B9-C4",
+      "case": "single_innovation_less",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B9-C5",
+      "block": "B9",
+      "person_id": "P9",
+      "company_id": "B9-C5",
+      "case": "single_autonomy_control",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B2-C1",
+      "block": "B2",
+      "person_id": "P2",
+      "company_id": "B2-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B2-C2",
+      "block": "B2",
+      "person_id": "P2",
+      "company_id": "B2-C2",
+      "case": "mixed_must_have",
+      "design_check": {
+        "known": 5,
+        "mixed": 1,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": true,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B2-C3",
+      "block": "B2",
+      "person_id": "P2",
+      "company_id": "B2-C3",
+      "case": "must_have_break_small",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": true,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B2-C4",
+      "block": "B2",
+      "person_id": "P2",
+      "company_id": "B2-C4",
+      "case": "inside_tolerance",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": [
+          "autonomy",
+          "collaboration",
+          "innovation",
+          "decision"
+        ]
+      }
+    },
+    {
+      "pair_id": "B2-C5",
+      "block": "B2",
+      "person_id": "P2",
+      "company_id": "B2-C5",
+      "case": "single_big",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "collaboration"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B10-C1",
+      "block": "B10",
+      "person_id": "P10",
+      "company_id": "B10-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B10-C2",
+      "block": "B10",
+      "person_id": "P10",
+      "company_id": "B10-C2",
+      "case": "single_pace_steadier",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B10-C3",
+      "block": "B10",
+      "person_id": "P10",
+      "company_id": "B10-C3",
+      "case": "single_innovation_less",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B10-C4",
+      "block": "B10",
+      "person_id": "P10",
+      "company_id": "B10-C4",
+      "case": "single_innovation_more",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B10-C5",
+      "block": "B10",
+      "person_id": "P10",
+      "company_id": "B10-C5",
+      "case": "single_autonomy_control",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B3-C1",
+      "block": "B3",
+      "person_id": "P3",
+      "company_id": "B3-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B3-C2",
+      "block": "B3",
+      "person_id": "P3",
+      "company_id": "B3-C2",
+      "case": "many_small",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace",
+          "collaboration",
+          "feedback",
+          "innovation",
+          "decision"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B3-C3",
+      "block": "B3",
+      "person_id": "P3",
+      "company_id": "B3-C3",
+      "case": "single_big",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B3-C4",
+      "block": "B3",
+      "person_id": "P3",
+      "company_id": "B3-C4",
+      "case": "two_medium",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B3-C5",
+      "block": "B3",
+      "person_id": "P3",
+      "company_id": "B3-C5",
+      "case": "thin_evidence",
+      "design_check": {
+        "known": 2,
+        "mixed": 0,
+        "unknown": 4,
+        "rankable": false,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B4-C1",
+      "block": "B4",
+      "person_id": "P4",
+      "company_id": "B4-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B4-C2",
+      "block": "B4",
+      "person_id": "P4",
+      "company_id": "B4-C2",
+      "case": "compound_1",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B4-C3",
+      "block": "B4",
+      "person_id": "P4",
+      "company_id": "B4-C3",
+      "case": "compound_1_reversed",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B4-C4",
+      "block": "B4",
+      "person_id": "P4",
+      "company_id": "B4-C4",
+      "case": "two_gap_control",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "innovation",
+          "decision"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B4-C5",
+      "block": "B4",
+      "person_id": "P4",
+      "company_id": "B4-C5",
+      "case": "single_pace",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B5-C1",
+      "block": "B5",
+      "person_id": "P5",
+      "company_id": "B5-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B5-C2",
+      "block": "B5",
+      "person_id": "P5",
+      "company_id": "B5-C2",
+      "case": "compound_2",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace",
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B5-C3",
+      "block": "B5",
+      "person_id": "P5",
+      "company_id": "B5-C3",
+      "case": "compound_4",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "collaboration",
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B5-C4",
+      "block": "B5",
+      "person_id": "P5",
+      "company_id": "B5-C4",
+      "case": "two_gap_control",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "decision"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B5-C5",
+      "block": "B5",
+      "person_id": "P5",
+      "company_id": "B5-C5",
+      "case": "unknown_must_have",
+      "design_check": {
+        "known": 5,
+        "mixed": 0,
+        "unknown": 1,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": true,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B6-C1",
+      "block": "B6",
+      "person_id": "P6",
+      "company_id": "B6-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B6-C2",
+      "block": "B6",
+      "person_id": "P6",
+      "company_id": "B6-C2",
+      "case": "compound_3",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace",
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B6-C3",
+      "block": "B6",
+      "person_id": "P6",
+      "company_id": "B6-C3",
+      "case": "compound_3_reversed",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "pace",
+          "innovation"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B6-C4",
+      "block": "B6",
+      "person_id": "P6",
+      "company_id": "B6-C4",
+      "case": "mixed_must_have_time",
+      "design_check": {
+        "known": 5,
+        "mixed": 1,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": true,
+        "investigate": false,
+        "outside_tolerance": [
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B6-C5",
+      "block": "B6",
+      "person_id": "P6",
+      "company_id": "B6-C5",
+      "case": "mixed_wide",
+      "design_check": {
+        "known": 5,
+        "mixed": 1,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "decision"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B7-C1",
+      "block": "B7",
+      "person_id": "P7",
+      "company_id": "B7-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B7-C2",
+      "block": "B7",
+      "person_id": "P7",
+      "company_id": "B7-C2",
+      "case": "tolerated_direction",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": [
+          "autonomy",
+          "pace"
+        ]
+      }
+    },
+    {
+      "pair_id": "B7-C3",
+      "block": "B7",
+      "person_id": "P7",
+      "company_id": "B7-C3",
+      "case": "untolerated_direction",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B7-C4",
+      "block": "B7",
+      "person_id": "P7",
+      "company_id": "B7-C4",
+      "case": "unknown_heavy_must_have",
+      "design_check": {
+        "known": 3,
+        "mixed": 0,
+        "unknown": 3,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": true,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B7-C5",
+      "block": "B7",
+      "person_id": "P7",
+      "company_id": "B7-C5",
+      "case": "mixed_inside_tolerance",
+      "design_check": {
+        "known": 5,
+        "mixed": 1,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B8-C1",
+      "block": "B8",
+      "person_id": "P8",
+      "company_id": "B8-C1",
+      "case": "aligned",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B8-C2",
+      "block": "B8",
+      "person_id": "P8",
+      "company_id": "B8-C2",
+      "case": "must_have_break",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": true,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "collaboration"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B8-C3",
+      "block": "B8",
+      "person_id": "P8",
+      "company_id": "B8-C3",
+      "case": "multi_big",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace",
+          "feedback"
+        ],
+        "gap_inside_tolerance": []
+      }
+    },
+    {
+      "pair_id": "B8-C4",
+      "block": "B8",
+      "person_id": "P8",
+      "company_id": "B8-C4",
+      "case": "many_small",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy",
+          "pace",
+          "feedback"
+        ],
+        "gap_inside_tolerance": [
+          "innovation"
+        ]
+      }
+    },
+    {
+      "pair_id": "B8-C5",
+      "block": "B8",
+      "person_id": "P8",
+      "company_id": "B8-C5",
+      "case": "single_big",
+      "design_check": {
+        "known": 6,
+        "mixed": 0,
+        "unknown": 0,
+        "rankable": true,
+        "must_have_break": false,
+        "risk_flag": false,
+        "investigate": false,
+        "outside_tolerance": [
+          "autonomy"
+        ],
+        "gap_inside_tolerance": []
+      }
+    }
+  ],
+  "repeats": [
+    {
+      "repeat_id": "R1",
+      "of_pair": "B1-C4",
+      "shown_after_block": "B2"
+    },
+    {
+      "repeat_id": "R2",
+      "of_pair": "B2-C2",
+      "shown_after_block": "B3"
+    },
+    {
+      "repeat_id": "R3",
+      "of_pair": "B3-C2",
+      "shown_after_block": "B5"
+    },
+    {
+      "repeat_id": "R4",
+      "of_pair": "B4-C2",
+      "shown_after_block": "B6"
+    }
+  ],
+  "contrasts": [
+    {
+      "contrast_id": "K1",
+      "name": "Known must-have break sorts below several big gaps",
+      "a": [
+        "B1-C3",
+        "B8-C3"
+      ],
+      "b": [
+        "B1-C2",
+        "B8-C2"
+      ],
+      "rule": "b_last",
+      "default_at_stake": "must-have break sorts last (lexicographic gate)"
+    },
+    {
+      "contrast_id": "K2",
+      "name": "A one-notch must-have break sorts below a single big gap and a split must-have",
+      "a": [
+        "B2-C5",
+        "B2-C2"
+      ],
+      "b": [
+        "B2-C3",
+        "B2-C3"
+      ],
+      "rule": "b_last",
+      "default_at_stake": "must-have break sorts last, however small the break"
+    },
+    {
+      "contrast_id": "K3",
+      "name": "Unknown traits cost nothing",
+      "a": [
+        "B1-C1",
+        "B7-C1",
+        "B5-C1"
+      ],
+      "b": [
+        "B1-C4",
+        "B7-C4",
+        "B5-C5"
+      ],
+      "rule": "tie",
+      "default_at_stake": "unknown = no gap, no penalty"
+    },
+    {
+      "contrast_id": "K4",
+      "name": "A gap inside stated tolerance costs nothing",
+      "a": [
+        "B1-C1",
+        "B2-C1",
+        "B7-C1"
+      ],
+      "b": [
+        "B1-C5",
+        "B2-C4",
+        "B7-C2"
+      ],
+      "rule": "tie",
+      "default_at_stake": "flat inside tolerance (the hinge)"
+    },
+    {
+      "contrast_id": "K5",
+      "name": "Many small gaps versus one big gap",
+      "a": [
+        "B3-C2",
+        "B8-C4"
+      ],
+      "b": [
+        "B3-C3",
+        "B8-C5"
+      ],
+      "rule": "weights",
+      "default_at_stake": "linear excess per trait, summed (no 'nothing quite fits' term)"
+    },
+    {
+      "contrast_id": "K6",
+      "name": "Same gap sizes, tolerated versus untolerated direction",
+      "a": [
+        "B7-C2"
+      ],
+      "b": [
+        "B7-C3"
+      ],
+      "rule": "weights",
+      "default_at_stake": "asymmetric tolerance"
+    },
+    {
+      "contrast_id": "K7",
+      "name": "Split evidence with both ends inside tolerance costs nothing",
+      "a": [
+        "B7-C1"
+      ],
+      "b": [
+        "B7-C5"
+      ],
+      "rule": "tie",
+      "default_at_stake": "mixed is scored at its worst end; no penalty for disagreement itself"
+    },
+    {
+      "contrast_id": "K8",
+      "name": "Compounding pairs (06 items 1-4) versus same-size controls",
+      "a": [
+        "B4-C3",
+        "B4-C4",
+        "B5-C4",
+        "B5-C4",
+        "B6-C3"
+      ],
+      "b": [
+        "B4-C2",
+        "B4-C2",
+        "B5-C2",
+        "B5-C3",
+        "B6-C2"
+      ],
+      "rule": "weights",
+      "default_at_stake": "gaps add; v1 ignores compounding (06)"
+    },
+    {
+      "contrast_id": "K9",
+      "name": "A pace gap versus the same gap on autonomy",
+      "a": [
+        "B9-C5",
+        "B10-C5"
+      ],
+      "b": [
+        "B9-C2",
+        "B10-C2"
+      ],
+      "rule": "weights",
+      "default_at_stake": "pace.mag, the largest penalty (07: needs evidence before launch)"
+    },
+    {
+      "contrast_id": "K10",
+      "name": "An innovation gap (either direction) versus the same gap on autonomy",
+      "a": [
+        "B9-C5",
+        "B10-C5",
+        "B9-C5",
+        "B10-C5"
+      ],
+      "b": [
+        "B9-C3",
+        "B10-C3",
+        "B9-C4",
+        "B10-C4"
+      ],
+      "rule": "weights",
+      "default_at_stake": "innovation.mag (07: needs evidence before launch)"
+    },
+    {
+      "contrast_id": "K11",
+      "name": "Job more inventing than wanted versus job more refining than wanted",
+      "a": [
+        "B9-C3",
+        "B10-C4"
+      ],
+      "b": [
+        "B9-C4",
+        "B10-C3"
+      ],
+      "rule": "weights",
+      "default_at_stake": "innovation.dir = 0, elicited 5 v 5 (07: needs evidence before launch); a is always the more-inventing side, so a tie is broken the same way in both"
+    }
+  ]
+}

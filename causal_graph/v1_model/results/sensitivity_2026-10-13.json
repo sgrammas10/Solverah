@@ -1,0 +1,3349 @@
+{
+  "meta": {
+    "generated_at": "2026-10-13T18:50:08+00:00",
+    "matters_share": 0.1,
+    "must_have_count_p": [
+      0.5,
+      0.3,
+      0.2
+    ],
+    "n_people": 200,
+    "nudge": 0.5,
+    "overlap_floor": 4,
+    "priors_version": "sha256:22688a649553",
+    "profiles": {
+      "typical": {
+        "steps": 1,
+        "zone": 0.25
+      },
+      "unanswered": {
+        "steps": null,
+        "zone": 0.15
+      },
+      "wide": {
+        "steps": 2,
+        "zone": 0.5
+      }
+    },
+    "seed": 20261013,
+    "tau_floor": 0.8,
+    "top_k": 5
+  },
+  "sets": {
+    "real": {
+      "companies": [
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 1,
+          "name": "P-01",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.325
+            ],
+            "collaboration": [
+              "known",
+              0.675
+            ],
+            "decision": [
+              "known",
+              0.7
+            ],
+            "feedback": [
+              "known",
+              0.475
+            ],
+            "innovation": [
+              "known",
+              0.525
+            ],
+            "pace": [
+              "known",
+              0.65
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 2,
+          "name": "P-02",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.35
+            ],
+            "collaboration": [
+              "known",
+              0.65
+            ],
+            "decision": [
+              "known",
+              0.575
+            ],
+            "feedback": [
+              "known",
+              0.425
+            ],
+            "innovation": [
+              "known",
+              0.3
+            ],
+            "pace": [
+              "known",
+              0.725
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 3,
+          "name": "P-03",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.675
+            ],
+            "collaboration": [
+              "known",
+              0.675
+            ],
+            "decision": [
+              "known",
+              0.675
+            ],
+            "feedback": [
+              "known",
+              0.575
+            ],
+            "innovation": [
+              "known",
+              0.65
+            ],
+            "pace": [
+              "known",
+              0.875
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 4,
+          "name": "P-04",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.7
+            ],
+            "collaboration": [
+              "known",
+              0.675
+            ],
+            "decision": [
+              "known",
+              0.425
+            ],
+            "feedback": [
+              "known",
+              0.475
+            ],
+            "innovation": [
+              "known",
+              0.8
+            ],
+            "pace": [
+              "known",
+              0.8
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 5,
+          "name": "P-05",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.75
+            ],
+            "collaboration": [
+              "known",
+              0.35
+            ],
+            "decision": [
+              "known",
+              0.575
+            ],
+            "feedback": [
+              "known",
+              0.325
+            ],
+            "innovation": [
+              "known",
+              0.375
+            ],
+            "pace": [
+              "known",
+              0.375
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": null
+          },
+          "id": 6,
+          "name": "P-06",
+          "source": "round-1 raters + scorer-variance v2 (4 sources)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.325
+            ],
+            "collaboration": [
+              "known",
+              0.7
+            ],
+            "decision": [
+              "known",
+              0.65
+            ],
+            "feedback": [
+              "known",
+              0.375
+            ],
+            "innovation": [
+              "known",
+              0.25
+            ],
+            "pace": [
+              "known",
+              0.425
+            ]
+          }
+        }
+      ],
+      "label": "real: six round-1 packets, traits at the mean of every scoring on file",
+      "n_companies": 6,
+      "rankable_per_person_max": 6,
+      "rankable_per_person_min": 6,
+      "weights": {
+        "autonomy.dir": {
+          "baseline_mean": 0.0,
+          "matters": false,
+          "max_share_flagged": 0.09,
+          "nudges": {
+            "+50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9433,
+                "overlap_min": 4,
+                "share_flagged": 0.0567,
+                "tau_mean": 0.9602,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.945,
+                  "overlap_min": 4,
+                  "share_flagged": 0.07,
+                  "tau_mean": 0.9613,
+                  "tau_min": 0.6
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.91,
+                  "overlap_min": 4,
+                  "share_flagged": 0.085,
+                  "tau_mean": 0.936,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9833,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": 0.336873
+            },
+            "-50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9717,
+                "overlap_min": 4,
+                "share_flagged": 0.0617,
+                "tau_mean": 0.9611,
+                "tau_min": 0.4667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.97,
+                  "overlap_min": 4,
+                  "share_flagged": 0.05,
+                  "tau_mean": 0.9647,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.955,
+                  "overlap_min": 4,
+                  "share_flagged": 0.09,
+                  "tau_mean": 0.9407,
+                  "tau_min": 0.4667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.99,
+                  "overlap_min": 4,
+                  "share_flagged": 0.045,
+                  "tau_mean": 0.978,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -0.336873
+            }
+          }
+        },
+        "autonomy.mag": {
+          "baseline_mean": -0.673746,
+          "matters": false,
+          "max_share_flagged": 0.085,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9467,
+                "overlap_min": 4,
+                "share_flagged": 0.0567,
+                "tau_mean": 0.9613,
+                "tau_min": 0.4667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.945,
+                  "overlap_min": 4,
+                  "share_flagged": 0.055,
+                  "tau_mean": 0.966,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.915,
+                  "overlap_min": 4,
+                  "share_flagged": 0.085,
+                  "tau_mean": 0.9353,
+                  "tau_min": 0.4667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.98,
+                  "overlap_min": 4,
+                  "share_flagged": 0.03,
+                  "tau_mean": 0.9827,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -1.010619
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9683,
+                "overlap_min": 4,
+                "share_flagged": 0.0583,
+                "tau_mean": 0.9624,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.97,
+                  "overlap_min": 4,
+                  "share_flagged": 0.065,
+                  "tau_mean": 0.96,
+                  "tau_min": 0.6
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.95,
+                  "overlap_min": 4,
+                  "share_flagged": 0.08,
+                  "tau_mean": 0.9487,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.03,
+                  "tau_mean": 0.9787,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -0.336873
+            }
+          }
+        },
+        "collaboration.dir": {
+          "baseline_mean": 0.276145,
+          "matters": false,
+          "max_share_flagged": 0.005,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9983,
+                "overlap_min": 4,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9931,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9947,
+                  "tau_min": 0.8667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9907,
+                  "tau_min": 0.7333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.994,
+                  "tau_min": 0.6
+                }
+              },
+              "value": 0.414217
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.995,
+                "overlap_min": 4,
+                "share_flagged": 0.0,
+                "tau_mean": 0.9942,
+                "tau_min": 0.8667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9927,
+                  "tau_min": 0.8667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9907,
+                  "tau_min": 0.8667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9993,
+                  "tau_min": 0.8667
+                }
+              },
+              "value": 0.138072
+            }
+          }
+        },
+        "collaboration.mag": {
+          "baseline_mean": -0.949891,
+          "matters": false,
+          "max_share_flagged": 0.04,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.98,
+                "overlap_min": 4,
+                "share_flagged": 0.01,
+                "tau_mean": 0.9824,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.984,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9727,
+                  "tau_min": 0.7333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9907,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -1.424837
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9717,
+                "overlap_min": 4,
+                "share_flagged": 0.02,
+                "tau_mean": 0.9742,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.97,
+                  "overlap_min": 4,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.972,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.955,
+                  "overlap_min": 4,
+                  "share_flagged": 0.04,
+                  "tau_mean": 0.962,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.99,
+                  "overlap_min": 4,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9887,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": -0.474946
+            }
+          }
+        },
+        "decision.dir": {
+          "baseline_mean": 0.866434,
+          "matters": false,
+          "max_share_flagged": 0.06,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9883,
+                "overlap_min": 4,
+                "share_flagged": 0.02,
+                "tau_mean": 0.9773,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.98,
+                  "overlap_min": 4,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9713,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.04,
+                  "tau_mean": 0.9667,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.994,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": 1.299651
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9567,
+                "overlap_min": 4,
+                "share_flagged": 0.0267,
+                "tau_mean": 0.9707,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.945,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9727,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.93,
+                  "overlap_min": 4,
+                  "share_flagged": 0.06,
+                  "tau_mean": 0.9493,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.99,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": 0.433217
+            }
+          }
+        },
+        "decision.mag": {
+          "baseline_mean": -0.866434,
+          "matters": false,
+          "max_share_flagged": 0.055,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9683,
+                "overlap_min": 4,
+                "share_flagged": 0.0217,
+                "tau_mean": 0.9751,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.95,
+                  "overlap_min": 4,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9713,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.955,
+                  "overlap_min": 4,
+                  "share_flagged": 0.045,
+                  "tau_mean": 0.96,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.994,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": -1.299651
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9767,
+                "overlap_min": 4,
+                "share_flagged": 0.025,
+                "tau_mean": 0.9729,
+                "tau_min": 0.6
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9727,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.055,
+                  "tau_mean": 0.956,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.99,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": -0.433217
+            }
+          }
+        },
+        "feedback.dir": {
+          "baseline_mean": 1.059122,
+          "matters": false,
+          "max_share_flagged": 0.05,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.985,
+                "overlap_min": 4,
+                "share_flagged": 0.025,
+                "tau_mean": 0.9773,
+                "tau_min": 0.7333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.972,
+                  "tau_min": 0.7333
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.045,
+                  "tau_mean": 0.968,
+                  "tau_min": 0.7333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.02,
+                  "tau_mean": 0.992,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": 1.588683
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.96,
+                "overlap_min": 4,
+                "share_flagged": 0.0267,
+                "tau_mean": 0.9702,
+                "tau_min": 0.4667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.025,
+                  "tau_mean": 0.9707,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.925,
+                  "overlap_min": 4,
+                  "share_flagged": 0.05,
+                  "tau_mean": 0.948,
+                  "tau_min": 0.4667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.992,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": 0.529561
+            }
+          }
+        },
+        "feedback.mag": {
+          "baseline_mean": -1.732868,
+          "matters": true,
+          "max_share_flagged": 0.125,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9717,
+                "overlap_min": 4,
+                "share_flagged": 0.055,
+                "tau_mean": 0.9604,
+                "tau_min": 0.2
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.07,
+                  "tau_mean": 0.95,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.08,
+                  "tau_mean": 0.944,
+                  "tau_min": 0.2
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.995,
+                  "overlap_min": 4,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9873,
+                  "tau_min": 0.4667
+                }
+              },
+              "value": -2.599302
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.935,
+                "overlap_min": 4,
+                "share_flagged": 0.0917,
+                "tau_mean": 0.9456,
+                "tau_min": 0.3333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.945,
+                  "overlap_min": 4,
+                  "share_flagged": 0.07,
+                  "tau_mean": 0.952,
+                  "tau_min": 0.6
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.88,
+                  "overlap_min": 4,
+                  "share_flagged": 0.125,
+                  "tau_mean": 0.926,
+                  "tau_min": 0.6
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.98,
+                  "overlap_min": 4,
+                  "share_flagged": 0.08,
+                  "tau_mean": 0.9587,
+                  "tau_min": 0.3333
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "innovation.dir": {
+          "baseline_mean": 0.0,
+          "matters": true,
+          "max_share_flagged": 0.33,
+          "nudges": {
+            "+50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.845,
+                "overlap_min": 4,
+                "share_flagged": 0.1983,
+                "tau_mean": 0.9013,
+                "tau_min": 0.3333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.81,
+                  "overlap_min": 4,
+                  "share_flagged": 0.21,
+                  "tau_mean": 0.8947,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.79,
+                  "overlap_min": 4,
+                  "share_flagged": 0.33,
+                  "tau_mean": 0.8473,
+                  "tau_min": 0.3333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.935,
+                  "overlap_min": 4,
+                  "share_flagged": 0.055,
+                  "tau_mean": 0.962,
+                  "tau_min": 0.6
+                }
+              },
+              "value": 0.866434
+            },
+            "-50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.845,
+                "overlap_min": 4,
+                "share_flagged": 0.1733,
+                "tau_mean": 0.9038,
+                "tau_min": -0.0667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.83,
+                  "overlap_min": 4,
+                  "share_flagged": 0.2,
+                  "tau_mean": 0.8993,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.795,
+                  "overlap_min": 4,
+                  "share_flagged": 0.28,
+                  "tau_mean": 0.846,
+                  "tau_min": -0.0667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.91,
+                  "overlap_min": 4,
+                  "share_flagged": 0.04,
+                  "tau_mean": 0.966,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "innovation.mag": {
+          "baseline_mean": -1.732868,
+          "matters": true,
+          "max_share_flagged": 0.34,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8833,
+                "overlap_min": 4,
+                "share_flagged": 0.1267,
+                "tau_mean": 0.9244,
+                "tau_min": 0.2
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.85,
+                  "overlap_min": 4,
+                  "share_flagged": 0.14,
+                  "tau_mean": 0.926,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.825,
+                  "overlap_min": 4,
+                  "share_flagged": 0.24,
+                  "tau_mean": 0.8667,
+                  "tau_min": 0.2
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9807,
+                  "tau_min": 0.8667
+                }
+              },
+              "value": -2.599302
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8067,
+                "overlap_min": 4,
+                "share_flagged": 0.235,
+                "tau_mean": 0.8829,
+                "tau_min": -0.0667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.79,
+                  "overlap_min": 4,
+                  "share_flagged": 0.27,
+                  "tau_mean": 0.868,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.76,
+                  "overlap_min": 4,
+                  "share_flagged": 0.34,
+                  "tau_mean": 0.8333,
+                  "tau_min": -0.0667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.87,
+                  "overlap_min": 4,
+                  "share_flagged": 0.095,
+                  "tau_mean": 0.9473,
+                  "tau_min": 0.6
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "pace.dir": {
+          "baseline_mean": -0.276145,
+          "matters": false,
+          "max_share_flagged": 0.01,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9917,
+                "overlap_min": 4,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9891,
+                "tau_min": 0.7333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.99,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9873,
+                  "tau_min": 0.8667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9807,
+                  "tau_min": 0.7333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9993,
+                  "tau_min": 0.8667
+                }
+              },
+              "value": -0.414217
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9867,
+                "overlap_min": 4,
+                "share_flagged": 0.0017,
+                "tau_mean": 0.9893,
+                "tau_min": 0.7333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9947,
+                  "tau_min": 0.8667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.99,
+                  "overlap_min": 4,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9827,
+                  "tau_min": 0.7333
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9907,
+                  "tau_min": 0.8667
+                }
+              },
+              "value": -0.138072
+            }
+          }
+        },
+        "pace.mag": {
+          "baseline_mean": -2.515845,
+          "matters": true,
+          "max_share_flagged": 0.35,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.885,
+                "overlap_min": 4,
+                "share_flagged": 0.1067,
+                "tau_mean": 0.9333,
+                "tau_min": 0.0667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.89,
+                  "overlap_min": 4,
+                  "share_flagged": 0.085,
+                  "tau_mean": 0.9393,
+                  "tau_min": 0.4667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.84,
+                  "overlap_min": 4,
+                  "share_flagged": 0.225,
+                  "tau_mean": 0.8833,
+                  "tau_min": 0.0667
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.925,
+                  "overlap_min": 4,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9773,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": -3.773767
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8933,
+                "overlap_min": 4,
+                "share_flagged": 0.2083,
+                "tau_mean": 0.8924,
+                "tau_min": 0.0667
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.855,
+                  "overlap_min": 4,
+                  "share_flagged": 0.2,
+                  "tau_mean": 0.8907,
+                  "tau_min": 0.0667
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.875,
+                  "overlap_min": 4,
+                  "share_flagged": 0.35,
+                  "tau_mean": 0.8207,
+                  "tau_min": 0.2
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.95,
+                  "overlap_min": 4,
+                  "share_flagged": 0.075,
+                  "tau_mean": 0.966,
+                  "tau_min": 0.4667
+                }
+              },
+              "value": -1.257923
+            }
+          }
+        }
+      }
+    },
+    "synthetic": {
+      "companies": [
+        {
+          "conf": {
+            "comp": null,
+            "industry": "tech",
+            "stage_size": 5
+          },
+          "id": 1,
+          "name": "S-01",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.3
+            ],
+            "collaboration": [
+              "known",
+              0.766667
+            ],
+            "decision": [
+              "known",
+              0.233333
+            ],
+            "feedback": [
+              "known",
+              0.233333
+            ],
+            "innovation": [
+              "known",
+              0.633333
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": "retail",
+            "stage_size": 4
+          },
+          "id": 2,
+          "name": "S-02",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.633333
+            ],
+            "collaboration": [
+              "known",
+              0.3
+            ],
+            "decision": [
+              "known",
+              0.7
+            ],
+            "feedback": [
+              "known",
+              0.766667
+            ],
+            "innovation": [
+              "known",
+              0.633333
+            ],
+            "pace": [
+              "known",
+              0.5
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": "healthcare",
+            "stage_size": 4
+          },
+          "id": 3,
+          "name": "S-03",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.433333
+            ],
+            "collaboration": [
+              "known",
+              0.633333
+            ],
+            "decision": [
+              "known",
+              0.633333
+            ],
+            "feedback": [
+              "known",
+              0.366667
+            ],
+            "innovation": [
+              "known",
+              0.566667
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "finance",
+            "stage_size": 2
+          },
+          "id": 4,
+          "name": "S-04",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.233333
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "known",
+              0.366667
+            ],
+            "feedback": [
+              "known",
+              0.633333
+            ],
+            "innovation": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 1,
+            "industry": "finance",
+            "stage_size": 5
+          },
+          "id": 5,
+          "name": "S-05",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "unknown"
+            ],
+            "collaboration": [
+              "known",
+              0.566667
+            ],
+            "decision": [
+              "known",
+              0.366667
+            ],
+            "feedback": [
+              "known",
+              0.166667
+            ],
+            "innovation": [
+              "known",
+              0.3
+            ],
+            "pace": [
+              "known",
+              0.5
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "other",
+            "stage_size": 5
+          },
+          "id": 6,
+          "name": "S-06",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.7
+            ],
+            "collaboration": [
+              "known",
+              0.566667
+            ],
+            "decision": [
+              "known",
+              0.5
+            ],
+            "feedback": [
+              "known",
+              0.5
+            ],
+            "innovation": [
+              "known",
+              0.433333
+            ],
+            "pace": [
+              "unknown"
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "other",
+            "stage_size": 5
+          },
+          "id": 7,
+          "name": "S-07",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.5
+            ],
+            "collaboration": [
+              "known",
+              0.433333
+            ],
+            "decision": [
+              "known",
+              0.633333
+            ],
+            "feedback": [
+              "known",
+              0.5
+            ],
+            "innovation": [
+              "known",
+              0.633333
+            ],
+            "pace": [
+              "mixed",
+              0.1,
+              0.7
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 5,
+            "industry": "healthcare",
+            "stage_size": 1
+          },
+          "id": 8,
+          "name": "S-08",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "unknown"
+            ],
+            "collaboration": [
+              "known",
+              0.5
+            ],
+            "decision": [
+              "known",
+              0.3
+            ],
+            "feedback": [
+              "known",
+              0.633333
+            ],
+            "innovation": [
+              "known",
+              0.3
+            ],
+            "pace": [
+              "known",
+              0.433333
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": null,
+            "stage_size": 1
+          },
+          "id": 9,
+          "name": "S-09",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.366667
+            ],
+            "collaboration": [
+              "unknown"
+            ],
+            "decision": [
+              "known",
+              0.5
+            ],
+            "feedback": [
+              "known",
+              0.3
+            ],
+            "innovation": [
+              "known",
+              0.633333
+            ],
+            "pace": [
+              "mixed",
+              0.3,
+              0.7
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": "retail",
+            "stage_size": 2
+          },
+          "id": 10,
+          "name": "S-10",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.366667
+            ],
+            "collaboration": [
+              "known",
+              0.633333
+            ],
+            "decision": [
+              "known",
+              0.433333
+            ],
+            "feedback": [
+              "known",
+              0.5
+            ],
+            "innovation": [
+              "known",
+              0.366667
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 1,
+            "industry": "healthcare",
+            "stage_size": 2
+          },
+          "id": 11,
+          "name": "S-11",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.566667
+            ],
+            "collaboration": [
+              "known",
+              0.566667
+            ],
+            "decision": [
+              "known",
+              0.366667
+            ],
+            "feedback": [
+              "known",
+              0.7
+            ],
+            "innovation": [
+              "known",
+              0.633333
+            ],
+            "pace": [
+              "known",
+              0.833333
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 4,
+            "industry": "other",
+            "stage_size": 4
+          },
+          "id": 12,
+          "name": "S-12",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.7
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "feedback": [
+              "known",
+              0.566667
+            ],
+            "innovation": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 2,
+            "industry": null,
+            "stage_size": 5
+          },
+          "id": 13,
+          "name": "S-13",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.5
+            ],
+            "collaboration": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "decision": [
+              "known",
+              0.833333
+            ],
+            "feedback": [
+              "known",
+              0.566667
+            ],
+            "innovation": [
+              "known",
+              0.433333
+            ],
+            "pace": [
+              "unknown"
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 4,
+            "industry": null,
+            "stage_size": 1
+          },
+          "id": 14,
+          "name": "S-14",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.166667
+            ],
+            "collaboration": [
+              "known",
+              0.5
+            ],
+            "decision": [
+              "known",
+              0.766667
+            ],
+            "feedback": [
+              "known",
+              0.566667
+            ],
+            "innovation": [
+              "known",
+              0.5
+            ],
+            "pace": [
+              "known",
+              0.9
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": "other",
+            "stage_size": 2
+          },
+          "id": 15,
+          "name": "S-15",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.3
+            ],
+            "collaboration": [
+              "known",
+              0.3
+            ],
+            "decision": [
+              "mixed",
+              0.3,
+              0.7
+            ],
+            "feedback": [
+              "unknown"
+            ],
+            "innovation": [
+              "known",
+              0.3
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 2,
+            "industry": "tech",
+            "stage_size": 3
+          },
+          "id": 16,
+          "name": "S-16",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.7
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "known",
+              0.433333
+            ],
+            "feedback": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "innovation": [
+              "known",
+              0.766667
+            ],
+            "pace": [
+              "known",
+              0.766667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 4,
+            "industry": "other",
+            "stage_size": 5
+          },
+          "id": 17,
+          "name": "S-17",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.366667
+            ],
+            "collaboration": [
+              "known",
+              0.3
+            ],
+            "decision": [
+              "known",
+              0.3
+            ],
+            "feedback": [
+              "known",
+              0.566667
+            ],
+            "innovation": [
+              "known",
+              0.566667
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 2,
+            "industry": null,
+            "stage_size": 3
+          },
+          "id": 18,
+          "name": "S-18",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.5
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "known",
+              0.5
+            ],
+            "feedback": [
+              "known",
+              0.7
+            ],
+            "innovation": [
+              "unknown"
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "retail",
+            "stage_size": 1
+          },
+          "id": 19,
+          "name": "S-19",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.3
+            ],
+            "collaboration": [
+              "known",
+              0.9
+            ],
+            "decision": [
+              "known",
+              0.433333
+            ],
+            "feedback": [
+              "known",
+              0.766667
+            ],
+            "innovation": [
+              "known",
+              0.366667
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 1,
+            "industry": "healthcare",
+            "stage_size": 5
+          },
+          "id": 20,
+          "name": "S-20",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "collaboration": [
+              "known",
+              0.633333
+            ],
+            "decision": [
+              "known",
+              0.366667
+            ],
+            "feedback": [
+              "known",
+              0.566667
+            ],
+            "innovation": [
+              "known",
+              0.233333
+            ],
+            "pace": [
+              "mixed",
+              0.1,
+              0.7
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": "finance",
+            "stage_size": 3
+          },
+          "id": 21,
+          "name": "S-21",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.766667
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "feedback": [
+              "known",
+              0.433333
+            ],
+            "innovation": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "pace": [
+              "known",
+              0.3
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "retail",
+            "stage_size": 2
+          },
+          "id": 22,
+          "name": "S-22",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "mixed",
+              0.1,
+              0.9
+            ],
+            "collaboration": [
+              "known",
+              0.5
+            ],
+            "decision": [
+              "known",
+              0.433333
+            ],
+            "feedback": [
+              "known",
+              0.233333
+            ],
+            "innovation": [
+              "known",
+              0.366667
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 5,
+            "industry": null,
+            "stage_size": 3
+          },
+          "id": 23,
+          "name": "S-23",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.5
+            ],
+            "collaboration": [
+              "known",
+              0.5
+            ],
+            "decision": [
+              "known",
+              0.433333
+            ],
+            "feedback": [
+              "known",
+              0.633333
+            ],
+            "innovation": [
+              "unknown"
+            ],
+            "pace": [
+              "known",
+              0.833333
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": null,
+            "stage_size": 5
+          },
+          "id": 24,
+          "name": "S-24",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "unknown"
+            ],
+            "collaboration": [
+              "known",
+              0.433333
+            ],
+            "decision": [
+              "known",
+              0.366667
+            ],
+            "feedback": [
+              "known",
+              0.633333
+            ],
+            "innovation": [
+              "known",
+              0.9
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "finance",
+            "stage_size": 1
+          },
+          "id": 25,
+          "name": "S-25",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.566667
+            ],
+            "collaboration": [
+              "known",
+              0.366667
+            ],
+            "decision": [
+              "mixed",
+              0.1,
+              0.7
+            ],
+            "feedback": [
+              "known",
+              0.7
+            ],
+            "innovation": [
+              "known",
+              0.7
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": null,
+            "industry": "other",
+            "stage_size": 2
+          },
+          "id": 26,
+          "name": "S-26",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.3
+            ],
+            "collaboration": [
+              "unknown"
+            ],
+            "decision": [
+              "known",
+              0.766667
+            ],
+            "feedback": [
+              "unknown"
+            ],
+            "innovation": [
+              "known",
+              0.166667
+            ],
+            "pace": [
+              "known",
+              0.5
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": null,
+            "stage_size": 3
+          },
+          "id": 27,
+          "name": "S-27",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "collaboration": [
+              "known",
+              0.3
+            ],
+            "decision": [
+              "known",
+              0.233333
+            ],
+            "feedback": [
+              "known",
+              0.433333
+            ],
+            "innovation": [
+              "known",
+              0.433333
+            ],
+            "pace": [
+              "known",
+              0.633333
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 3,
+            "industry": null,
+            "stage_size": 3
+          },
+          "id": 28,
+          "name": "S-28",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.566667
+            ],
+            "collaboration": [
+              "known",
+              0.433333
+            ],
+            "decision": [
+              "mixed",
+              0.1,
+              0.7
+            ],
+            "feedback": [
+              "unknown"
+            ],
+            "innovation": [
+              "known",
+              0.366667
+            ],
+            "pace": [
+              "known",
+              0.566667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 5,
+            "industry": null,
+            "stage_size": 4
+          },
+          "id": 29,
+          "name": "S-29",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "collaboration": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "decision": [
+              "known",
+              0.633333
+            ],
+            "feedback": [
+              "known",
+              0.233333
+            ],
+            "innovation": [
+              "mixed",
+              0.3,
+              0.9
+            ],
+            "pace": [
+              "known",
+              0.366667
+            ]
+          }
+        },
+        {
+          "conf": {
+            "comp": 4,
+            "industry": "finance",
+            "stage_size": 3
+          },
+          "id": 30,
+          "name": "S-30",
+          "source": "synthetic (anchor bands)",
+          "traits": {
+            "autonomy": [
+              "known",
+              0.566667
+            ],
+            "collaboration": [
+              "known",
+              0.633333
+            ],
+            "decision": [
+              "known",
+              0.166667
+            ],
+            "feedback": [
+              "known",
+              0.366667
+            ],
+            "innovation": [
+              "known",
+              0.566667
+            ],
+            "pace": [
+              "known",
+              0.766667
+            ]
+          }
+        }
+      ],
+      "label": "synthetic: drawn from the anchor bands",
+      "n_companies": 30,
+      "rankable_per_person_max": 30,
+      "rankable_per_person_min": 30,
+      "weights": {
+        "autonomy.dir": {
+          "baseline_mean": 0.0,
+          "matters": false,
+          "max_share_flagged": 0.005,
+          "nudges": {
+            "+50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8117,
+                "overlap_min": 3,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9686,
+                "tau_min": 0.8943
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.79,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9665,
+                  "tau_min": 0.9034
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.705,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9568,
+                  "tau_min": 0.8943
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.94,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9824,
+                  "tau_min": 0.9034
+                }
+              },
+              "value": 0.336873
+            },
+            "-50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.7867,
+                "overlap_min": 3,
+                "share_flagged": 0.0017,
+                "tau_mean": 0.9677,
+                "tau_min": 0.8897
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.73,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.967,
+                  "tau_min": 0.8989
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.715,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9538,
+                  "tau_min": 0.8897
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.915,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9822,
+                  "tau_min": 0.9218
+                }
+              },
+              "value": -0.336873
+            }
+          }
+        },
+        "autonomy.mag": {
+          "baseline_mean": -0.673746,
+          "matters": false,
+          "max_share_flagged": 0.01,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.815,
+                "overlap_min": 3,
+                "share_flagged": 0.0017,
+                "tau_mean": 0.9692,
+                "tau_min": 0.8943
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.775,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.969,
+                  "tau_min": 0.8989
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.73,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9556,
+                  "tau_min": 0.8943
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.94,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.983,
+                  "tau_min": 0.9218
+                }
+              },
+              "value": -1.010619
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.7833,
+                "overlap_min": 3,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9679,
+                "tau_min": 0.8897
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.745,
+                  "overlap_min": 3,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9652,
+                  "tau_min": 0.9034
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.69,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9569,
+                  "tau_min": 0.8897
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.915,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9816,
+                  "tau_min": 0.9034
+                }
+              },
+              "value": -0.336873
+            }
+          }
+        },
+        "collaboration.dir": {
+          "baseline_mean": 0.276145,
+          "matters": false,
+          "max_share_flagged": 0.005,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9283,
+                "overlap_min": 3,
+                "share_flagged": 0.0017,
+                "tau_mean": 0.9896,
+                "tau_min": 0.9402
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.9,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9893,
+                  "tau_min": 0.9402
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.885,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9849,
+                  "tau_min": 0.9402
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9947,
+                  "tau_min": 0.9448
+                }
+              },
+              "value": 0.414217
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9617,
+                "overlap_min": 4,
+                "share_flagged": 0.0,
+                "tau_mean": 0.9897,
+                "tau_min": 0.9448
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.965,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9891,
+                  "tau_min": 0.9448
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.935,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9847,
+                  "tau_min": 0.9494
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9954,
+                  "tau_min": 0.9632
+                }
+              },
+              "value": 0.138072
+            }
+          }
+        },
+        "collaboration.mag": {
+          "baseline_mean": -0.949891,
+          "matters": false,
+          "max_share_flagged": 0.01,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8483,
+                "overlap_min": 3,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9666,
+                "tau_min": 0.8529
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.825,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9648,
+                  "tau_min": 0.8529
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.745,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9506,
+                  "tau_min": 0.8621
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9845,
+                  "tau_min": 0.9172
+                }
+              },
+              "value": -1.424837
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8,
+                "overlap_min": 3,
+                "share_flagged": 0.0033,
+                "tau_mean": 0.9633,
+                "tau_min": 0.8483
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.795,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9603,
+                  "tau_min": 0.8483
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.66,
+                  "overlap_min": 3,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9464,
+                  "tau_min": 0.8529
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.945,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9831,
+                  "tau_min": 0.9172
+                }
+              },
+              "value": -0.474946
+            }
+          }
+        },
+        "decision.dir": {
+          "baseline_mean": 0.866434,
+          "matters": false,
+          "max_share_flagged": 0.025,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.825,
+                "overlap_min": 3,
+                "share_flagged": 0.0117,
+                "tau_mean": 0.9665,
+                "tau_min": 0.8437
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.87,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9665,
+                  "tau_min": 0.8989
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.69,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9517,
+                  "tau_min": 0.8759
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.915,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9812,
+                  "tau_min": 0.8437
+                }
+              },
+              "value": 1.299651
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.7383,
+                "overlap_min": 2,
+                "share_flagged": 0.015,
+                "tau_mean": 0.953,
+                "tau_min": 0.7931
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.72,
+                  "overlap_min": 2,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9541,
+                  "tau_min": 0.8529
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.62,
+                  "overlap_min": 3,
+                  "share_flagged": 0.025,
+                  "tau_mean": 0.9388,
+                  "tau_min": 0.8621
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.875,
+                  "overlap_min": 3,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9661,
+                  "tau_min": 0.7931
+                }
+              },
+              "value": 0.433217
+            }
+          }
+        },
+        "decision.mag": {
+          "baseline_mean": -0.866434,
+          "matters": false,
+          "max_share_flagged": 0.03,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.7467,
+                "overlap_min": 2,
+                "share_flagged": 0.01,
+                "tau_mean": 0.9554,
+                "tau_min": 0.7931
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.73,
+                  "overlap_min": 2,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.9553,
+                  "tau_min": 0.8529
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.63,
+                  "overlap_min": 3,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.943,
+                  "tau_min": 0.8621
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.88,
+                  "overlap_min": 3,
+                  "share_flagged": 0.01,
+                  "tau_mean": 0.968,
+                  "tau_min": 0.7931
+                }
+              },
+              "value": -1.299651
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.825,
+                "overlap_min": 3,
+                "share_flagged": 0.0167,
+                "tau_mean": 0.965,
+                "tau_min": 0.8437
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.86,
+                  "overlap_min": 3,
+                  "share_flagged": 0.005,
+                  "tau_mean": 0.9658,
+                  "tau_min": 0.8989
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.705,
+                  "overlap_min": 3,
+                  "share_flagged": 0.03,
+                  "tau_mean": 0.9498,
+                  "tau_min": 0.8759
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.91,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9794,
+                  "tau_min": 0.8437
+                }
+              },
+              "value": -0.433217
+            }
+          }
+        },
+        "feedback.dir": {
+          "baseline_mean": 1.059122,
+          "matters": false,
+          "max_share_flagged": 0.02,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.825,
+                "overlap_min": 4,
+                "share_flagged": 0.0,
+                "tau_mean": 0.9651,
+                "tau_min": 0.8253
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.805,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9631,
+                  "tau_min": 0.8851
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.71,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.945,
+                  "tau_min": 0.8253
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9872,
+                  "tau_min": 0.908
+                }
+              },
+              "value": 1.588683
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.8367,
+                "overlap_min": 3,
+                "share_flagged": 0.0117,
+                "tau_mean": 0.9641,
+                "tau_min": 0.8805
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.82,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9634,
+                  "tau_min": 0.8943
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.7,
+                  "overlap_min": 3,
+                  "share_flagged": 0.02,
+                  "tau_mean": 0.9411,
+                  "tau_min": 0.8805
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.99,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9876,
+                  "tau_min": 0.9172
+                }
+              },
+              "value": 0.529561
+            }
+          }
+        },
+        "feedback.mag": {
+          "baseline_mean": -1.732868,
+          "matters": false,
+          "max_share_flagged": 0.095,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.7617,
+                "overlap_min": 3,
+                "share_flagged": 0.0167,
+                "tau_mean": 0.9483,
+                "tau_min": 0.8023
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.73,
+                  "overlap_min": 3,
+                  "share_flagged": 0.02,
+                  "tau_mean": 0.9469,
+                  "tau_min": 0.8345
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.57,
+                  "overlap_min": 3,
+                  "share_flagged": 0.03,
+                  "tau_mean": 0.9175,
+                  "tau_min": 0.8023
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.985,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9805,
+                  "tau_min": 0.8759
+                }
+              },
+              "value": -2.599302
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.6667,
+                "overlap_min": 2,
+                "share_flagged": 0.0533,
+                "tau_mean": 0.9341,
+                "tau_min": 0.7333
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.68,
+                  "overlap_min": 3,
+                  "share_flagged": 0.03,
+                  "tau_mean": 0.9334,
+                  "tau_min": 0.8115
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.45,
+                  "overlap_min": 3,
+                  "share_flagged": 0.095,
+                  "tau_mean": 0.9028,
+                  "tau_min": 0.7563
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.87,
+                  "overlap_min": 2,
+                  "share_flagged": 0.035,
+                  "tau_mean": 0.9662,
+                  "tau_min": 0.7333
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "innovation.dir": {
+          "baseline_mean": 0.0,
+          "matters": true,
+          "max_share_flagged": 0.105,
+          "nudges": {
+            "+50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.6483,
+                "overlap_min": 2,
+                "share_flagged": 0.0317,
+                "tau_mean": 0.9224,
+                "tau_min": 0.6644
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.605,
+                  "overlap_min": 2,
+                  "share_flagged": 0.045,
+                  "tau_mean": 0.9202,
+                  "tau_min": 0.6644
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.47,
+                  "overlap_min": 2,
+                  "share_flagged": 0.05,
+                  "tau_mean": 0.8909,
+                  "tau_min": 0.7701
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.87,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9562,
+                  "tau_min": 0.8529
+                }
+              },
+              "value": 0.866434
+            },
+            "-50%": {
+              "mode": "absolute",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.6117,
+                "overlap_min": 2,
+                "share_flagged": 0.0717,
+                "tau_mean": 0.9126,
+                "tau_min": 0.7517
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.535,
+                  "overlap_min": 3,
+                  "share_flagged": 0.095,
+                  "tau_mean": 0.9088,
+                  "tau_min": 0.7609
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.46,
+                  "overlap_min": 2,
+                  "share_flagged": 0.105,
+                  "tau_mean": 0.8825,
+                  "tau_min": 0.7517
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.84,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9467,
+                  "tau_min": 0.8161
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "innovation.mag": {
+          "baseline_mean": -1.732868,
+          "matters": true,
+          "max_share_flagged": 0.11,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.6917,
+                "overlap_min": 2,
+                "share_flagged": 0.03,
+                "tau_mean": 0.9295,
+                "tau_min": 0.7931
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.615,
+                  "overlap_min": 3,
+                  "share_flagged": 0.04,
+                  "tau_mean": 0.9251,
+                  "tau_min": 0.7931
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.5,
+                  "overlap_min": 2,
+                  "share_flagged": 0.05,
+                  "tau_mean": 0.8983,
+                  "tau_min": 0.7931
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.96,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9651,
+                  "tau_min": 0.8851
+                }
+              },
+              "value": -2.599302
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.565,
+                "overlap_min": 2,
+                "share_flagged": 0.075,
+                "tau_mean": 0.9074,
+                "tau_min": 0.6644
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.525,
+                  "overlap_min": 2,
+                  "share_flagged": 0.1,
+                  "tau_mean": 0.9051,
+                  "tau_min": 0.6644
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.42,
+                  "overlap_min": 2,
+                  "share_flagged": 0.11,
+                  "tau_mean": 0.8789,
+                  "tau_min": 0.7517
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.75,
+                  "overlap_min": 3,
+                  "share_flagged": 0.015,
+                  "tau_mean": 0.9382,
+                  "tau_min": 0.8161
+                }
+              },
+              "value": -0.866434
+            }
+          }
+        },
+        "pace.dir": {
+          "baseline_mean": -0.276145,
+          "matters": false,
+          "max_share_flagged": 0.0,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9583,
+                "overlap_min": 4,
+                "share_flagged": 0.0,
+                "tau_mean": 0.9913,
+                "tau_min": 0.954
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.95,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9901,
+                  "tau_min": 0.954
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.925,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9869,
+                  "tau_min": 0.9586
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9969,
+                  "tau_min": 0.977
+                }
+              },
+              "value": -0.414217
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.9383,
+                "overlap_min": 4,
+                "share_flagged": 0.0,
+                "tau_mean": 0.9914,
+                "tau_min": 0.954
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.93,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9903,
+                  "tau_min": 0.9586
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.885,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9866,
+                  "tau_min": 0.954
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 5.0,
+                  "overlap_min": 5,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9973,
+                  "tau_min": 0.977
+                }
+              },
+              "value": -0.138072
+            }
+          }
+        },
+        "pace.mag": {
+          "baseline_mean": -2.515845,
+          "matters": true,
+          "max_share_flagged": 0.255,
+          "nudges": {
+            "+50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.6483,
+                "overlap_min": 2,
+                "share_flagged": 0.0533,
+                "tau_mean": 0.9281,
+                "tau_min": 0.7609
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.575,
+                  "overlap_min": 2,
+                  "share_flagged": 0.05,
+                  "tau_mean": 0.9218,
+                  "tau_min": 0.7609
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.395,
+                  "overlap_min": 2,
+                  "share_flagged": 0.11,
+                  "tau_mean": 0.8917,
+                  "tau_min": 0.7747
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.975,
+                  "overlap_min": 4,
+                  "share_flagged": 0.0,
+                  "tau_mean": 0.9708,
+                  "tau_min": 0.8391
+                }
+              },
+              "value": -3.773767
+            },
+            "-50%": {
+              "mode": "relative",
+              "pooled": {
+                "n": 600,
+                "overlap_mean": 4.4833,
+                "overlap_min": 1,
+                "share_flagged": 0.1733,
+                "tau_mean": 0.9031,
+                "tau_min": 0.6322
+              },
+              "profiles": {
+                "typical": {
+                  "n": 200,
+                  "overlap_mean": 4.54,
+                  "overlap_min": 3,
+                  "share_flagged": 0.135,
+                  "tau_mean": 0.9002,
+                  "tau_min": 0.6322
+                },
+                "unanswered": {
+                  "n": 200,
+                  "overlap_mean": 4.28,
+                  "overlap_min": 1,
+                  "share_flagged": 0.255,
+                  "tau_mean": 0.8576,
+                  "tau_min": 0.669
+                },
+                "wide": {
+                  "n": 200,
+                  "overlap_mean": 4.63,
+                  "overlap_min": 3,
+                  "share_flagged": 0.13,
+                  "tau_mean": 0.9515,
+                  "tau_min": 0.7609
+                }
+              },
+              "value": -1.257923
+            }
+          }
+        }
+      }
+    }
+  }
+}

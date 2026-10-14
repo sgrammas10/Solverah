@@ -1,0 +1,13 @@
+{
+  "_note": "Who may rate the fit pairs. PREREG_FIT_PAIRS_2026-10-13.md section 1. A rater who set or may set the weights is excluded by rule and their return is REFUSED by fit_pairs_analysis.py. Letters A-D keep their round-1/round-2 meaning (rater_agreement.RATER_ROLES); new raters take E onward. Add a rater by appending an entry with eligible=true and sets_weights=false, then build their page with build_fit_pages.py --rater <id>.",
+  "raters": [
+    {"rater_id": "A", "name": "Julie", "eligible": false, "sets_weights": true,
+     "why_excluded": "set the weights: priors.yaml is her elicited values, and she authored the anchors"},
+    {"rater_id": "B", "name": "Carolynn", "eligible": false, "sets_weights": false,
+     "why_excluded": "permanently unavailable (lane record since 2026-09-01); flip eligible only if she agrees to rate"},
+    {"rater_id": "C", "name": "George", "eligible": false, "sets_weights": false,
+     "why_excluded": "permanently unavailable (lane record since 2026-09-01); flip eligible only if he agrees to rate"},
+    {"rater_id": "D", "name": "Sebastian", "eligible": false, "sets_weights": true,
+     "why_excluded": "reference rater D and may help set the weights (PRODUCT_DECISIONS section 2, step 3)"}
+  ]
+}

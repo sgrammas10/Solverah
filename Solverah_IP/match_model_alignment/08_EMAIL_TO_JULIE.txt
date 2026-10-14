@@ -1,0 +1,55 @@
+Hi Julie,
+
+Thank you. Your anchor rulings are what CompanyLens now runs on, and they made this build possible.
+
+There are six small questions left that we had to guess. The first five are about how separate pieces of evidence about a company (one review, one job ad, one news story) add up to one read per trait: known, mixed, or unknown. The sixth is about one of your own numbers. Each question stands alone, so answer one and stop, or skip any you like. Each takes about a minute. Just reply with the number and a letter, for example "1B, 3A". A word of reasoning is welcome but not needed.
+
+1. When does disagreement count as mixed?
+Today: mixed needs at least 2 pieces on the smaller side, and that side must be at least a quarter of all pieces. So 6 v 2 is mixed, 5 v 2 plus 3 balanced is known, 4 v 2 is mixed, 3 v 3 is mixed, and 2 v 2 plus 4 balanced is mixed. (One oddity: adding balanced pieces can turn mixed into known.)
+A. Keep this line.
+B. Stricter: the smaller side must be at least a third (6 v 2 becomes known).
+C. Looser: two or more pieces on each side is always mixed.
+D. Balanced pieces should not count in the totals.
+E. Not sure, skip.
+
+2. Should some evidence count more than other evidence?
+Today: every piece counts the same. Date only decides whether a trait can be read at all (it needs one independent piece from the last two years) and question 4.
+A. Keep it equal, one piece one vote.
+B. Recent pieces should count more.
+C. Clear, explicit pieces should count more than vague ones.
+D. Both B and C.
+E. Not sure, skip.
+
+3. Can a company's own words ever make a trait known?
+Today: no. A careers page, job ad, press release or leader interview is the company describing itself, so a trait is known only if at least one supporting piece is an employee review or independent news. (A job posting the user pastes in is the exception, and is labelled as the company's own description of that role.)
+A. Keep it: company words alone never make a trait known.
+B. Allow it, clearly labelled as the company's own description.
+C. Allow it only when several different company sources agree.
+D. Not sure, skip.
+
+4. If recent evidence points one way and older evidence the other, should we follow the recent?
+Today: if at least 3 independent recent pieces agree, we follow the recent side and note that it changed recently. With fewer, we show it as mixed and say the split follows time.
+A. Keep this rule.
+B. Always follow the recent side when the split follows time.
+C. Never: show both sides as mixed and let the user judge.
+D. Follow the recent side, but only with more than 3 recent pieces.
+E. Not sure, skip.
+
+5. Can one piece of evidence be scored on bands written for a whole company?
+Today: yes. Each review or posting is scored on the full scale and the scores are averaged, so one very fast review counts as a full very-fast vote, with no cap.
+A. Yes, keep scoring each piece on the full scale.
+B. Yes, but one piece alone should only reach "leans", not "clearly", unless others back it up.
+C. No, the bands only make sense for a body of evidence; score groups of evidence together, as the rating packets did.
+D. Not sure, skip.
+
+6. Is innovation really direction-neutral?
+This one is about one of your own numbers, not about evidence. On the priors form you gave 5 in 10 for both directions on Innovation: someone who wants to invent in a role that mostly refines, and someone who prefers to refine in a role that mostly invents. If it were closer to 6.5 versus 3.5, about a third of people would see a different ordering of companies.
+A. They really are equal, keep 5 and 5.
+B. Wanting to invent in a role that mostly refines is the harder one.
+C. Preferring to refine in a role that mostly invents is the harder one.
+D. It depends too much on the person, not sure, skip.
+If you pick B or C and have numbers in mind, add them, for example "B, 4 and 6".
+
+Each answer changes one setting, and nothing else in your earlier rulings or the anchors changes. Thank you again.
+
+Sebastian

@@ -1,0 +1,464 @@
+{
+  "schema": "fit_pairs_model_scores_v1",
+  "spec_sha256": "5ad054523a2a58be92ceba76fa8e2ef2b405ee3981947acea997253050a5492a",
+  "model": {
+    "weights_source": "priors",
+    "priors_sha256": "22688a649553fc59aded0e8c664422507c7be7b08732ff4b07d4c0cb4e7d1fa9",
+    "model_run_id": null,
+    "aggregation_version": "agg-v2-2026-10-13",
+    "git_sha": "20107217a764544be2d386a17797e6eb6e09626d",
+    "scored_at": "2026-10-14T13:45:37+00:00"
+  },
+  "pairs": [
+    {
+      "pair_id": "B1-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B1-C2",
+      "state": "ranked",
+      "z": 1.1789875384615385,
+      "must_have_break": true,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B1-C3",
+      "state": "ranked",
+      "z": -0.7808733600000003,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B1-C4",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B1-C5",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B9-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B9-C2",
+      "state": "ranked",
+      "z": 0.6971555384615383,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B9-C3",
+      "state": "ranked",
+      "z": 0.853103846153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B9-C4",
+      "state": "ranked",
+      "z": 0.853103846153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B9-C5",
+      "state": "ranked",
+      "z": 1.1789875384615385,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B2-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B2-C2",
+      "state": "ranked",
+      "z": 0.14584476923076917,
+      "must_have_break": false,
+      "risk_flag": true,
+      "next_step": "investigate",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B2-C3",
+      "state": "ranked",
+      "z": 1.0770274153846153,
+      "must_have_break": true,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B2-C4",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B2-C5",
+      "state": "ranked",
+      "z": 1.004096269090909,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B10-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B10-C2",
+      "state": "ranked",
+      "z": 0.5272201538461537,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B10-C3",
+      "state": "ranked",
+      "z": 0.853103846153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B10-C4",
+      "state": "ranked",
+      "z": 0.853103846153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B10-C5",
+      "state": "ranked",
+      "z": 1.1458185046153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B3-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B3-C2",
+      "state": "ranked",
+      "z": 0.5869009415384618,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B3-C3",
+      "state": "ranked",
+      "z": -0.2974907384615386,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B3-C4",
+      "state": "ranked",
+      "z": 0.2867446584615384,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B3-C5",
+      "state": "not_enough_evidence",
+      "z": null,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "explore",
+      "rank_in_block": null
+    },
+    {
+      "pair_id": "B4-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B4-C2",
+      "state": "ranked",
+      "z": 0.4898490769230769,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B4-C3",
+      "state": "ranked",
+      "z": 0.3199136923076923,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B4-C4",
+      "state": "ranked",
+      "z": 0.853103846153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B4-C5",
+      "state": "ranked",
+      "z": 0.6971555384615383,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B5-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B5-C2",
+      "state": "ranked",
+      "z": -0.4096322769230767,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B5-C3",
+      "state": "ranked",
+      "z": -0.04783220307692293,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B5-C4",
+      "state": "ranked",
+      "z": 1.1458185046153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B5-C5",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "investigate",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B6-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B6-C2",
+      "state": "ranked",
+      "z": -0.005970000000000142,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B6-C3",
+      "state": "ranked",
+      "z": 0.16396538461538446,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B6-C4",
+      "state": "ranked",
+      "z": 1.1458185046153844,
+      "must_have_break": false,
+      "risk_flag": true,
+      "next_step": "investigate",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B6-C5",
+      "state": "ranked",
+      "z": 0.4032852436363634,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B7-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B7-C2",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B7-C3",
+      "state": "ranked",
+      "z": 0.4898490769230769,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B7-C4",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "investigate",
+      "rank_in_block": 3
+    },
+    {
+      "pair_id": "B7-C5",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B8-C1",
+      "state": "ranked",
+      "z": 1.386294,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 1
+    },
+    {
+      "pair_id": "B8-C2",
+      "state": "ranked",
+      "z": 1.1458185046153846,
+      "must_have_break": true,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 5
+    },
+    {
+      "pair_id": "B8-C3",
+      "state": "ranked",
+      "z": -1.5628852492307694,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 4
+    },
+    {
+      "pair_id": "B8-C4",
+      "state": "ranked",
+      "z": 1.112283366153846,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 2
+    },
+    {
+      "pair_id": "B8-C5",
+      "state": "ranked",
+      "z": 0.9799733353846154,
+      "must_have_break": false,
+      "risk_flag": false,
+      "next_step": "decide",
+      "rank_in_block": 3
+    }
+  ]
+}
