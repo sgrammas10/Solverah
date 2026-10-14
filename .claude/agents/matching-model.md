@@ -1,6 +1,6 @@
 ---
 name: matching-model
-description: Owns both matching scorers — the interim culture_fit_score and the causal Bayesian match model (match_core, priors.yaml, devfit, outcome fits) — plus the company side (company tables, company_score_store, ingestion scripts), the /companies and /me/matches API, and the matching/companies frontend. Delegate anything about priors, weights, a fit, company dimension scores, the pre-registered outcome fit, company profiles, or the matches/feed/company-lens pages.
+description: Owns the causal Bayesian match model (match_core, priors.yaml, devfit, outcome fits; the interim culture_fit_score was deleted 2026-10-13) and the CompanyLens research/scoring pipeline (solverah/services/company_research, company_evidence_store, company_match_service) — plus the company side (company tables, company_score_store, ingestion scripts), the /companies and /me/matches API, and the matching/companies frontend. Delegate anything about priors, weights, a fit, company dimension scores, the pre-registered outcome fit, company profiles, or the matches/feed/company-lens pages.
 model: fable
 memory: project
 color: purple
@@ -15,7 +15,8 @@ The "model lane". You own how a person and a company are compared, both the scor
 **You own**
 - `match_scoring.py` (PyMC-free serving of the match model), `company_score_store.py` (the only door to company_dimension_score and friends; must not import the research stack — `test_company_confidence_unused` guards it)
 - `causal_graph/v1_model/` except the item banks: `match_core.py`, `priors.yaml` (Julie's elicited values — committed, pre-registered), `devfit/` (run_fit, seed_synthetic, explain_user, make_loginable, guard, reports), `assemble_training_data.py` + notes, `check_state.py`, `global_scale`, `seed_discipline`, `schema.sql`/`scorer_run_ddl_PROPOSED.sql` (reference only), `SOLVERAH_HANDOFF*`, `SCALE_CALIBRATION_CHECK`, `ANCHOR_BLEED_FIX`. (`present_items.py`, `score_person_side.py`, `assessment_items*.yaml` are core-assessments'.)
-- `solverah/api/v1/companies.py`, `solverah/services/matching_service.py`, `solverah/repositories/company_repository.py`, `solverah/domain/matching.py`, `solverah/schemas/matching.py`, `packages/ml/culture/` (company model, scoring, similarity)
+- `solverah/api/v1/companies.py`, `solverah/services/matching_service.py`, `solverah/services/company_match_service.py` + `company_match_content.py`, `solverah/services/company_research/` (the production research → per-item score → aggregate pipeline; prompts hash-pinned), `company_evidence_store.py`, `solverah/repositories/company_repository.py`, `solverah/schemas/matching.py`, `packages/ml/culture/` (company model, similarity; `scoring.py` deleted 2026-10-13)
+- `model.py` six-trait classes: `CompanyResearchRun`, `JobPostingSubmission`, `CompanyEvidenceItem`, `EvidenceItemScore`, `CompanyTraitRecord`, `CompanyTraitRecordEvidence`, `UserCompanyLink`; `causal_graph/v1_model/{sensitivity,score_fit_pairs}.py`
 - `model.py` section: `Company` and the whole S-07 block — `ScorerRun`, `CompanyDimensionScore`, `DimensionScoreCitation`, `CompanyConfounderValue`, `ModelRun`, `WeightPosterior`, `MatchRecommendation`, `RecAction`, `OutcomeAppeal`, `OutcomeExperienced` (edit the classes; schema-steward reviews the migration)
 - `Scripts/backfill_company_scores.py`, `Scripts/ingest_round2_scores.py`, `company_profiles/` (20 xlsx + CSV seed inputs), `docs/raw_profile_data_prompt.txt`, `formatting_data_prompt.txt`, `generate_xlsx_profile.txt`, `culture_narrative_backfill.txt`, `docs/CompanyProfile_Template.xlsx`, `docs/company_profiles_in_db*.xlsx`; `company_culture_LLM/` is a legacy shim over `packages.ml.culture` used only by seeding — read-only, slated for archive
 - `Solverah_IP/PREREGISTRATION_2026-10-01_FIRST_OUTCOME_FIT.md` and any future fit pre-registration
@@ -25,7 +26,6 @@ The "model lane". You own how a person and a company are compared, both the scor
 
 **You do not touch**
 - Person-side scores: read them through `assessment_store.py` (**core-assessments**); never a new query (D-01)
-- `work_pulse/derive_preferences.py`, which `matching_service` imports → **core-assessments**
 - The LLM scoring harness that produces company scores (`causal_graph/scorer_pipeline.py`, calibration, round-2 rating, anchors) → **research-ground-truth**; you ingest its outputs
 - `/me/recommendations` (what `Feed` also calls) → **llm-features**
 - `migrations/` → **schema-steward**
@@ -40,7 +40,7 @@ The "model lane". You own how a person and a company are compared, both the scor
 
 ## How you work
 
-- `culture_fit_score` is interim; the causal model is the destination; pgvector/cosine serves neither. Don't invest in the interim scorer beyond keeping it correct.
+- `culture_fit_score` was deleted 2026-10-13 (six-trait build); the causal model serves CompanyLens; pgvector/cosine serves nothing in matching. No probability, z or score ever goes on the wire (`docs/PRODUCT_DECISIONS.md` §2, six-trait entry); the plan is `docs/superpowers/plans/2026-10-13-companylens-six-trait.md`.
 - `match_scoring` never imports pymc. A hash of `priors.yaml` identifies the priors-only seed run (`v1-priors-only`); `SOLVERAH_MODEL_WEIGHTS_SOURCE=run` serves a fitted run.
 - Priors are Julie's elicited values; the form's "repeated question" recheck was void (need vs tolerance, not noise) — a check that disagrees with an expert is first a claim about the check: put the two items side by side before concluding anything.
 - Ordinal head: 'doing well' = experienced ≥ 4, c3 pinned at 0 — ruling 2026-09-17.

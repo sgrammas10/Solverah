@@ -9,4 +9,4 @@ Retired by Sebastian's ruling 2026-10-02. `AssessmentKind.retired=True` keeps th
 
 **Why:** it was unreachable from the UI but still paid for an OpenAI call per request.
 
-**How to apply:** `culture_preferences` (interim matcher input) derives only from legacy answers, so users who never took the old quiz get `/me/matches` 400 forever; handed to matching-model. `Scripts/capture_contract.py` still queues work_pulse and will KeyError on the 410 -- backend-platform must update it and re-baseline. `derive_preferences.py` stays (matching backfill uses it). See [[core-retakes-live]].
+**How to apply:** `culture_preferences` (interim matcher input) derives only from legacy answers, so users who never took the old quiz get `/me/matches` 400 forever; handed to matching-model. `Scripts/capture_contract.py` still queues work_pulse and will KeyError on the 410 -- backend-platform must update it and re-baseline. `derive_preferences.py` was DELETED 2026-10-14 (C6 removed its last caller) with its test and `work_pulse_answers_for_users`. See [[core-retakes-live]].

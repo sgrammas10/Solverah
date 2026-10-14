@@ -1,3 +1,4 @@
 - [Ended experiment: 'completed' status](project_experiment_ended_stays_active.md) — FIXED 2026-10-02 (lazy close + migration 20261002_experiment_completed); design and why
 - [Pulse cadence rules](project_pulse_cadence_rules.md) — since 2026-10-02: due-ness anchors on max(prompt, check-in) and counts UTC calendar days; fixture trap
 - [Pulse cron status](project_pulse_cron_status.md) — created in Render dashboard 2026-09-14, not in render.yaml; first real send unverified
+- [Pulse company_link_id](project_pulse_company_link_id.md) — C8 2026-10-13: PulseCheckin.company_link_id attaches active UserCompanyLink; resolution rule, fnm/npm trap, openapi/schema.ts regen

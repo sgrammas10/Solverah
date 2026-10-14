@@ -14,7 +14,9 @@ Verified in code 2026-10-02:
   The user-level memory "A-7 ... envQuestions.ts is GENERATED" is wrong. Parity guard covers
   dimension items, all four context items (incl. industry values), form order and FORM_VERSION.
 - Subject (current vs past) migration LANDED and is committed: `20261002_envreport_subject`
-  (down_revision `20261001_envreport_industry`), commit d8406c2. FORM_VERSION = env-v2-2026-10-01.
+  (down_revision `20261001_envreport_industry`), commit d8406c2. FORM_VERSION was env-v2-2026-10-01;
+  it is env-v3-2026-10-13 since C4 ([[c4-tolerance-and-outcomes-2026-10-13]]).
+- The parity guard now also covers the five outcome items and the `kind: "outcome"` steps.
 - The current-mode payload always carries all six dimensions (aligned rows included); only
   needs_forward drops aligned rows. So `dimensions: []` fixtures in current mode are impossible
   payloads — tests built on them can pass while the real all-aligned case renders wrong.

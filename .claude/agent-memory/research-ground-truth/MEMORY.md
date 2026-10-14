@@ -1,0 +1,3 @@
+- [CompanyLens production coupling](companylens-production-coupling.md) — prod imports scorer_pipeline + reads v3.1 anchors; 10-13 review findings, Julie asks
+- [Match model alignment response](match-model-alignment-response.md) — Julie's Oct brief + our 00-06 docs and docx (2026-10-13, uncommitted); flagged tensions inside
+- [Fit-pairs blind-rater task](fit-pairs-blind-rater-task.md) - C10: 10 blocks, prereg, matching-model hook; zero eligible raters until Sebastian recruits

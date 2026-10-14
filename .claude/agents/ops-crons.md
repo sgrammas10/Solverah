@@ -14,7 +14,7 @@ The "backups lane". You keep the scheduled and operational machinery running in 
 
 **You own**
 - `solverah/cli.py` — the file and `register_cli()`. Other lanes own their own command groups inside it (`pulse` → pulse-experiments, `corpus` → path-intelligence); you own `outbox`, `retention`, `backups`, and the registration itself.
-- `solverah/services/backups.py`, `solverah/services/outbox.py`, `solverah/services/audit.py`, `solverah/domain/backup_retention.py`, `solverah/infra/backup_storage.py` (the backups R2 bucket — separate from `infra/storage.py`, which is backend-platform's), `solverah/infra/email.py` (Resend), `solverah/tasks/outbox_tasks.py`, `solverah/tasks/maintenance_tasks.py`, `solverah/tasks/audit_tasks.py`
+- `solverah/services/backups.py`, `solverah/services/outbox.py`, `solverah/services/audit.py`, `solverah/domain/backup_retention.py`, `solverah/infra/backup_storage.py` (the backups R2 bucket — separate from `infra/storage.py`, which is backend-platform's), `solverah/infra/email.py` (Resend), `solverah/tasks/outbox_tasks.py`, `solverah/tasks/audit_tasks.py`
 - `retention_cleanup.py` (abandoned intakes, audit PII minimisation, orphan R2 sweep — run as `flask retention cleanup`)
 - `model.py` section: `Outbox` (edit the class; schema-steward reviews the migration)
 - `render.yaml`, `infra/docker/Dockerfile.backup`, `docs/RENDER_DEPLOYMENT.md`, `docs/RUNBOOK_SCENARIO_A_CRON.md`, `docs/RUNBOOK_DEPLOY_MAIN_MERGE.md`, `docs/CELERY_WORKER_SPLIT.md`
@@ -38,7 +38,7 @@ The "backups lane". You keep the scheduled and operational machinery running in 
 
 ## How you work
 
-- Production: one web service (`gunicorn app:app`), crons `outbox-sweep` (every 5 min), `retention` (04:30 daily, chains `retention run` + `retention cleanup`), `backups` (03:30 daily, `flask backups run`, own R2 bucket + token), `corpus-refresh` (quarterly). Celery beat does not run in prod; `BEAT_SCHEDULE` in `infra/queue.py` is dead there.
+- Production: one web service (`gunicorn app:app`), crons `outbox-sweep` (every 5 min), `retention` (04:30 daily, chains `retention run` + `retention cleanup`), `backups` (03:30 daily, `flask backups run`, own R2 bucket + token), `corpus-refresh` (quarterly); `companies-sweep` (every 10 min, `flask companies sweep`) is created on the six-trait deploy day. Celery beat does not run in prod; `BEAT_SCHEDULE` in `infra/queue.py` is dead there.
 - Memory-store rate limiting is FATAL in prod; `REDIS_URL` must be set in Render — re-verify on deploy day, don't nag.
 - `render.yaml` is doc-only until Blueprint adoption (Sebastian's call, pending). Changes to live crons are made in the Render dashboard AND mirrored into the file.
 - Flask CLI loads `.env` before `app.py`'s guard: every dry run uses `FLASK_SKIP_DOTENV=1` and an explicit local `DATABASE_URL`. The `.env` `DATABASE_URL` is prod.

@@ -1,22 +1,22 @@
 ---
 name: contract-seeds-legacy-work-pulse
-description: capture_contract.py seeds a legacy work_pulse sitting (A32) because the retired kind can no longer be submitted; removing the seed moves 9 steps
+description: capture_contract.py seeds a legacy work_pulse sitting (A32) and the profile's culture_preferences as a LITERAL (A33); removing either moves legacy-read steps for lost coverage, not a wire change
 metadata:
   type: project
 ---
 
 Since the 2026-10-05 retirement of the legacy 12-question `work_pulse` (A32), `Scripts/capture_contract.py`
-cannot score one, so `_seed_legacy_work_pulse` writes the row through `assessment_repository.open_current` +
-`profile_repository.update_extra_key("culture_preferences", ...)`, in the final state the deleted
-`submit_work_pulse` left. Its four door steps (`submit-work-pulse-sync-gone`, `queue-work-pulse-too-few-answers`,
-`queue-work-pulse`, `poll-work-pulse-job` on a fixed `"0"*32` handle) now pin the 410 `kind_retired` tombstone.
+cannot score one, so `_seed_legacy_work_pulse` writes the row through `assessment_repository.open_current`
+and the profile's `culture_preferences` through `profile_repository.update_extra_key`. Since A33
+(2026-10-14) the preferences are the literal `LEGACY_CULTURE_PREFERENCES`, not a call into
+`work_pulse.derive_preferences`: the interim `culture_fit_score` path that consumed the key was deleted
+by the six-trait build, and the script must not depend on what is left of it. The key is still echoed in
+the profile document (`NARROW_EXTRA_KEYS`) and the export, so five steps still pin it
+(`me-profile-after-write`, `export`, the three later logins).
 
-**Why:** without the seed, 9 more steps moved (result-work-pulse 200->404, catalogue completed, session
-`wpl_completed`, profile/login `culture_preferences`, dashboard "original Work Pulse quiz" activity, export
-`wpl_*`). That is lost coverage, not a wire change: prod still holds legacy rows and they must stay readable.
-A32 re-baseline DONE 2026-10-05 (uncommitted): exactly 10 field differences in the four door steps, then
-0 across 116 after recapture. The situation lane's new default-pin rule has no wire impact here because EMAIL
-has one core sitting, which short-circuits. Any multi-sitting scenario step would need its own re-baseline.
-**How to apply:** keep the seed until legacy rows are purged from prod. If core-assessments changes what
-a legacy row looks like (or deletes `derive_culture_preferences`), the seed must follow. See
-[[rebaseline-pending-career-status-changed]].
+**Why:** without the sitting, 9 steps move (result-work-pulse 200->404, catalogue, session
+`wpl_completed`, profile/login/dashboard/export); without the preferences literal, 5 move. Both are lost
+coverage of rows prod still holds, not wire changes.
+**How to apply:** keep both seeds until legacy rows are purged from prod. If core-assessments changes
+what a legacy row looks like, the seed must follow. The four door steps still pin the 410 `kind_retired`.
+See [[rebaseline-a33-companylens]].

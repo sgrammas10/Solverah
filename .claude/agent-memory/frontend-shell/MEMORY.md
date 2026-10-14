@@ -1,0 +1,4 @@
+- [Real-stack e2e recipe](e2e-real-stack-recipe.md) — Flask 5055 + VITE_API_URL + solverah_e2e (migrate first); worked 2026-10-14
+- [e2e stub drift](e2e-stub-drift.md) — lanes break the e2e specs silently; what changed 2026-10-14; run the stubbed smoke on path-touching reviews
+- [Size gates near limit](size-gates-near-limit.md) — 2026-10-14: entry JS 99.87/101 kB, CSS 10.51/11 kB
+- [companyLensHandlers review](msw-companylens-review.md) — 3 open follow-ups for matching-model (404 vs fall-through, untyped bodies, guard misses decimals)

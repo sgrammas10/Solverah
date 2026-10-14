@@ -1,3 +1,4 @@
-- [A31 re-baseline + LLM steps gap](rebaseline-pending-career-status-changed.md) — A31 (superseded by A32); baseline has no LLM-route steps; .doc MIME drop proposal
-- [Contract seeds a legacy work_pulse row](contract-seeds-legacy-work-pulse.md) — A32 done: 4 door steps pin the 410; seed keeps 9 legacy-read steps pinned
+- [A33 CompanyLens re-baseline](rebaseline-a33-companylens.md) — DONE uncommitted, 156 steps incl. C5c research switch; keys+switch popped in run_scenario; LLM-route steps still absent
+- [Contract seeds a legacy work_pulse row](contract-seeds-legacy-work-pulse.md) — sitting + culture_preferences LITERAL seeded; removing either moves legacy-read steps
+- [Solverah_IP in the image](dockerignore-solverah-ip.md) — nothing runtime reads it since C5b; recommend .dockerignore exclusion, causal_graph stays
 - [2026-10-02 idna outage](incident-2026-10-02-idna-oom.md) — probe path clean; idna error = negative-cached codec in a worker spawned under pressure

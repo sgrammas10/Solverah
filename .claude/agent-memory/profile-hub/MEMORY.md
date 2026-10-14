@@ -1,3 +1,4 @@
 - [Audit 2026-10-02 open threads](project_audit_2026_10_02_open_threads.md) — all 13 fixed same day (uncommitted); what stays open: .doc MIME, legacy dates, replace-vs-merge
 - [Fix wave 2026-10-02 decisions](project_fix_wave_2026_10_02_decisions.md) — status owned by control, no re-hydrate while dirty, no optimistic save, recs uncapped server-side
 - [Resume parse runs inline in prod](project_resume_parse_inline_in_prod.md) — eager Celery, no worker/beat; reaper never runs; client poll has no ceiling
+- [CompanyLens card live 2026-10-14](project_companylens_card_live.md) — hub card links /company-lens; TrustPage matching section rewritten; stale limits-aside claim left

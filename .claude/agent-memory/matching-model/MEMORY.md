@@ -1,2 +1,12 @@
-- [Pilot form pipeline](project_pilot_form.md) — 2026-10-01 UNCOMMITTED: Google Form generator + CSV import into local solverah_pilot + report-back; respondent_source provenance; design choices
+- [Pilot form pipeline](project_pilot_form.md) — 2026-10-01 UNCOMMITTED, +2026-10-13 v3 outcome items/legacy-form acceptance pattern/version-forcing limitation
 - [Default pin port](project_default_pin_port_2026-10-05.md) — 2026-10-05 UNCOMMITTED: SQL pin follows the retake-era service rule; label first_core_sitting -> default_core_sitting; lane DB solverah_fx_mmodel
+- [Hinge serving shape](project_hinge_serving_shape_2026-10-13.md) — 2026-10-13 UNCOMMITTED (C2): flat_zones/env_missing/point_z in match_core, rescaling form, bitwise traps (addition order!), priors.yaml why/date, prereg Amendment 3
+- [Company evidence schema](project_company_evidence_schema_c3.md) — 2026-10-13 UNCOMMITTED (C3): evidence tables + company_evidence_store + migration 20261013_company_evidence; what C5/C6 code against
+- [Company research pipeline](project_company_research_pipeline_c5.md) — 2026-10-13 UNCOMMITTED (C5+C5b): v2 prompts, agg-v2 rules, F1-F14 fixes, research_unverified, run card, provisional Julie asks, infra title TRAP, NO LIVE CALL yet
+- [Company match service](project_company_match_service_c6.md) — 2026-10-13 UNCOMMITTED (C6): /me/matches rewrite + read/research/posting/link routes, interim scorer DELETED, rules as implemented, no-float wire test, hand-charged daily budget, traps
+- [Sensitivity test C9](project_sensitivity_c9.md) -- 2026-10-13 UNCOMMITTED (C9): sensitivity.py + 07_SENSITIVITY_RESULTS.md; pace.mag/innovation.mag+dir/feedback.mag matter, 8 do not; NO round-2 draws exist; build_model flat_zones; citations by URL
+- [One open link rule](project_one_open_link_rule.md) — 2026-10-14 UNCOMMITTED: close-on-create, partial unique index, PATCH /me/company-links/<id>
+- [CompanyLens frontend](project_companylens_frontend_c7.md) — 2026-10-14 UNCOMMITTED (C7): slice layout, copy choices, no-probability guard, contract-scan "?" trap, stale copy elsewhere
+- [Fit-pairs scorer C10](project_fit_pairs_scorer_c10.md) — 2026-10-14 UNCOMMITTED: score_fit_pairs.py via cms functions; 50 pairs, 0 design_check mismatches
+- [Research switch + atomic claim C5c](project_research_switch_and_claim_c5c.md) — 2026-10-14 UNCOMMITTED: SOLVERAH_COMPANYLENS_RESEARCH_ENABLED default OFF (503 research_disabled), claim-once, finish-only-from-running + late discard, blocked domains, tests need the switch ON
+- [Probability guard tightened](project_probability_guard_tightened.md) — 2026-10-14 UNCOMMITTED: decimals/ratings rejected; backspace-in-regex heredoc trap

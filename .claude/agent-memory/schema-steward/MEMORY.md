@@ -1,2 +1,3 @@
-- [Pending: experiment_completed migration](pending-experiment-completed-migration.md) — pulse-experiments head after envreport_subject; APPROVED; rollback = stamp (runbook §7)
+- [Pending: six-trait migrations](pending-six-trait-migrations.md) — five uncommitted 20261013_* revisions, all reviewed; chain + round trip proven; blocked on auth-accounts' user_company_link coverage
+- [experiments table drift](experiments-table-drift.md) — FK name + status default drift is pre-existing noise, not a pending revision's fault
 - [Flask-Migrate swallows RuntimeError](flask-migrate-swallows-runtimeerror.md) — a refusing downgrade exits 1 silently; check alembic_version, not output

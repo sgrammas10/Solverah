@@ -1,4 +1,5 @@
-- [Lane state facts](lane-state-facts.md) — 2026-10-02: seam is an e2e test (not tombstone), envQuestions hand-written, subject migration landed
+- [Lane state facts](lane-state-facts.md) — seam is an e2e test (not tombstone), envQuestions hand-written, subject migration landed, form is env-v3
 - [Audit open threads](audit-2026-10-02-open-threads.md) — what is still open after the 2026-10-02 fix wave (F2 closed 2026-10-05; docs, Q2-Q4, F6 remain)
 - [F1/F2 wire shape](situation-f1-f2-wire-shape.md) — career_status_changed is complete-only; core_unreadable rides on needs_core (no new state), and why
 - [Default pin rule](default-pin-rule-2026-10-05.md) — 2026-10-05: anchored on first env report, falls forward; model-lane SQL must follow
+- [C4 tolerance + outcomes](c4-tolerance-and-outcomes-2026-10-13.md) — 2026-10-13: zones/must-have in the report, env-v3 outcome items, Skip UI rule, open hand-offs

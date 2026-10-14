@@ -26,11 +26,11 @@ Every lane writes to `model.py`; you are the one agent that sees it whole.
 | User, UserSession, AuditLog | auth-accounts |
 | Profile, ProfileExperience, ProfileEducation, Skill, ProfileSkill, Resume, ResumeParseJob | profile-hub |
 | IntakeSubmission, UserIntake | public-funnel |
-| AssessmentForm, AssessmentSubmission, AssessmentResponse, PersonDimensionScore, ScoringJob | core-assessments |
+| AssessmentForm, AssessmentSubmission, AssessmentResponse, PersonDimensionScore, PersonTraitPreference, ScoringJob | core-assessments |
 | ManagerProfile | manager-match |
 | EnvironmentReport, EnvironmentDimensionScore, SituationReportPin | situation-report |
 | PulseCheckin, PulseEvent, Experiment | pulse-experiments |
-| Company, ScorerRun, CompanyDimensionScore, DimensionScoreCitation, CompanyConfounderValue, ModelRun, WeightPosterior, MatchRecommendation, RecAction, OutcomeAppeal, OutcomeExperienced | matching-model |
+| Company, ScorerRun, CompanyDimensionScore, DimensionScoreCitation, CompanyConfounderValue, CompanyResearchRun, JobPostingSubmission, CompanyEvidenceItem, EvidenceItemScore, CompanyTraitRecord, CompanyTraitRecordEvidence, UserCompanyLink, ModelRun, WeightPosterior, MatchRecommendation, RecAction, OutcomeAppeal, OutcomeExperienced | matching-model |
 | PathFit, PathFeedback, PathWant, PathNarrative | path-intelligence |
 | JobRecommendation | llm-features |
 | Outbox | ops-crons |

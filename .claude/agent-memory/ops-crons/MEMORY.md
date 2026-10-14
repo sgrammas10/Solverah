@@ -1,0 +1,3 @@
+- [companies sweep cron](companies-sweep-cron.md): built 2026-10-14, NOT in Render yet, gated on the double-run race; first run unverified
+- [ANTHROPIC key = public switch](anthropic-key-is-the-public-switch.md): no flag; attorney gate vs unwired blocked_domains, decide before deploy day
+- [Six-trait merge migrations](six-trait-merge-migrations.md): 10 revisions from path_wants; a code rollback needs `flask db stamp` first
