@@ -1,20 +1,29 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
-import { User, Briefcase, GraduationCap, Star, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { User, Briefcase, GraduationCap, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
-import { useAuth } from "../../auth";
+import { readCareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
+import CareerStatusReturnDialog from "./CareerStatusReturnDialog";
+import { invalidateProfileDependents, useSetCareerStatus } from "./useSetCareerStatus";
 import PersonalInfoTab from "./PersonalInfoTab";
 import ExperienceTab from "./ExperienceTab";
 import EducationTab from "./EducationTab";
-import PerformanceTab from "./PerformanceTab";
 
 const tabs = [
   { id: "personal", label: "Personal Info", icon: User },
   { id: "experience", label: "Experience", icon: Briefcase },
   { id: "education", label: "Education", icon: GraduationCap },
-  { id: "performance", label: "Performance", icon: Star },
 ];
+
+const DEFAULT_TAB = "personal";
+
+/** A tab id this page can render, or null. An unknown `?tab=` (or hash, or
+ *  router state) used to become the active tab and render an empty page with
+ *  no tab highlighted (G12). */
+function knownTab(value: unknown): string | null {
+  return typeof value === "string" && tabs.some((tab) => tab.id === value) ? value : null;
+}
 
 // ---------------------------------------------------------------------------
 // Career Status Modal
@@ -22,21 +31,17 @@ const tabs = [
 
 interface CareerStatusModalProps {
   onDismiss: () => void;
+  /** Runs after the status is saved. */
+  onSaved: () => void;
 }
 
-function CareerStatusModal({ onDismiss }: CareerStatusModalProps) {
-  const { fetchWithAuth } = useAuth();
-  const navigate = useNavigate();
-
-  // A failed PATCH re-enables the buttons and nothing more, as before.
-  const selectStatus = useMutation({
-    mutationFn: (status: "between_jobs" | "first_job") =>
-      fetchWithAuth("/me/career-status", {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
-    onSuccess: () => navigate("/intelligence/paths"),
-  });
+function CareerStatusModal({ onDismiss, onSaved }: CareerStatusModalProps) {
+  // The same write as the Experience tab's control: it puts the status in the
+  // cached profile document (the page the user goes back to reads it there,
+  // and a stale copy would put the same prompt straight back in front of
+  // them), then drops the dashboard and Situation Report. A failure shows the
+  // alert below and re-enables the buttons.
+  const selectStatus = useSetCareerStatus({ onSaved });
 
   const loading = selectStatus.isPending;
   const handleSelect = (status: "between_jobs" | "first_job") => selectStatus.mutate(status);
@@ -122,18 +127,23 @@ function JobSeekerProfile() {
 
   const getTabFromURL = () => {
     const qs = new URLSearchParams(location.search);
-    const fromSearch = qs.get("tab");
+    const fromSearch = knownTab(qs.get("tab"));
     if (fromSearch) return fromSearch;
-    if (location.hash && location.hash.length > 1) return location.hash.slice(1);
+    const fromHash = location.hash && location.hash.length > 1 ? knownTab(location.hash.slice(1)) : null;
+    if (fromHash) return fromHash;
     const st = (location.state as any) || {};
-    if (st.initialTab) return st.initialTab;
-    return null;
+    return knownTab(st.initialTab);
   };
 
-  const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || "personal");
+  const [activeTab, setActiveTab] = useState<string>(() => getTabFromURL() || DEFAULT_TAB);
   const [showCareerStatusModal, setShowCareerStatusModal] = useState<boolean>(
     () => !!(location.state as any)?.showCareerStatusModal
   );
+  // Where the user was sent from to set a career status, if anywhere. Cleared
+  // once they have answered the "go back?" dialog, so later saves don't ask.
+  const [returnTo, setReturnTo] = useState(() => readCareerStatusReturnTo(location.state));
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const incoming = getTabFromURL();
@@ -141,7 +151,29 @@ function JobSeekerProfile() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, location.hash, location.state]);
 
-  const profile = useProfileForm();
+  const queryClient = useQueryClient();
+  const profile = useProfileForm({
+    // The employed path: saving a profile with a current role, when no status
+    // is stored yet, sets career_status "employed" (useProfileForm.handleSubmit).
+    onSaved: (saved) => {
+      // A save can change career_status and everything the dashboard's next
+      // steps read; neither cached read was ever dropped (audit items 6, 7).
+      void invalidateProfileDependents(queryClient);
+      if (returnTo && saved.career_status === "employed") {
+        setShowCareerStatusModal(false);
+        setShowReturnDialog(true);
+      }
+    },
+  });
+
+  const handleCareerStatusSaved = () => {
+    setShowCareerStatusModal(false);
+    if (returnTo) {
+      setShowReturnDialog(true);
+    } else {
+      navigate("/intelligence/paths");
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-ink-primary font-sans bg-cream-base">
@@ -200,6 +232,7 @@ function JobSeekerProfile() {
             uploadedResume={profile.uploadedResume}
             resumeUploaded={profile.resumeUploaded}
             resumeParseStatus={profile.resumeParseStatus}
+            resumeFileError={profile.resumeFileError}
             handleResumeUpload={profile.handleResumeUpload}
             handleViewResume={profile.handleViewResume}
             removeUploadedResume={profile.removeUploadedResume}
@@ -234,13 +267,13 @@ function JobSeekerProfile() {
           />
         )}
 
-        {activeTab === "performance" && <PerformanceTab formData={profile.formData} />}
-
         {/* Save Button */}
         <div className="pt-6">
-          {profile.isSaving && (
+          {profile.saveBarVisible && (
             <div className="mb-4">
-              <div className="text-xs uppercase tracking-[0.18em] text-forest-light">Saving profile</div>
+              <div className="text-sm text-ink-secondary">
+                {profile.isSaving ? "Saving profile" : "Saved"}
+              </div>
               <div className="mt-2 h-2 w-full rounded-full bg-cream-subtle">
                 <div
                   className="h-2 rounded-full bg-forest-light transition-all duration-300"
@@ -248,6 +281,11 @@ function JobSeekerProfile() {
                 />
               </div>
             </div>
+          )}
+          {profile.saveError && (
+            <p role="alert" className="mb-4 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md">
+              {profile.saveError}
+            </p>
           )}
           <div className="flex justify-end">
             <button
@@ -263,7 +301,21 @@ function JobSeekerProfile() {
 
       {/* Career Status Modal — shown when navigated here from Path Intelligence */}
       {showCareerStatusModal && (
-        <CareerStatusModal onDismiss={() => setShowCareerStatusModal(false)} />
+        <CareerStatusModal
+          onDismiss={() => setShowCareerStatusModal(false)}
+          onSaved={handleCareerStatusSaved}
+        />
+      )}
+
+      {showReturnDialog && returnTo && (
+        <CareerStatusReturnDialog
+          label={returnTo.label}
+          onGoBack={() => navigate(returnTo.path)}
+          onStay={() => {
+            setShowReturnDialog(false);
+            setReturnTo(null);
+          }}
+        />
       )}
     </div>
   );

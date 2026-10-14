@@ -213,7 +213,12 @@ def _service_sources():
 #: cache. The stored deep fits go with it on the rule rather than on a claim that
 #: a fit's numbers moved: wants are not in `path_fit_repository.fingerprint`, and
 #: dropping them costs a recomputation and never a wrong answer.
-_KNOWN_INVALIDATION_SITES = 8
+#:
+#: Back to seven on 2026-10-05: the legacy 12-question `work_pulse` kind was
+#: retired (commit 6babb39) and `assessment_service.submit_work_pulse` deleted with
+#: it. Its invalidation went with the write it guarded -- a deletion this floor
+#: is right to make someone confirm, not a scan that stopped matching.
+_KNOWN_INVALIDATION_SITES = 7
 
 
 def test_every_path_cache_invalidation_also_drops_the_stored_deep_fits():

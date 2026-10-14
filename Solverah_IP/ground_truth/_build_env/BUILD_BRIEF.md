@@ -41,6 +41,12 @@ run, so a non-empty folder means the harvest did not happen — which is worth o
 to find out, because the alternative is a contaminated packet that nothing downstream can
 detect.
 
+**Most often, what you find there is another research session's `RUN_REPORT.md`, and that
+session is still alive** — waiting on a site-access or permission approval that nobody has
+answered yet. It will carry on building the moment it is approved. Stop exactly as above: do
+not start a second company, and do not touch, rewrite, or delete that report. One run at a
+time; the next begins only once the harvest has cleared the finished one.
+
 ---
 
 ## Step 1 — Which company
@@ -86,6 +92,11 @@ Set `status` to `COMPLETE` only once the packet is on disk and both lists are up
 stop for any reason — a source you cannot reach, an approval you cannot obtain, a tool that
 will not run — set it to `ABORTED — <what stopped you>`, name the last thing you finished and
 the first thing you could not, and stop there.
+
+**Those two lines stay the first two lines of the file, always** — including when you come
+back from an interruption and find the report changed or gone. Put any interruption note
+BELOW them. On 2026-09-28 a resumed run recreated its report starting with an `INTERRUPTION`
+heading and no status line, and a report with no status line is one the harvest cannot read.
 
 **Why this comes first rather than last.** An empty `packets/` folder is the same on disk
 whether this task never started, died halfway, or is still working. Those need three different

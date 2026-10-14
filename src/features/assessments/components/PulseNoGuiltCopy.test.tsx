@@ -82,6 +82,7 @@ function assertNoGuiltCopy(text: string) {
 }
 
 interface ServeOptions {
+  nextCheckin?: PulseNextCheckin;
   checkinHistory?: PulseHistory;
   cardHistory?: PulseHistory;
   trendHistory?: PulseHistory;
@@ -90,6 +91,7 @@ interface ServeOptions {
 }
 
 function serve({
+  nextCheckin = NEXT_CHECKIN,
   checkinHistory = { checkins: [], events: [] },
   cardHistory = { checkins: [], events: [] },
   trendHistory = { checkins: [], events: [] },
@@ -97,8 +99,8 @@ function serve({
   autoSlowed = false,
 }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
-    if (path === "/me/pulse/next-checkin") return Promise.resolve(NEXT_CHECKIN);
-    if (path === "/me/pulse/history?limit=1") return Promise.resolve(checkinHistory);
+    if (path === "/me/pulse/next-checkin") return Promise.resolve(nextCheckin);
+    if (path === "/me/pulse/history?limit=11") return Promise.resolve(checkinHistory);
     if (path === "/me/pulse/history?limit=2") return Promise.resolve(cardHistory);
     if (path === "/me/pulse/history") return Promise.resolve(trendHistory);
     if (path === "/me/pulse/settings" && (!init || init.method === undefined || init.method === "GET")) {
@@ -140,7 +142,9 @@ describe("Pulse copy has no guilt/streak/nag language anywhere", () => {
   });
 
   it("the first-ever-check-in confirmation (no prior to compare to)", async () => {
-    serve({ checkinHistory: { checkins: [], events: [] } });
+    // Sequence 0 is the server's word for "first ever"; an empty history on
+    // its own no longer earns that heading (F10, 2026-10-02).
+    serve({ nextCheckin: { ...NEXT_CHECKIN, sequence: 0 }, checkinHistory: { checkins: [], events: [] } });
     const { container } = render(
       withProviders(<PulseCheckinPage />),
     );

@@ -42,8 +42,6 @@ from solverah.schemas.assessments import (
     ManagerMatchResult,
     ManagerMatchSubmitRequest,
     ScoringJobAccepted,
-    WorkPulseResult,
-    WorkPulseSubmitRequest,
     WpllResultResponse,
     WpllSubmitRequest,
 )
@@ -111,9 +109,11 @@ POLL_LIMIT = "60 per minute;2000 per day"
 #: backstop is still not dropped) and adds the minute and hour terms the door
 #: needed. The paired global ceiling lives on the routes themselves, below --
 #: it cannot live in this table, because it is keyed differently.
+#:
+#: The retired ``work_pulse`` has no entry: every write door refuses it, and a
+#: refusal draws the default bucket like any unlisted kind.
 SUBMISSION_LIMITS = {
     "core": DEFAULT_SUBMISSION_LIMIT,
-    "work_pulse": DEFAULT_SUBMISSION_LIMIT,
     "focus_type": DEFAULT_SUBMISSION_LIMIT,
     "manager_match": DEFAULT_SUBMISSION_LIMIT,
     "wpll": WPLL_ANON_PER_IP_LIMIT,
@@ -144,6 +144,24 @@ def _kind_or_404(kind: str):
     return resolved
 
 
+def _refuse_retired(resolved) -> None:
+    """Raise the 410 every write door gives a retired instrument.
+
+    The original 12-question ``work_pulse`` (retired 2026-10-02) is the only
+    one. Its own code, ``kind_retired``, rather than Phase 3c's
+    ``moved_to_scoring_jobs``: that refusal carries a forwarding address for
+    the same operation, and this one has none -- the operation is gone, not
+    moved. Raised before auth and before the body is read, like Phase 3c's,
+    because it holds for any caller sending anything. The stored result stays
+    readable at ``GET /me/assessments/work_pulse/result``.
+    """
+    if resolved.retired:
+        raise GoneError(
+            detail=assessment_service.RETIRED_WORK_PULSE_MESSAGE,
+            errors=[{"field": "kind", "code": "kind_retired"}],
+        )
+
+
 def _sync_kind_or_410(kind: str):
     """Resolve ``{kind}`` and require that it still submits synchronously.
 
@@ -160,6 +178,7 @@ def _sync_kind_or_410(kind: str):
     cutover is told the fix rather than left to guess.
     """
     resolved = _kind_or_404(kind)
+    _refuse_retired(resolved)
     if scoring_jobs.is_job_eligible(resolved.key):
         raise GoneError(
             detail=(
@@ -330,6 +349,7 @@ def assessment_kind_form(kind: str):
         200: AssessmentSubmissionResponse,
         400: LegacyError,
         404: LegacyError,
+        409: PROBLEM_RESPONSE_MODEL,
         410: PROBLEM_RESPONSE_MODEL,
         500: LegacyError,
     },
@@ -340,11 +360,17 @@ def assessment_kind_form(kind: str):
         "which score deterministically in-process and stay synchronous by "
         "design (A19). `{kind}` selects both the request body and the response "
         "body -- the route is shared, the payloads are not.\n\n"
-        "The three provider-scored kinds -- `work_pulse`, `wpll`, "
-        "`manager_match` -- answer `410 Gone` here since Phase 3c: their "
-        "scoring moved off the request path, and the problem document's "
-        "`replaced_by` names the `POST /assessments/{kind}/scoring-jobs` "
-        "operation that took it."
+        "`core` may be retaken: each sitting is stored as its own. A cooldown "
+        "between sittings exists as a server setting and is off; when it is "
+        "on, a retake inside it answers `409` with error code "
+        "`retake_cooldown`.\n\n"
+        "The two provider-scored kinds, `wpll` and `manager_match`, answer "
+        "`410 Gone` here since Phase 3c: their scoring moved off the request "
+        "path, and the problem document's `replaced_by` names the "
+        "`POST /assessments/{kind}/scoring-jobs` operation that took it. "
+        "The retired `work_pulse` (the original 12-question instrument, "
+        "retired 2026-10-02) answers `410` with error code `kind_retired` and "
+        "no `replaced_by`."
     ),
 )
 # NOTE: the anonymous *global* ceiling is deliberately NOT on this route, only
@@ -393,15 +419,18 @@ def assessment_kind_submit(kind: str):
 @document(
     "Retrieve a stored assessment result",
     tags=["assessments"],
-    responses={200: AssessmentSubmissionResponse, 404: LegacyError, 422: LegacyError},
+    responses={200: AssessmentSubmissionResponse, 404: LegacyError},
     security=_AUTHENTICATED,
     enforce=True,
     description=(
         "`{kind}` selects the response shape, as on the submit route. Only "
         "`work_pulse`, `focus_type`, and `manager_match` store a re-readable "
-        "result. `core` is absent by design rather than pending -- its scores "
-        "are withheld from the submit response for a documented reason, and a "
-        "read endpoint would be the same disclosure through another door."
+        "result. `work_pulse` is the retired original instrument: its stored "
+        "narrative stays readable here, read-only, and a sitting without one "
+        "is a `404` like no sitting at all. `core` is absent by design rather "
+        "than pending -- its scores are withheld from the submit response for "
+        "a documented reason, and a read endpoint would be the same "
+        "disclosure through another door."
     ),
 )
 @assessments_bp.route("/me/assessments/<kind>/result", methods=["GET"])
@@ -492,8 +521,12 @@ def _job_kind_or_404(kind: str):
     is that this operation does not exist for those instruments, not that the
     caller asked for it wrongly. It is the same answer `GET
     /assessments/{kind}/form` gives for the four instruments that serve no form.
+
+    A 410 for the retired `work_pulse`, on the enqueue and the poll alike: it
+    had this operation until 2026-10-02 and has none now.
     """
     resolved = _kind_or_404(kind)
+    _refuse_retired(resolved)
     if not scoring_jobs.is_job_eligible(resolved.key):
         raise NotFoundError(
             detail="%s is scored synchronously and has no scoring job" % resolved.key,
@@ -515,6 +548,7 @@ def _job_kind_or_404(kind: str):
         202: ScoringJobAccepted,
         400: LegacyError,
         404: LegacyError,
+        410: PROBLEM_RESPONSE_MODEL,
     },
     security=_AUTHENTICATED_WRITE,
     enforce=True,
@@ -525,11 +559,12 @@ def _job_kind_or_404(kind: str):
         "on the provider. Poll "
         "`GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is "
         "`succeeded` or `failed`.\n\n"
-        "Only the three provider-scored instruments have this operation: "
-        "`work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score "
+        "Only the two provider-scored instruments have this operation: "
+        "`wpll` and `manager_match`. `core` and `focus_type` score "
         "deterministically in-process and answer `404` here -- they are served "
         "by the synchronous submit route, which since Phase 3c serves only "
-        "them.\n\n"
+        "them. The retired `work_pulse` answers `410` with error code "
+        "`kind_retired`: it accepts no submissions and calls no provider.\n\n"
         "**This shares one rate-limit budget with the synchronous submit for "
         "the same instrument.** The limit bounds provider spend, and spend does "
         "not move when the call moves to a worker (A9), so queueing and "
@@ -600,7 +635,7 @@ def assessment_kind_scoring_job(kind: str):
 @document(
     "Report the state of a queued assessment scoring",
     tags=["assessments"],
-    responses={200: AssessmentScoringJobStatus, 404: LegacyError},
+    responses={200: AssessmentScoringJobStatus, 404: LegacyError, 410: PROBLEM_RESPONSE_MODEL},
     security=_AUTHENTICATED,
     enforce=True,
     description=(
@@ -610,8 +645,8 @@ def assessment_kind_scoring_job(kind: str):
         "result envelope here for the same reason there is none there (A12).\n\n"
         "`wpll` needs no JWT, because the instrument does not: it is the "
         "anonymous teaser, its job has no owner, and the handle is what "
-        "authorises the poll. The other two scope the handle to the "
-        "authenticated user."
+        "authorises the poll. `manager_match` scopes the handle to the "
+        "authenticated user. The retired `work_pulse` answers `410`."
     ),
 )
 @assessments_bp.route("/assessments/<kind>/scoring-jobs/<job_id>", methods=["GET"])

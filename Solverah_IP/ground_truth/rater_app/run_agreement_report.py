@@ -47,11 +47,13 @@ from rater_agreement import (
     build_cells,
     load_band_values,
     load_readings,
+    permits_insufficient_evidence,
 )
 import three_way_dispersion as twd
 
 EXPECTED_PACKETS = [f"P-0{n}" for n in range(1, 7)]
-EXPECTED_RATERS = list(RATER_ROLES)  # ["A", "B", "C"]
+# Round 1's raters. Not list(RATER_ROLES): round 2 added D, which round 1 never had.
+EXPECTED_RATERS = ["A", "B", "C"]
 
 
 def find_returned_files(returned_dir: Path) -> list[Path]:
@@ -109,20 +111,24 @@ def report_coverage(paths: list[Path]) -> dict[tuple[str, str], Path]:
     return found
 
 
-def report_flag(paths: list[Path], band_values: list[float]) -> None:
-    readings = load_readings(paths, band_values)
+def report_flag(paths: list[Path], band_values: list[float], *,
+                allow_insufficient: bool = False) -> None:
+    readings = load_readings(paths, band_values, allow_insufficient=allow_insufficient)
     cells = build_cells(readings)
 
     review = [c for c in cells if c.verdict == "REVIEW"]
     watch = [c for c in cells if c.verdict == "WATCH"]
     incomplete = [c for c in cells if c.verdict == "INCOMPLETE"]
+    skipped = [c for c in cells if c.verdict == "SKIPPED"]
+    agree = [c for c in cells if c.verdict == "AGREE"]
 
     print("=" * 70)
     print("S-15 FLAG (computed over B and C only, per D-12(b) -- Julie excluded, authorship)")
     print("=" * 70)
     print(f"cells: {len(cells)} total | REVIEW {len(review)} | WATCH {len(watch)} | "
-          f"AGREE {len(cells) - len(review) - len(watch) - len(incomplete)} | "
-          f"INCOMPLETE {len(incomplete)}")
+          f"AGREE {len(agree)} | INCOMPLETE {len(incomplete)}")
+    if allow_insufficient:
+        report_skips(cells, readings, skipped)
     print()
 
     if review:
@@ -158,12 +164,34 @@ def report_flag(paths: list[Path], band_values: list[float]) -> None:
         print()
 
 
+def report_skips(cells, readings, skipped) -> None:
+    """Insufficient-evidence cells: neither agreement nor disagreement, so their own line.
+
+    Printed only under an anchors file that offers the skip, so a v1 report is unchanged.
+    """
+    both = [c for c in skipped if all(b is None for b in c.blind.values())]
+    print(f"SKIPPED {len(skipped)} (insufficient evidence from a blind rater -- neither "
+          f"agreement nor disagreement; not in the counts above): both blind raters skipped "
+          f"{len(both)}, one skipped {len(skipped) - len(both)}")
+    by_rater: dict[str, int] = {}
+    by_dim: dict[str, int] = {}
+    for r in readings:
+        if r.skipped:
+            by_rater[r.rater] = by_rater.get(r.rater, 0) + 1
+            by_dim[r.dimension] = by_dim.get(r.dimension, 0) + 1
+    print(f"  skips by rater (incl. A): {dict(sorted(by_rater.items()))}")
+    print(f"  skips by dimension:       {dict(sorted(by_dim.items()))}")
+    for c in skipped:
+        print(f"  {c.packet_id:8s} {c.dimension:14s} blind={c.blind}  skipped_by={c.skipped_by}")
+
+
 def report_dispersion(paths: list[Path], anchors_path: Path) -> None:
     print("=" * 70)
     print("THREE-WAY DISPERSION (non-triggering diagnostic -- informational only)")
     print("=" * 70)
     summary = twd.run(paths, anchors_path)
-    print(f"complete three-way cells: {summary['n_cells']}  |  incomplete: {summary['cells_incomplete']}")
+    print(f"complete three-way cells: {summary['n_cells']}  |  incomplete: {summary['cells_incomplete']}"
+          + (f"  |  skipped: {summary['cells_skipped']}" if summary["cells_skipped"] else ""))
     print(f"three_way_spread_distribution: {summary['three_way_spread_distribution']}")
     for pair, dist in summary["pair_distance_distribution"].items():
         print(f"  {pair}: {dist}")
@@ -194,7 +222,8 @@ def main() -> int:
         paths = find_returned_files(args.returned_dir)
         band_values = load_band_values(args.anchors)
         report_coverage(paths)
-        report_flag(paths, band_values)
+        report_flag(paths, band_values,
+                    allow_insufficient=permits_insufficient_evidence(args.anchors))
         report_dispersion(paths, args.anchors)
     except AgreementError as e:
         print(f"error: {e}", file=sys.stderr)

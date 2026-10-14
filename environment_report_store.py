@@ -14,22 +14,37 @@ APPEND-ONLY (D-16 tradition), unlike the person-side dimension-score table. Ever
 submission from the same user is a second, independent row; history is the point (it is
 what Pulse trends and E-4's training data both read).
 
+SUBJECT (PRODUCT_DECISIONS.md §2, 2026-10-01). A row describes either the user's
+current (or most recent) job, `subject='current'`, or the one job before that,
+`subject='past'`. `latest_environment_report` -- the Situation Report's read -- only
+ever returns a current row: a past report can never become "the user's job".
+`environment_report_history` (the export) returns both, each carrying its `subject`.
+
 D-15 pinning (⚑5) is out of scope here on purpose. The Situation Report pins to a named
 person-side snapshot, not to anything in this module -- see `model.py`'s "Environment side"
-section docstring for why storing such a pin here would be the wrong place for it.
+section docstring for why storing such a pin here would be the wrong place for it. The one
+thing the pin reads from here is a timestamp: `first_environment_report_submitted_at`, the
+instant the user's report first came into being, which anchors the DEFAULT pin.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Optional
 
-from model import ENV_DIMENSIONS
+from model import ENV_DIMENSIONS, ENV_REPORT_SUBJECTS
 
 __all__ = [
     "write_environment_report",
     "latest_environment_report",
     "environment_report_history",
+    "count_environment_reports",
+    "first_environment_report_submitted_at",
 ]
+
+#: The subject every "the user's job" read filters on.
+CURRENT = "current"
+PAST = "past"
 
 
 def _require_all_dimensions(dimension_scores: dict[str, float]) -> None:
@@ -66,6 +81,8 @@ def write_environment_report(
     career_status: str,
     version: str,
     employer_name_normalized: Optional[str] = None,
+    industry: Optional[str] = None,
+    subject: str = CURRENT,
 ) -> int:
     """Write one submission: the header row plus its six dimension-score rows.
 
@@ -85,20 +102,33 @@ def write_environment_report(
     nullable to hold it. `dimension_scores` still must cover all six dimensions -- comp
     is a confounder, not a dimension, and this function's completeness guarantee is about
     the dimensions only.
+
+    `industry` is `Optional` on the same terms, and defaults to `None` as well
+    (PRODUCT_DECISIONS.md §2, 2026-10-01). It holds a level key from
+    `model.ENV_INDUSTRIES` or `None` for "not sure / prefer not to say", and the
+    column's CHECK rejects anything else at flush.
+
+    `subject` is `"current"` (the default) or `"past"` (model.ENV_REPORT_SUBJECTS).
+    This function does not enforce who may file a past report -- the service does;
+    the column's CHECKs hold the vocabulary and refuse a past `first_job` row.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
     _require_all_dimensions(dimension_scores)
+    if subject not in ENV_REPORT_SUBJECTS:
+        raise ValueError("subject must be one of %r, got %r" % (ENV_REPORT_SUBJECTS, subject))
 
     report = EnvironmentReport(
         user_id=user_id,
         raw_answers=raw_answers,
         stage_size=stage_size,
         comp=comp,
+        industry=industry,
         experienced_outcome=experienced_outcome,
         career_status=career_status,
         employer_name_normalized=employer_name_normalized,
         version=version,
+        subject=subject,
     )
     db.session.add(report)
     db.session.flush()  # need report.id for the child rows below
@@ -116,43 +146,74 @@ def write_environment_report(
     return report.id
 
 
-def _serialize(report, scores_by_dim: dict[str, float]) -> dict[str, Any]:
-    return {
+def _serialize(
+    report, scores_by_dim: dict[str, float], *, include_raw_answers: bool = True
+) -> dict[str, Any]:
+    serialized: dict[str, Any] = {
         "id": report.id,
         "user_id": report.user_id,
         "submitted_at": report.submitted_at.isoformat() if report.submitted_at else None,
-        "raw_answers": report.raw_answers,
-        "dimension_scores": scores_by_dim,
-        "stage_size": report.stage_size,
-        "comp": report.comp,
-        "experienced_outcome": report.experienced_outcome,
-        "career_status": report.career_status,
-        "employer_name_normalized": report.employer_name_normalized,
-        "version": report.version,
     }
+    if include_raw_answers:
+        # Only touched when wanted: on a row read with it deferred, this
+        # attribute access would be a SELECT of its own.
+        serialized["raw_answers"] = report.raw_answers
+    serialized.update(
+        {
+            "dimension_scores": scores_by_dim,
+            "stage_size": report.stage_size,
+            "comp": report.comp,
+            "industry": report.industry,
+            "experienced_outcome": report.experienced_outcome,
+            "career_status": report.career_status,
+            "employer_name_normalized": report.employer_name_normalized,
+            "version": report.version,
+            "subject": report.subject,
+        }
+    )
+    return serialized
 
 
-def latest_environment_report(user_id: int) -> Optional[dict[str, Any]]:
+def latest_environment_report(
+    user_id: int, *, include_raw_answers: bool = True
+) -> Optional[dict[str, Any]]:
     """The user's most recent submission, or None if they have never submitted one.
 
     THE sanctioned read for A-5's `GET /api/v1/me/situation-report` "env report alone" /
     "both" states. Ordered by `submitted_at` (with `id` as the tiebreak two submissions in
     the same instant would otherwise leave ambiguous), matching
-    `ix_environment_reports_user_submitted`'s column order so this is an index-only scan
-    rather than a sort.
+    `ix_environment_reports_user_submitted`'s column order, so the index hands back the
+    newest row first rather than the rows being sorted. Not an index-only scan: the row
+    itself still comes from the table.
+
+    `include_raw_answers=False` leaves the `raw_answers` JSONB in the database and its
+    key out of the result -- the Situation Report page reads the scores, the
+    career_status snapshot and `submitted_at`, never the raw answers. Every other key
+    is unchanged. The default, and `environment_report_history` (the export), still
+    return them.
+
+    Current reports only: a `subject='past'` row is never "the latest report", however
+    recently it was filed.
     """
+    from sqlalchemy.orm import defer
+
     from model import EnvironmentDimensionScore, EnvironmentReport
 
-    report = (
-        EnvironmentReport.query.filter_by(user_id=user_id)
-        .order_by(EnvironmentReport.submitted_at.desc(), EnvironmentReport.id.desc())
-        .first()
-    )
+    query = EnvironmentReport.query.filter_by(user_id=user_id, subject=CURRENT)
+    if not include_raw_answers:
+        query = query.options(defer(EnvironmentReport.raw_answers))
+    report = query.order_by(
+        EnvironmentReport.submitted_at.desc(), EnvironmentReport.id.desc()
+    ).first()
     if report is None:
         return None
 
     scores = EnvironmentDimensionScore.query.filter_by(environment_report_id=report.id).all()
-    return _serialize(report, {s.dimension_key: s.score for s in scores})
+    return _serialize(
+        report,
+        {s.dimension_key: s.score for s in scores},
+        include_raw_answers=include_raw_answers,
+    )
 
 
 def environment_report_history(
@@ -165,6 +226,9 @@ def environment_report_history(
     "what applies right now" (`latest_environment_report`), and silently truncating it would
     be the same class of bug `assemble_training_data.py`'s module docstring warns against --
     an empty/short response read as absence rather than as a real, small answer.
+
+    Every subject: each entry carries `subject`, so a consumer that wants only the
+    current job's history filters on it.
     """
     from model import EnvironmentDimensionScore, EnvironmentReport
 
@@ -186,3 +250,42 @@ def environment_report_history(
         scores_by_report[s.environment_report_id][s.dimension_key] = s.score
 
     return [_serialize(r, scores_by_report[r.id]) for r in reports]
+
+
+def count_environment_reports(user_id: int, subject: str) -> int:
+    """How many reports of one `subject` this user has filed. One COUNT, no row
+    loaded -- what the past-report cap and the Situation Report's
+    `past_job_report_filed` flag read."""
+    from sqlalchemy import func, select
+
+    from model import EnvironmentReport, db
+
+    if subject not in ENV_REPORT_SUBJECTS:
+        raise ValueError("subject must be one of %r, got %r" % (ENV_REPORT_SUBJECTS, subject))
+    return db.session.execute(
+        select(func.count(EnvironmentReport.id)).where(
+            EnvironmentReport.user_id == user_id, EnvironmentReport.subject == subject
+        )
+    ).scalar_one()
+
+
+def first_environment_report_submitted_at(user_id: int) -> Optional[datetime]:
+    """When this user filed their FIRST current report (aware datetime), or None.
+
+    THE anchor for the Situation Report's default D-15 pin (⚑5,
+    `situation_report_service._default_pin`): the report came into being at this
+    instant, so the core sitting that was current then is the one it is built from.
+    Current reports only -- a past-job report can only be filed after a current one,
+    and it is never the Situation Report's subject. Stable by construction: rows are
+    append-only, so a later submission can never change which one was first.
+    Ascending (`submitted_at`, `id`), the mirror of `latest_environment_report`.
+    """
+    from model import EnvironmentReport
+
+    row = (
+        EnvironmentReport.query.filter_by(user_id=user_id, subject=CURRENT)
+        .order_by(EnvironmentReport.submitted_at.asc(), EnvironmentReport.id.asc())
+        .with_entities(EnvironmentReport.submitted_at)
+        .first()
+    )
+    return row[0] if row is not None else None

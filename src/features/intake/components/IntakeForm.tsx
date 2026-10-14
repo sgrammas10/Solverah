@@ -55,7 +55,7 @@ export default function IntakeForm({
   const infoOptInId = useId();
 
   return (
-    <div id="waitlist" className="animate-fade-up-slower opacity-0">
+    <div className="animate-fade-up-slower opacity-0">
       <div className="border border-cream-muted rounded-xl bg-white p-8">
         <h2 className="font-display text-[1.75rem] font-semibold text-ink-primary leading-snug mb-2">
           Tell us who you are
@@ -225,7 +225,7 @@ export default function IntakeForm({
               className="mt-0.5 h-4 w-4 rounded border-cream-muted text-forest-mid focus:ring-forest-pale"
             />
             <span>
-              I consent to Solverah securely storing my resume and contact information for early access review, as described in the <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.
+              I consent to Solverah securely storing my resume and contact information so a person can review my submission, as described in the <a href="/privacy" target="_blank" rel="noreferrer" className="underline">Privacy Policy</a>.
             </span>
           </label>
 

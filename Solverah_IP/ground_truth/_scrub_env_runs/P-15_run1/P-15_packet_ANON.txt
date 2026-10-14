@@ -1,0 +1,164 @@
+PACKET P-15   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-15_packet.txt (build v4.11, model claude-opus-5, built 2026-09-30)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-10-02
+  status        : DRAFT. Carried from the source packet: section B holds 5 entries against a
+                  declared 12-15 (the required review source holds only two reviews, both older
+                  than 24 months; three short-form entries from a second site were admitted).
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE OF THIS PACKET. The employee reviews in this packet come from five reviewers: two on
+the required review source (one people-operations role and one systems-administration role,
+both at the company's [Site A] site, dated 2022 and 2017), plus three short-form entries
+from quantitative-research and algorithmic-development roles across three of the company's
+sites. Other parts of this company — core software engineering, hardware and chip design,
+trading-systems support, data-centre operations, accounting and tax, recruiting, compliance,
+communications and real estate — are not represented in them. Company-authored sources
+(careers pages and job postings) describe the whole organisation.
+
+
+--- A. CAREERS / VALUES PAGE (5-8 excerpts) ---
+
+   • "Collaboration sets [the company] apart within our industry. We count among us many brilliant minds, but we’ve learned that the best ideas are born in a shared research and development environment."  — [careers/values page, "Core Values"] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "We are disciples of automation and efficiency, trading millions of times a day in markets around the globe. At its core, [the company] is a small tech company with a big impact."  — [careers/values page, "Core Values"] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "Both as individuals and as a company we are tenacious. We are insatiable innovators looking to improve every aspect of our business. We don’t settle until we make it better."  — [careers/values page, "Core Values"] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "We have a meritocratic, low-politics culture, where our researchers spend nearly all of their time on research and innovation is rewarded."  — [careers page, "AI & Machine Learning at [the company]" block] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y — [R2: company name in source descriptor replaced with "[the company]"; quote otherwise verbatim]
+
+   • "[The company] stands apart in the industry due to our extremely open, collaborative environment and strong common technological platform that allows us to innovate rapidly."  — [careers page, "AI & Machine Learning at [the company]" block] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y — [R2: company name in source descriptor replaced with "[the company]"; R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "Algo Software Engineers (AEs) are programmers that work hand-in-hand with Algo Developers (ADs). As focus on the software that powers trading and research, and tend to be the type of engineers who thrive on constant interaction and discussion."  [sic — "As focus on" is the source's own wording; no verb subject is supplied] — [careers page, role description] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "AEs are engineers who don’t mind juggling a few projects at once and have a varied portfolio of projects, from long-term ambitious new systems to fire-fighting live issues."  — [careers page, role description] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+   • "Idea sharing and collaboration is built on trust, respect, and hard work."  — [company home page, "TRUST" value tile] — company-authored — accessed 2026-09-30 (page publishes no date) — needed JS: Y
+
+
+--- B. EMPLOYEE REVIEWS (12-15, most recent first) ---
+
+NOTE TO RATER. Read this section against three facts about its sources. First, the required
+review source holds only two reviews for this company worldwide, dated 2022 and 2017; both
+are older than 24 months, so the section falls well short of the twelve-review minimum and
+nothing in it is a sample of anything. Second, the three entries labelled
+"[FRAGMENT — Pros/Cons format]" come from a second review site that holds 119 reviews and
+whose newest is one day old; they are included precisely because the required source's
+population is tiny and old, but that site publishes them as short Pros/Cons bullet
+fragments rather than prose, it displays only three of its 119 reviews to a reader who is
+not signed in, and no sign-in was used. Third, every one of the five entries below carried
+a "Show more" control at the point its visible text ends, so every one may be cut short;
+long, detailed reviews are the ones that get cut, so what survives here is the brief
+material. Several company events reported publicly during 2025 and 2026 — two record
+quarterly revenue figures, a senior appointment in the Asia business, a debt raise, and a
+public shift toward longer-horizon and AI-driven strategies — all postdate both reviews on
+the required source.
+
+   • "[FRAGMENT — Pros/Cons format] Good culture with no significant downsides"  Pros: "Good culture and very good pay"  Cons: "Not really any cons I can think of" […]  — [employee review, optional/second review site, short-form] — Quantitative researcher, current employee, [Site A] — rev-01 — 2026-09-29 — needed JS: Y
+
+   • "[FRAGMENT — Pros/Cons format] Good culture, but high-pressure challenges"  Pros: "Good culture and fun problems"  Cons: "High pressure and difficult problems" […]  — [employee review, optional/second review site, short-form] — Junior algo developer, current employee, [Site B] — rev-02 — 2026-09-21 — needed JS: Y
+
+   • "[FRAGMENT — Pros/Cons format] Great pay and job opportunity with no drawbacks"  Pros: "great / gave me job / pays a lot"  Cons: "great, can't think if any cons" [sic — "if" appears where "of" is evidently intended] […]  — [employee review, optional/second review site, short-form] — Trading algo developer, current employee less than 1 year, [Site C] — rev-03 — 2026-08-26 — needed JS: Y
+
+   • "[The company] has some of the best culture and coworkers I've worked with in my career. The work can be stressful on high volume days, but the work-life balance always stays very reasonable. They have really fun events and great food too." […]  — [employee review, required review source] — People Operations Specialist, [Site A] — rev-04 — 2022-10-13 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "Minimum supervision, if you take the initiative and push yourself you can learn(take on a mentor) else it will not happen. Be aware of the 8quarter pay outs when it comes to bonuses. 20 vacation days and 5 sick days." [sic — "learn(take" and "8quarter" are the source's own spellings] […]  — [employee review, required review source] — Systems Administrator, [Site A] — rev-05 — 2017-12-13 — needed JS: Y
+
+
+--- C. JOB POSTINGS (6-10 excerpts from 3+ open postings, different functions) ---
+
+   • "Our non-siloed, collaborative coding environment empowers talented engineers to make significant contributions and see their impact daily."  — [job posting, research-engineering function, confirmed open 2026-09-30] — company-authored — [posting 1] — accessed 2026-09-30 (posting last updated 2026-02-02 per the board API) — needed JS: Y
+
+   • "These roles require exceptional programming fundamentals, a strong user focus, and the ability to thrive in a fast-paced environment with constantly evolving requirements. Multitasking and context switching are inherent aspects of this role, through which you will gain insight into the ideation and execution of some of the world's most sophisticated trading strategies."  — [job posting, research-engineering function, confirmed open 2026-09-30] — company-authored — [posting 1] — accessed 2026-09-30 — needed JS: Y
+
+   • "Balance the short term goals of individual trading teams with the longer term goals of [the company]’s generalized trading platforms across trading teams. Because we don’t work in a pod environment, REs on different trading teams are expected to share technology and ideas."  — [job posting, research-engineering function, responsibilities block, confirmed open 2026-09-30] — company-authored — [posting 1] — accessed 2026-09-30 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "Kindness and empathy is a real requirement. No “smart jerks” at [the company]."  — [job posting, research-engineering function, qualifications block, confirmed open 2026-09-30] — company-authored — [posting 1] — accessed 2026-09-30 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "[The company] ships every day. The ability to thoughtfully, methodically, and reliably deploy new software and features is a critical skill."  — [job posting, research-engineering function, qualifications block, confirmed open 2026-09-30] — company-authored — [posting 1] — accessed 2026-09-30 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "Elevate the quality of feedback within the technical org, guiding managers through performance evaluations and fostering a culture of continuous development"  — [job posting, people-operations function, responsibilities block, confirmed open 2026-09-30] — company-authored — [posting 2] — accessed 2026-09-30 (posting last updated 2026-07-15 per the board API) — needed JS: Y
+
+   • "Partner with technical leads to evaluate team health, identify friction points, and optimize structures to drive team effectiveness and long-term engagement"  — [job posting, people-operations function, responsibilities block, confirmed open 2026-09-30] — company-authored — [posting 2] — accessed 2026-09-30 — needed JS: Y
+
+   • "A natural bias toward simplicity and high-impact solutions over bureaucracy"  — [job posting, people-operations function, qualifications block, confirmed open 2026-09-30] — company-authored — [posting 2] — accessed 2026-09-30 — needed JS: Y
+
+   • "[The company] employees enjoy a collegial and non-siloed environment; candidates will work closely with other researchers to develop new ideas and refine existing trading models."  — [job posting, quantitative-research function, confirmed open 2026-09-30] — company-authored — [posting 3] — accessed 2026-09-30 (posting last updated 2026-02-04 per the board API) — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "You thrive in a fast-moving, highly collaborative environment and can manage multiple projects without missing a detail."  — [job posting, communications function, confirmed open 2026-09-30] — company-authored — [posting 4] — accessed 2026-09-30 (posting last updated 2026-06-04 per the board API) — needed JS: Y
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 4 passages from 1 source · ladder fully attempted) ---
+
+NOTE TO RATER ON VOICE. All four passages below come from one person writing in the first
+person on the company's own engineering blog. He states he has been with the company about
+thirteen years and writes as someone who interviews candidates; the page states no job
+title, so whether this is a management voice or an individual-contributor voice cannot be
+established from the source. No second in-date first-person account of how the company works
+was found: the company's blog is active and current, but its other recent posts are
+technical project write-ups that describe models and code rather than working practice, and
+the two posts on the blog that do describe team practice directly are dated 2022. Read this
+section as one voice from the engineering organisation, not as a cross-section.
+
+   • "One very important thing to note about Algo: it is not a “pod” system where trading teams are siloed with IP barriers. This is especially important for engineers because it means you can work across all trading at the firm rather than being contained to some specific group."  — [company engineering blog, first-person account] — employee (approx. 13 years' tenure per the post; no title stated) — 2025-10-02 — needed JS: Y — [recurrence note: the no-pod / no-silo claim also appears in the section C research-engineering posting; one company voice twice, not two independent sources]
+
+   • "One thing to note that may be different from other companies, especially other trading firms: our platform engineers interact with Algo on a daily basis. The intention is not to put Platform behind a layer, it’s more about project focus."  — [company engineering blog, first-person account] — employee (no title stated) — 2025-10-02 — needed JS: Y
+
+   • "Communication issues. If you think that software engineering isn’t just as much about communicating to your peers and your users as it is about writing code, then [the company] is not the right place for you. We rate our engineers as much on communication as we do on technical ability."  — [company engineering blog, first-person account] — employee (no title stated) — 2025-10-02 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+   • "At [the company] we value individual contribution. We expect engineers and engineering managers to make individual contributions on a quarterly basis. This is why we administer the same technical tests to candidates at all levels, even if you were the CTO of your last company."  — [company engineering blog, first-person account] — employee (no title stated) — 2025-10-02 — needed JS: Y — [R2: company name replaced with "[the company]"; quote otherwise verbatim]
+
+
+--- E. RECENT NEWS (yield: 4 · searches logged: 4) ---
+
+   • "“We’re essentially asking people to be both good researchers and engineers,” said [name stripped], head of AI research at [the company]. “In this age of AI, the distinction is pretty blurry.”"  — [trade-press reporting] — reporter, trade press, quoting a named company executive — 2025-11-04 — needed JS: Y — [R2: company name replaced with "[the company]"; R3: named executive replaced with "[name stripped]", role kept; quote otherwise verbatim]
+
+   • "In the past, [the head of AI research] said quants could “just whiteboard, then the coding [came] a little bit afterwards.” Today, he said that “any kind of research idea you have is intimately connected to how you implement it.”"  — [trade-press reporting] — reporter, trade press, reporting a named company executive — 2025-11-04 — needed JS: Y — [R3: surname replaced with "[the head of AI research]"; quote otherwise verbatim]
+
+   • "[The head of AI research] said that his team, which is focused on training [the company]’s models, would be “dead in the water without the teams at [the company] who get the data to these systems and then the decisions to the markets.”"  — [trade-press reporting] — reporter, trade press, reporting a named company executive — 2025-11-04 — needed JS: Y — [R2: company name replaced with "[the company]"; R3: surname replaced with "[the head of AI research]"; quote otherwise verbatim]
+
+   • "In recent years, the firm has expanded beyond its traditional high-frequency trading roots by adding strategies with longer investment horizons and increasing investment in artificial intelligence-driven trading models."  — [trade-press reporting] — trade press newsroom — 2026-05-12 — needed JS: N (plain fetch reached it; wording confirmed on a rendered copy)
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+N/A — PRIVATE. This company files no annual report containing an Item 1 Human Capital
+disclosure, so this source class does not exist for it. This is a fact about the company's
+ownership, not a gap in the research.
+
+########## END OF PACKET ##########
+
+SCRUB LOG (this block follows the END marker and is not scored text)
+
+Source: P-15, one packet, scrubbed in a single session. Applied: ANONYMIZATION_RULES_DRAFT.md R1-R8, A1-A9.
+Only section 1 is carried. Sections 2-4 of the raw packet (researcher QA, roster/confounder block,
+pre-flag block) are build record and are not part of the rater-facing file.
+
+Counts by rule
+  R1  attribution lines: company name and URL removed from all 31 excerpt lines (31 URLs in section 1 removed)
+      review URLs -> rev-01 to rev-05 (5); ATS posting ids -> [posting 1] to [posting 4] (A8; 10 excerpt lines)
+  R2  company name in a quote body -> "[the company]": 12 excerpt lines (plus 2 source descriptor)
+  R3  named humans: 1 named executive in a quote body (2 further surname-only mentions, role kept) across 3 excerpt lines;
+      journalist bylines and publication names -> "trade press" in 4 attributions; blog author name removed from 4 attributions
+  R4/A5  branded names: 0 rewritten (see judgment calls)
+  R5/A6  places: 3 site tokens minted ([Site A], [Site B], [Site C]); 5 section B attributions and 1 scope-paragraph mention
+  R6/A1  figures: 0 stripped (see judgment calls)
+  R7  source typos: 4 kept verbatim
+  A3/A9  recurrence notes: 1 (section D, first excerpt)
+
+Judgment calls
+  - Industry, job titles and "Remote" untouched, per the ruleset.
+  - Distinctive self-descriptions kept (JC-1): the packet's own pre-flag list flags them, and they are the culture signal.
+  - Internal role and team terms used inside quotes (e.g. a team label, role abbreviations such as AE/AD/RE) kept under A5's
+    test: removing the token would remove the claim.
+  - Review headlines (three fragment headlines) kept verbatim per A7; they and the source typos remain a search exposure (R7).
+  - Counts and tenure stated in rater notes (a review-site total, an author tenure) kept as signal; flagged in the run record.
+  - A claim recurring between a section C posting and the section D account is annotated, not deleted (A3/A9).
+  - Where the company is recognised from the evidence, that is expected; nothing was searched.
+
+Tokens minted: 3 ([Site A], [Site B], [Site C]). The strings they replaced are recorded in the diff file, not here.

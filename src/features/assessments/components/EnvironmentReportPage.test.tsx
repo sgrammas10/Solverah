@@ -9,10 +9,11 @@
  * changed under an open form. The 409 carries `errors[0].code`, never a
  * matching message, because that is what the page branches on.
  *
- * FORM ORDER IS ASSERTED, not assumed. `experienced` last and `comp` at
- * position two are anti-halo decisions in `work_pulse/situation_items.py`, and
- * a reorder that "tidied" the form would silently change what the instrument
- * measures. The test walks the whole fifteen and checks the ends.
+ * FORM ORDER IS ASSERTED, not assumed. `experienced` last, and `comp` and
+ * `industry` at positions two and three, are anti-halo decisions in
+ * `work_pulse/situation_items.py`, and a reorder that "tidied" the form would
+ * silently change what the instrument measures. The test walks all sixteen
+ * steps and checks the ends.
  */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -26,6 +27,7 @@ import {
   ENV_FORM_STEPS,
   ENV_ITEMS,
   EXPERIENCED_ITEM,
+  INDUSTRY_ITEM,
   STAGE_SIZE_ITEM,
 } from "../data/envQuestions";
 
@@ -56,7 +58,7 @@ interface ServeOptions {
 }
 
 function serve({ careerStatus = "employed", report = NEEDS_ENV, submit }: ServeOptions = {}) {
-  mocks.fetchWithAuth.mockImplementation((path: string) => {
+  mocks.fetchWithAuth.mockImplementation((path: string, init?: { body?: string }) => {
     if (path === "/me/profile") return Promise.resolve({ profile: { career_status: careerStatus } });
     if (path === "/me/situation-report") return Promise.resolve(report);
     if (path === "/me/environment-report") {
@@ -66,20 +68,22 @@ function serve({ careerStatus = "employed", report = NEEDS_ENV, submit }: ServeO
             dimension_scores: {},
             stage_size: 3,
             comp: null,
+            industry: null,
             experienced: 3,
             career_status: careerStatus,
-            version: "env-v1-2026-09-10",
+            version: "env-v2-2026-10-01",
+            subject: init?.body ? JSON.parse(init.body).subject ?? "current" : "current",
           });
     }
     return Promise.reject(new Error(`unexpected path ${path}`));
   });
 }
 
-function renderPage() {
+function renderPage(subject?: "current" | "past") {
   render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter>
-        <EnvironmentReportPage />
+        <EnvironmentReportPage subject={subject} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -119,7 +123,7 @@ describe("EnvironmentReportPage", () => {
     expect(
       await screen.findByRole("heading", { name: "Now the other half — your job" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Twelve questions about the work, plus three about the setup/)).toBeInTheDocument();
+    expect(screen.getByText(/Twelve questions about the work, plus four about the setup/)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /How this works, and what we hold back/ }),
     ).toHaveAttribute("href", "/trust");
@@ -149,12 +153,16 @@ describe("EnvironmentReportPage", () => {
     renderPage();
     await start();
 
-    // Position one and two: the two neutral context facts.
+    // Positions one to three: the three neutral context facts.
     expect(await screen.findByText(STAGE_SIZE_ITEM.prompt)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("radio")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByText(COMP_ITEM.prompt)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("radio")[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+
+    expect(await screen.findByText(INDUSTRY_ITEM.prompt)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("radio")[0]);
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
@@ -191,6 +199,39 @@ describe("EnvironmentReportPage", () => {
     expect(screen.getAllByRole("radio")).toHaveLength(COMP_ITEM.options.length);
   });
 
+  it("renders industry in the past tense for a user between jobs", async () => {
+    serve({ careerStatus: "between_jobs" });
+    renderPage();
+    await start(true);
+
+    for (let i = 0; i < 2; i += 1) {
+      await screen.findByText(`Question ${i + 1} of ${ENV_FORM_STEPS.length}`);
+      fireEvent.click(screen.getAllByRole("radio")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    expect(await screen.findByText(INDUSTRY_ITEM.promptPast)).toBeInTheDocument();
+    expect(screen.queryByText(INDUSTRY_ITEM.prompt)).not.toBeInTheDocument();
+  });
+
+  it("offers industry's levels plus a 'not sure / rather not say' option", async () => {
+    serve();
+    renderPage();
+    await start();
+
+    for (let i = 0; i < 2; i += 1) {
+      await screen.findByText(`Question ${i + 1} of ${ENV_FORM_STEPS.length}`);
+      fireEvent.click(screen.getAllByRole("radio")[0]);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    expect(await screen.findByText(INDUSTRY_ITEM.prompt)).toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(INDUSTRY_ITEM.options.length);
+    expect(screen.getByText("Not sure, or I’d rather not say.")).toBeInTheDocument();
+    // Required like every step: a deliberate "not sure" is an answer, silence is not.
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
   it("lets the user go back and change an answer", async () => {
     serve();
     renderPage();
@@ -208,7 +249,7 @@ describe("EnvironmentReportPage", () => {
     expect(screen.getAllByRole("radio")[0]).toHaveAttribute("aria-checked", "true");
   });
 
-  it("submits the twelve item keys and the three raw context values", async () => {
+  it("submits the twelve item keys and the four raw context values", async () => {
     serve();
     renderPage();
     await start();
@@ -229,7 +270,45 @@ describe("EnvironmentReportPage", () => {
     Object.values(body.answers).forEach((choice) => expect(choice).toBe("a"));
     expect(body.stage_size).toBe(STAGE_SIZE_ITEM.options[0].value);
     expect(body.comp).toBe(COMP_ITEM.options[0].value);
+    expect(body.industry).toBe("tech");
     expect(body.experienced).toBe(EXPERIENCED_ITEM.options[0].value);
+    expect(body.subject).toBe("current");
+  });
+
+  it("submits the industry level the user picked", async () => {
+    serve();
+    renderPage();
+    await start();
+    // industry is step three; option 2 is healthcare.
+    await answerAll((i) => (i === 2 ? 2 : 0));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/environment-report",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+    const body = JSON.parse(call![1].body as string);
+    expect(body.industry).toBe("healthcare");
+  });
+
+  it("sends null for industry when the user is not sure or would rather not say", async () => {
+    serve();
+    renderPage();
+    await start();
+    // industry is step three; its "not sure" option is last.
+    await answerAll((i) => (i === 2 ? INDUSTRY_ITEM.options.length - 1 : 0));
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
+        "/me/environment-report",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+    const body = JSON.parse(call![1].body as string);
+    expect(body).toHaveProperty("industry", null);
   });
 
   it("sends null for comp when the user says they are not sure", async () => {
@@ -313,7 +392,10 @@ describe("EnvironmentReportPage", () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Set your career status/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
-      state: { showCareerStatusModal: true },
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/environment-report", label: "your Situation Report" },
+      },
     });
   });
 
@@ -390,6 +472,358 @@ describe("EnvironmentReportPage", () => {
       expect(
         screen.queryByRole("heading", { name: /Now the other half/ }),
       ).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("EnvironmentReportPage — resume prompt for a saved draft", () => {
+  const total = ENV_FORM_STEPS.length;
+
+  function seedDraft() {
+    // Steps 1 and 2 (stage_size, comp) answered; comp as "not sure" (null),
+    // which must still count as answered -- key presence, not truthiness.
+    const [stage, comp] = ENV_FORM_STEPS;
+    sessionStorage.setItem(
+      "env_report_answers",
+      JSON.stringify({ answers: {}, context: { [stage.item.itemId]: 3, [comp.item.itemId]: null } }),
+    );
+  }
+
+  it("asks before resuming instead of opening the intro at question 1", async () => {
+    // Regression: stepIndex always started at 0 behind the intro.
+    seedDraft();
+    serve();
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Pick up where you left off" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`2 of ${total} questions`))).toBeInTheDocument();
+  });
+
+  it("'Pick up where you left off' lands on the first unanswered step", async () => {
+    seedDraft();
+    serve();
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Pick up where you left off" }));
+    expect(await screen.findByText(`Question 3 of ${total}`)).toBeInTheDocument();
+  });
+
+  it("'Start over' clears the draft and lands on question 1", async () => {
+    seedDraft();
+    serve();
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Start over" }));
+    expect(await screen.findByText(`Question 1 of ${total}`)).toBeInTheDocument();
+    expect(sessionStorage.getItem("env_report_answers")).toBeNull();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
+  it("no draft: the intro, not the prompt", async () => {
+    serve();
+    renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "Now the other half — your job" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start over" })).toBeNull();
+  });
+});
+
+// ── The past-job report (PRODUCT_DECISIONS §2, 2026-10-01) ──
+//
+// `/environment-report/past`: one report per user about the job before their
+// current or most recent one. It needs a current report first, never changes
+// the Situation Report, and ends on a thank-you screen rather than a hand-off.
+describe("EnvironmentReportPage — past job", () => {
+  const COMPLETE = {
+    state: "complete",
+    manager: { has_profile: false },
+    career_status: "employed",
+    needs_forward: false,
+    dimensions: [],
+    guidance_notice: "notice",
+    events_since_report: [],
+    past_job_report_filed: false,
+  };
+  const PAST_HEADING = "Now the job before that one";
+
+  function submitBody() {
+    const call = mocks.fetchWithAuth.mock.calls.find((c) => c[0] === "/me/environment-report");
+    return JSON.parse(call![1].body as string);
+  }
+
+  function reportFetches() {
+    return mocks.fetchWithAuth.mock.calls.filter((c) => c[0] === "/me/situation-report").length;
+  }
+
+  async function startPast() {
+    await screen.findByRole("heading", { name: PAST_HEADING });
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+  }
+
+  it("asks in the past tense even for an employed user", async () => {
+    serve({ careerStatus: "employed", report: COMPLETE });
+    renderPage("past");
+
+    expect(await screen.findByRole("heading", { name: PAST_HEADING })).toBeInTheDocument();
+    expect(
+      screen.getByText(/the job before\s+your current or most recent one/),
+    ).toBeInTheDocument();
+    // Not the between_jobs intro's forward-facing promise: nothing comes back.
+    expect(screen.queryByText(/your report comes back facing forward/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Start" }));
+    expect(await screen.findByText(STAGE_SIZE_ITEM.promptPast)).toBeInTheDocument();
+    expect(screen.queryByText(STAGE_SIZE_ITEM.prompt)).not.toBeInTheDocument();
+    // The options too, not only the stem.
+    expect(screen.getByText(STAGE_SIZE_ITEM.options[0].textPast)).toBeInTheDocument();
+  });
+
+  // Audit 2026-10-02, F7: the return link used to say "your Situation Report"
+  // while sending the user back to this form.
+  it("names the earlier-job form, not the Situation Report, in the career-status return link", async () => {
+    serve({
+      report: COMPLETE,
+      submit: () => Promise.reject(new ApiError("career_status_not_set", { status: 400 })),
+    });
+    renderPage("past");
+    await startPast();
+    await answerAll();
+
+    fireEvent.click(await screen.findByRole("button", { name: /Set your career status/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/environment-report/past", label: "the form about your earlier job" },
+      },
+    });
+  });
+
+  it("keeps its draft under its own key, apart from the current-job draft", async () => {
+    // A half-finished current-job draft must not resume as the past one.
+    sessionStorage.setItem(
+      "env_report_answers",
+      JSON.stringify({ answers: {}, context: { [STAGE_SIZE_ITEM.itemId]: 3 } }),
+    );
+    serve({ report: COMPLETE });
+    renderPage("past");
+
+    // The intro, not a resume prompt: the past form has no draft of its own.
+    await startPast();
+    await screen.findByText(STAGE_SIZE_ITEM.promptPast);
+    screen
+      .getAllByRole("radio")
+      .forEach((radio) => expect(radio).toHaveAttribute("aria-checked", "false"));
+
+    fireEvent.click(screen.getAllByRole("radio")[1]);
+    await waitFor(() =>
+      expect(JSON.parse(sessionStorage.getItem("env_report_answers_past")!)).toEqual({
+        answers: {},
+        context: { [STAGE_SIZE_ITEM.itemId]: STAGE_SIZE_ITEM.options[1].value },
+      }),
+    );
+    // The current-job draft is untouched.
+    expect(JSON.parse(sessionStorage.getItem("env_report_answers")!)).toEqual({
+      answers: {},
+      context: { [STAGE_SIZE_ITEM.itemId]: 3 },
+    });
+  });
+
+  it("the current form ignores a past-job draft", async () => {
+    sessionStorage.setItem(
+      "env_report_answers_past",
+      JSON.stringify({ answers: {}, context: { [STAGE_SIZE_ITEM.itemId]: 3 } }),
+    );
+    serve();
+    renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "Now the other half — your job" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pick up where you left off" })).toBeNull();
+  });
+
+  it("submits subject past and ends on a thank-you, never the Situation Report", async () => {
+    serve({ report: COMPLETE });
+    renderPage("past");
+    await startPast();
+    await answerAll();
+
+    const heading = await screen.findByRole("heading", { name: /your earlier job is saved/ });
+    expect(submitBody().subject).toBe("past");
+    expect(screen.getByText(/doesn't change your Situation Report/)).toBeInTheDocument();
+    expect(screen.getByText(/learn which\s+gaps/)).toBeInTheDocument();
+    // D-15: no numbers on the done screen.
+    expect(heading.parentElement!.textContent).not.toMatch(/\d/);
+    expect(mocks.navigate).not.toHaveBeenCalledWith("/situation-report");
+    // The draft is gone once saved.
+    expect(sessionStorage.getItem("env_report_answers_past")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Back to your Intelligence Hub/ }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
+    expect(mocks.navigate).not.toHaveBeenCalledWith("/situation-report");
+  });
+
+  it("does not say it is building the Situation Report while it saves", async () => {
+    serve({ report: COMPLETE, submit: () => new Promise(() => {}) });
+    renderPage("past");
+    await startPast();
+    await answerAll();
+
+    expect(await screen.findByText("Saving your answers…")).toBeInTheDocument();
+    expect(screen.queryByText(/Building your Situation Report/)).toBeNull();
+  });
+
+  it("refetches the report after a save, so the filed flag refreshes", async () => {
+    // The G22 lesson: a write without invalidation leaves stale state behind.
+    // The refetch here returns the flag set, and the done screen must survive it.
+    let filed = false;
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path === "/me/profile") return Promise.resolve({ profile: { career_status: "employed" } });
+      if (path === "/me/situation-report") {
+        return Promise.resolve({ ...COMPLETE, past_job_report_filed: filed });
+      }
+      if (path === "/me/environment-report") {
+        filed = true;
+        return Promise.resolve({ subject: "past" });
+      }
+      return Promise.reject(new Error(`unexpected path ${path}`));
+    });
+    renderPage("past");
+    await startPast();
+    const before = reportFetches();
+    await answerAll();
+
+    await waitFor(() => expect(reportFetches()).toBeGreaterThan(before));
+    expect(
+      await screen.findByRole("heading", { name: /your earlier job is saved/ }),
+    ).toBeInTheDocument();
+  });
+
+  describe("gates", () => {
+    it("first_job: there is no earlier job to describe", async () => {
+      serve({
+        careerStatus: "first_job",
+        report: { ...NEEDS_ENV, can_submit_environment_report: false },
+      });
+      renderPage("past");
+
+      expect(
+        await screen.findByRole("heading", { name: "There's no earlier job to describe" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /Back to your Intelligence Hub/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
+    });
+
+    it("first_job: the submit's 409 lands on the same screen", async () => {
+      serve({
+        report: COMPLETE,
+        submit: () =>
+          Promise.reject(
+            new ApiError("first_job has no role to describe", {
+              status: 409,
+              fieldErrors: [{ field: "career_status", code: "first_job_no_role" }],
+            }),
+          ),
+      });
+      renderPage("past");
+      await startPast();
+      await answerAll();
+
+      expect(
+        await screen.findByRole("heading", { name: "There's no earlier job to describe" }),
+      ).toBeInTheDocument();
+    });
+
+    it("already filed, read from the report", async () => {
+      serve({ report: { ...COMPLETE, past_job_report_filed: true } });
+      renderPage("past");
+
+      expect(
+        await screen.findByRole("heading", { name: "You've already described your earlier job" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /Back to your Intelligence Hub/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
+    });
+
+    it("already filed, caught by the submit's 409", async () => {
+      serve({
+        report: COMPLETE,
+        submit: () =>
+          Promise.reject(
+            new ApiError("one past report per user", {
+              status: 409,
+              fieldErrors: [{ field: "subject", code: "past_report_limit" }],
+            }),
+          ),
+      });
+      renderPage("past");
+      await startPast();
+      await answerAll();
+
+      expect(
+        await screen.findByRole("heading", { name: "You've already described your earlier job" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+    });
+
+    it("no current report yet, read from the report", async () => {
+      serve({ report: NEEDS_ENV });
+      renderPage("past");
+
+      expect(
+        await screen.findByRole("heading", { name: "Start with your current job" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /Describe your current job/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
+    });
+
+    it("no current report yet, in the needs_core state", async () => {
+      serve({
+        report: { state: "needs_core", manager: { has_profile: false }, environment: null },
+      });
+      renderPage("past");
+
+      expect(
+        await screen.findByRole("heading", { name: "Start with your current job" }),
+      ).toBeInTheDocument();
+    });
+
+    it("needs_core with a current report on file opens the form", async () => {
+      serve({
+        report: {
+          state: "needs_core",
+          manager: { has_profile: false },
+          environment: { dimensions: [], career_status: "employed", submitted_at: "2026-10-01" },
+          past_job_report_filed: false,
+        },
+      });
+      renderPage("past");
+
+      expect(await screen.findByRole("heading", { name: PAST_HEADING })).toBeInTheDocument();
+    });
+
+    it("no current report yet, caught by the submit's 409", async () => {
+      serve({
+        report: COMPLETE,
+        submit: () =>
+          Promise.reject(
+            new ApiError("current report first", {
+              status: 409,
+              fieldErrors: [{ field: "subject", code: "current_report_required" }],
+            }),
+          ),
+      });
+      renderPage("past");
+      await startPast();
+      await answerAll();
+
+      expect(
+        await screen.findByRole("heading", { name: "Start with your current job" }),
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
     });
   });
 });

@@ -27,7 +27,6 @@ __all__ = [
     "AssessmentScoringJobStatus",
     "ManagerMatchScoringJobStatus",
     "ScoringJobAccepted",
-    "WorkPulseScoringJobStatus",
     "WpllScoringJobStatus",
     "AssessmentCatalogueEntry",
     "AssessmentCatalogueResponse",
@@ -43,7 +42,6 @@ __all__ = [
     "ManagerMatchSubmitRequest",
     "WorkPulseAnswer",
     "WorkPulseResult",
-    "WorkPulseSubmitRequest",
     "WpllResultResponse",
     "WpllSubmitRequest",
 ]
@@ -77,16 +75,14 @@ class WpllResultResponse(SolverahModel):
     locked_sections: List[str]
 
 
-class WorkPulseSubmitRequest(SolverahModel):
-    answers: List[WorkPulseAnswer] = Field(description="Exactly 12 answers.")
-
-
 class WorkPulseResult(SolverahModel):
-    """Work Pulse narrative result.
+    """The retired original Work Pulse's narrative result.
 
     Persisted to ``assessment_submissions.result`` since Phase 2d --
     ``user_intake.wpl_result`` before it -- and returned verbatim by
-    ``GET /me/assessments/work_pulse/result``.
+    ``GET /me/assessments/work_pulse/result``. Read-only since the instrument
+    was retired on 2026-10-02: nothing writes a new one, and its submit body
+    and job-status models are deleted with the write doors.
     """
 
     model_config = ConfigDict(extra="allow")
@@ -216,7 +212,6 @@ class AssessmentSubmissionRequest(RootModel):
 
     root: Union[
         AssessmentSubmitRequest,
-        WorkPulseSubmitRequest,
         WpllSubmitRequest,
         FocusTypeSubmitRequest,
         ManagerMatchSubmitRequest,
@@ -233,6 +228,9 @@ class AssessmentSubmissionResponse(RootModel):
     these five, and the path tells you which".
     """
 
+    # WorkPulseResult stays a member although nothing submits one any more: this
+    # union also documents `GET /me/assessments/{kind}/result`, which still
+    # serves the retired instrument's stored narrative.
     root: Union[
         AssessmentSubmitResponse,
         WorkPulseResult,
@@ -243,9 +241,10 @@ class AssessmentSubmissionResponse(RootModel):
 
 
 #: ``{kind}`` -> the body that kind actually accepts. This is what is enforced.
+#: The retired ``work_pulse`` has none: every door it had answers 410 before
+#: the body is read.
 SUBMISSION_REQUESTS: Dict[str, type] = {
     "core": AssessmentSubmitRequest,
-    "work_pulse": WorkPulseSubmitRequest,
     "wpll": WpllSubmitRequest,
     "focus_type": FocusTypeSubmitRequest,
     "manager_match": ManagerMatchSubmitRequest,
@@ -255,7 +254,6 @@ SUBMISSION_REQUESTS: Dict[str, type] = {
 #: operation description, so the mapping is stated once rather than in prose.
 SUBMISSION_RESPONSES: Dict[str, type] = {
     "core": AssessmentSubmitResponse,
-    "work_pulse": WorkPulseResult,
     "wpll": WpllResultResponse,
     "focus_type": FocusTypeResult,
     "manager_match": ManagerMatchResult,
@@ -361,14 +359,6 @@ class _ScoringJobStatusBase(SolverahModel):
     )
 
 
-class WorkPulseScoringJobStatus(_ScoringJobStatusBase):
-    """``GET /assessments/work_pulse/scoring-jobs/{job_id}``."""
-
-    result: Optional[WorkPulseResult] = Field(
-        default=None, description="Present only on 'succeeded'."
-    )
-
-
 class WpllScoringJobStatus(_ScoringJobStatusBase):
     """``GET /assessments/wpll/scoring-jobs/{job_id}``.
 
@@ -393,7 +383,7 @@ class ManagerMatchScoringJobStatus(_ScoringJobStatusBase):
 
 
 class AssessmentScoringJobStatus(RootModel):
-    """Documentation-only union of the three poll responses.
+    """Documentation-only union of the two poll responses.
 
     Which member comes back is determined by ``{kind}`` in the path, not by
     anything in the body -- the same reason ``AssessmentSubmissionResponse``
@@ -402,7 +392,6 @@ class AssessmentScoringJobStatus(RootModel):
     """
 
     root: Union[
-        WorkPulseScoringJobStatus,
         WpllScoringJobStatus,
         ManagerMatchScoringJobStatus,
     ]
@@ -410,12 +399,11 @@ class AssessmentScoringJobStatus(RootModel):
 
 #: ``{kind}`` -> the poll body that kind returns. This is what tests assert.
 #:
-#: Exactly the three instruments in ``scoring_jobs.JOB_ELIGIBLE_KINDS``, and
+#: Exactly the instruments in ``scoring_jobs.JOB_ELIGIBLE_KINDS``, and
 #: ``tests/test_scoring_jobs.py`` asserts the two agree -- an instrument that
 #: gained a job endpoint without a response model would be documented by the
-#: union as "one of these three" while returning a fourth shape.
+#: union as "one of these" while returning another shape.
 SCORING_JOB_RESPONSES: Dict[str, type] = {
-    "work_pulse": WorkPulseScoringJobStatus,
     "wpll": WpllScoringJobStatus,
     "manager_match": ManagerMatchScoringJobStatus,
 }

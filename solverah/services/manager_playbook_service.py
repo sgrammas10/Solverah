@@ -51,8 +51,10 @@ def _require_manager_match(user_id: int):
     it may return a Result (`solverah/services/__init__.py`), and both the submit route
     and the playbook read need this same precondition -- the Decoder has nothing to diff
     a manager profile against without it.
+
+    Read through `current_result`: the Decoder needs `answers` and never the narrative.
     """
-    submission = assessment_repository.current_submission(user_id, "manager_match")
+    submission = assessment_repository.current_result(user_id, "manager_match")
     if submission is None or submission.answers is None:
         raise ConflictError(
             detail=(
@@ -96,10 +98,11 @@ def submit_manager_profile(user: User, answers: Any) -> ManagerPlaybookResult:
         return _error(400, str(exc))
 
     dimension_scores = scoring["dimension_scores"]
+    user_id = user.id  # a value: the commit below expires the user row
 
     manager_profile_store.write_manager_profile(
         db,
-        user.id,
+        user_id,
         answers=answers,
         dimension_scores=dimension_scores,
         scoring_key=SCORING_KEY,
@@ -108,8 +111,8 @@ def submit_manager_profile(user: User, answers: Any) -> ManagerPlaybookResult:
     db.session.commit()
 
     playbook = None
-    manager_match_submission = assessment_repository.current_submission(
-        user.id, "manager_match"
+    manager_match_submission = assessment_repository.current_result(
+        user_id, "manager_match"
     )
     if manager_match_submission is not None and manager_match_submission.answers is not None:
         user_scores = score_manager_match(manager_match_submission.answers)["dimension_scores"]

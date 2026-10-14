@@ -1,0 +1,22 @@
+Draft covering note for Julie (Sebastian: edit into your own voice before sending).
+
+Here are this round's company packets -- 13 of them, so please don't feel you need to do them
+all. If it's too much, just do a few; if you have free time, do more. Any number helps.
+
+One request: please do them in the numbered order (01, 02, 03 ...) and stop wherever you like.
+The order was drawn at random, and working down it rather than picking keeps whatever you do a
+fair sample.
+
+Each is a single web page: open it, read, score, submit. One per sitting, whenever suits you. It
+saves as you go, so stopping halfway is fine and it will pick up where you left off. There is
+one new option, "insufficient evidence", for a dimension the packet can't really speak to (your
+ruling 4). When you submit, it downloads a small file -- send me that. Please don't talk any of
+the packets through with me until the round is closed; I'm rating them all too.
+
+Last, once you're done with whichever packets you do: the short rubric confirm sheet. It's
+last on purpose -- it shows what changed in the rubric, and it's best seen after scoring.
+
+Files to attach: the whole for_julie/ folder (numbered pages), then confirm_sheet.html from
+Solverah_IP/anchors_v31_confirm/ (or send that one separately when she says she's done).
+RATER_INSTRUCTIONS_ROUND2.md is optional; if you send it, the "Julie only" section is the part
+that matters, and it also contains your own rules about pole coverage.

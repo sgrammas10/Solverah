@@ -337,6 +337,8 @@ def test_retention_run_on_an_empty_database_deletes_nothing_and_exits_zero(ctx, 
     assert payload["resume_jobs_deleted"] == 0
     assert payload["sessions_expired"] == 0
     assert payload["sessions_deleted"] == 0
+    assert payload["path_fits_deleted"] == 0
+    assert payload["path_narratives_deleted"] == 0
 
 
 def test_retention_run_leaves_a_live_session_alone_at_any_window(ctx, sent):
@@ -372,3 +374,104 @@ def test_retention_run_leaves_a_live_session_alone_at_any_window(ctx, sent):
             )
         }
     assert alive == {ids["session_live"]}
+
+
+# -- W-19: stored Path Intelligence rows --------------------------------------
+
+
+def _seed_path_rows(app):
+    """An old and a fresh row in each of path_fits and path_narratives.
+
+    "Old" is 31 days: one past both repositories' thirty-day MAX_AGE, so the
+    old rows are ones no read would serve any more.
+    """
+    import sqlalchemy as sa
+
+    from model import PathFit, PathNarrative, User, db
+
+    user = User(email="path-retention@example.test", password_hash="not-a-real-hash")
+    db.session.add(user)
+    db.session.commit()
+
+    ids = {}
+    with db.engine.begin() as conn:
+        pf = PathFit.__table__
+        for name, code, computed in (
+            ("fit_old", "15-1252.00", _ago(days=31)),
+            ("fit_fresh", "15-1211.00", _ago(days=1)),
+        ):
+            ids[name] = conn.execute(
+                sa.insert(pf)
+                .values(
+                    user_id=user.id,
+                    onet_code=code,
+                    payload={},
+                    profile_fingerprint="fp",
+                    computed_at=computed,
+                )
+                .returning(pf.c.id)
+            ).scalar_one()
+        pn = PathNarrative.__table__
+        for name, code, created in (
+            ("narrative_old", "15-1252.00", _ago(days=31)),
+            ("narrative_fresh", "15-1211.00", _ago(days=1)),
+        ):
+            ids[name] = conn.execute(
+                sa.insert(pn)
+                .values(
+                    user_id=user.id,
+                    onet_code=code,
+                    fingerprint="fp",
+                    why_text="A sentence.",
+                    profile_dimensions=["a", "b"],
+                    created_at=created,
+                )
+                .returning(pn.c.id)
+            ).scalar_one()
+    return ids
+
+
+def test_retention_run_purges_path_fits_and_narratives_past_thirty_days(ctx, sent):
+    """Before W-19 nothing called either purge, so these rows lived forever."""
+    from model import PathFit, PathNarrative
+
+    ids = _seed_path_rows(ctx)
+
+    exit_code, payload, _ = _invoke(ctx, "retention", "run")
+
+    assert exit_code == 0
+    # The rows first: on HEAD the run succeeded and simply left them there.
+    fits_alive = _surviving(PathFit.__table__, [ids["fit_old"], ids["fit_fresh"]])
+    assert fits_alive == {ids["fit_fresh"]}, "the old fit outlived its MAX_AGE"
+    narratives_alive = _surviving(
+        PathNarrative.__table__, [ids["narrative_old"], ids["narrative_fresh"]]
+    )
+    assert narratives_alive == {ids["narrative_fresh"]}, (
+        "the old narrative outlived its MAX_AGE"
+    )
+
+    assert payload["path_fits_deleted"] == 1
+    assert payload["path_fit_window_days"] == 30
+    assert payload["path_narratives_deleted"] == 1
+    assert payload["narrative_window_days"] == 30
+
+
+def test_retention_run_path_windows_are_flags(ctx, sent):
+    """A zero-day window takes the fresh rows too -- the flags reach the purge."""
+    from model import PathFit, PathNarrative
+
+    ids = _seed_path_rows(ctx)
+
+    exit_code, payload, _ = _invoke(
+        ctx, "retention", "run", "--path-fit-days", "0", "--narrative-days", "0"
+    )
+
+    assert exit_code == 0
+    assert payload["path_fits_deleted"] == 2
+    assert payload["path_narratives_deleted"] == 2
+    assert payload["path_fit_window_days"] == 0
+    assert payload["narrative_window_days"] == 0
+    assert _surviving(PathFit.__table__, [ids["fit_old"], ids["fit_fresh"]]) == set()
+    assert _surviving(
+        PathNarrative.__table__, [ids["narrative_old"], ids["narrative_fresh"]]
+    ) == set()

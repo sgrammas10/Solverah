@@ -1,0 +1,32 @@
+P-13 CONTENT DEFECTS (recorded, not fixed)
+
+CD-1  Scope declaration lists reviewer types that are not in section B. It names "diesel and trailer
+      technicians" and "one customer service representative"; section B has one diesel technician, no
+      trailer technician and no customer service representative.
+
+CD-2  Section 2g (build record) says 13 of the 16 reviews carry driver or driver-trainee titles and also
+      says three are untitled ("Anonymous"). Only 10 reviews carry a driver-type title; 13 is reached only
+      by counting the three untitled ones as drivers, which contradicts the same paragraph.
+
+CD-3  Section 3 (roster block) quotes "Low pay compared with other companies", "Great starter company, but
+      eventually go somewhere that pays more" and "you're going to make bottom of the barrel pay" as
+      section B evidence for pay being the most repeated theme. None of the three appears anywhere in
+      section B. Only "All tanker jobs pay more, even other local" does. Section 3 is not carried into the
+      rater-facing packet.
+
+CD-4  Section header counts disagree with the section contents (headers reproduced verbatim, not corrected):
+      B header says 12-15; section holds 17 bullets (16 reviews plus one employer response). The packet
+      explains the 16 but not the response bullet.
+      C header says 6-10 excerpts; section holds 12.
+
+CD-5  Section 4 pre-flag block versus my sweep (build defect, both directions):
+      - Undercounts: says the company name is inside "four" section A excerpt bodies; it is inside six.
+      - Points at nothing: says the name appears in the scope declaration (it does not), and inside the
+        employer response text (only its attribution carries it).
+      - Undercounts: says one section D passage carries the technician's first name; four do.
+      - Omits: trade-press publication names in section E attributions are not flagged.
+      - Correct: place list, named-customer abbreviation, executive names, section A/B/D/E/F name spread.
+
+CD-6  Section E header says all four excerpts come from independent trade reporting; one excerpt quotes a
+      company release and one quotes company announcements. The header does note this, so this is a
+      minor wording tension, not a factual error.

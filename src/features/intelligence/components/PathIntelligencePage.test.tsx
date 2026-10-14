@@ -13,9 +13,10 @@
  */
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import PathIntelligencePage from "./PathIntelligencePage";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -33,6 +34,12 @@ const mocks = vi.hoisted(() => ({
    * reproduce anything that depends on the query's own lifecycle.
    */
   realJob: false,
+  /**
+   * Serve the profile out of the query cache (seeded from `profile`) instead of
+   * as a constant, so a test can see what the page itself wrote into that
+   * cache. Off by default: the constant is what every other test is about.
+   */
+  profileFromCache: false,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -48,13 +55,27 @@ vi.mock("../../auth/useAuth", () => ({
 }));
 
 // Experience, skills and path preferences come from the profile query now.
-vi.mock("../../profile/useProfile", () => ({
-  // The query hook, resolved. `isLoading: false` is the point: consumers
-  // branch on it, and a mock that omitted it would report undefined --
-  // falsy, so the branches would run, but by accident rather than intent.
-  useProfile: () => ({ data: mocks.profile, isLoading: false }),
-  profileKeys: { all: ["profile"], document: () => ["profile", "document"] },
-}));
+vi.mock("../../profile/useProfile", async () => {
+  const { useQuery } = await import("@tanstack/react-query");
+  // Always subscribed, so the hook order never depends on the flag; the flag
+  // only picks which copy is handed back.
+  function useProfile() {
+    const cached = useQuery({
+      queryKey: ["profile", "document"],
+      queryFn: () => mocks.profile,
+      initialData: mocks.profile,
+      staleTime: Infinity,
+    }).data;
+    // The query hook, resolved. `isLoading: false` is the point: consumers
+    // branch on it, and a mock that omitted it would report undefined --
+    // falsy, so the branches would run, but by accident rather than intent.
+    return { data: mocks.profileFromCache ? cached : mocks.profile, isLoading: false };
+  }
+  return {
+    useProfile,
+    profileKeys: { all: ["profile"], document: () => ["profile", "document"] },
+  };
+});
 
 vi.mock("../usePathSuggestionJob", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../usePathSuggestionJob")>();
@@ -113,15 +134,25 @@ function suggestionsFailWith(code: string) {
   });
 }
 
+const READY_PROFILE = {
+  path_preferences: { move_type: "stay_in_field" },
+  career_status: "employed",
+  skills: ["Python"],
+  skills_proficiency_confirmed: true,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.profile = { path_preferences: { move_type: "stay_in_field" } };
+  // A profile that clears both entry gates (career status, at least one
+  // skill) and the proficiency modal, so the job starts on mount.
+  mocks.profile = { ...READY_PROFILE };
   mocks.start.isPending = false;
   mocks.start.isError = false;
   mocks.start.error = null;
   mocks.job.data = undefined;
   mocks.job.error = null;
   mocks.realJob = false;
+  mocks.profileFromCache = false;
   // The enqueue lands but nothing terminal follows: the page stays pending.
   suggestionsSettleAs({ job_id: "path-job-1", status: "queued", result: null, error: null });
 });
@@ -236,6 +267,70 @@ describe("PathIntelligencePage - career status not set", () => {
   });
 });
 
+// ─── entry gates: career status first, then skills ─────────────────────────
+
+describe("PathIntelligencePage - entry order", () => {
+  it("asks for career status first, before the proficiency modal or preferences", () => {
+    mocks.profile = { skills: ["React"], skills_proficiency_confirmed: false };
+    renderPage();
+    expect(screen.getByText(/set your career status to get started/i)).toBeInTheDocument();
+    expect(screen.queryByText("Rate your skills")).toBeNull();
+    expect(mocks.startSuggestionsMutate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+  });
+
+  it("asks for career status before the preferences form when nothing is set", () => {
+    mocks.profile = { skills: ["React"], skills_proficiency_confirmed: true };
+    renderPage();
+    expect(screen.getByText(/set your career status to get started/i)).toBeInTheDocument();
+    // The preferences form (no path_preferences here) must not be what shows.
+    expect(screen.queryByText(/question 1 of/i)).toBeNull();
+  });
+
+  it("treats a current role in experience as a career status, as the server does", () => {
+    mocks.profile = {
+      ...READY_PROFILE,
+      career_status: undefined,
+      experience: [{ position: "Analyst", endDate: "Present" }],
+    };
+    renderPage();
+    expect(screen.queryByText(/set your career status/i)).toBeNull();
+    expect(mocks.startSuggestionsMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a returnTo back to this page when sending the user to set it", () => {
+    mocks.profile = { skills: ["React"] };
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /update profile/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
+      state: {
+        showCareerStatusModal: true,
+        returnTo: { path: "/", label: "Path Intelligence" },
+      },
+    });
+  });
+
+  it("asks for skills, with a link to add them, before the preferences form", () => {
+    mocks.profile = { career_status: "between_jobs", skills: [] };
+    renderPage();
+    expect(screen.getByText(/add a few skills to get started/i)).toBeInTheDocument();
+    expect(screen.queryByText(/question 1 of/i)).toBeNull();
+    expect(screen.getByRole("link", { name: /add skills/i })).toHaveAttribute(
+      "href",
+      "/job-seeker/profile?tab=experience"
+    );
+    expect(mocks.startSuggestionsMutate).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+  });
+});
+
+describe("PathIntelligencePage - Pro badge", () => {
+  it("reads as coming soon, not as a live tier", () => {
+    renderPage();
+    expect(screen.getByText(/pro · coming soon/i)).toBeInTheDocument();
+  });
+});
+
 // ─── skill proficiency modal ───────────────────────────────────────────────
 
 const baseUser = mocks.user;
@@ -248,6 +343,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("shows proficiency modal on first PI visit when skills are unrated", () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React", "Python"],
       skills_proficiency_confirmed: false,
     };
@@ -259,6 +355,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("skip closes modal and shows nudge banner after results load", async () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React"],
       skills_proficiency_confirmed: false,
     };
@@ -277,6 +374,7 @@ describe("PathIntelligencePage - skill proficiency modal", () => {
   it("saving ratings PATCHes proficiency then re-fetches suggestions", async () => {
     mocks.profile = {
       path_preferences: { move_type: "stay_in_field" },
+      career_status: "employed",
       skills: ["React"],
       skills_proficiency_confirmed: false,
     };
@@ -1064,5 +1162,531 @@ describe("PathIntelligencePage - Show more after a reload (W-15)", () => {
     fireEvent.click(screen.getByRole("button", { name: /show 3 more paths/i }));
 
     await waitFor(() => expect(cardTitles()).toHaveLength(6));
+  });
+});
+
+// ─── W-16: cards first, sentences after ────────────────────────────────────
+
+const UNWRITTEN_B = { ...CARD_B, why_text: "", profile_dimensions: [] };
+
+function scoredResult(suggestions: unknown[], narrationPending: boolean) {
+  return {
+    suggestions,
+    career_status: "employed",
+    generated_at: "2026-09-01T00:00:00Z",
+    feedback: {},
+    narration_pending: narrationPending,
+  };
+}
+
+function pendingSentences(): Element[] {
+  return Array.from(document.querySelectorAll("[data-sentence-pending]"));
+}
+
+function renderPageWithRerender() {
+  const client = createQueryClient();
+  const tree = () => (
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <PathIntelligencePage />
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
+  const view = render(tree());
+  return () => view.rerender(tree());
+}
+
+describe("PathIntelligencePage - cards before their sentences (W-16)", () => {
+  it("renders the cards as soon as the scored result arrives, shimmering only the unwritten sentence", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+
+    renderPage();
+
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(screen.queryByLabelText(/loading suggestions/i)).toBeNull();
+    expect(screen.getByText("A")).toBeInTheDocument();
+    const pending = pendingSentences();
+    expect(pending).toHaveLength(1);
+    expect(pending[0].closest("[data-onet-code]")?.getAttribute("data-onet-code")).toBe(
+      "15-1252.00"
+    );
+  });
+
+  it("puts each sentence in place when the narration lands, without moving the cards", async () => {
+    mocks.realJob = true;
+    let polls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        return Promise.resolve(ACCEPTED);
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        polls += 1;
+        const narrated = polls > 1;
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result: scoredResult([CARD_A, narrated ? CARD_B : UNWRITTEN_B], !narrated),
+          error: null,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    await waitFor(() => expect(pendingSentences()).toHaveLength(1));
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+
+    await waitFor(() => expect(screen.getByText("B")).toBeInTheDocument(), { timeout: 5000 });
+    expect(pendingSentences()).toHaveLength(0);
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+  });
+
+  it("keeps the cards and stops the shimmer when a poll fails mid-narration", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+    mocks.job.error = new Error("Too Many Requests");
+
+    renderPage();
+
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(pendingSentences()).toHaveLength(0);
+    expect(screen.queryByText(/couldn't load your path suggestions/i)).toBeNull();
+  });
+
+  it("fills a card a mid-narration tap left empty once the narration is over", async () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+    routeFetch({
+      "/me/path-feedback": () => ({
+        ...scoredResult([UNWRITTEN_B, CARD_A], true),
+        feedback: { "15-1252.00": "interesting" },
+      }),
+      "/me/path-suggestions": () => ({
+        ...scoredResult([CARD_B, CARD_A], false),
+        feedback: { "15-1252.00": "interesting" },
+      }),
+    });
+
+    const rerender = renderPageWithRerender();
+    fireEvent.click(verdictButtons("interesting")[1]);
+    await waitFor(() =>
+      expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"])
+    );
+    expect(pendingSentences()).toHaveLength(1);
+    // Still narrating: nothing to read back yet.
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalledWith("/me/path-suggestions", expect.anything());
+
+    // The job's poll reports the narration over.
+    mocks.job.data = {
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, CARD_B], false),
+      error: null,
+    };
+    rerender();
+
+    await waitFor(() => expect(screen.getByText("B")).toBeInTheDocument());
+    expect(pendingSentences()).toHaveLength(0);
+    expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"]);
+  });
+
+  it("ends the wants panel's busy state when the cards arrive, not when the sentences do", async () => {
+    mocks.realJob = true;
+    let enqueued = 0;
+    let secondJobPolls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-wants") return Promise.resolve(WANTS_PANEL);
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        enqueued += 1;
+        return Promise.resolve({ ...ACCEPTED, job_id: `path-job-${enqueued}` });
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result: scoredResult([CARD_A, CARD_B], false),
+          error: null,
+        });
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-2") {
+        secondJobPolls += 1;
+        // Queued once, then scored with its sentences still coming -- forever,
+        // so the only way the busy state can end is on the cards.
+        return Promise.resolve(
+          secondJobPolls === 1
+            ? { job_id: "path-job-2", status: "queued", result: null, error: null }
+            : {
+                job_id: "path-job-2",
+                status: "succeeded",
+                result: scoredResult([CARD_B, { ...CARD_A, why_text: "", profile_dimensions: [] }], true),
+                error: null,
+              }
+        );
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    const control = await screen.findByRole("button", {
+      name: /what should change about your job/i,
+    });
+    fireEvent.click(control);
+    fireEvent.click(
+      document.querySelector<HTMLInputElement>(
+        'input[name="want-condition-people"][value="more"]'
+      )!
+    );
+    fireEvent.click(document.querySelector<HTMLElement>("[data-wants-save]")!);
+
+    await waitFor(() => expect(screen.getByText(/re-sorting your paths/i)).toBeInTheDocument());
+    await waitFor(() => expect(pendingSentences()).toHaveLength(1), { timeout: 8000 });
+    await waitFor(() => expect(screen.queryByText(/re-sorting your paths/i)).toBeNull());
+    expect(pendingSentences()).toHaveLength(1);
+  });
+});
+
+// ─── W-18: an O*NET summary on every card, from the first poll ─────────────
+
+describe("PathIntelligencePage - the summary arrives with the card (W-18)", () => {
+  it("shows each card's summary with the scored result, before its sentence is written", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult(
+        [
+          { ...CARD_A, summary: "Plan and run marketing programs." },
+          { ...UNWRITTEN_B, summary: "Build and test software." },
+        ],
+        true
+      ),
+      error: null,
+    });
+
+    renderPage();
+
+    expect(screen.getByText("Plan and run marketing programs.")).toBeInTheDocument();
+    expect(screen.getByText("Build and test software.")).toBeInTheDocument();
+    const pending = pendingSentences();
+    expect(pending).toHaveLength(1);
+    const card = pending[0].closest("[data-onet-code]");
+    expect(card?.querySelector("[data-summary]")?.textContent).toBe("Build and test software.");
+  });
+});
+
+// ─── Fix wave 2026-10-02: the audit's four defects ─────────────────────────
+
+/** Every `PUT /me/skills` body this render has sent, parsed. */
+function skillsPuts(): unknown[] {
+  return mocks.fetchWithAuth.mock.calls
+    .filter((call) => call[0] === "/me/skills")
+    .map((call) => JSON.parse(String((call[1] as RequestInit).body)));
+}
+
+/** Every `POST /me/path-feedback` body this render has sent, parsed. */
+function feedbackPosts(): unknown[] {
+  return mocks.fetchWithAuth.mock.calls
+    .filter((call) => call[0] === "/me/path-feedback" && (call[1] as RequestInit)?.method === "POST")
+    .map((call) => JSON.parse(String((call[1] as RequestInit).body)));
+}
+
+describe("PathIntelligencePage - skill ratings saved here reach the profile cache", () => {
+  it("reopens Edit skill ratings on the ratings just saved, and a second Save sends those", async () => {
+    // The page used to write the ratings and leave the cached profile alone,
+    // so the modal reopened on the page-load values and its Save wrote them
+    // straight back over the new ones.
+    mocks.profileFromCache = true;
+    mocks.profile = { ...READY_PROFILE, skills: ["React"], skill_levels: { React: "beginner" } };
+    suggestionsSucceedWith([CARD_A]);
+    routeFetch({
+      "/me/skills": (init) => {
+        const body = JSON.parse(String(init?.body)) as {
+          skills: Array<{ name: string; proficiency: string }>;
+        };
+        return {
+          skills_proficiency_confirmed: true,
+          skill_levels: Object.fromEntries(body.skills.map((s) => [s.name, s.proficiency])),
+        };
+      },
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /edit skill ratings/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Advanced" }));
+    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    await waitFor(() => expect(screen.queryByText("Rate your skills")).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: /edit skill ratings/i }));
+    expect(screen.getByRole("button", { name: "Advanced" })).toHaveClass("bg-forest-dark");
+    expect(screen.getByRole("button", { name: "Beginner" })).not.toHaveClass("bg-forest-dark");
+
+    fireEvent.click(screen.getByRole("button", { name: /save & continue/i }));
+    await waitFor(() => expect(skillsPuts()).toHaveLength(2));
+    expect(skillsPuts()[1]).toEqual({ skills: [{ name: "React", proficiency: "advanced" }] });
+  });
+});
+
+describe("PathIntelligencePage - a deep fit never outlives a fresh scoring", () => {
+  it("asks for the fit again after the user leaves the page and comes back", async () => {
+    // The QueryClient survives a trip to the profile page, and the fit query
+    // is cached forever -- so a user who changed their skills or title came
+    // back to the analysis from before the change.
+    suggestionsSucceedWith([CARD_A]);
+    routeFetch({
+      "/me/path-fit/11-2021.00": () => fitPayload("11-2021.00", "Marketing Managers"),
+    });
+    const client = createQueryClient();
+    const tree = () => (
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <PathIntelligencePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    const first = render(tree());
+    await waitFor(() => expect(fitRequests()).toHaveLength(1));
+    first.unmount();
+
+    // ...skills edited on the profile page, then back here.
+    render(tree());
+    fireEvent.click(screen.getAllByRole("button", { name: /how .* fits you/i })[0]);
+
+    await waitFor(() => expect(fitRequests()).toHaveLength(2));
+    await waitFor(() => expect(screen.getByText("Python")).toBeInTheDocument());
+  });
+});
+
+describe("PathIntelligencePage - a failed tap can be sent again", () => {
+  it("Try again resends the verdict that failed", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    let posts = 0;
+    routeFetch({
+      "/me/path-feedback": () => {
+        posts += 1;
+        return posts === 1
+          ? new Error("rate_limited")
+          : {
+              suggestions: [CARD_B],
+              career_status: "employed",
+              generated_at: "2026-09-01T00:00:01Z",
+              feedback: { "11-2021.00": "too_similar" },
+            };
+      },
+    });
+
+    renderPage();
+    fireEvent.click(verdictButtons("too_similar")[0]);
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    await waitFor(() => expect(cardTitles()).toEqual(["Software Developers"]));
+    const sent = { onet_code: "11-2021.00", verdict: "too_similar" };
+    expect(feedbackPosts()).toEqual([sent, sent]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("Try again resends a Start over that failed", async () => {
+    suggestionsSucceedWith([CARD_A, CARD_B]);
+    let deletes = 0;
+    routeFetch({
+      "/me/path-feedback": (init) => {
+        if (init?.method !== "DELETE") {
+          return {
+            suggestions: [CARD_B],
+            career_status: "employed",
+            generated_at: "2026-09-01T00:00:01Z",
+            feedback: { "11-2021.00": "too_similar" },
+          };
+        }
+        deletes += 1;
+        return deletes === 1
+          ? new Error("rate_limited")
+          : {
+              suggestions: [CARD_A, CARD_B],
+              career_status: "employed",
+              generated_at: "2026-09-01T00:00:02Z",
+              feedback: {},
+            };
+      },
+    });
+
+    renderPage();
+    fireEvent.click(verdictButtons("too_similar")[0]);
+    fireEvent.click(await screen.findByRole("button", { name: /start over/i }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    await waitFor(() =>
+      expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"])
+    );
+    expect(deletes).toBe(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("PathIntelligencePage - a sentence that is never coming falls back", () => {
+  const UNWRITTEN_B_WITH_SKILLS = { ...UNWRITTEN_B, overlapping_skills: ["Python", "SQL"] };
+
+  it("fills the house sentence when the read-back after a mid-narration tap fails", async () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B_WITH_SKILLS], true),
+      error: null,
+    });
+    routeFetch({
+      "/me/path-feedback": () => ({
+        ...scoredResult([UNWRITTEN_B_WITH_SKILLS, CARD_A], true),
+        feedback: { "15-1252.00": "interesting" },
+      }),
+      "/me/path-suggestions": () => new Error("internal_error"),
+    });
+
+    const rerender = renderPageWithRerender();
+    fireEvent.click(verdictButtons("interesting")[1]);
+    await waitFor(() =>
+      expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"])
+    );
+
+    mocks.job.data = {
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, CARD_B], false),
+      error: null,
+    };
+    rerender();
+
+    await waitFor(() =>
+      expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/path-suggestions", expect.anything())
+    );
+    await waitFor(() => expect(screen.getByText("Uses your Python and SQL.")).toBeInTheDocument());
+    expect(pendingSentences()).toHaveLength(0);
+    expect(cardTitles()).toEqual(["Software Developers", "Marketing Managers"]);
+  });
+
+  it("fills the house sentence when the job's poll gives up mid-narration", () => {
+    suggestionsSettleAs({
+      job_id: "path-job-1",
+      status: "succeeded",
+      result: scoredResult([CARD_A, UNWRITTEN_B], true),
+      error: null,
+    });
+    mocks.job.error = new Error("Too Many Requests");
+
+    renderPage();
+
+    expect(pendingSentences()).toHaveLength(0);
+    expect(
+      screen.getByText("A different direction. Open it to see how it lines up with your skills.")
+    ).toBeInTheDocument();
+  });
+});
+
+describe("PathIntelligencePage - a refused re-score keeps the list", () => {
+  it("leaves the cards up and says so inline when a wants save's re-score is rate limited", async () => {
+    mocks.realJob = true;
+    let enqueued = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path === "/me/path-wants") return Promise.resolve(WANTS_PANEL);
+      if (path === "/me/path-suggestion-jobs" && init?.method === "POST") {
+        enqueued += 1;
+        return enqueued === 1
+          ? Promise.resolve(ACCEPTED)
+          : Promise.reject(new ApiError("rate_limited", { status: 429, code: "rate_limited" }));
+      }
+      if (path === "/me/path-suggestion-jobs/path-job-1") {
+        return Promise.resolve({
+          job_id: "path-job-1",
+          status: "succeeded",
+          result: scoredResult([CARD_A, CARD_B], false),
+          error: null,
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    renderPage();
+    const control = await screen.findByRole("button", {
+      name: /what should change about your job/i,
+    });
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+
+    fireEvent.click(control);
+    fireEvent.click(
+      document.querySelector<HTMLInputElement>(
+        'input[name="want-condition-people"][value="more"]'
+      )!
+    );
+    fireEvent.click(document.querySelector<HTMLElement>("[data-wants-save]")!);
+
+    await waitFor(() => expect(enqueued).toBe(2));
+    await waitFor(() =>
+      expect(document.querySelector("[data-rescore-error]")).not.toBeNull()
+    );
+    expect(screen.getByText(/a lot of updates at once/i)).toBeInTheDocument();
+    expect(cardTitles()).toEqual(["Marketing Managers", "Software Developers"]);
+    expect(screen.queryByText(/couldn't load your path suggestions/i)).toBeNull();
+
+    // And the way out of it is the same enqueue, not a reload.
+    fireEvent.click(screen.getByRole("button", { name: /update my paths/i }));
+    await waitFor(() => expect(enqueued).toBe(3));
+  });
+
+  it("still shows the full error card when there is no list to keep", async () => {
+    mocks.start.isError = true;
+    mocks.start.error = new ApiError("rate_limited", { status: 429 });
+    mocks.startSuggestionsMutate.mockImplementation(() => {});
+
+    renderPage();
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't load your path suggestions/i)).toBeInTheDocument()
+    );
+    expect(document.querySelector("[data-rescore-error]")).toBeNull();
+  });
+});
+
+describe("PathIntelligencePage - the add-skills prompt carries a way back", () => {
+  it("sends the user to the profile with the same returnTo the career-status prompt uses", () => {
+    mocks.profile = { career_status: "between_jobs", skills: [] };
+    function LocationProbe() {
+      const location = useLocation();
+      return (
+        <pre data-testid="location">
+          {JSON.stringify({ path: location.pathname, state: location.state })}
+        </pre>
+      );
+    }
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={["/intelligence/paths"]}>
+          <PathIntelligencePage />
+          <LocationProbe />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: /add skills/i }));
+
+    expect(JSON.parse(screen.getByTestId("location").textContent ?? "{}")).toEqual({
+      path: "/job-seeker/profile",
+      state: { returnTo: { path: "/intelligence/paths", label: "Path Intelligence" } },
+    });
   });
 });

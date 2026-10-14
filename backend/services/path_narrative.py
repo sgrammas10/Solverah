@@ -12,13 +12,15 @@ OPENAI_NARRATIVE_MODEL  Optional.  Defaults to "gpt-4o-mini".
 """
 from __future__ import annotations
 
+import collections
 import json
 import logging
 import os
 import re
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Callable, Literal, Optional
 
 try:
     from openai import OpenAI
@@ -51,6 +53,11 @@ class PathSuggestion:
     title: str
     why_text: str               # 1–2 sentence plain-language explanation
     profile_dimensions: list[str] = field(default_factory=list)  # 2–3 short tag strings
+    #: W-16. True when the grade scrub left nothing of the model's sentence and
+    #: ``why_text`` is the house fallback instead. Such a card may be SHOWN, but
+    #: it must never be STORED as a narrative: a stored row is served as prose on
+    #: every later load, and a fallback sentence is not prose.
+    is_fallback: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -112,63 +119,56 @@ def _format_management_prefs(prefs: dict) -> str:
     return "\n".join(parts) if parts else "Not provided."
 
 
-def _build_prompt(
-    candidates: list[ScoredPath],
-    ctx: UserContext,
-) -> list[dict]:
-    """Return the OpenAI messages list for the narrative prompt.
+#: The system message. A module constant rather than a string built inside
+#: :func:`_build_prompt` so that :func:`narrative_fingerprint` can hash the very
+#: same text: an edit to the rules changes what the model is asked, so it must
+#: change every stored narrative's key too (W-16).
+_SYSTEM_PROMPT: str = (
+    "You are a career advisor helping users identify realistic next-step career paths.\n\n"
+    "CRITICAL RULES — follow exactly:\n"
+    "1. Write a narrative for EVERY candidate in the list — do not skip any.\n"
+    "2. Preserve the exact order of the candidates as given.\n"
+    "3. why_text: 1–2 sentences, plain language, specific to this user, "
+    "concrete: what the work involves and which of their skills it uses.\n"
+    "4. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
+    "that reference the user's actual skills, archetype, or preferences. "
+    "Examples: 'Builds on your Python skills', 'Fits your autonomy preference', "
+    "'Matches your Deep Diver archetype'.\n"
+    "5. Describe what the work involves and which of the user's skills it "
+    "uses. NEVER rate, rank or grade the fit. Banned outright, in why_text "
+    "and in the tags: 'strong/great/perfect/excellent/good fit', 'ideal "
+    "match', 'highly suitable', 'top choice', any percentage, and any "
+    "score, rating or ranking of any kind.\n\n"
+    "Return ONLY a JSON object with this exact schema — no markdown, no prose:\n"
+    "{\n"
+    '  "suggestions": [\n'
+    "    {\n"
+    '      "onet_code": "<code from the candidate list>",\n'
+    '      "title": "<occupation title>",\n'
+    '      "why_text": "<1–2 sentence explanation>",\n'
+    '      "profile_dimensions": ["<tag1>", "<tag2>"]\n'
+    "    }\n"
+    "  ]\n"
+    "}"
+)
 
-    **No score goes into this prompt (W-13, ruling flag 12).**  The candidate
-    JSON used to carry ``match_score`` and the heading used to say "sorted by
-    match_score, highest first", and a model handed a number writes about the
-    number: the third browser test found "...making it a strong fit for your
-    background." on a Database Administrators card.  The order is still the
-    order -- the list arrives ranked and rule 2 pins it -- so nothing the
-    narrator needs was removed with the field.  The deterministic
-    :func:`_scrub_grades` below is the other half: the prompt is the request and
-    the scrub is the guarantee.
+
+def _candidate_entry(candidate: ScoredPath) -> dict:
+    """What the prompt says about one card -- and nothing else does (W-13, W-16)."""
+    return {
+        "onet_code": candidate.onet_code,
+        "title": candidate.title,
+        "overlapping_skills": candidate.overlapping_skills,
+    }
+
+
+def _profile_block(ctx: UserContext) -> str:
+    """The "User Profile" and "Preferences" sections of the user message.
+
+    Everything the prompt says about the PERSON, rendered exactly as the model
+    reads it. Split out of :func:`_build_prompt` for W-16, so the prompt and the
+    stored-narrative key are built from one function and cannot drift apart.
     """
-    candidates_json = json.dumps(
-        [
-            {
-                "onet_code": c.onet_code,
-                "title": c.title,
-                "overlapping_skills": c.overlapping_skills,
-            }
-            for c in candidates
-        ],
-        indent=2,
-    )
-
-    system = (
-        "You are a career advisor helping users identify realistic next-step career paths.\n\n"
-        "CRITICAL RULES — follow exactly:\n"
-        "1. Write a narrative for EVERY candidate in the list — do not skip any.\n"
-        "2. Preserve the exact order of the candidates as given.\n"
-        "3. why_text: 1–2 sentences, plain language, specific to this user, "
-        "concrete: what the work involves and which of their skills it uses.\n"
-        "4. profile_dimensions: a list of exactly 2 or 3 short tags (5–8 words each) "
-        "that reference the user's actual skills, archetype, or preferences. "
-        "Examples: 'Builds on your Python skills', 'Fits your autonomy preference', "
-        "'Matches your Deep Diver archetype'.\n"
-        "5. Describe what the work involves and which of the user's skills it "
-        "uses. NEVER rate, rank or grade the fit. Banned outright, in why_text "
-        "and in the tags: 'strong/great/perfect/excellent/good fit', 'ideal "
-        "match', 'highly suitable', 'top choice', any percentage, and any "
-        "score, rating or ranking of any kind.\n\n"
-        "Return ONLY a JSON object with this exact schema — no markdown, no prose:\n"
-        "{\n"
-        '  "suggestions": [\n'
-        "    {\n"
-        '      "onet_code": "<code from the candidate list>",\n'
-        '      "title": "<occupation title>",\n'
-        '      "why_text": "<1–2 sentence explanation>",\n'
-        '      "profile_dimensions": ["<tag1>", "<tag2>"]\n'
-        "    }\n"
-        "  ]\n"
-        "}"
-    )
-
     top_skills_str = (
         ", ".join(ctx.top_skills) if ctx.top_skills else "none listed"
     )
@@ -187,7 +187,7 @@ def _build_prompt(
             f"What matters most: {priority_label}\n\n"
         )
 
-    user_msg = (
+    return (
         "User Profile\n"
         "============\n"
         f"Career status:        {ctx.career_status}\n"
@@ -195,6 +195,68 @@ def _build_prompt(
         f"Top skills:           {top_skills_str}\n"
         f"Management preferences:\n{management_str}\n\n"
         f"{prefs_section}"
+    )
+
+
+def narrative_fingerprint(candidate: ScoredPath, ctx: UserContext) -> str:
+    """The key a stored narrative for *candidate* is filed under (W-16).
+
+    A digest of exactly what :func:`_build_prompt` feeds the model about this
+    one card and this one person, built from the SAME helpers the prompt uses:
+
+    * the system message (:data:`_SYSTEM_PROMPT`) -- a rule edit re-keys all;
+    * :func:`_profile_block` -- career status, WorkPulse archetype, top skills
+      (in prompt order, which is profile order: the model reads them in that
+      order), the manager-match archetype and dimension scores as rendered to
+      two decimals, and the move/seniority/priority labels;
+    * :func:`_candidate_entry` -- onet_code, title and overlapping skills.
+
+    NOT in it, deliberately: the path-wants answers and the feedback taps. They
+    reorder the list but are never shown to the narrator, so a narrative written
+    before a wants save is still the narrative the narrator would write after
+    it -- which is the whole point of storing them. Nor the OTHER cards in the
+    same batch: they are in the prompt, but a per-card key cannot depend on the
+    batch a card happened to share, and rule 1 asks for each card on its own.
+    ``tests/test_path_narrative.py`` pins both halves.
+    """
+    import hashlib
+
+    canonical = json.dumps(
+        {
+            "system": _SYSTEM_PROMPT,
+            "profile": _profile_block(ctx),
+            "candidate": _candidate_entry(candidate),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _build_prompt(
+    candidates: list[ScoredPath],
+    ctx: UserContext,
+) -> list[dict]:
+    """Return the OpenAI messages list for the narrative prompt.
+
+    **No score goes into this prompt (W-13, ruling flag 12).**  The candidate
+    JSON used to carry ``match_score`` and the heading used to say "sorted by
+    match_score, highest first", and a model handed a number writes about the
+    number: the third browser test found "...making it a strong fit for your
+    background." on a Database Administrators card.  The order is still the
+    order -- the list arrives ranked and rule 2 pins it -- so nothing the
+    narrator needs was removed with the field.  The deterministic
+    :func:`_scrub_grades` below is the other half: the prompt is the request and
+    the scrub is the guarantee.
+    """
+    candidates_json = json.dumps(
+        [_candidate_entry(c) for c in candidates],
+        indent=2,
+    )
+
+    user_msg = (
+        f"{_profile_block(ctx)}"
         "Candidate Career Paths (already in the order they will be shown)\n"
         "================================================================\n"
         f"{candidates_json}\n\n"
@@ -203,7 +265,7 @@ def _build_prompt(
     )
 
     return [
-        {"role": "system", "content": system},
+        {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": user_msg},
     ]
 
@@ -452,6 +514,8 @@ def _scrub_suggestions(
             fired = True
         if not why_text:
             why_text = _fallback_sentence(skills_by_code.get(suggestion.onet_code, []))
+            # W-16: shown, never stored -- see `PathSuggestion.is_fallback`.
+            suggestion.is_fallback = True
         suggestion.why_text = why_text
 
         tags = [_scrub_grades(tag) for tag in suggestion.profile_dimensions]
@@ -540,76 +604,223 @@ def generate_narratives(
 
 #: How many candidates go in one narrator completion.
 #:
-#: Ten, because ten is what the page is and what the prompt was written and
-#: measured against -- not a tuning knob.  W-12 measured one call of twenty at
-#: 17.7-18.9 s against 10.3-11.1 s for ten, so a bigger batch buys nothing: the
-#: cost is close to linear in cards and the fixed overhead is about a second.
-_BATCH_SIZE: int = 10
+#: **Five (W-16), down from ten.**  The cost of one completion is close to linear
+#: in cards (W-12: twenty in one call 17.7-18.9 s, ten 10.3-11.1 s), so with the
+#: batches on threads the job waits for the slowest BATCH, and halving the batch
+#: roughly halves the wait.  Measured on twenty real scored cards per profile,
+#: three profiles x three runs, interleaved, real API (W-16 note):
+#:
+#:     2 x 10   mean 8.22 s  (6.60 - 13.23)   3,295 - 3,959 tokens
+#:     4 x  5   mean 4.36 s  (4.09 -  4.75)   4,223 - 4,849 tokens
+#:
+#: The price is the prompt header repeated twice more: about +910 tokens a job
+#: (mean 3,546 -> 4,457, +26 %), ~840 of them prompt tokens, which gpt-4o-mini bills at a quarter
+#: of the completion rate.  Below five the fixed ~1 s per call starts to
+#: dominate (one card is 1.4 s, five 3.1-3.7 s) and the header repeats again.
+_BATCH_SIZE: int = 5
+
+#: W-17. How many cards at the top of the page are narrated one card per call,
+#: ahead of everything else.
+#:
+#: Three because ``PathSuggestionList`` shows three before "Show more": these are
+#: the only sentences a user is looking at in the first seconds. One card is a
+#: ~1.4 s completion (W-12), against 3.1-3.7 s for five, so three parallel
+#: one-card calls put the visible sentences on screen in about the time of one.
+_HEAD_SIZE: int = 3
+
+#: W-17. Narrator calls in flight at once, across the whole process.
+#:
+#: W-16 capped it indirectly: four narrations (``NARRATION_WORKERS``) x four
+#: batches each (a per-narration pool) = sixteen sockets. It is now one shared
+#: pool, so the bound is on what actually costs something -- open provider calls
+#: -- and not on the number of users waiting.
+#:
+#: Thirty-two, measured (W-17 note): ten users loading at once on the capped
+#: 8-thread server, real OpenAI, "first three sentences present" p50 / p95:
+#:
+#:     W-16 (4 narrations x 4 batches)      8.35 / 12.58 s   (rerun 9.49 / 14.37)
+#:     16 threads, no tail limit            3.98 /  5.60 s
+#:     24 threads, tail limit 12            3.27 /  4.39 s
+#:     32 threads, tail limit 16            2.69 /  3.94 s   (rerun 2.60 / 3.81)
+#:
+#: I/O-bound threads that hold no database connection; the provider calls
+#: themselves are the cost, and the tail limit keeps the bulk of them at W-16's
+#: sixteen.
+_CALL_WORKERS: int = 32
+
+#: W-17. The most TAIL calls in flight at once -- the rest of the pool is kept
+#: for heads.
+#:
+#: A priority queue alone is not enough, and the first measurement said so: the
+#: pool does not pre-empt, so when ten users arrive within a second the first few
+#: users' tails take every thread (3.5 s each) and the later users' heads, first
+#: in the queue, still wait for them. Capping the tail keeps
+#: ``_CALL_WORKERS - _TAIL_LIMIT`` threads that only a head can take, so a head
+#: waits at most for other heads (~1.4 s each), never for somebody's tail.
+#: Sixteen is W-16's whole ceiling, so bulk narration is no more parallel than it
+#: was; only the visible three got extra room.
+_TAIL_LIMIT: int = 16
+
+#: W-17. Queue priorities on the shared pool: every user's visible three go
+#: ahead of anybody's tail.
+_HEAD_PRIORITY: int = 0
+_TAIL_PRIORITY: int = 1
 
 
-def generate_narratives_batched(
-    candidates: list[ScoredPath],
-    user_context: UserContext,
-) -> list[PathSuggestion]:
-    """:func:`generate_narratives` over ten-card batches, in parallel, best-effort.
+class _PriorityPool:
+    """A fixed set of daemon threads draining per-priority queues (W-17).
 
-    W-12.  The scoring job narrates twenty candidates -- the ten it shows and ten
-    held in reserve for the cards a tap promotes -- and this is how it affords
-    them.
+    ``concurrent.futures.ThreadPoolExecutor`` is FIFO, and FIFO is the fairness
+    bug: user B's first three would queue behind user A's seventeen-card tail.
+    Here a free thread takes the lowest priority number that has work waiting
+    AND is under its limit (*limits*, ``{priority: max in flight}``; absent means
+    no limit beyond the pool itself). Equal priorities run in submission order.
 
-    **Threads, because the narrator is I/O-bound.**  Measured against the real
-    API on three F-2 profiles: ten cards 10.35 / 11.09 / 10.35 s, two batches of
-    ten on a pool 11.87 / 9.37 / 9.96 s.  Mean difference **-0.20 s** -- inside
-    this narrator's own run-to-run spread.  Twenty cards in one completion costs
-    17.72 / 18.58 / 18.87 s, so the parallelism is the whole saving.  Tokens go
-    up honestly: ~1,520 more per job, one extra completion.
-
-    **Best-effort per batch, and that asymmetry is deliberate.**  A batch that
-    cannot be narrated contributes nothing and is logged; the others still land.
-    This is the only sane rule once a job narrates cards the user is not going to
-    see: failing the whole job -- and with it the ten-card shortlist, which is
-    the product -- because prose for a hypothetical eleventh card came back
-    malformed would trade the thing that matters for the thing that does not.
-    The caller decides whether an empty result is fatal;
-    :func:`intelligence_service.path_suggestions` treats the FIRST batch's
-    absence as fatal, because that one is the page.
-
-    Order is preserved across batches, so the caller can still slice the page off
-    the front.  An empty *candidates* list returns empty rather than raising,
-    unlike :func:`generate_narratives`: "narrate nothing" is a coherent request
-    here, where the batches are derived rather than chosen.
+    Started lazily on the first submit, so importing this module (a CLI, a
+    migration) starts no threads. Daemon threads, because nothing here must
+    outlive the process: a narration cut off by a shutdown is covered by
+    ``intelligence_service.NARRATION_DEADLINE`` like any other dead worker.
     """
-    if not candidates:
+
+    def __init__(self, workers: int, name: str, limits: Optional[dict[int, int]] = None) -> None:
+        self._workers = workers
+        self._name = name
+        self._limits = dict(limits or {})
+        self._queues: dict[int, collections.deque] = {}
+        self._running: collections.Counter = collections.Counter()
+        self._cond = threading.Condition()
+        self._threads: list[threading.Thread] = []
+
+    def submit(self, priority: int, fn: Callable[..., Any], *args: Any) -> Future:
+        future: Future = Future()
+        with self._cond:
+            if not self._threads:
+                self._start_locked()
+            self._queues.setdefault(priority, collections.deque()).append((future, fn, args))
+            self._cond.notify()
+        return future
+
+    def _start_locked(self) -> None:
+        for index in range(self._workers):
+            thread = threading.Thread(
+                target=self._work, name="%s-%d" % (self._name, index), daemon=True
+            )
+            thread.start()
+            self._threads.append(thread)
+
+    def _take_locked(self) -> Optional[tuple]:
+        for priority in sorted(self._queues):
+            waiting = self._queues[priority]
+            limit = self._limits.get(priority)
+            if waiting and (limit is None or self._running[priority] < limit):
+                self._running[priority] += 1
+                return (priority,) + waiting.popleft()
+        return None
+
+    def _work(self) -> None:
+        while True:
+            with self._cond:
+                item = self._take_locked()
+                while item is None:
+                    self._cond.wait()
+                    item = self._take_locked()
+            priority, future, fn, args = item
+            try:
+                if future.set_running_or_notify_cancel():
+                    try:
+                        future.set_result(fn(*args))
+                    except BaseException as exc:  # noqa: BLE001 -- handed to the waiter
+                        future.set_exception(exc)
+            finally:
+                with self._cond:
+                    self._running[priority] -= 1
+                    # A capped priority may be runnable again: wake every
+                    # waiter, not one, or the one woken may find only work it
+                    # is still not allowed to take while another could.
+                    self._cond.notify_all()
+
+
+_call_pool = _PriorityPool(
+    _CALL_WORKERS, "path-narrator", limits={_TAIL_PRIORITY: _TAIL_LIMIT}
+)
+
+
+def _narrate(batch: list[ScoredPath], user_context: UserContext) -> list[PathSuggestion]:
+    """One completion. Looked up at call time, so a test double of
+    :func:`generate_narratives` is what the pool runs."""
+    return generate_narratives(batch, user_context)
+
+
+def narrate_page_first(
+    head: list[ScoredPath],
+    tail: list[ScoredPath],
+    user_context: UserContext,
+    on_landed: Optional[Callable[[list[PathSuggestion]], None]] = None,
+) -> list[PathSuggestion]:
+    """Narrate *head* one card per call, then *tail* in batches of five (W-17).
+
+    W-16 narrated all twenty cards as four batches of five, so the three cards a
+    user can see waited for the batch they happened to share: ~3.5-4.5 s. Now:
+
+    * each *head* card (the caller passes the page's first three that have no
+      stored sentence) is its own completion at head priority -- three calls in
+      parallel, ~1.4 s;
+    * *tail* goes out in :data:`_BATCH_SIZE` batches at tail priority, in order,
+      so the rest of the page is written before the reserve.
+
+    All on the process-wide :data:`_call_pool`, where every user's head goes
+    ahead of anybody's tail (see :data:`_HEAD_PRIORITY`).
+
+    *on_landed* is called with each completion's suggestions **as it lands, on
+    the calling thread** -- the caller's thread has the app context and the
+    database session, the pool's threads have neither and never need them. It
+    is how the page gets its first three sentences before the tail is done. An
+    exception from it is logged and does not stop the other completions.
+
+    **Best-effort per call**, as W-12's batching was: a call that fails (after
+    :func:`generate_narratives`' own retry) contributes nothing and is logged;
+    the caller's fallback covers its cards. Returns every suggestion that was
+    written, in *head* + *tail* order. Nothing to narrate returns [] without
+    touching the pool.
+    """
+    calls: list[tuple[int, list[ScoredPath]]] = [
+        (_HEAD_PRIORITY, [card]) for card in head
+    ] + [
+        (_TAIL_PRIORITY, tail[start:start + _BATCH_SIZE])
+        for start in range(0, len(tail), _BATCH_SIZE)
+    ]
+    if not calls:
         return []
 
-    batches = [
-        candidates[start:start + _BATCH_SIZE]
-        for start in range(0, len(candidates), _BATCH_SIZE)
-    ]
-    if len(batches) == 1:
-        # One batch: no pool, no thread, and the same call the job made before
-        # W-12 -- so a ten-card job is unchanged rather than merely equivalent.
-        return generate_narratives(batches[0], user_context)
-
-    with ThreadPoolExecutor(max_workers=len(batches)) as pool:
-        futures = [
-            pool.submit(generate_narratives, batch, user_context)
-            for batch in batches
-        ]
-        results = []
-        for index, future in enumerate(futures):
+    futures = {
+        _call_pool.submit(priority, _narrate, batch, user_context): index
+        for index, (priority, batch) in enumerate(calls)
+    }
+    written: dict[int, list[PathSuggestion]] = {}
+    outstanding = set(futures)
+    while outstanding:
+        done, outstanding = wait(outstanding, return_when=FIRST_COMPLETED)
+        for future in done:
+            index = futures[future]
             try:
-                results.append(future.result())
-            except Exception:  # noqa: BLE001 -- logged, and the batch is dropped
+                suggestions = future.result()
+            except Exception:  # noqa: BLE001 -- logged, and the call is dropped
                 logger.warning(
                     "path_narrative_batch_failed",
                     extra={
                         "event": "path_narrative_batch_failed",
                         "batch": index,
-                        "batch_size": len(batches[index]),
+                        "batch_size": len(calls[index][1]),
+                        "head": calls[index][0] == _HEAD_PRIORITY,
                     },
                     exc_info=True,
                 )
-                results.append([])
+                continue
+            written[index] = suggestions
+            if on_landed is not None:
+                try:
+                    on_landed(suggestions)
+                except Exception:  # noqa: BLE001 -- the other calls still land
+                    logger.exception("path_narrative_landing_failed")
 
-    return [suggestion for batch in results for suggestion in batch]
+    return [suggestion for index in sorted(written) for suggestion in written[index]]

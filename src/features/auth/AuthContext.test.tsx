@@ -411,6 +411,85 @@ describe("AuthProvider - logout drops the cached profile", () => {
 });
 
 
+// -- logout clears per-user drafts in browser storage ---------------------------
+
+/**
+ * The drafts every instrument keeps client-side (USER_SCENARIOS.md Appendix A)
+ * are keyed by instrument, not account, so on a shared tab the next person to
+ * sign in was offered the last one's half-finished answers. Logout is the
+ * backstop; `draftStorage.test.ts` covers the key list itself, this covers the
+ * wiring -- that logout actually calls it, on both the explicit and the
+ * request-failed path.
+ */
+describe("AuthProvider - logout clears per-user drafts", () => {
+  const seedDrafts = () => {
+    sessionStorage.setItem("mm_answers", JSON.stringify({ "mm-q1": "a" }));
+    sessionStorage.setItem("focus_type_draft:1", "[1,2,3]");
+    sessionStorage.setItem("solverah_assessment_answers", "{}");
+    localStorage.setItem("pendingQuizSave", JSON.stringify({ quizGroup: "g" }));
+    // Pure UI state: the one-quiz-per-device lockout stays.
+    localStorage.setItem("guestQuizCompletedAt", "2026-10-01T00:00:00Z");
+  };
+
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it("removes answers and the guest replay on an explicit logout", async () => {
+    const ctx = await mountAuth({ ok: true, data: sessionBody() });
+    seedDrafts();
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+
+    await act(async () => { await ctx.logout(); });
+
+    expect(sessionStorage.getItem("mm_answers")).toBeNull();
+    expect(sessionStorage.getItem("focus_type_draft:1")).toBeNull();
+    expect(sessionStorage.getItem("solverah_assessment_answers")).toBeNull();
+    expect(localStorage.getItem("pendingQuizSave")).toBeNull();
+    expect(localStorage.getItem("guestQuizCompletedAt")).toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("removes them even when the logout request fails", async () => {
+    // A person who clicked "log out" is logged out of this tab whatever the
+    // network did, and that has to include the drafts.
+    const ctx = await mountAuth({ ok: true, data: sessionBody() });
+    seedDrafts();
+    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+
+    await act(async () => { await ctx.logout(); });
+
+    expect(sessionStorage.getItem("mm_answers")).toBeNull();
+    expect(localStorage.getItem("pendingQuizSave")).toBeNull();
+  });
+
+  it("removes them on clearSessionLocally({ drafts: true }) -- the account-deletion call", async () => {
+    const ctx = await mountAuth({ ok: true, data: sessionBody() });
+    seedDrafts();
+
+    act(() => { ctx.clearSessionLocally({ drafts: true }); });
+
+    expect(sessionStorage.getItem("mm_answers")).toBeNull();
+    expect(sessionStorage.getItem("focus_type_draft:1")).toBeNull();
+    expect(localStorage.getItem("pendingQuizSave")).toBeNull();
+    expect(localStorage.getItem("guestQuizCompletedAt")).not.toBeNull();
+  });
+
+  it("keeps them on a bare clearSessionLocally() -- the failed-refresh call", async () => {
+    // refreshSession() resolves false on a network error too. A person
+    // mid-Work-Pulse whose connection blips at submit must not lose 24 answers.
+    const ctx = await mountAuth({ ok: true, data: sessionBody() });
+    seedDrafts();
+
+    act(() => { ctx.clearSessionLocally(); });
+
+    expect(ctx.user).toBeNull();
+    expect(sessionStorage.getItem("mm_answers")).not.toBeNull();
+    expect(localStorage.getItem("pendingQuizSave")).not.toBeNull();
+  });
+});
+
+
 // The seeding-guard tests (an envelope with no profileData must leave the
 // cache unseeded) moved to profile/ProfileCacheSync.test.tsx, and the
 // saveProfileData cache tests to profile/useProfileActions.test.tsx — the

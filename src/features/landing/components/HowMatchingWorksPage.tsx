@@ -8,7 +8,8 @@
  * against. Public route — no auth required — so candidates can read it
  * BEFORE deciding to take the assessment.
  */
-import { Link } from "react-router-dom";
+import DocLayout from "../../../shared/ui/DocLayout";
+import { DOC_H2, DOC_P } from "../../../shared/ui/publicStyles";
 
 const SECTIONS: { title: string; body: string }[] = [
   {
@@ -45,42 +46,22 @@ const SECTIONS: { title: string; body: string }[] = [
 
 function HowMatchingWorksPage() {
   return (
-    <main className="min-h-screen bg-cream-base font-sans">
-      <div className="mx-auto max-w-3xl px-6 py-16">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-ink-tertiary hover:text-forest-mid transition-colors mb-8"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Back to Solverah
-        </Link>
-
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">
-          Transparency
-        </p>
-        <h1 className="font-display text-3xl font-bold text-ink-primary mb-10">
-          How matching works
-        </h1>
-
-        {SECTIONS.map(({ title, body }) => (
-          <section key={title} className="mb-8">
-            <h2 className="font-display text-xl font-semibold text-ink-primary mb-2">{title}</h2>
-            <p className="text-sm text-ink-secondary leading-relaxed">{body}</p>
-          </section>
-        ))}
-
-        <div className="mt-12 border-t border-cream-muted pt-6 flex gap-6">
-          <Link to="/privacy" className="text-xs text-ink-tertiary underline hover:text-forest-mid">
-            Privacy Policy
-          </Link>
-          <Link to="/terms" className="text-xs text-ink-tertiary underline hover:text-forest-mid">
-            Terms of Service
-          </Link>
-        </div>
-      </div>
-    </main>
+    <DocLayout
+      title="How matching works"
+      lead="What Solverah measures, how a match is worked out, and who gets to see any of it."
+      back={{ to: "/", label: "Back to Solverah" }}
+      related={[
+        { to: "/privacy", label: "Privacy policy" },
+        { to: "/terms", label: "Terms of service" },
+      ]}
+    >
+      {SECTIONS.map(({ title, body }, i) => (
+        <section key={title} className={i ? "mt-12" : ""}>
+          <h2 className={`${DOC_H2} mb-3`}>{title}</h2>
+          <p className={DOC_P}>{body}</p>
+        </section>
+      ))}
+    </DocLayout>
   );
 }
 

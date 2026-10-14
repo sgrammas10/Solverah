@@ -19,7 +19,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-// The page consumes useIntakeForm/useEarlyAccess, whose submits are mutations
+// The page consumes useIntakeForm, whose submits are mutations
 // now, so the render needs a QueryClient. Fresh per render, per the
 // useProfileForm.test precedent.
 function renderPage(state?: unknown, search = "") {
@@ -115,6 +115,14 @@ describe("claims match the product", () => {
 
     expect(screen.getByText("Not yet available")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Coming soon/i })).toBeNull();
+  });
+
+  it("reads as a launched product: no early access, waitlist or prelaunch wording", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1 });
+
+    expect(document.body.textContent).not.toMatch(/early[- ]access|waitlist|soft launch|pre-?launch/i);
+    expect(document.getElementById("waitlist")).toBeNull();
   });
 
   it("keeps the O*NET attribution", () => {

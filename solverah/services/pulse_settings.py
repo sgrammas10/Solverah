@@ -1,11 +1,14 @@
 """Pulse cadence + anti-nag state (BUILD_PLAN B-2).
 
-No table of its own. `profiles.extra["pulse_settings"]`, via
-`profile_repository.update_document`, is the storage -- D-7 (BUILD_PLAN,
-2026-09-10, cross-cutting rule) is why: a new user-data table has to join the
-`GET /me/export` and account-deletion seam D-7b owns this wave, and the profile
-document already does. `profile_repository.load_document`/`update_document`
-thread this key through both for free; nothing here has to.
+No table of its own. `profiles.extra["pulse_settings"]` is the storage -- D-7
+(BUILD_PLAN, 2026-09-10, cross-cutting rule) is why: a new user-data table has
+to join the `GET /me/export` and account-deletion seam D-7b owns this wave, and
+the profile document already does. `profile_repository.load_document`/
+`update_document` thread this key through both for free; nothing here has to.
+This module itself reads and writes the one key through
+`profile_repository.read_extra_key`/`update_extra_key` -- one SELECT to read,
+three statements to write, the same compare-and-swap on `profiles.version` as a
+whole-document save -- because nothing here needs the rest of the document.
 
 Shape (every key optional -- a user who has never touched Pulse has none of
 them, and `read_settings` fills every default; rows written before the
@@ -46,7 +49,7 @@ retry, which already handles that.
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 __all__ = [
     "CADENCE_INTERVALS",
@@ -58,6 +61,7 @@ __all__ = [
     "is_due",
     "mark_answered",
     "read_settings",
+    "read_settings_for_users",
     "record_prompt",
     "set_cadence",
 ]
@@ -101,12 +105,25 @@ def read_settings(user_id: int) -> Dict[str, Any]:
 
     A user who has never touched Pulse settings has no `pulse_settings` key at
     all in their profile document, which is not a special case here: it reads
-    the same as an explicit `{"cadence": "weekly", ...}` would.
+    the same as an explicit `{"cadence": "weekly", ...}` would. One SELECT of
+    the key (`profile_repository.read_extra_key`), which is exactly what the
+    whole document's `.get(SETTINGS_KEY)` would give.
     """
     from solverah.repositories import profile_repository
 
-    document = profile_repository.load_document(user_id)
-    return _with_defaults(document.get(SETTINGS_KEY))
+    return _with_defaults(profile_repository.read_extra_key(user_id, SETTINGS_KEY))
+
+
+def read_settings_for_users(user_ids: Sequence[int]) -> Dict[int, Dict[str, Any]]:
+    """`read_settings` for many users in one SELECT: every id in *user_ids* maps
+    to its settings, defaults filled in -- a user with no profile row or no key
+    reads as the defaults, exactly as `read_settings` would give. Sends nothing
+    for an empty *user_ids*.
+    """
+    from solverah.repositories import profile_repository
+
+    stored = profile_repository.read_extra_key_for_users(user_ids, SETTINGS_KEY)
+    return {user_id: _with_defaults(stored.get(user_id)) for user_id in user_ids}
 
 
 def is_due(
@@ -117,14 +134,30 @@ def is_due(
 ) -> bool:
     """Whether *settings* (as `read_settings` returns it) is due a prompt at *now*.
 
-    `off` is never due. A user never prompted (`last_prompted_at` is None) is due
-    `CADENCE_INTERVALS[cadence]` after *last_checkin_at* -- their most recent
-    completed check-in -- rather than immediately (2026-09-11 ruling: checking in
-    once is the opt-in, and the clock starts at that check-in, so a fresh first
-    check-in buys a full quiet interval before the first prompt instead of
-    everyone who ever checked in getting emailed the moment a cron first runs).
+    `off` is never due. Otherwise the clock starts at the LATER of
+    `last_prompted_at` and *last_checkin_at* -- the user's most recent completed
+    check-in -- and a prompt is due once the cadence's interval has elapsed
+    since then:
 
-    *last_checkin_at* is the caller's job to supply for a never-prompted user --
+    - A user never prompted is due one interval after their last check-in
+      rather than immediately (2026-09-11 ruling: checking in once is the
+      opt-in, and the clock starts at that check-in, so a fresh first check-in
+      buys a full quiet interval before the first prompt instead of everyone
+      who ever checked in getting emailed the moment a cron first runs).
+    - A user who checked in on their own after the last prompt is not due
+      again until one interval after THAT check-in (2026-10-02 fix F4): before
+      this the clock ran from the prompt alone, so a voluntary check-in three
+      days ago still earned a "time to check in" email.
+
+    THE INTERVAL IS COUNTED IN CALENDAR DAYS (UTC), NOT SECONDS (fix F5).
+    The cron runs daily at a fixed time, so a prompt sent at one run is
+    exactly seven days old at the run a week later -- give or take the few
+    milliseconds between the two runs' clocks. A strict `now - last >= 7 days`
+    lost that coin flip whenever the later run was a hair early, and the
+    "weekly" prompt went out on day 8 instead. Comparing dates makes day 7 due
+    whatever the time of day either side fell on.
+
+    *last_checkin_at* is the caller's job to supply --
     `pulse_cadence_service.send_due_prompts`, the only caller, already excludes
     every zero-check-in user before reaching this function. A never-prompted user
     asked about here with no *last_checkin_at* is never due, defensively.
@@ -133,13 +166,29 @@ def is_due(
     if cadence == "off":
         return False
     last_prompted_at = settings["last_prompted_at"]
-    if last_prompted_at is None:
-        if last_checkin_at is None:
-            return False
-        last = last_checkin_at
-    else:
-        last = datetime.datetime.fromisoformat(last_prompted_at)
-    return now - last >= CADENCE_INTERVALS[cadence]
+    anchors = [
+        anchor
+        for anchor in (
+            datetime.datetime.fromisoformat(last_prompted_at) if last_prompted_at else None,
+            last_checkin_at,
+        )
+        if anchor is not None
+    ]
+    if not anchors:
+        return False
+    last = max(anchors)
+    elapsed_days = (_utc_date(now) - _utc_date(last)).days
+    return elapsed_days >= CADENCE_INTERVALS[cadence].days
+
+
+def _utc_date(moment: datetime.datetime) -> datetime.date:
+    """The UTC calendar date of *moment*; a naive value is taken as UTC already
+    (every timestamp this module sees is timezone-aware, from a
+    `timezone=True` column or an `isoformat()` of one -- this is the defensive
+    reading, not a conversion)."""
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(datetime.timezone.utc)
+    return moment.date()
 
 
 def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:
@@ -166,43 +215,43 @@ def set_cadence(user_id: int, cadence: str) -> Dict[str, Any]:
 
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        current = _with_defaults(document.get(SETTINGS_KEY))
-        updated = {
-            **current,
+    def _mutate(stored: Any) -> Dict[str, Any]:
+        return {
+            **_with_defaults(stored),
             "cadence": cadence,
             "awaiting_response": False,
             "consecutive_unanswered": 0,
             "auto_slowed": False,
         }
-        return {**document, SETTINGS_KEY: updated}
 
-    new_document = profile_repository.update_document(user_id, _mutate)
-    return new_document[SETTINGS_KEY]
+    return profile_repository.update_extra_key(user_id, SETTINGS_KEY, _mutate)
+
+
+def _answered(stored: Any) -> Dict[str, Any]:
+    """`mark_answered`'s write: the stored settings, defaults filled in, with
+    `awaiting_response` off. Pure -- `update_extra_key` re-runs it on every
+    lost compare-and-swap."""
+    settings = _with_defaults(stored)
+    settings["awaiting_response"] = False
+    return settings
 
 
 def mark_answered(user_id: int) -> None:
     """Flip `awaiting_response` off after a completed check-in.
 
-    A no-op -- no read past the first, no write at all -- when nothing was
+    A no-op -- one SELECT of the key, no write at all -- when nothing was
     outstanding, which is the common case: most check-ins are voluntary, not a
     reply to a specific prompt email. Does not touch `consecutive_unanswered`;
     the cadence engine is the only reader of that field, and it re-derives
     "was the last prompt answered" from `awaiting_response` at its own next
     due-check rather than this call trying to guess what that will need.
     """
-    current = read_settings(user_id)
-    if not current["awaiting_response"]:
+    if not read_settings(user_id)["awaiting_response"]:
         return
 
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        settings = _with_defaults(document.get(SETTINGS_KEY))
-        settings["awaiting_response"] = False
-        return {**document, SETTINGS_KEY: settings}
-
-    profile_repository.update_document(user_id, _mutate)
+    profile_repository.update_extra_key(user_id, SETTINGS_KEY, _answered)
 
 
 def record_prompt(
@@ -227,8 +276,8 @@ def record_prompt(
     """
     from solverah.repositories import profile_repository
 
-    def _mutate(document: Dict[str, Any]) -> Dict[str, Any]:
-        settings = _with_defaults(document.get(SETTINGS_KEY))
+    def _mutate(stored: Any) -> Dict[str, Any]:
+        settings = _with_defaults(stored)
         settings.update(
             cadence=cadence,
             last_prompted_at=prompted_at.isoformat(),
@@ -236,6 +285,6 @@ def record_prompt(
             consecutive_unanswered=consecutive_unanswered,
             auto_slowed=auto_slowed,
         )
-        return {**document, SETTINGS_KEY: settings}
+        return settings
 
-    profile_repository.update_document(user_id, _mutate)
+    profile_repository.update_extra_key(user_id, SETTINGS_KEY, _mutate)

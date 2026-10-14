@@ -1,19 +1,21 @@
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+/**
+ * /feed is an honest coming-soon screen until there is a feed.
+ *
+ * Regression: the page showed a search box, a dead Filters button, three tabs,
+ * "Your Stats" at "--" and an always-empty recommendations list, in dark-theme
+ * colours on the cream page. These tests pin that none of that comes back and
+ * that no request fires.
+ */
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import Feed from "./Feed";
 import { createQueryClient } from "../../../shared/api/queryClient";
 
 const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  user: { name: "Ada Lovelace" } as any,
+  user: { name: "Ada Lovelace" } as { name?: string } | null,
   fetchWithAuth: vi.fn(),
 }));
-
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-router-dom")>();
-  return { ...actual, useNavigate: () => mocks.navigate };
-});
 
 vi.mock("../../auth/useAuth", () => ({
   useAuth: () => ({ user: mocks.user, fetchWithAuth: mocks.fetchWithAuth }),
@@ -25,107 +27,64 @@ beforeEach(() => {
   mocks.fetchWithAuth.mockResolvedValue({ data: [], next_cursor: null });
 });
 
-/** The recommendations query needs a client; fresh per render, per the
- *  useProfileForm.test precedent, so no cache entry leaks between tests. */
 function renderFeed() {
-  render(
+  const { container } = render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter>
         <Feed />
       </MemoryRouter>
     </QueryClientProvider>
   );
+  return container;
 }
 
-// ─── happy path ────────────────────────────────────────────────────────────────
-
-describe("Feed - happy path", () => {
-  it("shows welcome message with the user's first name", async () => {
+describe("Feed - coming soon", () => {
+  it("greets the user by first name", () => {
     renderFeed();
-    expect(screen.getByText(/Welcome to your feed, Ada!/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your feed, Ada" })).toBeInTheDocument();
   });
 
-  it("renders the Job Feed tab as active by default", () => {
+  it("falls back to a plain heading without a name", () => {
+    mocks.user = null;
     renderFeed();
-    expect(screen.getByRole("button", { name: /job feed/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your feed" })).toBeInTheDocument();
   });
 
-  it("shows 'Job recommendations coming soon' when no recommendations", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({ data: [], next_cursor: null });
+  it("says the feed is coming soon", () => {
     renderFeed();
-    await waitFor(() =>
-      expect(screen.getByText(/Job recommendations coming soon/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole("heading", { name: "The feed is coming soon" }),
+    ).toBeInTheDocument();
+  });
+
+  it("makes no request, since nothing behind it is wired", () => {
+    renderFeed();
+    expect(mocks.fetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("shows none of the unwired surface", () => {
+    renderFeed();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /filters|job feed|messages|notifications/i })).toBeNull();
+    expect(screen.queryByText(/Your Stats/i)).toBeNull();
+    expect(screen.queryByText(/Match score/i)).toBeNull();
+  });
+
+  it("points to the parts of the product that work", () => {
+    renderFeed();
+    expect(screen.getByRole("link", { name: "Go to your dashboard" })).toHaveAttribute(
+      "href",
+      "/job-seeker/dashboard",
+    );
+    expect(screen.getByRole("link", { name: "Open Intelligence" })).toHaveAttribute(
+      "href",
+      "/intelligence",
     );
   });
-});
 
-// ─── tab switching ─────────────────────────────────────────────────────────────
-
-describe("Feed - tab switching", () => {
-  it("shows Messages tab content when Messages is clicked", () => {
-    renderFeed();
-    fireEvent.click(screen.getByRole("button", { name: /messages/i }));
-    expect(screen.getByRole("heading", { name: /^messages$/i })).toBeInTheDocument();
-  });
-
-  it("shows Notifications tab content when Notifications is clicked", () => {
-    renderFeed();
-    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
-    expect(screen.getByRole("heading", { name: /^notifications$/i })).toBeInTheDocument();
-  });
-
-  it("shows No notifications yet text", () => {
-    renderFeed();
-    fireEvent.click(screen.getByRole("button", { name: /notifications/i }));
-    expect(screen.getByText(/No notifications yet/i)).toBeInTheDocument();
-  });
-});
-
-// ─── search ───────────────────────────────────────────────────────────────────
-
-describe("Feed - search", () => {
-  it("navigates to /search with the query when search is submitted", async () => {
-    renderFeed();
-    const input = screen.getByPlaceholderText(/search jobs/i);
-    fireEvent.change(input, { target: { value: "software engineer" } });
-    await act(async () => {
-      fireEvent.submit(input.closest("form")!);
-    });
-    expect(mocks.navigate).toHaveBeenCalledWith("/search?q=software%20engineer");
-  });
-
-  it("does not navigate when search query is empty", async () => {
-    renderFeed();
-    const input = screen.getByPlaceholderText(/search jobs/i);
-    await act(async () => {
-      fireEvent.submit(input.closest("form")!);
-    });
-    expect(mocks.navigate).not.toHaveBeenCalled();
-  });
-});
-
-// ─── job recommendations ───────────────────────────────────────────────────────
-
-describe("Feed - job recommendations", () => {
-  it("renders job listings when recommendations are returned", async () => {
-    mocks.fetchWithAuth.mockResolvedValueOnce({
-      data: [
-        {
-          ID: "1",
-          Title: "Senior Frontend Engineer",
-          Company: "Stripe",
-          Location: "Remote",
-          EmploymentType: "Full-time",
-          RoleDescription: "Build great UIs.",
-          score: 0.9,
-          Link: "https://stripe.com/jobs/1",
-        },
-      ],
-    });
-    renderFeed();
-    await waitFor(() =>
-      expect(screen.getByText("Senior Frontend Engineer")).toBeInTheDocument()
-    );
-    expect(screen.getByText("Stripe")).toBeInTheDocument();
+  it("uses the cream palette, not the old dark theme", () => {
+    const container = renderFeed();
+    expect(container.innerHTML).not.toMatch(/slate-|emerald-|bg-white\/5|border-white\/10/);
+    expect(container.firstElementChild).toHaveClass("bg-cream-base");
   });
 });

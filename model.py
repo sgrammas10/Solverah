@@ -19,6 +19,7 @@ from sqlalchemy import DDL, JSON
 from sqlalchemy import event as sa_event
 from sqlalchemy.dialects.postgresql import ARRAY, CITEXT, JSONB, UUID
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import deferred
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
@@ -48,6 +49,13 @@ class JobRecommendation(db.Model):
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     user = db.relationship("User", backref="recommendations")
+
+    __table_args__ = (
+        # The dashboard's count, the export's list and the deletion's DELETE all
+        # filter on user_id alone; before 20260928_ledger_indexes each one scanned
+        # the table.
+        db.Index("ix_job_recommendation_user_id", "user_id"),
+    )
 
 
 class User(db.Model):
@@ -108,9 +116,14 @@ class User(db.Model):
         default="pending",
         server_default="pending",
     )
-    #: Not read or written since Phase 2a; kept one release so a rollback is a
-    #: redeploy. The drop is the next release's migration.
-    profile_data = db.Column(JSON, default=dict)
+    #: Not read since Phase 2a; kept one release so a rollback is a redeploy.
+    #: The drop is the next release's migration.
+    #:
+    #: Deferred, so a user load no longer carries the whole pre-2a document. The
+    #: one writer left, the deletion tombstone (`account_repository.tombstone_user`),
+    #: assigns it without reading it; anything that does read it pays one SELECT
+    #: at that moment.
+    profile_data = deferred(db.Column(JSON, default=dict))
 
     # Email confirmation.
     #
@@ -123,8 +136,12 @@ class User(db.Model):
     # they stay here rather than being folded into a table that does not model
     # them; deleting a live column because the target diagram does not draw it
     # is deleting a feature by omission.
+    #
+    # `confirmation_token` has no index (dropped by 20260928_ledger_indexes). No
+    # query filters on it: every reader finds the user by email first and then
+    # compares the token in Python.
     email_confirmed_at = db.Column(db.DateTime(timezone=True))
-    confirmation_token = db.Column(db.String(64), nullable=True, index=True)
+    confirmation_token = db.Column(db.String(64), nullable=True)
     confirmation_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     # Password reset via OTP. Carried forward for the same reason.
@@ -304,6 +321,14 @@ class UserSession(db.Model):
         db.Index("uq_user_sessions_token_hash", "token_hash", unique=True),
         db.Index("ix_user_sessions_family", "family_id"),
         db.Index("ix_user_sessions_user_issued", "user_id", db.text("issued_at DESC")),
+        # The two self-references, for their `ON DELETE SET NULL` actions: every
+        # row the retention purge deletes makes Postgres look up the rows whose
+        # parent or successor it was. Plain and NON-UNIQUE on purpose --
+        # `refresh_tokens.rotate` inserts the successor before it claims the
+        # parent, and that order is deadlock-free only while no unique index
+        # covers these columns.
+        db.Index("ix_user_sessions_parent", "parent_id"),
+        db.Index("ix_user_sessions_successor", "successor_id"),
         # The retention pass reads exactly these two halves, and they are
         # disjoint: live rows by `expires_at`, dead rows by `retired_at`. One
         # index over both would make each scan the other's rows, and in steady
@@ -451,7 +476,9 @@ class Company(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False, unique=True)
-    slug = db.Column(db.String(200), nullable=False, unique=True, index=True)
+    # No index=True: the unique constraint is the index. The chain also built a
+    # plain ix_company_slug beside it, dropped by 20260928_ledger_indexes.
+    slug = db.Column(db.String(200), nullable=False, unique=True)
     # Natural key for dedupe across sources (schema.sql `company.domain`). Nullable because
     # existing rows predate it; unique so two rows can never silently be the same company.
     # Added 2026-08-19 (S-07): the research schema's company table was reconciled INTO this
@@ -498,6 +525,29 @@ class IntakeSubmission(db.Model):
     resume_size_bytes = db.Column(db.Integer, nullable=False)
     status = db.Column(db.String(50), nullable=False, default="uploaded")
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        # The one spelling of "this address" on this table. The account export
+        # and deletion, the dashboard's intake banner and the retention sweep all
+        # compare through `email_key` below, and this index is built on that
+        # same expression. `email` is stored as submitted (VARCHAR, not CITEXT),
+        # so a lookup that compared the column directly could neither use this
+        # index nor match an address that differs only in case.
+        db.Index("ix_intake_submissions_email_lower", db.func.lower(email)),
+        # Retention's age filter (`created_at < cutoff`).
+        db.Index("ix_intake_submissions_created_at", "created_at"),
+    )
+
+    @hybrid_property
+    def email_key(self) -> str:
+        """The address as every lookup compares it: lower-cased."""
+        return (self.email or "").lower()
+
+    @email_key.inplace.expression
+    @classmethod
+    def _email_key_expression(cls):
+        """``lower(email)`` -- the expression ``ix_intake_submissions_email_lower`` indexes."""
+        return db.func.lower(cls.email)
 
 
 # ---------------------------------------------------------------------------
@@ -845,7 +895,9 @@ class CompanyDimensionScore(db.Model):
     __tablename__ = "company_dimension_score"
 
     id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    # No index=True: uq_cscore_company_dim_source_asof below leads with company_id.
+    # The separate one was dropped by 20260928_ledger_indexes.
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
     dimension_key = db.Column(db.String(32), nullable=False)
     score = db.Column(db.Float, nullable=False)
     source = db.Column(db.String(16), nullable=False)
@@ -949,7 +1001,9 @@ class CompanyConfounderValue(db.Model):
     __tablename__ = "company_confounder_value"
 
     id = db.Column(db.Integer, primary_key=True)
-    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False, index=True)
+    # No index=True: uq_conf_company_key_source_asof below leads with company_id.
+    # The separate one was dropped by 20260928_ledger_indexes.
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
     confounder_key = db.Column(db.String(32), nullable=False)
     value_num = db.Column(db.Float, nullable=True)
     value_cat = db.Column(db.String(64), nullable=True)
@@ -1000,7 +1054,9 @@ class WeightPosterior(db.Model):
     __tablename__ = "weight_posterior"
 
     id = db.Column(db.Integer, primary_key=True)
-    model_run_id = db.Column(db.Integer, db.ForeignKey("model_run.id"), nullable=False, index=True)
+    # No index=True: uq_weight_run_name below leads with model_run_id. The separate
+    # one was dropped by 20260928_ledger_indexes.
+    model_run_id = db.Column(db.Integer, db.ForeignKey("model_run.id"), nullable=False)
     weight_name = db.Column(db.String(64), nullable=False)
     mean = db.Column(db.Float, nullable=False)
     sd = db.Column(db.Float, nullable=False)
@@ -1222,6 +1278,19 @@ ENV_DIMENSIONS = ("autonomy", "pace", "collaboration", "feedback", "innovation",
 #: their job, not on whatever the profile says later.
 CAREER_STATUSES = ("employed", "between_jobs", "first_job")
 
+#: `environment_reports.industry`'s vocabulary: the `industry` confounder's levels
+#: in causal_graph/v1_model/solverah_model_config.yaml, which
+#: `work_pulse.situation_items.INDUSTRY_LEVELS` restates. A tripwire test asserts all
+#: three agree.
+ENV_INDUSTRIES = ("tech", "finance", "healthcare", "retail", "other")
+
+#: `environment_reports.subject`'s vocabulary (PRODUCT_DECISIONS.md §2, Sebastian,
+#: 2026-10-01): which job a report describes. `current` is the user's current or most
+#: recent job -- every row before that date, and the only kind the Situation Report
+#: reads. `past` is the one job before that, filed at most once per user, after a
+#: current report exists.
+ENV_REPORT_SUBJECTS = ("current", "past")
+
 
 class EnvironmentReport(db.Model):
     """One submission of the environment-side instrument. Append-only: id is not a person's
@@ -1258,10 +1327,20 @@ class EnvironmentReport(db.Model):
     # so a forced 1..5 answer would under-report underpayment exactly where it
     # is worst.
     comp = db.Column(db.SmallInteger, nullable=True)
+    # The model's categorical `industry` confounder, stored as the level key (ENV_INDUSTRIES),
+    # the way schema.sql's `value_cat` carries it on the company side. NULLable twice over:
+    # rows written before 2026-10-01 were never asked (version env-v1-...), and from then on
+    # NULL is the "not sure / prefer not to say" option (PRODUCT_DECISIONS.md §2, 2026-10-01).
+    industry = db.Column(db.Text, nullable=True)
     # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
     # same ordinal shape as `outcome_experienced.working_scale`.
     experienced_outcome = db.Column(db.SmallInteger, nullable=False)
+    #: The user's status WHEN THEY FILED. On a `subject='past'` row this is still the
+    #: filer's status that day, not a description of the past job.
     career_status = db.Column(db.Text, nullable=False)
+    #: Which job this row describes (ENV_REPORT_SUBJECTS). Every read that means "the
+    #: user's job" -- the Situation Report, the dashboard -- filters on `current`.
+    subject = db.Column(db.Text, nullable=False, server_default="current", default="current")
     #: ⚑6: optional, stored, displayed nowhere at launch -- the future company-aggregation
     #: lane's join key, not a launch feature. Pre-normalized (lowercased/trimmed) by the
     #: caller so a later aggregation query is a GROUP BY, not a fuzzy match.
@@ -1278,12 +1357,24 @@ class EnvironmentReport(db.Model):
             "comp IS NULL OR (comp >= 1 AND comp <= 5)", name="ck_envreport_comp_range"
         ),
         db.CheckConstraint(
+            "industry IS NULL OR industry IN %s" % (ENV_INDUSTRIES,),
+            name="ck_envreport_industry_vocab",
+        ),
+        db.CheckConstraint(
             "experienced_outcome >= 1 AND experienced_outcome <= 5",
             name="ck_envreport_experienced_outcome_range",
         ),
         db.CheckConstraint(
             "career_status IN %s" % (CAREER_STATUSES,),
             name="ck_envreport_career_status_vocab",
+        ),
+        db.CheckConstraint(
+            "subject IN %s" % (ENV_REPORT_SUBJECTS,),
+            name="ck_envreport_subject_vocab",
+        ),
+        db.CheckConstraint(
+            "subject = 'current' OR career_status <> 'first_job'",
+            name="ck_envreport_past_not_first_job",
         ),
         db.Index(
             "ix_environment_reports_user_submitted",
@@ -1313,11 +1404,12 @@ class EnvironmentDimensionScore(db.Model):
     __tablename__ = "environment_dimension_score"
 
     id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_edscore_report_dim below leads with environment_report_id.
+    # The separate one was dropped by 20260928_ledger_indexes.
     environment_report_id = db.Column(
         db.BigInteger,
         db.ForeignKey("environment_reports.id"),
         nullable=False,
-        index=True,
     )
     user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False, index=True)
     dimension_key = db.Column(db.String(32), nullable=False)
@@ -1414,12 +1506,13 @@ class ManagerProfile(db.Model):
 # cannot hold that history itself; a retake would silently move every report that
 # read through it.
 #
-# The default pin needs no row here at all: "the first completed core sitting" is
-# `assessment_store.first_completed_core_submission_id`, a stable fact computed live
-# from the append-only `assessment_submissions`/`assessment_response` rows (adding a
-# LATER sitting never changes which one was first). This table exists only to hold
-# the EXPLICIT override an Enterprise "recalibrate" action writes -- absence means
-# "still pinned to the first sitting", not "unset".
+# The default pin needs no row here at all: it is the core sitting that was current
+# when the user's first Environment Report was filed
+# (`situation_report_service._default_pin`), a stable fact computed live from the
+# append-only `assessment_submissions`/`assessment_response`/`environment_report`
+# rows (adding a LATER sitting never changes which one was current then). This table
+# exists only to hold the EXPLICIT override an Enterprise "recalibrate" action
+# writes -- absence means "still on the default pin", not "unset".
 
 
 class SituationReportPin(db.Model):
@@ -1608,7 +1701,8 @@ class PulseEvent(db.Model):
 # experimented on.
 #
 # MUTABLE, unlike `EnvironmentReport`/`PulseCheckin`'s append-only rows -- a
-# running experiment's `status` moves to `abandoned` in place, the same shape
+# running experiment's `status` moves to `abandoned` (the user's choice) or to
+# `completed` (its two weeks ran out) in place, the same shape
 # `SituationReportPin` mutates rather than appending. NO free text anywhere on
 # the row, so it rides the tombstone de-identified on account deletion exactly
 # like `pulse_checkins` (D-7b) -- see `solverah/services/account_service.py`.
@@ -1626,6 +1720,13 @@ class Experiment(db.Model):
     the index is what makes a race lose rather than silently double-book). The
     rule is a methodological one, not a UI nicety: a two-week change is
     confounded by a second concurrent one, so only one may run at a time.
+
+    `status` is `active` / `completed` / `abandoned`. A partial index cannot
+    carry a time predicate, so an experiment past its `ends_at` must stop being
+    `active` for the index to keep meaning "one RUNNING experiment": the
+    service moves it to `completed` before every read or write
+    (`experiment_store.close_ended_experiments`). Until 2026-10-02 there was
+    no such status and an ended row blocked every later start.
 
     `ends_at` IS STORED, NOT COMPUTED
     -----------------------------------------------------------------
@@ -1678,8 +1779,13 @@ class Experiment(db.Model):
         db.CheckConstraint(
             "register = 'change_in_place'", name="ck_experiment_register_vocab"
         ),
+        # `completed` since 20261002_experiment_completed: an experiment whose
+        # `ends_at` has passed is moved here lazily by
+        # `experiment_store.close_ended_experiments`, so it drops out of the
+        # partial index below and stops blocking the next start.
         db.CheckConstraint(
-            "status IN ('active', 'abandoned')", name="ck_experiment_status_vocab"
+            "status IN ('active', 'completed', 'abandoned')",
+            name="ck_experiment_status_vocab",
         ),
         db.CheckConstraint(
             "(status = 'abandoned') = (abandoned_at IS NOT NULL)",
@@ -1969,10 +2075,86 @@ class PathWant(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Path Intelligence: the narrator's sentences, stored -- W-16
+# ---------------------------------------------------------------------------
+# One row per (user, occupation, fingerprint): the `why_text` and tags the
+# narrator (`backend/services/path_narrative`) wrote for one card, filed under a
+# digest of exactly what the prompt fed the model about that card and that
+# person (`path_narrative.narrative_fingerprint`).
+#
+# WHY A TABLE. Until W-16 the only copy lived in `path_cache` -- per worker and
+# lost on every deploy -- so a re-score after a wants save or a tap paid the
+# narrator again for sentences it had already written, and the text changed
+# under the reader on every save. The panel answers and the taps reorder the
+# list but are not narrator inputs, so the sentence for a card is a function of
+# the fingerprint alone and is worth keeping.
+#
+# THE FINGERPRINT IS THE CORRECTNESS, NOT AN INVALIDATION LIST. Nothing calls an
+# `invalidate` here: a profile edit that changes a narrator input changes the
+# fingerprint, and the old row simply stops being asked for. Old rows are bounded
+# by `path_narrative_repository.MAX_AGE` on read and removed by its purge --
+# `path_fits`' 30-day rule, for its reason (the model and O*NET's titles move
+# under a stored sentence with no profile write to say so).
+#
+# APPEND-ONLY IN PRACTICE, KEYED BY FINGERPRINT. Unlike `path_fits`, a new
+# fingerprint is a new row rather than an overwrite: going back to an earlier
+# profile (re-adding a skill) finds its sentences again.
+#
+# DESTROYED ON ACCOUNT DELETION (D-7b). `why_text` is model-written prose ABOUT
+# the person ("uses your Python and SQL"), and free text about a person is never
+# retained de-identified. `account_repository.delete_personal_rows` deletes it
+# explicitly: deletion tombstones the user row, so the cascade below never fires
+# on that path. It is there for a hard delete.
+
+
+class PathNarrative(db.Model):
+    """The narrator's sentence and tags for one card, for one set of inputs (W-16)."""
+
+    __tablename__ = "path_narratives"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: uq_path_narratives_user_code_fp leads with user_id, and
+    # every read is "these codes for this user" -- PathFit's reasoning.
+    user_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("users.id", ondelete="CASCADE", name="fk_pathnarrative_user"),
+        nullable=False,
+    )
+    #: O*NET-SOC. No foreign key, for PathFit's reason: occupations live in the
+    #: corpus artifact, not in this database.
+    onet_code = db.Column(db.Text, nullable=False)
+    #: Hex sha256 of the narrator's inputs for this card. See the section comment.
+    fingerprint = db.Column(db.Text, nullable=False)
+    #: Already scrubbed of grades (W-13) before it is written, and never a
+    #: fallback sentence: only prose the narrator wrote is stored.
+    why_text = db.Column(db.Text, nullable=False)
+    profile_dimensions = db.Column(
+        JSONB, nullable=False, server_default=db.text("'[]'::jsonb")
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "onet_code",
+            "fingerprint",
+            name="uq_path_narratives_user_code_fp",
+        ),
+    )
+
+    user = db.relationship(
+        "User", backref=db.backref("path_narratives", passive_deletes=True)
+    )
+
+
+# ---------------------------------------------------------------------------
 # Phase 2a -- profile_data, decomposed (docs/ARCHITECTURE.md Part 4.3)
 # ---------------------------------------------------------------------------
 #
-# `User.profile_data` above is no longer read or written by anything. It is kept
+# `User.profile_data` above is no longer read, and is written only by the deletion
+# tombstone (`account_repository.tombstone_user` empties it). It is kept
 # for one release so a rollback is a redeploy rather than a restore
 # (docs/RUNBOOK_DATABASE_ROLLBACK.md); the column is dropped in the next one.
 #
@@ -2294,6 +2476,14 @@ class Outbox(db.Model):
             "created_at",
             postgresql_where=db.text("published_at IS NULL"),
         ),
+        # The other half, for `purge_published`: `WHERE published_at IS NOT NULL
+        # AND published_at < cutoff`. Partial on the purge's own first predicate,
+        # so the two indexes split the table between them rather than overlap.
+        db.Index(
+            "ix_outbox_published",
+            "published_at",
+            postgresql_where=db.text("published_at IS NOT NULL"),
+        ),
     )
 
 
@@ -2357,6 +2547,13 @@ class ResumeParseJob(db.Model):
             "ix_resume_parse_jobs_pending",
             "created_at",
             postgresql_where=db.text("status IN ('queued', 'running')"),
+        ),
+        # `purge_terminal`'s index, the same shape as `ix_scoring_jobs_terminal`
+        # and for the same reason: pending and terminal rows are disjoint halves.
+        db.Index(
+            "ix_resume_parse_jobs_terminal",
+            "created_at",
+            postgresql_where=db.text("status IN ('succeeded', 'failed')"),
         ),
         db.CheckConstraint(
             "status IN ('queued', 'running', 'succeeded', 'failed')",

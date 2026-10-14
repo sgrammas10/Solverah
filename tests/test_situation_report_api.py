@@ -549,6 +549,68 @@ def test_comp_not_sure_round_trips_as_null(client, monkeypatch):
         assert stored["comp"] is None
 
 
+# ── industry (PRODUCT_DECISIONS.md §2, 2026-10-01) ───────────────────────────
+
+
+def _post_env_with(client, csrf, **extra):
+    body = {"answers": _env_answers("mixed"), "stage_size": 3, "comp": 3, "experienced": 3}
+    body.update(extra)
+    return client.post(
+        "/api/v1/me/environment-report", json=body, headers={"X-CSRF-TOKEN": csrf}
+    )
+
+
+def _stored_report(email):
+    from app import app
+    from model import User
+    import environment_report_store
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        return environment_report_store.latest_environment_report(user.id)
+
+
+def test_industry_is_stored_and_echoed(client, monkeypatch):
+    email = "a5_industry@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf, industry="finance")
+
+    assert submit.status_code == 200
+    assert submit.get_json()["industry"] == "finance"
+    assert submit.get_json()["version"] == situation_items.FORM_VERSION
+    stored = _stored_report(email)
+    assert stored["industry"] == "finance"
+    assert stored["version"] == situation_items.FORM_VERSION
+
+
+@pytest.mark.parametrize("omit", [True, False], ids=["absent", "explicit-null"])
+def test_industry_not_sure_stores_null(client, monkeypatch, omit):
+    """An explicit null (the form's "not sure / prefer not to say") and an
+    absent key both store NULL, the same way comp's "not sure" does."""
+    email = "a5_industry_null_%s@example.com" % ("absent" if omit else "null")
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    submit = _post_env_with(client, csrf) if omit else _post_env_with(client, csrf, industry=None)
+
+    assert submit.status_code == 200
+    assert submit.get_json()["industry"] is None
+    assert _stored_report(email)["industry"] is None
+
+
+@pytest.mark.parametrize("bad", ["crypto", "Tech", 3])
+def test_industry_outside_the_levels_is_rejected_and_nothing_is_stored(client, monkeypatch, bad):
+    email = "a5_industry_bad_%s@example.com" % str(bad).lower()
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _post_env_with(client, csrf, industry=bad)
+
+    assert res.status_code in (400, 422)
+    assert _stored_report(email) is None
+
+
 # ── Pulse-event resubmission prompt (BUILD_PLAN B-4) ─────────────────────────
 
 
@@ -767,3 +829,667 @@ def test_environment_report_submit_is_limited_to_five_per_minute(client, monkeyp
 
     assert statuses[:5] == [200] * 5
     assert statuses[5] == 429
+
+
+# ── Past-job report (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01) ─────────
+
+
+def _submit_past(client, csrf, pole="high", **extra):
+    body = {
+        "answers": _env_answers(pole),
+        "stage_size": 2,
+        "comp": 2,
+        "experienced": 2,
+        "subject": "past",
+    }
+    body.update(extra)
+    return client.post(
+        "/api/v1/me/environment-report", json=body, headers={"X-CSRF-TOKEN": csrf}
+    )
+
+
+def _history(email):
+    from app import app
+    from model import User
+    import environment_report_store
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        return environment_report_store.environment_report_history(user.id)
+
+
+def test_current_submit_echoes_subject_current(client, monkeypatch):
+    email = "past_current_echo@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    explicit = _post_env_with(client, csrf, subject="current")
+    implicit = _submit_env(client, csrf)
+
+    from solverah.schemas.situation_report import EnvironmentReportSubmitResponse
+
+    for res in (explicit, implicit):
+        assert res.status_code == 200, res.get_json()
+        assert res.get_json()["subject"] == "current"
+        EnvironmentReportSubmitResponse.model_validate(res.get_json())
+    assert [h["subject"] for h in _history(email)] == ["current", "current"]
+
+
+@pytest.mark.parametrize("status", ["employed", "between_jobs"])
+def test_past_submit_is_stored_as_past_with_the_filers_status(client, monkeypatch, status):
+    email = "past_happy_%s@example.com" % status
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, status)
+    assert _submit_env(client, csrf).status_code == 200
+
+    res = _submit_past(client, csrf, industry="retail")
+
+    assert res.status_code == 200, res.get_json()
+    body = res.get_json()
+    assert body["subject"] == "past"
+    assert body["career_status"] == status
+    assert body["industry"] == "retail"
+    assert body["dimension_scores"] == {d: 0.9 for d in situation_items.DIMENSIONS}
+    from solverah.schemas.situation_report import EnvironmentReportSubmitResponse
+
+    EnvironmentReportSubmitResponse.model_validate(body)
+
+    history = _history(email)
+    assert [h["subject"] for h in history] == ["past", "current"]
+    assert history[0]["career_status"] == status
+    # The latest report is still the current one.
+    assert _stored_report(email)["subject"] == "current"
+    assert _stored_report(email)["stage_size"] == 3
+
+
+def test_past_submit_for_first_job_is_409_first_job_no_role(client, monkeypatch):
+    email = "past_first_job@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "first_job")
+
+    res = _submit_past(client, csrf)
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0]["code"] == "first_job_no_role"
+    assert _history(email) == []
+
+
+def test_past_submit_before_any_current_report_is_409_current_report_required(client, monkeypatch):
+    email = "past_no_current@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _submit_past(client, csrf)
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0] == {"field": "subject", "code": "current_report_required"}
+    assert _history(email) == []
+
+
+def test_second_past_submit_is_409_past_report_limit(client, monkeypatch):
+    email = "past_limit@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf).status_code == 200
+    assert _submit_past(client, csrf).status_code == 200
+
+    res = _submit_past(client, csrf, pole="low")
+
+    assert res.status_code == 409
+    assert res.mimetype == "application/problem+json"
+    assert res.get_json()["errors"][0] == {"field": "subject", "code": "past_report_limit"}
+    assert [h["subject"] for h in _history(email)] == ["past", "current"]
+    # A current resubmission is still accepted after the past cap is reached.
+    assert _submit_env(client, csrf).status_code == 200
+
+
+@pytest.mark.parametrize("bad", ["previous", "Past", None, 1])
+def test_bad_subject_is_422_and_nothing_is_stored(client, monkeypatch, bad):
+    email = "past_bad_subject_%s@example.com" % str(bad).lower()
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    res = _post_env_with(client, csrf, subject=bad)
+
+    assert res.status_code == 422
+    assert _history(email) == []
+
+
+def test_service_refuses_a_bad_subject_even_without_the_route_validator(client, monkeypatch):
+    """The service reads the raw body; the route's schema is the first gate, this the second."""
+    from app import app
+    from model import User
+    from solverah.services import situation_report_service as service
+
+    email = "past_bad_subject_service@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        result = service.submit_environment_report(user, {"subject": "previous"})
+    assert result.status == 400
+
+
+# ── REGRESSION: a past report never changes the Situation Report ──────────────
+
+
+def _report_without_flag(client):
+    res = _get_report(client)
+    assert res.status_code == 200
+    body = res.get_json()
+    flag = body.pop("past_job_report_filed")
+    return body, flag
+
+
+@pytest.mark.parametrize("status", ["employed", "between_jobs"])
+def test_past_submit_leaves_the_situation_report_byte_identical_but_the_flag(
+    client, monkeypatch, status
+):
+    email = "past_regression_%s@example.com" % status
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, status)
+    _complete_core(client, csrf, pattern=_VARIED)
+    _submit_env(client, csrf, pole="mixed")
+
+    before_raw = _get_report(client).get_data()
+    before, before_flag = _report_without_flag(client)
+    assert before["state"] == "complete"
+    assert before_flag is False
+
+    # Deliberately a different pole everywhere, so a leak would move every dimension.
+    assert _submit_past(client, csrf, pole="low").status_code == 200
+
+    after_raw = _get_report(client).get_data()
+    after, after_flag = _report_without_flag(client)
+    assert after_flag is True
+    assert after == before
+    assert b'"past_job_report_filed":false' in before_raw
+    assert after_raw == before_raw.replace(
+        b'"past_job_report_filed":false', b'"past_job_report_filed":true'
+    )
+
+
+def test_past_job_report_filed_is_present_in_every_state(client, monkeypatch):
+    email = "past_flag_states@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and body["past_job_report_filed"] is False
+
+    _submit_env(client, csrf)
+    _submit_past(client, csrf)
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and body["past_job_report_filed"] is True
+    # needs_core echoes the CURRENT report's scores (mixed), never the past one's (high).
+    assert {d["env_score"] for d in body["environment"]["dimensions"]} == {0.5}
+
+    from solverah.schemas.situation_report import SituationReportResponse
+
+    SituationReportResponse.model_validate(body)
+
+
+def test_past_job_report_filed_in_needs_environment_report_state(client, monkeypatch):
+    email = "past_flag_needs_env@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_environment_report"
+    assert body["past_job_report_filed"] is False
+
+
+def test_export_carries_subject_on_every_environment_report(client, monkeypatch):
+    email = "past_export@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _submit_env(client, csrf)
+    _submit_past(client, csrf)
+
+    res = client.get("/api/v1/me/export")
+
+    assert res.status_code == 200
+    payload = res.get_json()
+    assert [r["subject"] for r in payload["environment_reports"]] == ["past", "current"]
+    from solverah.schemas.account import AccountExportResponse
+
+    AccountExportResponse.model_validate(payload)
+
+
+# -- F1 (audit 2026-10-02): a career-status change after filing reaches the user --
+
+
+@pytest.mark.parametrize(
+    "filed_as, now, flagged",
+    [
+        ("employed", "between_jobs", True),
+        ("between_jobs", "employed", True),
+        # first_job maps to the past tense, but it has no role to describe: the
+        # form gates it and the submit 409s, so a banner would be a dead end
+        # that could never clear. Not flagged.
+        ("employed", "first_job", False),
+    ],
+)
+def test_career_status_tense_change_after_filing_is_flagged(
+    client, monkeypatch, filed_as, now, flagged
+):
+    """The report renders from the career_status snapshot, so a status change in
+    either tense direction was invisible. The flag reaches the payload; the
+    report itself is NOT re-sliced (banner-only, 2026-10-02)."""
+    email = "f1_%s_to_%s@example.com" % (filed_as, now)
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, filed_as)
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf, pole="low").status_code == 200
+
+    before = _get_report(client).get_json()
+    assert before["career_status_changed"] is False
+
+    _set_career_status(client, csrf, now)
+    after = _get_report(client).get_json()
+
+    assert after["state"] == "complete"
+    assert after["career_status_changed"] is flagged
+    # Banner only: the old report still renders from its own snapshot.
+    assert after["career_status"] == filed_as
+    assert after["needs_forward"] == before["needs_forward"]
+    assert after["dimensions"] == before["dimensions"]
+
+
+def test_resubmitting_after_a_career_status_change_clears_the_flag(client, monkeypatch):
+    email = "f1_resubmit@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+    _set_career_status(client, csrf, "between_jobs")
+    assert _get_report(client).get_json()["career_status_changed"] is True
+
+    assert _submit_env(client, csrf).status_code == 200
+
+    body = _get_report(client).get_json()
+    assert body["career_status_changed"] is False
+    assert body["career_status"] == "between_jobs"
+    assert body["needs_forward"] is True
+
+
+# -- F2 (audit 2026-10-02): an unreadable pinned sitting is a state, not a 500 --
+
+
+def test_pin_to_a_sitting_with_no_responses_is_needs_core_unreadable_not_500(
+    client, monkeypatch
+):
+    email = "f2_unknown_pin@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+
+    from app import app
+    from model import User, db
+    import situation_report_pin_store
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        situation_report_pin_store.set_pin(db, user.id, "0" * 32)
+        db.session.commit()
+
+    res = _get_report(client)
+
+    assert res.status_code == 200, res.get_data()
+    body = res.get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+    assert {d["env_score"] for d in body["environment"]["dimensions"]} == {0.5}
+    from solverah.schemas.situation_report import SituationReportResponse
+
+    SituationReportResponse.model_validate(body)
+
+
+def test_scores_with_no_core_submission_row_is_needs_core_unreadable_not_500(
+    client, monkeypatch
+):
+    """Person-side scores of the current instrument with no `core` submission row
+    behind them, so the default pin resolves to None -- e.g. a sitting recorded
+    before submission rows existed."""
+    email = "f2_no_submission@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _submit_env(client, csrf).status_code == 200
+
+    from app import app
+    from model import AssessmentSubmission, User, db
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        AssessmentSubmission.query.filter_by(user_id=user.id, kind="core").delete()
+        db.session.commit()
+
+    res = _get_report(client)
+
+    assert res.status_code == 200, res.get_data()
+    body = res.get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+
+
+def test_plain_needs_core_carries_no_core_unreadable_flag(client, monkeypatch):
+    csrf = _register_and_login(client, monkeypatch, email="f2_plain@example.com")
+    _set_career_status(client, csrf, "employed")
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core" and "core_unreadable" not in body
+
+
+# -- F9 (audit 2026-10-02): two racing past submits file exactly one report --
+
+
+def _someone_waits_on_a_lock(engine):
+    import sqlalchemy as sa
+
+    with engine.connect() as connection:
+        return (
+            connection.execute(
+                sa.text(
+                    # Joined through pg_stat_activity: a row-lock waiter waits on a
+                    # `transactionid` lock, whose `database` column is NULL.
+                    "SELECT count(*) FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid "
+                    "WHERE NOT l.granted AND a.datname = current_database()"
+                )
+            ).scalar()
+            > 0
+        )
+
+
+def test_two_interleaved_past_submits_file_exactly_one_past_report(client, monkeypatch):
+    """`_check_past_report_allowed` takes a row lock on the user before counting.
+    The first submit is held open after its INSERT, before its commit; the second
+    then runs. Without the lock the second counts zero past reports (the first is
+    uncommitted), writes, and the user ends with two. With it, the second waits
+    at the lock, then counts the first and refuses with `past_report_limit`. The
+    interleaving is driven, not raced: the first is released only once the second
+    has finished or is seen waiting in `pg_locks`."""
+    import threading
+    import time
+
+    import environment_report_store
+    from app import app
+    from model import User, db
+    from solverah.errors import ConflictError
+    from solverah.services import situation_report_service
+
+    email = "f9_race@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf).status_code == 200
+    with app.app_context():
+        user_id = User.query.filter_by(email=email).first().id
+        engine = db.engine
+
+    real_write = environment_report_store.write_environment_report
+    first_wrote = threading.Event()
+    release_first = threading.Event()
+
+    def write_then_hold_the_first(*args, **kwargs):
+        real_write(*args, **kwargs)
+        if threading.current_thread().name == "first":
+            first_wrote.set()
+            release_first.wait(30)
+
+    monkeypatch.setattr(
+        environment_report_store, "write_environment_report", write_then_hold_the_first
+    )
+
+    payload = {
+        "answers": _env_answers("high"),
+        "stage_size": 2,
+        "comp": 2,
+        "experienced": 2,
+        "subject": "past",
+    }
+    results, errors = {}, {}
+
+    def submit():
+        name = threading.current_thread().name
+        try:
+            with app.app_context():
+                user = db.session.get(User, user_id)
+                try:
+                    results[name] = situation_report_service.submit_environment_report(
+                        user, payload
+                    )
+                finally:
+                    db.session.rollback()
+                    db.session.remove()
+        except Exception as exc:  # noqa: BLE001 -- asserted below
+            errors[name] = exc
+
+    first = threading.Thread(target=submit, name="first")
+    second = threading.Thread(target=submit, name="second")
+    first.start()
+    try:
+        assert first_wrote.wait(30), "the first past submit never reached its commit"
+        second.start()
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if "second" in results or "second" in errors or _someone_waits_on_a_lock(engine):
+                break
+            time.sleep(0.02)
+    finally:
+        release_first.set()
+        first.join(30)
+        if second.ident is not None:
+            second.join(30)
+
+    assert "first" not in errors, errors
+    assert results["first"].status == 200
+    assert isinstance(errors.get("second"), ConflictError), (results, errors)
+    assert errors["second"].errors[0]["code"] == "past_report_limit"
+    assert [h["subject"] for h in _history(email)] == ["past", "current"]
+
+
+# -- The default pin under core retakes (2026-10-05) --------------------------
+#
+# With no explicit pin, the report reads the core sitting that was current when the
+# user's FIRST current Environment Report was filed (the latest sitting at or before
+# it, else the first one after it), falling forward past a default that can no
+# longer be scored. `_UNIFORM` + a `mixed` environment is all-aligned; `_VARIED` is
+# not, so "which sitting is the report built from" is visible in the buckets.
+
+
+def _all_aligned(body):
+    return body["state"] == "complete" and all(
+        d["bucket"] == "aligned" for d in body["dimensions"]
+    )
+
+
+def _user_id(email):
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=email).first().id
+
+
+def _persist_unscoreable_sitting(email):
+    """A real `core` sitting row whose responses the CURRENT item file cannot score --
+    a sitting from before an item-bank change -- under a superseded scoring key, so it
+    also does not satisfy `has_completed_assessment`. Written through the one write
+    path (`persist_submission`), not the tables. Returns its submission_id."""
+    from app import app
+    from model import db
+    from assessment_form import ScoredSubmission
+    from assessment_store import persist_submission
+
+    dims = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"]
+    sitting = ScoredSubmission(
+        form_version="v2-2026-08-18",
+        scoring_key_version="v1-superseded+mean_pole",
+        scores={d: 0.5 for d in dims},
+        choices={f"{d[:2]}{rung}v2": "A" for d in dims for rung in range(1, 5)},
+        confidences={d: (None if d == "feedback" else 1.0) for d in dims},
+    )
+    user_id = _user_id(email)
+    with app.app_context():
+        submission_id = persist_submission(db, user_id, sitting)
+        db.session.commit()
+    return submission_id
+
+
+def _resolved_pin(email):
+    from app import app
+    import assessment_store
+    from solverah.services import situation_report_service
+
+    user_id = _user_id(email)
+    with app.app_context():
+        return (
+            situation_report_service._pinned_submission_id(user_id),
+            [sid for sid, _ in assessment_store.completed_core_sittings(user_id)],
+        )
+
+
+def test_a_retake_before_filing_builds_the_report_from_the_newer_sitting(client, monkeypatch):
+    """Regression: the default used to be the FIRST sitting, so a user who retook
+    before ever filing got a report built from a sitting they had replaced."""
+    email = "pin_retake_before@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)  # uniform: would be all-aligned
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "complete"
+    assert not _all_aligned(body)
+
+    pinned, sittings = _resolved_pin(email)
+    assert len(sittings) == 2 and pinned == sittings[-1]
+
+    # Already on the latest sitting, so Recalibrate has nothing to move. (Not compared
+    # with a second user's report: the core form is shuffled per user, so one answer
+    # pattern scores differently for two people.)
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is False
+    assert _get_report(client).get_json() == body
+
+
+def test_a_retake_after_filing_does_not_move_the_report_until_recalibrate(client, monkeypatch):
+    email = "pin_retake_after@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    filed = _get_report(client).get_json()
+    assert not _all_aligned(filed)
+
+    _complete_core(client, csrf)  # uniform again, after filing
+    assert _get_report(client).get_json() == filed
+    # Re-filing the Environment Report does not re-anchor the person side either.
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    assert _get_report(client).get_json()["dimensions"] == filed["dimensions"]
+    pinned, sittings = _resolved_pin(email)
+    assert len(sittings) == 3 and pinned == sittings[1]
+
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is True
+    assert _all_aligned(_get_report(client).get_json())
+
+
+def test_a_report_filed_before_any_core_sitting_pins_to_the_first_one_after_it(
+    client, monkeypatch
+):
+    email = "pin_env_first@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    _complete_core(client, csrf)  # the sitting that completed the report
+    first = _get_report(client).get_json()
+    assert _all_aligned(first)
+
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _get_report(client).get_json() == first
+
+
+@pytest.mark.parametrize("env_first", [False, True], ids=["core-then-env", "env-then-core"])
+def test_a_single_sitting_resolves_exactly_as_before(client, monkeypatch, env_first):
+    """No change for one-sitting users: the default is the only sitting, i.e. what
+    `first_completed_core_submission_id` (the old default) names."""
+    from app import app
+    import assessment_store
+
+    email = f"pin_single_{int(env_first)}@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    if env_first:
+        assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    _complete_core(client, csrf, pattern=_VARIED)
+    if not env_first:
+        assert _submit_env(client, csrf, pole="mixed").status_code == 200
+
+    pinned, sittings = _resolved_pin(email)
+    with app.app_context():
+        assert pinned == assessment_store.first_completed_core_submission_id(_user_id(email))
+    assert sittings == [pinned]
+    assert _get_report(client).get_json()["state"] == "complete"
+
+
+def test_an_unreadable_default_falls_forward_to_the_next_readable_sitting(client, monkeypatch):
+    """Regression: a first sitting the current item file cannot score used to leave
+    the report `core_unreadable` even after a readable retake. An unseen default
+    protects nothing, so it falls forward -- and stays put once it has."""
+    email = "pin_fall_forward@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    old = _persist_unscoreable_sitting(email)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200  # anchors on `old`
+    assert _get_report(client).get_json()["state"] == "needs_core"
+
+    _complete_core(client, csrf, pattern=_VARIED)
+    body = _get_report(client).get_json()
+    assert body["state"] == "complete", body
+    assert "core_unreadable" not in body
+    assert not _all_aligned(body)
+    pinned, sittings = _resolved_pin(email)
+    assert sittings[0] == old and pinned == sittings[1]
+
+    _complete_core(client, csrf)  # a later retake does not drag it further
+    assert _get_report(client).get_json() == body
+
+
+def test_an_explicit_pin_to_an_unreadable_sitting_still_gates(client, monkeypatch):
+    """Fall-forward is for the default only: a pin the user chose is never second-
+    guessed, and Recalibrate is its exit."""
+    email = "pin_explicit_unreadable@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    old = _persist_unscoreable_sitting(email)
+    _complete_core(client, csrf, pattern=_VARIED)
+    assert _submit_env(client, csrf, pole="mixed").status_code == 200
+    assert _get_report(client).get_json()["state"] == "complete"
+
+    from app import app
+    from model import db
+    import situation_report_pin_store
+
+    with app.app_context():
+        situation_report_pin_store.set_pin(db, _user_id(email), old)
+        db.session.commit()
+
+    body = _get_report(client).get_json()
+    assert body["state"] == "needs_core"
+    assert body["core_unreadable"] is True
+
+    recal = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert recal.get_json()["recalibrated"] is True
+    assert _get_report(client).get_json()["state"] == "complete"

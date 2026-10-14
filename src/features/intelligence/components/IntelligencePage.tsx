@@ -56,6 +56,13 @@ export default function IntelligencePage() {
   const hasSituationReport = situation?.state === "complete";
   const canDescribeJob =
     situation?.state === "needs_environment_report" && situation.can_submit_environment_report;
+  // The one past-job report (PRODUCT_DECISIONS §2, 2026-10-01): offered once
+  // the current-job report exists and until the past one is filed. Hidden for
+  // a profile now reading `first_job`, which the server would refuse.
+  const canDescribePastJob =
+    hasSituationReport &&
+    !situation.past_job_report_filed &&
+    profile?.career_status !== "first_job";
 
   // The stored result, shared with WorkPulseResultsPage through one query.
   // Disabled while the sessionStorage cache already has the narrative, and
@@ -305,7 +312,7 @@ export default function IntelligencePage() {
             </p>
             <p className="text-sm text-ink-primary leading-relaxed">
               Work Pulse knows how you work. What it can’t tell you on its own is how
-              far your current job sits from that. Fifteen questions about the role
+              far your current job sits from that. Sixteen questions about the role
               close the gap and turn the two halves into your Situation Report.
             </p>
             <button
@@ -314,6 +321,25 @@ export default function IntelligencePage() {
               className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-xs hover:bg-forest-mid"
             >
               Describe your job →
+            </button>
+          </div>
+        )}
+        {canDescribePastJob && (
+          <div className="rounded-xl border border-cream-muted bg-white px-6 py-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+              ✦ Your earlier job
+            </p>
+            <p className="text-sm text-ink-primary leading-relaxed">
+              Tell us about the job before your current or most recent one. It won’t
+              change your Situation Report — it helps Solverah learn which gaps matter
+              most. About five minutes.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/environment-report/past")}
+              className="bg-forest-dark text-white font-semibold px-4 py-2 rounded text-xs hover:bg-forest-mid"
+            >
+              Describe your earlier job →
             </button>
           </div>
         )}
@@ -520,17 +546,10 @@ export default function IntelligencePage() {
             <p className="text-xs text-ink-secondary mt-0.5 mb-2">
               Company environment and cultural alignment
             </p>
-            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+            <p className="text-xs text-ink-secondary leading-relaxed">
               Our matching model is still being built. Your Work Pulse results
               are already saved and will feed it the moment it's ready.
             </p>
-            <button
-              type="button"
-              disabled
-              className="border border-cream-muted text-ink-tertiary text-xs font-semibold px-3 py-1.5 rounded cursor-not-allowed"
-            >
-              Coming soon
-            </button>
           </div>
 
           {/* Path Intelligence */}
@@ -538,7 +557,7 @@ export default function IntelligencePage() {
             <div className="flex items-center gap-2 mb-1">
               <p className="text-sm font-semibold text-ink-primary">Path Intelligence</p>
               <span className="rounded-full bg-forest-pale border border-forest-light px-2 py-0.5 text-xs font-semibold text-forest-mid">
-                Pro
+                Pro · coming soon
               </span>
             </div>
             <p className="text-xs text-ink-secondary mt-0.5 mb-2">

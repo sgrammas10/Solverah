@@ -1,8 +1,8 @@
 import { ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { IntakeForm, AccountModal, useIntakeForm, useEarlyAccess } from "../../intake";
-import EarlyAccessModal from "./EarlyAccessModal";
+import { IntakeForm, AccountModal, useIntakeForm } from "../../intake";
 import ScrollStory from "./hero/ScrollStory";
+import { CONTAINER, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
 import "./landing.css";
 
 // Below the fold and still on trial, so it ships in its own chunk with its own
@@ -18,21 +18,11 @@ const EcosystemSection = lazy(() => import("./ecosystem/EcosystemSection"));
  * the page explains how a reading is made, what it will never be used for,
  * and where to start.
  *
- * The file name is historical (it began as the prelaunch page); the route,
- * the intake flow, the account modals and the account-deletion notice all
- * still live here, unchanged in behaviour.
+ * The intake flow, the account modal and the account-deletion notice all
+ * live here.
  */
 
-const CONTAINER = "mx-auto w-full max-w-[1180px] px-6";
-
-const PRIMARY =
-  "inline-flex items-center justify-center rounded-[4px] bg-forest-dark px-7 py-3.5 font-headline text-[0.98rem] font-bold text-white transition-colors hover:bg-forest-mid";
-
-const SECONDARY =
-  "inline-flex items-center justify-center rounded-[4px] border-2 border-forest-dark px-6 py-3 text-[0.95rem] font-semibold text-forest-dark transition-colors hover:bg-forest-pale";
-
-const H2 =
-  "font-headline text-[clamp(2rem,4.2vw,3.1rem)] font-extrabold leading-[1.02] tracking-[-0.02em] text-balance";
+const H2 = PAGE_H1;
 
 const STEPS = [
   {
@@ -533,7 +523,6 @@ function Footer() {
 function LandingPage() {
   const navigate = useNavigate();
   const intake = useIntakeForm();
-  const earlyAccess = useEarlyAccess();
 
   // Account-deletion confirmation, handed over in router state by
   // AccountSettingsPage on its way out. Router state and nothing else: the
@@ -547,17 +536,15 @@ function LandingPage() {
   const [deletionDismissed, setDeletionDismissed] = useState(false);
   const showDeletionNote = Boolean(deletion?.accountDeleted) && !deletionDismissed;
 
-  // Close modals on Escape
+  // Close the account modal on Escape
   useEffect(() => {
-    if (!earlyAccess.isOpen && !intake.accountModalOpen) return;
+    if (!intake.accountModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (earlyAccess.isOpen) earlyAccess.setIsOpen(false);
-      if (intake.accountModalOpen) intake.setAccountModalOpen(false);
+      if (e.key === "Escape") intake.setAccountModalOpen(false);
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [earlyAccess.isOpen, intake.accountModalOpen]);
+  }, [intake.accountModalOpen]);
 
   return (
     <div className="landing min-h-screen bg-cream-base font-body text-ink-primary antialiased">
@@ -655,18 +642,6 @@ function LandingPage() {
       </main>
 
       <Footer />
-
-      <EarlyAccessModal
-        isOpen={earlyAccess.isOpen}
-        onClose={() => earlyAccess.setIsOpen(false)}
-        isSuccess={earlyAccess.isSuccess}
-        onDismissSuccess={() => earlyAccess.setIsSuccess(false)}
-        formData={earlyAccess.formData}
-        onChange={earlyAccess.handleChange}
-        isSubmitting={earlyAccess.isSubmitting}
-        error={earlyAccess.error}
-        onSubmit={earlyAccess.handleSubmit}
-      />
 
       <AccountModal
         isOpen={intake.accountModalOpen}

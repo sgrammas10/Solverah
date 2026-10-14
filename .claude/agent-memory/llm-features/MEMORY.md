@@ -1,0 +1,4 @@
+- [Audit 2026-10-02 + fix wave](project_audit_2026_10_02_open_threads.md) — what the same-day wave fixed and what stays open (primer, streamFetch refresh, tombstones)
+- [Agent and quiz cost caps](agent-and-quiz-cost-caps.md) — server-locked agent model, message/length/token caps on agent + both quiz endpoints, and why
+- [Quiz insight storage home](quiz-insight-storage-home.md) — one careerQuizzes home for all six quizzes, overall-synthesis coverage rule, legacy flat keys
+- [Recommendations are stubs](project_recommendations_are_stubs.md) — both routes always empty, no caller; removal is a contract change, ask first

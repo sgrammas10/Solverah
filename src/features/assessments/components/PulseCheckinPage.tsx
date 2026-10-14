@@ -31,7 +31,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-import { usePulseHistory, usePulseNextCheckin, useSubmitPulseCheckin } from "../usePulse";
+import {
+  isInvalidCheckin,
+  usePulseHistory,
+  usePulseNextCheckin,
+  useSubmitPulseCheckin,
+} from "../usePulse";
 import type { PulseCheckinItem, PulseCheckinRecord, PulseOutcomeItem } from "../usePulse";
 import PulseSparkline from "./PulseSparkline";
 
@@ -98,9 +103,18 @@ function LikertRow({
   );
 }
 
+/**
+ * How many points the confirmation chart shows, the new check-in included. The
+ * chart used to plot only [prior, current] -- after a third check-in the user
+ * saw two dots and read it as lost data. A cap keeps the compact chart legible
+ * and the request small; the full series lives at /pulse/trend.
+ */
+export const CONFIRMATION_CHART_POINTS = 12;
+
 interface Confirmation {
   sequenceBefore: number;
-  prior: PulseCheckinRecord | null;
+  /** Check-ins before this one, newest first (the wire order), capped. */
+  history: PulseCheckinRecord[];
   current: PulseCheckinRecord;
 }
 
@@ -112,8 +126,20 @@ function directionWord(current: number, prior: number): string {
 
 function Confirmation({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
-  const { sequenceBefore, prior, current } = confirmation;
-  const tier = sequenceBefore === 0 || !prior ? "first" : sequenceBefore === 1 ? "second" : "later";
+  const { sequenceBefore, history, current } = confirmation;
+  const prior = history[0] ?? null;
+  // Oldest first, left to right, then this check-in at the end.
+  const points = [
+    ...[...history].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced })),
+    { date: current.taken_at ?? new Date().toISOString(), value: current.experienced },
+  ];
+  // "First" is the server's word (`sequence` counts this user's check-ins),
+  // never an inference from an empty `history` -- a history fetch that
+  // failed or had not landed would otherwise tell a long-time user this was
+  // their first pulse (2026-10-02, F10). With a prior sequence but no prior
+  // rows to compare against, the page says it saved and no more.
+  const tier =
+    sequenceBefore === 0 ? "first" : !prior ? "unknown" : sequenceBefore === 1 ? "second" : "later";
 
   return (
     <div className="space-y-5">
@@ -126,6 +152,13 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
             moves.
           </p>
         </>
+      ) : tier === "unknown" ? (
+        <>
+          <h1 className="font-display text-2xl font-semibold text-ink-primary">Check-in logged</h1>
+          <p className="text-sm text-ink-secondary leading-relaxed">
+            Saved. Your trend has the comparison with your earlier check-ins.
+          </p>
+        </>
       ) : (
         <>
           <h1 className="font-display text-2xl font-semibold text-ink-primary">
@@ -133,12 +166,9 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
           </h1>
           <div className="rounded-xl border border-cream-muted bg-white px-5 py-4">
             <PulseSparkline
-              ariaLabel="How work's working for you, last check-in to this one"
+              ariaLabel="How work's working for you, your recent check-ins up to this one"
               compact
-              points={[
-                { date: prior!.taken_at ?? "", value: prior!.experienced },
-                { date: current.taken_at ?? new Date().toISOString(), value: current.experienced },
-              ]}
+              points={points}
             />
           </div>
           <p className="text-sm text-ink-secondary leading-relaxed">
@@ -166,16 +196,16 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
 
 export default function PulseCheckinPage() {
   const nextCheckinQuery = usePulseNextCheckin();
-  const historyQuery = usePulseHistory({ limit: 1 });
+  const historyQuery = usePulseHistory({ limit: CONFIRMATION_CHART_POINTS - 1 });
   const submitMutation = useSubmitPulseCheckin();
 
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
-  const priorRef = useRef<PulseCheckinRecord | null>(null);
+  const priorRef = useRef<PulseCheckinRecord[]>([]);
   useEffect(() => {
     if (historyQuery.data) {
-      priorRef.current = historyQuery.data.checkins[0] ?? null;
+      priorRef.current = historyQuery.data.checkins;
     }
   }, [historyQuery.data]);
 
@@ -233,11 +263,27 @@ export default function PulseCheckinPage() {
       { item_scores: itemScores, experienced: experiencedValue },
       {
         onSuccess: (result) => {
-          setConfirmation({ sequenceBefore: sequence, prior: priorSnapshot, current: result });
+          setConfirmation({ sequenceBefore: sequence, history: priorSnapshot, current: result });
+        },
+        onError: (error) => {
+          // The server's next check-in has moved on from the one this form
+          // was built from (a check-in landed in another tab, say). Only a
+          // fresh `next-checkin` can fix that -- a retry of the same body
+          // would fail the same way (2026-10-02, F9). Answers are keyed by
+          // item id, so whatever still applies survives the refetch.
+          if (isInvalidCheckin(error)) {
+            nextCheckinQuery.refetch();
+          }
         },
       },
     );
   }
+
+  const submitError = submitMutation.isError
+    ? isInvalidCheckin(submitMutation.error)
+      ? "This check-in was out of date, so we've refreshed the questions. Check your answers and tap Done again."
+      : "We couldn't save that just now. Your answers are still here — try again."
+    : null;
 
   return (
     <Shell>
@@ -264,16 +310,21 @@ export default function PulseCheckinPage() {
         ))}
       </div>
 
-      {submitMutation.isError && (
+      {submitError && (
         <p role="alert" className="text-sm text-red-700">
-          We couldn't save that just now. Your answers are still here — try again.
+          {submitError}
         </p>
       )}
 
+      {/* `historyQuery.isLoading` holds Done until the comparison snapshot
+          (`priorRef`) has settled, so the confirmation never compares against
+          a history that had not arrived. A failed history fetch is not
+          loading and does not hold the button: the confirmation then says
+          "logged" without a comparison (see `Confirmation`). */}
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={!allAnswered || submitMutation.isPending}
+        disabled={!allAnswered || submitMutation.isPending || historyQuery.isLoading}
         className="w-full bg-forest-dark text-white font-semibold py-3.5 rounded hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {submitMutation.isPending ? "Saving…" : "Done"}

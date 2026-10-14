@@ -15,7 +15,15 @@ import { useMM } from "./useMM";
 import { managerMatchResultKeys } from "./useManagerMatchResult";
 import { createQueryClient } from "../../shared/api/queryClient";
 
-const STORAGE_KEY = "mm_answers";
+/** Who `useAuth` says is signed in. Mutable so a test can switch accounts. */
+const auth = vi.hoisted(() => ({ user: { id: "user-1" } as { id: string } | null }));
+vi.mock("../auth/useAuth", () => ({
+  useAuth: () => ({ user: auth.user }),
+}));
+
+/** The draft is keyed by user since 2026-10-02 (audit F2). */
+const STORAGE_KEY = "mm_answers:user-1";
+const LEGACY_KEY = "mm_answers";
 
 const MOCK_RESULT = {
   archetype: "The Autonomist",
@@ -42,6 +50,7 @@ function renderMM(client?: QueryClient) {
 describe("useMM", () => {
   beforeEach(() => {
     sessionStorage.clear();
+    auth.user = { id: "user-1" };
   });
 
   it("setAnswer appends a new answer correctly", () => {
@@ -124,5 +133,71 @@ describe("useMM", () => {
     const { result } = renderMM();
     expect(result.current.state.answers).toHaveLength(1);
     expect(result.current.state.answers[0].questionId).toBe("mm-q5");
+  });
+
+  // ── Per-user draft key and clear-on-success (audit 2026-10-02, F2) ─────────
+
+  it("the draft key carries the signed-in user's id", () => {
+    const { result } = renderMM();
+    act(() => {
+      result.current.setAnswer("mm-q1", "a");
+    });
+    expect(sessionStorage.getItem(STORAGE_KEY)).not.toBeNull();
+    expect(sessionStorage.getItem(LEGACY_KEY)).toBeNull();
+  });
+
+  it("a second user on the same tab does not inherit the first user's draft", () => {
+    // Regression: the shared `mm_answers` key handed user A's answers to
+    // user B, and ManagerMatchPage's resume-on-mount scored them as B's.
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([{ questionId: "mm-q5", choice: "a" }]));
+    auth.user = { id: "user-2" };
+    const { result } = renderMM();
+    expect(result.current.state.answers).toHaveLength(0);
+  });
+
+  it("switching user on a live mount swaps to that user's draft", () => {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([{ questionId: "mm-q5", choice: "a" }]));
+    const { result, rerender } = renderMM();
+    expect(result.current.state.answers).toHaveLength(1);
+
+    auth.user = { id: "user-2" };
+    rerender();
+    expect(result.current.state.answers).toHaveLength(0);
+  });
+
+  it("a pre-scoping unkeyed draft is discarded, not adopted", () => {
+    sessionStorage.setItem(LEGACY_KEY, JSON.stringify([{ questionId: "mm-q5", choice: "a" }]));
+    const { result } = renderMM();
+    expect(result.current.state.answers).toHaveLength(0);
+    expect(sessionStorage.getItem(LEGACY_KEY)).toBeNull();
+  });
+
+  it("with nobody signed in nothing is written to storage", () => {
+    auth.user = null;
+    const { result } = renderMM();
+    act(() => {
+      result.current.setAnswer("mm-q1", "a");
+    });
+    expect(result.current.state.answers).toHaveLength(1);
+    expect(sessionStorage.length).toBe(0);
+  });
+
+  it("clearAnswers drops the draft but keeps the cached result", async () => {
+    // What a succeeded scoring calls: reset() would also evict the result the
+    // page just cached for ManagerMatchResultsPage.
+    const { result } = renderMM();
+    act(() => {
+      result.current.setAnswer("mm-q1", "a");
+    });
+    act(() => {
+      result.current.setCachedResult(MOCK_RESULT);
+    });
+    act(() => {
+      result.current.clearAnswers();
+    });
+    expect(result.current.state.answers).toHaveLength(0);
+    expect(sessionStorage.getItem(STORAGE_KEY)).toBeNull();
+    expect(queryClient.getQueryData(managerMatchResultKeys.result())).toEqual(MOCK_RESULT);
+    await waitFor(() => expect(result.current.state.cachedResult).toEqual(MOCK_RESULT));
   });
 });

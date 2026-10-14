@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -12,6 +12,7 @@ __all__ = [
     "AgentChatMessage",
     "AgentChatRequest",
     "AgentMessagesRequest",
+    "LlmErrorResponse",
     "PathPreferencesDocument",
     "PathPreferencesPutRequest",
     "RecommendationsPage",
@@ -69,7 +70,11 @@ class PathSuggestion(SolverahModel):
     onet_code: Optional[str] = None
     title: Optional[str] = None
     why_text: Optional[str] = Field(
-        default=None, description="LLM-generated rationale for this path."
+        default=None,
+        description=(
+            "LLM-generated rationale for this path. Empty while the response's "
+            "`narration_pending` is true and this card's sentence has not landed."
+        ),
     )
     profile_dimensions: Any = Field(
         default=None, description="Which parts of the profile drove the match."
@@ -86,6 +91,27 @@ class PathSuggestion(SolverahModel):
             "would read the same on most of the page says nothing about any "
             "card and is dropped from all of them (design doc 8.2), and a user "
             "who has stated no wants gets no reason line at all."
+        ),
+    )
+    overlapping_skills: List[str] = Field(
+        default_factory=list,
+        description=(
+            "W-16, additive. The user's own skills this occupation uses, as the "
+            "scorer found them -- the same list the narrator is handed and the "
+            "fallback sentence is built from. Carried on the card because the "
+            "fallback can now be written after the card (when a narration fails "
+            "or never lands). Not rendered by the SPA."
+        ),
+    )
+    summary: str = Field(
+        default="",
+        description=(
+            "W-18, additive. O*NET's own description of this occupation, first "
+            "sentence only, capped at about 200 characters on a clause boundary. "
+            "Static per occupation and filled at scoring time, so it is present "
+            "on the first poll that carries cards, before any `why_text`. Empty "
+            "when the server has no summaries sidecar; the SPA then shows no "
+            "summary line."
         ),
     )
 
@@ -116,6 +142,21 @@ class PathSuggestionsResponse(SolverahModel):
             "the ranking is the plain default."
         ),
     )
+    narration_pending: bool = Field(
+        default=False,
+        description=(
+            "W-16, additive. True while at least one card's `why_text` is still "
+            "being written: the list is scored and shown first, and the "
+            "narrator's sentences land a few seconds later. A card waiting on "
+            "one has `why_text` \"\" and `profile_dimensions` []; the client "
+            "shows a placeholder line for it and keeps polling. It becomes "
+            "false when the narration lands (sentences filled in place, order "
+            "unchanged), when it fails (the fallback sentence instead), or -- if "
+            "the worker running it died -- on the first read more than 60 s "
+            "after `generated_at`, which serves the fallback sentences. False on "
+            "every payload written before W-16."
+        ),
+    )
 
 
 class RecommendationsResponse(SolverahModel):
@@ -130,11 +171,30 @@ class RecommendationsResponse(SolverahModel):
     recommendations: List[Any] = Field(default_factory=list)
 
 
-class AgentChatMessage(SolverahModel):
-    model_config = ConfigDict(extra="allow")
+#: Abuse and cost caps on the agent and quiz-insight requests (2026-10-02 audit
+#: #5). Before these, both were unbounded: the guest quiz endpoint was an
+#: anonymous LLM proxy for any text up to the request size limit, and a chat
+#: turn could carry any history at all. The quiz values sit well above the
+#: largest real quiz (31 questions, option text under 100 characters); the agent
+#: values are what the SPA's own history trim stays inside.
+AGENT_MAX_MESSAGES = 40
+AGENT_MESSAGE_MAX_CHARS = 4000
+QUIZ_MAX_QUIZZES = 8
+QUIZ_MAX_ITEMS_PER_QUIZ = 40
+QUIZ_QUESTION_MAX_CHARS = 400
+QUIZ_SELECTED_MAX_CHARS = 300
 
-    role: str = Field(description='"user" or "assistant".')
-    content: str
+
+class AgentChatMessage(SolverahModel):
+    # "ignore", not the "allow" this had: the handler forwards only `role` and
+    # `content` to the provider, so an extra key (`name`, `tool_calls`) is
+    # dropped rather than smuggled through.
+    model_config = ConfigDict(extra="ignore")
+
+    # `system` is not accepted: the server writes the one system message itself,
+    # and a client-supplied one would sit beside it with the same authority.
+    role: Literal["user", "assistant"] = Field(description='"user" or "assistant".')
+    content: str = Field(max_length=AGENT_MESSAGE_MAX_CHARS)
 
 
 class AgentChatRequest(SolverahModel):
@@ -149,30 +209,32 @@ class AgentChatRequest(SolverahModel):
         description="Full conversation history; must be non-empty."
     )
     model: Optional[str] = Field(
-        default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+        default=None, description='Groq model. Defaults to "openai/gpt-oss-20b" (or SOLVERAH_AGENT_MODEL).'
     )
 
 
 class QuizItem(SolverahModel):
-    question: str
-    selected: str
+    question: str = Field(max_length=QUIZ_QUESTION_MAX_CHARS)
+    selected: str = Field(max_length=QUIZ_SELECTED_MAX_CHARS)
 
 
 class QuizPayload(SolverahModel):
-    key: str = Field(description="Echoed verbatim in the matching insight.")
-    title: str
-    items: List[QuizItem]
+    key: str = Field(max_length=64, description="Echoed verbatim in the matching insight.")
+    title: str = Field(max_length=120)
+    items: List[QuizItem] = Field(max_length=QUIZ_MAX_ITEMS_PER_QUIZ)
 
 
 class QuizInsightsRequest(SolverahModel):
     """Quizzes to generate insights for.
 
     A quiz with no key, no title, or no answered items is discarded before the
-    model is called; if that leaves nothing, the request is a 400.
+    model is called; if that leaves nothing, the request is a 400. Counts and
+    lengths are capped (a 422 past them) on the signed-in and the anonymous
+    endpoint alike, since both pay for the same completion.
     """
 
-    quizGroup: str
-    quizzes: List[QuizPayload]
+    quizGroup: str = Field(max_length=64)
+    quizzes: List[QuizPayload] = Field(max_length=QUIZ_MAX_QUIZZES)
 
 
 class QuizInsight(SolverahModel):
@@ -284,11 +346,32 @@ class AgentMessagesRequest(SolverahModel):
 
     model_config = ConfigDict(extra="ignore")
 
+    # No `model` field: the server picks the model (SOLVERAH_AGENT_MODEL, else
+    # "openai/gpt-oss-20b"), and a client-sent one is dropped by extra="ignore".
     messages: List[AgentChatMessage] = Field(
-        min_length=1, description="Full conversation history; must be non-empty."
+        min_length=1,
+        max_length=AGENT_MAX_MESSAGES,
+        description=(
+            "Conversation history, oldest first; must be non-empty. The server "
+            "may drop the oldest turns to fit its context budget."
+        ),
     )
-    model: Optional[str] = Field(
-        default=None, description='Groq model. Defaults to "llama-3.1-8b-instant".'
+
+
+class LlmErrorResponse(SolverahModel):
+    """A failure from an LLM-backed route.
+
+    ``error`` is generic, user-facing text; ``code`` is stable and
+    machine-readable. The provider's own exception text, its name, and the model
+    id are logged server-side and never sent (2026-10-02 audit #4).
+    """
+
+    error: str = Field(description="Human-readable failure message.")
+    code: str = Field(
+        description=(
+            '"insight_generation_failed", "insight_malformed", '
+            '"agent_unavailable", "agent_model_unavailable", or "agent_failed".'
+        )
     )
 
 
@@ -335,7 +418,13 @@ class PathSuggestionJobStatus(SolverahModel):
 
     job_id: str
     status: str = Field(
-        description="queued, running, succeeded or failed. The last two are terminal."
+        description=(
+            "queued, running, succeeded or failed. The last two are terminal for "
+            "the job. W-16: `succeeded` now arrives as soon as the list is "
+            "scored; while `result.narration_pending` is true the result is "
+            "still being updated in place with the cards' sentences, so a client "
+            "keeps polling until it is false."
+        )
     )
     error: Optional[str] = Field(
         default=None,
@@ -433,13 +522,23 @@ class PathFitResponse(SolverahModel):
         default_factory=list, description="O*NET task statements, most important first."
     )
     tech_stack: List[str] = Field(
-        default_factory=list, description="Hot technologies, most in-demand first."
+        default_factory=list,
+        description=(
+            "Hot technologies, most in-demand first, leaving out any already "
+            "listed in matched_skills or gap_skills. A name O*NET spells out "
+            "in full before its acronym shows as the acronym alone (for "
+            "example 'HTML')."
+        ),
     )
     weights: Dict[str, float] = Field(
         default_factory=dict, description="The role/coverage/zone/style split used."
     )
     onet_calls: int = Field(
-        description="O*NET requests this fit cost. Four unless a call failed."
+        description=(
+            "O*NET requests this fit cost. Zero when the fit sidecar has the "
+            "occupation (the normal case since W-9); otherwise four, unless a "
+            "call failed."
+        )
     )
     narrative: Optional[str] = Field(
         default=None,
@@ -505,6 +604,21 @@ class PathFeedbackResponse(SolverahModel):
         description=(
             "Every judgement standing for this user, as onet_code -> verdict. "
             "Empty after a DELETE."
+        ),
+    )
+    narration_pending: bool = Field(
+        default=False,
+        description=(
+            "W-16, additive. True while at least one card's `why_text` is still "
+            "being written: the list is scored and shown first, and the "
+            "narrator's sentences land a few seconds later. A card waiting on "
+            "one has `why_text` \"\" and `profile_dimensions` []; the client "
+            "shows a placeholder line for it and keeps polling. It becomes "
+            "false when the narration lands (sentences filled in place, order "
+            "unchanged), when it fails (the fallback sentence instead), or -- if "
+            "the worker running it died -- on the first read more than 60 s "
+            "after `generated_at`, which serves the fallback sentences. False on "
+            "every payload written before W-16."
         ),
     )
 

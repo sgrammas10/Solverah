@@ -83,8 +83,12 @@ def submit_checkin(user: User, payload: Any) -> Dict[str, Any]:
     """Record one check-in for this user's next round-robin sequence.
 
     The sequence and the dimensions it must answer are both server-derived
-    (`pulse_store.pulse_checkin_count`, `work_pulse.pulse_items.dimensions_for_checkin`)
+    (`pulse_store.claim_checkin_sequence`, `work_pulse.pulse_items.dimensions_for_checkin`)
     -- the request names only the answers, never the sequence or the item set.
+    The claim holds a per-user lock until the commit below, so two submits for one
+    user cannot both be served the same sequence. `taken_at` comes back with the
+    INSERT (`pulse_store.write_pulse_checkin_row`), so nothing re-reads the row
+    after the commit.
     """
     import pulse_store
     from work_pulse.pulse_items import FORM_VERSION
@@ -98,9 +102,9 @@ def submit_checkin(user: User, payload: Any) -> Dict[str, Any]:
         )
     experienced = payload.get("experienced")
 
-    sequence = pulse_store.pulse_checkin_count(user.id)
+    sequence = pulse_store.claim_checkin_sequence(db, user.id)
     try:
-        checkin_id = pulse_store.write_pulse_checkin(
+        checkin = pulse_store.write_pulse_checkin_row(
             db,
             user.id,
             sequence=sequence,
@@ -116,13 +120,10 @@ def submit_checkin(user: User, payload: Any) -> Dict[str, Any]:
     pulse_settings.mark_answered(user.id)
     db.session.commit()
 
-    from model import PulseCheckin
-
-    row = db.session.get(PulseCheckin, checkin_id)
     return {
-        "id": checkin_id,
+        "id": checkin["id"],
         "sequence": sequence,
-        "taken_at": row.taken_at.isoformat() if row is not None and row.taken_at else None,
+        "taken_at": checkin["taken_at"],
         "item_scores": dict(item_scores),
         "experienced": experienced,
         "version": FORM_VERSION,
@@ -171,7 +172,8 @@ def get_history(
 
 
 def submit_event(user: User, payload: Any) -> Dict[str, Any]:
-    """Log one dated annotation on this user's Pulse timeline."""
+    """Log one dated annotation on this user's Pulse timeline. `at` comes back
+    with the INSERT, as `submit_checkin`'s `taken_at` does."""
     import pulse_store
 
     payload = _require_dict(payload)
@@ -179,19 +181,16 @@ def submit_event(user: User, payload: Any) -> Dict[str, Any]:
     note = payload.get("note")
 
     try:
-        event_id = pulse_store.write_pulse_event(db, user.id, event_type=event_type, note=note)
+        event = pulse_store.write_pulse_event_row(db, user.id, event_type=event_type, note=note)
     except ValueError as exc:
         raise ValidationError(
             detail=str(exc), errors=[{"field": "event_type", "code": "invalid_event"}]
         ) from exc
     db.session.commit()
 
-    from model import PulseEvent
-
-    row = db.session.get(PulseEvent, event_id)
     return {
-        "id": event_id,
-        "at": row.at.isoformat() if row is not None and row.at else None,
+        "id": event["id"],
+        "at": event["at"],
         "event_type": event_type,
         "note": note,
     }

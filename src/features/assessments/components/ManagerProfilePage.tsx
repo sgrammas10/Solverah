@@ -33,6 +33,8 @@ import { MP_QUESTIONS } from "../data/mpQuestions";
 import { isNoManagerMatch, isNoManagerProfile, managerPlaybookKeys, useManagerPlaybook } from "../useManagerPlaybook";
 import type { ManagerPlaybook } from "../useManagerPlaybook";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 
 interface ManagerProfileSubmitResponse {
   dimension_scores: Record<string, number>;
@@ -108,16 +110,13 @@ export default function ManagerProfilePage() {
   const gateLoading = gateQuery.isLoading || (gateQuery.isError && gateQuery.isFetching);
   const gateFailed = gateQuery.isError && !blockedByGate && !gateReady;
 
-  const [phase, setPhase] = useState<Phase>(() => {
-    if (isRetake) return "intro";
-    if (answers.length > 0 && answers.length < MP_QUESTIONS.length) return "questions";
-    return "intro";
-  });
-
-  const [questionIndex, setQuestionIndex] = useState(() => {
-    if (isRetake) return 0;
-    return answers.length < MP_QUESTIONS.length ? answers.length : 0;
-  });
+  // A part-finished draft asks before resuming (shared resume prompt) instead
+  // of dropping the user silently mid-quiz.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => !isRetake && answers.length > 0 && answers.length < MP_QUESTIONS.length
+  );
+  const [phase, setPhase] = useState<Phase>("intro");
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   // Local accumulator -- source of truth for the final submission payload,
   // exactly ManagerMatchPage's reason: state updates from setAnswer are not
@@ -177,6 +176,21 @@ export default function ManagerProfilePage() {
     } else {
       submitMutation.mutate(answersRef.current);
     }
+  }
+
+  function handleResume() {
+    const answered = new Set(answersRef.current.map((a) => a.questionId));
+    setQuestionIndex(firstUnansweredIndex(MP_QUESTIONS, (q) => answered.has(q.id)));
+    setPhase("questions");
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    reset();
+    answersRef.current = [];
+    setQuestionIndex(0);
+    setPhase("questions");
+    dismissResumePrompt();
   }
 
   function handleRetry() {
@@ -245,6 +259,23 @@ export default function ManagerProfilePage() {
           >
             Try again
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── A saved draft: ask before resuming ──
+  if (showResumePrompt) {
+    return (
+      <div className="min-h-screen bg-cream-base">
+        <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
+          <ResumePrompt
+            title="Manager Decoder"
+            answeredCount={answers.length}
+            total={MP_QUESTIONS.length}
+            onResume={handleResume}
+            onStartOver={handleStartOver}
+          />
         </div>
       </div>
     );

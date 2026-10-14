@@ -41,6 +41,7 @@ from typing import Any, Dict, List, Optional
 import sqlalchemy as sa
 
 from model import ResumeParseJob, User, db
+from solverah.domain import profile as profile_domain
 from solverah.repositories import profile_repository
 from solverah.services import resume_service
 
@@ -82,7 +83,8 @@ STALL_MINUTES = 30
 #: retention with no reader (SECURITY_AUDIT_2026-09 #7).
 PURGE_DAYS = 30
 
-#: The only failure text a client is ever shown.
+#: The failure text a client is shown for anything but a file with no text
+#: (that one is ``resume_service.NO_TEXT_MESSAGE``, also fixed text).
 #:
 #: Parse failures come from pdfminer, python-docx, and botocore, and their
 #: messages carry bucket names, object keys, and file paths.  Mapping to a fixed
@@ -102,6 +104,21 @@ def create(
     same reason: a worker that receives the message before the row is visible
     finds nothing, and the answer to "what if the enqueue fails" has to be a row
     a sweep can find rather than a message that was never sent.
+
+    Returns a DETACHED job.  ``id``, ``public_id`` and ``status`` are loaded,
+    as is every other column as written, so reading any of them needs no
+    session.  ``id`` and ``public_id`` are server-generated and come back on the
+    INSERT's ``RETURNING``; detaching before the commit is what keeps them
+    readable after it.  Left attached, the commit would expire them, and the
+    first read afterwards -- the enqueue below, or the route's ``public_id`` --
+    would reload the row this function had just written.
+
+    ``status`` is therefore always ``queued``, the state the row was written
+    in, which is what the ``202`` means.  In production the route reported that
+    before too, because the reload ran before the enqueue.  Under eager Celery
+    (``APP_ENV=testing``) the parse runs inside the enqueue, and the ``202``
+    used to carry the finished job's status; it now says ``queued`` there as
+    well.  A finished status is the poll endpoint's to report.
     """
     job = ResumeParseJob(
         user_id=user.id,
@@ -112,6 +129,8 @@ def create(
         status=QUEUED,
     )
     db.session.add(job)
+    db.session.flush()
+    db.session.expunge(job)
     db.session.commit()
 
     from solverah.infra.queue import enqueue
@@ -197,10 +216,24 @@ def run(job_id: int) -> str:
         snapshot = resume_service.snapshot_of(claimed["object_key"], profile_updates)
 
         def merge(existing: Dict[str, Any]) -> Dict[str, Any]:
-            return {**existing, **profile_updates, "_parsedResumeSnapshot": snapshot}
+            # An empty parsed section leaves the stored one alone; see the
+            # domain function for why that is the whole of the rule.
+            return profile_domain.merge_resume_parse(existing, profile_updates, snapshot)
 
         profile_repository.update_document(claimed["user_id"], merge)
         db.session.commit()
+    except resume_service.NoResumeText:
+        # Not an error in the logs' sense -- the file is the problem, and the
+        # user can fix it. Nothing is merged, so the profile is untouched, and
+        # the message says what to do rather than "could not parse".
+        db.session.rollback()
+        logger.info(
+            "resume_job_no_text",
+            extra={"event": "resume_job_no_text", "job_id": job_id,
+                   "mime": claimed["mime"]},
+        )
+        _finish(job_id, FAILED, resume_service.NO_TEXT_MESSAGE)
+        return FAILED
     except Exception as exc:  # noqa: BLE001 -- the job row is the error channel
         db.session.rollback()
         logger.exception(

@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from threading import Lock
-from typing import Dict, Optional
+from typing import Callable, Dict, NamedTuple, Optional, Tuple
 
 __all__ = [
     "get",
@@ -52,7 +52,34 @@ __all__ = [
     "get_reserve",
     "store_reserve",
     "reserve_snapshot",
+    "narration_token",
+    "store_rescore",
+    "land_partial",
+    "finish_narration",
 ]
+
+#: W-16. ``fill(payload, narratives) -> (filled_payload, any_narrator_prose)``.
+#:
+#: Supplied by ``intelligence_service`` because the fallback sentence is its copy,
+#: not this module's. Called UNDER this module's lock, so it must be a pure
+#: function of its arguments: no I/O, no call back into this module.
+Fill = Callable[[dict, Dict[str, dict]], Tuple[dict, bool]]
+
+
+class _Entry(NamedTuple):
+    """One user's cached payload and what is known about it.
+
+    ``narrated`` is W-14's flag. ``token`` and ``pending`` are W-16's: the id of
+    the scoring job that produced the list, and whether that job's narration
+    phase is still running. A tap inherits the token of the list it re-ranked
+    (the profile did not change, so neither did the narrator's inputs), which is
+    how a narration that lands after a tap still finds the list to fill.
+    """
+
+    payload: dict
+    narrated: bool
+    token: Optional[str] = None
+    pending: bool = False
 
 #: Most-recently-used payloads retained per worker.
 #:
@@ -64,7 +91,9 @@ __all__ = [
 #: measurement, since three workers pay it independently.
 MAX_ENTRIES = 500
 
-#: ``user_id -> (payload, narrated)``.
+#: ``user_id -> _Entry(payload, narrated, token, pending)``.
+#:
+#: (``token`` and ``pending`` are W-16's; see :class:`_Entry`.)
 #:
 #: **The second half is W-14.**  Two different things get stored under one key.
 #: The scoring job narrates and stores a page of written cards; ``_rescore`` -- a
@@ -83,7 +112,7 @@ MAX_ENTRIES = 500
 #: per-user structure maintained by hand is exactly how that comes back.
 #: :func:`get` and :func:`snapshot` unwrap, so every existing caller still sees
 #: the payload alone.
-_cache: "OrderedDict[int, tuple]" = OrderedDict()
+_cache: "OrderedDict[int, _Entry]" = OrderedDict()
 
 #: W-12, widened by W-14.  ``user_id -> {onet_code: {"why_text",
 #: "profile_dimensions"}}`` for **every** card the scoring job narrated -- the
@@ -133,23 +162,37 @@ def get(user_id: int) -> Optional[dict]:
         if entry is None:
             return None
         _cache.move_to_end(user_id)
-        return entry[0]
+        return entry.payload
 
 
-def store(user_id: int, payload: dict, narrated: bool = True) -> None:
+def _put(user_id: int, entry: _Entry) -> None:
+    """Insert under the lock the caller already holds, evicting LRU if full."""
+    _cache[user_id] = entry
+    _cache.move_to_end(user_id)
+    while len(_cache) > MAX_ENTRIES:
+        _cache.popitem(last=False)
+
+
+def store(
+    user_id: int,
+    payload: dict,
+    narrated: bool = True,
+    *,
+    token: Optional[str] = None,
+    pending: bool = False,
+) -> None:
     """Cache *payload* for *user_id*, evicting the least recently used if full.
 
-    *narrated* (W-14) says whether this payload carries prose the narrator wrote,
-    and only the tap path has reason to pass ``False``: the scoring job always
-    narrates its page or fails, so ``True`` is the default and the job does not
-    restate it. See :data:`_cache` for what the flag is for and
-    :func:`is_narrated` for who reads it.
+    *narrated* (W-14) says whether this payload carries prose the narrator wrote.
+    See :data:`_cache` for what the flag is for and :func:`is_narrated` for who
+    reads it.
+
+    *token* and *pending* (W-16) are the scoring job's: a job stores its SCORED
+    list before the narrator runs, with ``pending=True`` and its own token, and
+    :func:`finish_narration` is what later fills it and clears ``pending``.
     """
     with _lock:
-        _cache[user_id] = (payload, narrated)
-        _cache.move_to_end(user_id)
-        while len(_cache) > MAX_ENTRIES:
-            _cache.popitem(last=False)
+        _put(user_id, _Entry(payload, narrated, token, pending))
 
 
 def is_narrated(user_id: int) -> bool:
@@ -166,7 +209,110 @@ def is_narrated(user_id: int) -> bool:
     """
     with _lock:
         entry = _cache.get(user_id)
-        return bool(entry and entry[1])
+        return bool(entry and entry.narrated)
+
+
+def narration_token(user_id: int) -> Optional[str]:
+    """The token of the narration still running for *user_id*'s list, or None (W-16).
+
+    None for a miss, for a list whose narration has finished, and for a list no
+    job narrates (a tap on a cold worker). The tap path asks this to decide
+    whether a card with no sentence yet should shimmer -- a sentence is on its
+    way -- or take the fallback now, because nothing is coming.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        if entry is None or not entry.pending:
+            return None
+        return entry.token
+
+
+def store_rescore(user_id: int, payload: dict, narrated: bool, fill: Fill) -> dict:
+    """Store a tap's re-ranked list, keeping the narration it re-ranked (W-16).
+
+    Returns the payload actually stored -- which is what the tap must answer
+    with, because it can differ from the one passed in:
+
+    * The tap's list INHERITS the current entry's token and ``pending`` state.
+      The profile did not change, so the narration still running for the old
+      list is writing sentences for this one too, and
+      :func:`finish_narration` must still recognise it.
+    * If the payload says ``narration_pending`` but the narration FINISHED
+      between the tap reading the cache and this store -- the race this is under
+      the lock to close -- it is filled here from the reserve that narration
+      just wrote, so no list is ever stored waiting for a narration that has
+      already come and gone.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        token = entry.token if entry is not None else None
+        pending = bool(payload.get("narration_pending"))
+        if pending and not (entry is not None and entry.pending):
+            payload, filled = fill(payload, dict(_reserve.get(user_id) or {}))
+            narrated = narrated or filled
+            pending = False
+        _put(user_id, _Entry(payload, narrated, token, pending))
+        return payload
+
+
+def finish_narration(
+    user_id: int, token: str, narratives: Dict[str, dict], fill: Fill
+) -> Optional[dict]:
+    """Land one narration: fill the cached list and replace the reserve (W-16).
+
+    Only if the cached entry still carries *token*. Anything else means the list
+    this narration was for is gone -- a profile write invalidated it (and the
+    sentences may describe a person who no longer exists), or a newer job
+    replaced it (and that job's own narration is the one to land) -- so nothing
+    here is touched and None is returned.
+
+    Otherwise the entry's list -- the job's own, or a tap's that inherited the
+    token -- is filled card by card through *fill*, ``pending`` is cleared, the
+    reserve becomes *narratives* (W-12/W-14's "every narrative this job wrote"),
+    and the filled payload is returned.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        if entry is None or entry.token != token:
+            return None
+        _reserve[user_id] = dict(narratives)
+        _reserve.move_to_end(user_id)
+        while len(_reserve) > MAX_ENTRIES:
+            _reserve.popitem(last=False)
+        payload, filled = fill(entry.payload, dict(narratives))
+        _put(user_id, _Entry(payload, entry.narrated or filled, token, False))
+        return payload
+
+
+def land_partial(
+    user_id: int, token: str, narratives: Dict[str, dict], fill: Fill
+) -> Optional[dict]:
+    """Fill the cached list with the sentences landed SO FAR (W-17).
+
+    The first three cards are narrated ahead of the rest and land a few seconds
+    before the narration ends; this puts them on the list the page polls as
+    they arrive. Same token rule as :func:`finish_narration` -- a list that was
+    invalidated or replaced is left alone -- but nothing else about the entry
+    moves:
+
+    * ``narrated`` is NOT set. W-14's flag means "a job may serve this instead
+      of narrating", and a half-written list is not that until the narration
+      ends (:func:`finish_narration` is the only thing that sets it).
+    * ``pending`` stays True, so a tap in the meantime still leaves its
+      unwritten cards empty for the narration to fill, and keeps what landed.
+    * the reserve is untouched: every landed sentence is already stored in
+      ``path_narratives``, which the tap path reads next.
+
+    *fill* must leave ``narration_pending`` as it found it. Returns the filled
+    payload, or None when the token no longer matches.
+    """
+    with _lock:
+        entry = _cache.get(user_id)
+        if entry is None or entry.token != token:
+            return None
+        payload, _ = fill(entry.payload, dict(narratives))
+        _put(user_id, _Entry(payload, entry.narrated, token, entry.pending))
+        return payload
 
 
 def invalidate(user_id: int) -> None:
@@ -199,7 +345,7 @@ def snapshot() -> Dict[int, dict]:
     are counting. :func:`is_narrated` answers the other question.
     """
     with _lock:
-        return {user_id: payload for user_id, (payload, _) in _cache.items()}
+        return {user_id: entry.payload for user_id, entry in _cache.items()}
 
 
 # ---------------------------------------------------------------------------

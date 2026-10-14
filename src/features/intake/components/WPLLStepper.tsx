@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { WPLL_QUESTIONS } from "../data/wpllQuestions";
+import { PRIMARY } from "../../../shared/ui/publicStyles";
 
 interface WPLLStepperProps {
   wpllAnswers: { questionId: string; optionId: string }[];
@@ -30,18 +31,18 @@ export default function WPLLStepper({ wpllAnswers, onAnswer, onComplete }: WPLLS
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+      <p className="text-sm font-medium text-ink-secondary">
         Question {currentQuestionIndex + 1} of {total}
       </p>
 
-      <div className="w-full h-1 bg-cream-muted rounded-full overflow-hidden">
+      <div className="w-full h-1 bg-cream-muted overflow-hidden">
         <div
           className="h-full bg-forest-dark transition-all duration-300"
           style={{ width: `${progressPct}%` }}
         />
       </div>
 
-      <h2 className="font-display text-xl sm:text-2xl font-semibold text-ink-primary mt-6">
+      <h2 className="font-headline text-[clamp(1.35rem,2.8vw,1.75rem)] font-bold leading-[1.2] tracking-[-0.015em] text-ink-primary mt-6">
         {question.text}
       </h2>
 
@@ -56,7 +57,7 @@ export default function WPLLStepper({ wpllAnswers, onAnswer, onComplete }: WPLLS
               aria-checked={isSelected}
               onClick={() => onAnswer(question.id, option.id)}
               className={[
-                "w-full text-left px-5 py-3.5 rounded transition-colors text-sm flex items-center justify-between",
+                "w-full text-left px-5 py-3.5 rounded-[4px] transition-colors text-sm flex items-center justify-between",
                 isSelected
                   ? "border-2 border-forest-dark bg-forest-pale text-ink-primary font-medium"
                   : "border border-cream-muted bg-white text-ink-primary hover:border-forest-light",
@@ -89,7 +90,7 @@ export default function WPLLStepper({ wpllAnswers, onAnswer, onComplete }: WPLLS
           type="button"
           onClick={handleNext}
           disabled={!isAnswered}
-          className="bg-forest-dark text-white font-semibold px-8 py-3 rounded hover:bg-forest-mid transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`${PRIMARY} disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-forest-dark`}
         >
           Next
         </button>

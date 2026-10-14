@@ -46,13 +46,6 @@ const WPLL_RESULT: ScoringJobResult<"wpll"> = {
   locked_sections: ["Environmental Friction Score", "Work Rhythm Pattern"],
 };
 
-const WORK_PULSE_RESULT: ScoringJobResult<"work_pulse"> = {
-  archetype: "Structured Deep Thinker",
-  archetype_description: "Sustained concentration with a need for clear structure.",
-  narrative: "You bring deep focus to your work.",
-  emerging_signals: [],
-};
-
 const MANAGER_MATCH_RESULT: ScoringJobResult<"manager_match"> = {
   archetype: "Autonomy Seeker",
   archetype_description: "You do your best work with room to move.",
@@ -68,18 +61,19 @@ const MANAGER_MATCH_RESULT: ScoringJobResult<"manager_match"> = {
 // `npm run type-check` rather than by a runtime expectation: `src` is in
 // tsconfig.app.json's `include`, so a `@ts-expect-error` here that stops being
 // an error fails the build. That is what makes it a gate. A runtime
-// `expect(...)` could not see any of this — the three shapes are structurally
+// `expect(...)` could not see any of this — the shapes are structurally
 // different but all valid JSON, and the whole risk is that a caller reads
 // `result` as the wrong instrument's model.
 //
 // If the hook ever went back to returning
-// `WorkPulseScoringJobStatus | WpllScoringJobStatus | ManagerMatchScoringJobStatus`,
+// `WpllScoringJobStatus | ManagerMatchScoringJobStatus`,
 // every line below would stop erroring and this block would fail.
 
 // @ts-expect-error a wpll result is not a manager_match result
 export const _wpllIsNotManagerMatch: ScoringJobResult<"manager_match"> = WPLL_RESULT;
-// @ts-expect-error a wpll result is not a work_pulse result
-export const _wpllIsNotWorkPulse: ScoringJobResult<"work_pulse"> = WPLL_RESULT;
+// The retired work_pulse has no scoring job any more (2026-10-02).
+// @ts-expect-error work_pulse is not a scoring-job kind
+export const _workPulseIsNotAKind: ScoringJobKind = "work_pulse";
 // @ts-expect-error a manager_match result is not a wpll result
 export const _managerMatchIsNotWpll: ScoringJobResult<"wpll"> = MANAGER_MATCH_RESULT;
 
@@ -165,20 +159,20 @@ describe("useScoringJobStatus", () => {
   it("polls queued -> running -> succeeded and stops issuing requests once terminal", async () => {
     server.use(
       signedIn(),
-      scoringJobProgresses("work_pulse", "wp-1", [
+      scoringJobProgresses("manager_match", "mm-0", [
         { status: "queued" },
         { status: "running" },
-        { status: "succeeded", result: WORK_PULSE_RESULT },
+        { status: "succeeded", result: MANAGER_MATCH_RESULT },
       ])
     );
 
-    mountStatus("work_pulse", "wp-1");
+    mountStatus("manager_match", "mm-0");
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("succeeded"));
-    expect(pollsFor("work_pulse")).toHaveLength(3);
+    expect(pollsFor("manager_match")).toHaveLength(3);
 
-    const countAtTerminal = pollsFor("work_pulse").length;
+    const countAtTerminal = pollsFor("manager_match").length;
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
-    expect(pollsFor("work_pulse")).toHaveLength(countAtTerminal);
+    expect(pollsFor("manager_match")).toHaveLength(countAtTerminal);
   });
 
   it("surfaces a failed job as data, distinct from an error state, and stops polling", async () => {
@@ -216,31 +210,31 @@ describe("useScoringJobStatus", () => {
   it("stops polling on an unrecognized status rather than running forever", async () => {
     server.use(
       signedIn(),
-      scoringJobProgresses("work_pulse", "wp-2", [{ status: "reticulating_splines" }])
+      scoringJobProgresses("manager_match", "mm-2", [{ status: "reticulating_splines" }])
     );
 
-    mountStatus("work_pulse", "wp-2");
+    mountStatus("manager_match", "mm-2");
     await waitFor(() =>
       expect(screen.getByTestId("status")).toHaveTextContent("reticulating_splines")
     );
 
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
     // Fail closed: a status this client does not know is treated as terminal.
-    expect(pollsFor("work_pulse")).toHaveLength(1);
+    expect(pollsFor("manager_match")).toHaveLength(1);
   });
 
   it("issues no request while the job id is null", async () => {
     server.use(signedIn());
 
-    mountStatus("work_pulse", null);
+    mountStatus("manager_match", null);
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
 
-    expect(pollsFor("work_pulse")).toEqual([]);
+    expect(pollsFor("manager_match")).toEqual([]);
   });
 
   it("polls wpll with no session, because the handle is the whole authorisation", async () => {
     // No `signedIn()`: the default session probe 401s, so `user` is null. The
-    // other two kinds are gated on a user; wpll is the anonymous teaser and is
+    // other kind is gated on a user; wpll is the anonymous teaser and is
     // not, which is the branch this covers.
     server.use(
       scoringJobProgresses("wpll", "wpll-1", [
@@ -254,13 +248,13 @@ describe("useScoringJobStatus", () => {
     expect(pollsFor("wpll")).toHaveLength(2);
   });
 
-  it("does not poll a signed-out user's work_pulse job", async () => {
+  it("does not poll a signed-out user's manager_match job", async () => {
     // Mirror of the test above: the same absent session that is fine for wpll
-    // holds the other two kinds' polls closed.
-    mountStatus("work_pulse", "wp-3");
+    // holds the authenticated kind's poll closed.
+    mountStatus("manager_match", "mm-3");
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
 
-    expect(pollsFor("work_pulse")).toEqual([]);
+    expect(pollsFor("manager_match")).toEqual([]);
   });
 });
 
@@ -278,9 +272,9 @@ describe("useStartScoringJob", () => {
           capturedBody = await request.json();
           return HttpResponse.json(
             {
-              job_id: "wp-9",
+              job_id: "mm-9",
               status: "queued",
-              status_url: "/api/v1/assessments/work_pulse/scoring-jobs/wp-9",
+              status_url: "/api/v1/assessments/manager_match/scoring-jobs/mm-9",
             },
             { status: 202 }
           );
@@ -288,14 +282,14 @@ describe("useStartScoringJob", () => {
       )
     );
 
-    mountMutation("work_pulse");
+    mountMutation("manager_match");
     fireEvent.click(await screen.findByRole("button"));
-    await waitFor(() => expect(screen.getByTestId("mutation-status")).toHaveTextContent("wp-9"));
+    await waitFor(() => expect(screen.getByTestId("mutation-status")).toHaveTextContent("mm-9"));
 
-    expect(capturedKind).toBe("work_pulse");
+    expect(capturedKind).toBe("manager_match");
     // The enqueue's body is the synchronous submit's body, unchanged (A19).
     expect(capturedBody).toEqual({ answers: [{ question_id: "q1", option_id: "a" }] });
-    expect(requests).toContain("POST /api/v1/assessments/work_pulse/scoring-jobs");
+    expect(requests).toContain("POST /api/v1/assessments/manager_match/scoring-jobs");
   });
 
   it("enqueues wpll with no session", async () => {

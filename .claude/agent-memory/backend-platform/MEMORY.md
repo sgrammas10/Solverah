@@ -1,0 +1,3 @@
+- [A31 re-baseline + LLM steps gap](rebaseline-pending-career-status-changed.md) — A31 (superseded by A32); baseline has no LLM-route steps; .doc MIME drop proposal
+- [Contract seeds a legacy work_pulse row](contract-seeds-legacy-work-pulse.md) — A32 done: 4 door steps pin the 410; seed keeps 9 legacy-read steps pinned
+- [2026-10-02 idna outage](incident-2026-10-02-idna-oom.md) — probe path clean; idna error = negative-cached codec in a worker spawned under pressure

@@ -591,7 +591,9 @@ def test_environment_rows_reach_a_finite_z(client, monkeypatch, _form_token_secr
     result = e4._assemble()
     assert result.dropped == []
     assert len(result.rows) == 3
-    assert result.unsupplied_confounders == ("industry",)
+    # Asked since 2026-10-01, so no longer "unsupplied" -- but these rows send
+    # no industry ("not sure"), so every row is still masked.
+    assert result.unsupplied_confounders == ()
     assert np.asarray(result.conf_missing["industry"]).all()
 
     cfg, pri = load()

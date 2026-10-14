@@ -230,6 +230,9 @@ describe("delete outcomes", () => {
     expect(mocks.navigate.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.clearSessionLocally.mock.invocationCallOrder[0],
     );
+    // Deletion sweeps the per-user drafts too (logout's opt-in; the
+    // failed-refresh path deliberately does not pass it).
+    expect(mocks.clearSessionLocally).toHaveBeenCalledWith({ drafts: true });
   });
 
   it("flags filesLeftBehind when the backend could not remove every object", async () => {

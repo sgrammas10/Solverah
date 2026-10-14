@@ -9,7 +9,7 @@ already lives.  Neither body changed.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -104,10 +104,22 @@ class ExportedEnvironmentReport(SolverahModel):
     dimension_scores: Dict[str, float] = Field(default_factory=dict)
     stage_size: int
     comp: Optional[int] = None
+    industry: Optional[str] = Field(
+        default=None,
+        description="Industry level key, or null: 'not sure' or, before env-v2, never asked.",
+    )
     experienced_outcome: int
-    career_status: str
+    career_status: str = Field(
+        description="The user's career status when they filed -- on a 'past' report, not the past job's."
+    )
     employer_name_normalized: Optional[str] = None
     version: str
+    subject: Literal["current", "past"] = Field(
+        description=(
+            "Which job the report describes: 'current' (the current or most recent job) "
+            "or 'past' (the one before it)."
+        )
+    )
 
 
 class ExportedManagerProfile(SolverahModel):

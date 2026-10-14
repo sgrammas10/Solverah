@@ -1,0 +1,969 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5   (session-configured identifier; the runtime lists fallbacks
+                   claude-opus-5-5[1m] and claude-opus-4-8[1m] and states the serving model for a
+                   given turn may differ from the configured one and can change mid-session, so
+                   this is the configured string and not an observed serving string)
+  built          : 2026-09-29
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE OF THIS PACKET: The employee reviews in this packet come from claims-facing roles — claims
+processing and adjusting, workers' compensation and disability examining, medical and nurse case
+management, and customer service — plus one software engineer and one offshore analyst. Other
+parts of this company — its corporate, technology, finance, human-resources, legal and marketing
+organisations, and the large offshore business-service centre workforce that its own job postings
+show it is hiring for — are not represented in them. Company-authored sources describe the whole
+organisation.
+
+NOTE TO RATER (review length): Roughly half of the employee reviews quoted below — 7 of 15 — were
+cut off by the review site before the reviewer's text ended, and are marked […]. The reviews that
+survived intact are systematically the shorter ones, so the longer and more detailed accounts are
+the ones you are reading only the beginning of.
+
+NOTE TO RATER (review sources): The reviews below were merged, newest-first, across three separate
+review-site profiles that the site holds for this same company and its main operating brand. One
+review found inside the company's own profile was confirmed by outside evidence to describe a
+different, unrelated business that shares part of the name, and it has been left out.
+
+NOTE TO RATER (company-page dates): None of the company's own careers and values pages carry a
+publication or last-modified date by any retrieval method. Excerpts from them are marked with the
+date they were read ("accessed"), not a publication date, so their actual age is unknown.
+
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "As a long‑standing global organization, we've learned that people do their best work when expectations are clear, support is consistent and careers are allowed to develop at a steady, sustainable pace."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+
+   • "Teams are built on trust, collaboration and accountability, creating an environment where people feel safe, included and valued for who they are."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+
+   • "Support shows up in our everyday interactions: how leaders listen, how teams work together and how colleagues support one another through both professional and personal moments. It's a culture shaped by people, not programs."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+
+   • "At Crawford, respect means people are treated with dignity, listened to and valued for who they are. It means creating safe spaces where differences are acknowledged and voices are heard, without people having to explain or defend themselves to belong."  — [company careers page] — Crawford & Company, "Respect Comes First" — https://www.crawco.com/about/careers/respect — accessed 2026-09-29
+
+   • "We develop leaders at all levels through targeted programs that build coaching, decision-making and business leadership capabilities."  — [company careers page] — Crawford & Company, "Training & Growth" — https://www.crawco.com/about/careers/training-and-growth — accessed 2026-09-29
+
+   • "Crawford offers opportunities to grow across disciplines, business lines and regions. Whether you're building new skills, deepening expertise or stepping into leadership, you'll find the support and flexibility to move forward at a pace that works for you."  — [company careers page] — Crawford & Company, "Training & Growth" — https://www.crawco.com/about/careers/training-and-growth — accessed 2026-09-29
+
+   • "Here, careers are built over time. You'll gain experience that moves you forward, opportunities to grow in different directions and the support to build a career that fits alongside your life."  — [company careers page] — Crawford & Company, "Careers at Crawford" — https://www.crawco.com/about/careers — accessed 2026-09-29
+
+   • "I've been able to grow my career here without having to sacrifice stability or my life outside of work. I trust the company, I see where I'm going, and I'm proud of the work we do for people every day."  — [company careers page — testimonial attributed on the page to a named employee, "Crawford Employee Since 2014"] — Crawford & Company, "Careers at Crawford" — https://www.crawco.com/about/careers — accessed 2026-09-29
+
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+   • "Poor workplace. Company has no integrity. You are over worked and unpaid. You do your workload and others. Mangers [sic] or supervisors does not communicate with you about anything. […]"  — [employee review] — reviewer's job title as written: "Customer Service Representative III"; location: Jacksonville, FL — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-09-13
+
+   • "Overall good environment and benefits for employees. Some people from management micromanage really hard but that does not apply to all of them. Some positions are underpaid based on all the workload assigned and the anual [sic] "increase" is not much."  — [employee review] — reviewer's job title as written: "Claims Processor"; location: Sunrise, FL — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-08-13
+
+   • "You put in the work to get to know the job and continue to train outside of the job, you'll do great. Management was supportive, and supervisors were, for the most part, very supportive as well."  — [employee review] — reviewer's job title as written: "Medical Only Claims Adjuster"; location: not stated — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-08-12
+
+   • "They are a fully remote work environment, and are flexible with actual time worked from a day to day standpoint. But the pay is lower than the industry average, and you don't receive much support from upper management, until things are a real problem."  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-07-13
+
+   • "My boss in Houston, Texas is very, very, very supportive, love him so much! He is very considerate, not condescending and very respectful, he listens to each employee, and if any concerns he has a listening ears, not judgmental. His goal is to earn good camaraderie not to lose any employee at all means, […]"  — [employee review] — reviewer's job title as written: "Quite Satisfying Case Management Employment"; location: Houston, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-06-16
+
+   • "Pros: Solid benefits: The benefits package is actually really good. PH management is awesome: Leadership in the Philippines is great and super easy to work with. Shoutout to my manager: My direct manager was amazing, though your mileage may vary depending on the team. Cons: US side disconnect: Management […]"  — [employee review — reviewer wrote in a Pros/Cons layout] — reviewer's job title as written: "Consultative Analyst"; location: Taguig — https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date — 2026-06-03
+
+   • "Crawford & company is a solid company choice if you are looking for Job Security. It's strong standing in the industry helps you stay employed even during the difficult times. Only cons that I have experience here is that the prioritization of task is very indecisive as the management wanted to work […]"  — [employee review] — reviewer's job title as written: "Sr. RPA Software Engineer"; location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-05-22
+
+   • "Crawford had always been fair. The training is sparse. At Crawford nothing is free. You have to sign up and attend one of their classes and pay a fee and for all travel expenses. You are treated as an employee and paid and hourly rate not a per file fee."  — [employee review] — reviewer's job title as written: "CAT Adjuster"; location: Allen, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-05-03
+
+   • "What is the best part of working at the company? Working remote. That's about it / What is the most stressful part about working at the company? Ignorant and disrespectful management. / What is the work environment and culture like at the company? Hostile. If you ask any question...you get thrown under […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Senior Workers' Compensation Adjuster"; location: Remote — https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date — 2026-04-15
+
+   • "Pay is ok when busy but management is a nightmare. Highly focused on metrics and couldn't care less about their employees. Don't speak your mind on anything and hit your metrics and you should be fine."  — [employee review] — reviewer's job title as written: "Adjuster"; location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-04-17
+
+   • "The CEO Rohit shares all his success throughout the week and forgets that we don't make the same salary. Such a huge disconnect with management. Worked their [sic] for 4 years in two different roles, but I just couldn't take it anymore."  — [employee review] — reviewer's job title as written: "Claims Adjuster"; location: Remote — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-03-06
+
+   • "Company is a decent place to work but managers are micromanaging employees if you're not a favorite - ans [sic] the rules do not apply to the favorites at Broadspire …Promotions are based on popularity and who you know- definitely not what you know! There are people that gets promoted who barely know what […]"  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-02-20
+
+   • "What is the best part of working at the company? Flexibility because you are salaried, but that's where the "best part" stops. / What is the most stressful part about working at the company? micromanagement leadership, retaliation against the "little people" employees, leadership lacks accountability, […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Client LIAISON Manager"; location: Remote — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-01-30
+
+   • "What is the best part of working at the company? Everyone is really helpful. Our managers are more than willing to coach you when something new pops up. / What is the most stressful part about working at the company? You have to be on top of your deadlines. So long as you do that, it's smooth sailing."  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Multi-Line Adjuster"; location: El Paso, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2025-12-14
+
+   • "I was hired with an expectation that my incredible skills and knowledge would be valued. BSI gives no autonomy in claims and questions labor codes that are fact. Management spends more time having adjusters justify their job rather than trusting us to do it."  — [employee review] — reviewer's job title as written: "Workers' Compensation Claims Examiner"; location: Remote — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2025-11-26
+
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+   • "Keeps supervisor informed verbally and in writing of activities and problems within areas of responsibility, refers matters beyond limits of authority and expertise to supervisor for direction."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+
+   • "Ability to initiate independent action to resolve problems and issues and to achieve desired results."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+
+   • "Analytical ability to gather and study facts and data and draw correct inferences from the data: identify root causes of problems and create solutions; identify inefficient business processes and recommends technological or process improvements."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+
+   • "Under minimal to intermediate direction, adjusters determine coverage, investigate and evaluate losses, negotiate settlements, and maintain complete, accurate, high-quality claim files."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+
+   • "Willingness to work long hours and prolonged schedules away from home during significant catastrophe events."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+
+   • "Professional, dependable, responsive, service-oriented, adaptable, and receptive to coaching and change."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+
+   • "Demonstrates ability to meet administrative requirements, including productivity, time management and QA standards, with a minimum of supervisory intervention."  — [job posting — medical case management function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5385 — posted 2026-09-28
+
+   • "Reviews cases with supervisor monthly to evaluate files and obtain directions."  — [job posting — medical case management function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5385 — posted 2026-09-28
+
+   • "Establish business performance metrics and dashboards that provide clear visibility into financial, operational, quality, service, client, and growth performance."  — [job posting — executive leadership of a claims business line; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5369 — posted 2026-09-28
+
+   • "Monitor competitive offerings, industry developments, emerging technologies, and changing employer and claimant expectations to identify opportunities for innovation and differentiation."  — [job posting — executive leadership of a claims business line; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5369 — posted 2026-09-28
+
+
+--- D. FIRST-PERSON ACCOUNT (yield: 7 passages from 5 sources · ladder fully attempted) ---
+
+NOTE TO RATER: This section is not a single voice. Two passages are a named technology executive
+speaking to a trade reporter; two are an unnamed practitioner writing in the first person on the
+company's own blog; one is a named business-line leader quoted on that blog; one is the company's
+blog writing in the third person about a named non-executive employee; one is the company's own
+unsigned corporate voice. Where a passage is the company describing an employee rather than the
+employee speaking, that is marked on the excerpt line.
+
+   • "We give them a prototype of a new interaction – different from how they've been doing it – and say: if AI were to help you on this interaction, is this good for you?"  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx — 2026-09-02
+
+   • "What we really want is to enable hundreds and hundreds of workers to be the sources of ideas and innovation," he said. "Getting tools in their hands and getting them into a mindset of experimenting and trying things is one of the most important things I work on, because over time that will multiply our innovation capacity."  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx — 2026-09-02
+
+   • "That's why I push disciplined triage right away: preserve what matters, establish clear authority, and decide who can approve containment steps and communications. I also want legal, forensics, communications, and finance/operations aligned early so we work from one set of facts."  — [company blog — unsigned first-person practitioner account] — no author named on the page — https://www.crawco.com/blog/what-a-cyber-claim-taught-me-about-response — 2026-05-08
+
+   • "What I value most is a steady, claims‑led approach: keep the response moving while maintaining insurer visibility on coverage, reserves, and strategy. Cyber claims reward readiness over perfection, and speed only helps when it's deliberate."  — [company blog — unsigned first-person practitioner account] — no author named on the page — https://www.crawco.com/blog/what-a-cyber-claim-taught-me-about-response — 2026-05-08
+
+   • "For me, good loss adjusting begins with clarity — understanding the facts, applying sound judgement, and maintaining balance. By keeping the insurer's perspective in mind, we can help clients reach solutions that are fair, practical and built on trust."  — [company blog — employee profile] — named head of a country business line, quoted directly — https://www.crawco.com/blog/employee-spotlight-meet-satoshi-yamazaki — 2026-08-11
+
+   • "While he sees real value in AI when applied thoughtfully, he cautions against overdependence without fully understanding the models being used. In his view, technology should support subrogation, not replace the critical thinking and conversations that lead to the best outcomes."  — [company blog — employee profile; this is the company's own wording ABOUT a named account executive, not his words] — https://www.crawco.com/blog/employee-spotlight-philip-meyerdierks — 2026-04-21
+
+   • "At Crawford, digital transformation efforts have focused on simplifying the claims journey through automation, analytics, AI and modernized platforms that enhance speed, accuracy and transparency."  — [company blog — unsigned corporate voice] — no author named on the page — https://www.crawco.com/blog/what-85-years-of-claims-have-taught-us-about-the-future — 2026-09-23
+
+
+--- E. RECENT NEWS (yield: 3 counted excerpts + 1 tagged company-authored · searches logged) ---
+
+   • "Crawford & Company CEO Rohit Verma is stepping down at the end of the year to take the helm of another firm, and the company has named Crawford veteran W. Bruce Swain, Jr. interim president CEO."  — [trade press reporting] — Claims Journal staff — https://www.claimsjournal.com/news/national/2025/11/24/334266.htm — 2025-11-24
+
+   • "Crawford & Company  is rolling out a new global operating structure, splitting the business into US Operations and International Operations as it looks to simplify execution and accelerate a more client-centric model."  — [trade press reporting] — named Coverager editor — https://coverager.com/crawford-company-announces-new-operating-divisions/ — 2026-01-25
+
+   • "Crawford & Company  appointed W. Bruce Swain Jr. as President and CEO, effective immediately, following his time serving in the interim role since January 1, 2026."  — [trade press reporting] — named Coverager editor — https://coverager.com/crawford-company-names-w-bruce-swain-jr-president-ceo/ — 2026-03-28
+
+   • "By aligning our businesses under two global divisions and elevating proven leaders, we are clarifying accountability, strengthening collaboration across geographies and positioning Crawford to move at the speed our markets demand."  — [company-authored] — interim president and CEO, statement carried inside the trade article above; does not count toward this section's yield — https://coverager.com/crawford-company-announces-new-operating-divisions/ — 2026-01-25
+
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+All six excerpts below are company-authored: they are the company's own words in its annual report
+on Form 10-K for the fiscal year ended 2025-12-31, filed 2026-03-02. Every headcount, dollar
+figure and percentage in this section of the filing has been left out.
+
+   • "Human Capital is a key component to our success. Our people-first culture is reflected in our RESTORE values of Respect, Empowerment, Sustainability, Training, One Crawford, Recognition and Entrepreneurial Spirit which are supported in our workforce programs."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+   • "In September 2025, we conducted our annual Employee Pulse survey for all our global workforce to measure their sentiment on our employee experience and culture."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+   • "We saw encouraging gains in areas like team collaboration and leadership support. Notably, the most significant improvement was in employees' feeling supported in balancing their health and well-being, and in experiencing stronger cooperation across teams."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+   • "Employees reported the highest scores in having a clear understanding of what is expected of them in their role, a strong sense of purpose in their job and alignment of their work with business strategy."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+   • "They also feel safe to speak up and feel that the Company is committed to fair treatment of our employees."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+   • "Through these classes, adjusters were not only exposed to the technical aspect of claims handling but also trained on critical success behaviors such as empathy and customer service – attributes we consider to be core and crucial for becoming a world-class claims professional."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 15/12      C excerpts: 10/6
+       C postings: 4/3       C outside engineering: 4/1
+       B reviews within 24 months: 15/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       The company's live board rendered "281 OPEN JOBS" on 2026-09-29. Exemption not applicable.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 7 (from 5 sources)    ladder rungs logged: 7/7
+       D voice composition: see note — the prompt's two-box scheme does not fit this yield.
+                            Recorded four ways: 2 passages named executive (one technology
+                            executive, direct quotes to a trade reporter); 1 passage named
+                            non-executive business-line leader (direct quote, on the company's
+                            own blog); 1 passage company-authored third-person description of a
+                            named non-executive employee (NOT his words); 2 passages unsigned
+                            first-person practitioner voice on the company blog; 1 passage
+                            unsigned corporate voice.
+                            Counting only voices that are (a) first-person and (b) attributable:
+                            2 executive / 1 non-executive. Counting the unsigned practitioner
+                            passages as non-executive: 2 executive / 3 non-executive.
+                            NOT all-executive on either count, so the D0 extra rung was not
+                            triggered. Extra rung worked anyway? NO (target already exceeded
+                            2.3x). Stale non-executive material found and rejected? YES — see 2c
+                            rungs 2 and 3.
+       E excerpts: 3 counted + 1 tagged company-authored (max 4)    searches logged: 5
+       F excerpts: 6    public? YES     10-K filing date: 2026-03-02 (FY ended 2025-12-31)
+
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: COVERED   innovation: COVERED   decision: COVERED
+
+       THIN/NONE reasons: none — no dimension came back THIN or NONE on this build.
+
+       For the record, because Feedback has been THIN in most packets in this set and is not here:
+       the on-axis feedback material came from four of the fifteen reviews (a supervisor who
+       "listens to each employee", managers "more than willing to coach you", supervisors who
+       "does not communicate with you about anything", and "Don't speak your mind on anything"),
+       from the careers page's "coaching, decision-making" training line, from a job posting's
+       "receptive to coaching and change" and another's "Reviews cases with supervisor monthly",
+       and from the 10-K's annual-survey and "safe to speak up" sentences. The recency
+       cross-check did not fire on this company (the required source is the fresher one), so the
+       optional source was not inspected for feedback material beyond the recency check itself —
+       which the cross-check result made unnecessary, and which is also all that was retrievable
+       there (see 2d).
+
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: navigation survey of https://www.crawco.com/about
+                            and all four /about/careers/ pages, plus two web searches
+                            outcome: NOT FOUND. No public employee handbook, manual or "how we
+                            work" documentation. Nearest artifact is a global code of business
+                            conduct published as a PDF at
+                            https://assets.crawfordandcompany.com/media/2408729/final-crawford-codeofconduct-english.pdf
+                            (also mirrored at s25.q4cdn.com). PDF — the renderer exposes no text
+                            for it, no HTML rendition was found, and nothing in it was
+                            load-bearing, so nothing was quoted from it (found but not quotably
+                            retrievable). Same outcome the prompt records for P-11.
+
+       D2 eng/product blog  attempted Y   URL: https://www.crawco.com/blog
+                            newest post date: 2026-09-23
+                            outcome: YIELDED 5 of the 7 passages. The blog is active and
+                            in-date — 12 posts on page 1 spanning 2026-07-08 to 2026-09-23, 55
+                            pages of archive. It is a client-facing market-commentary
+                            publication, not an engineering or product blog, but it carries an
+                            "Employee Spotlight" strand and unsigned first-person practitioner
+                            pieces, and those are what yielded. Opened the INDEX, not a topic
+                            search, per the prompt. Stale material on the same strand found and
+                            rejected: the blog's own "related posts" rails surfaced employee and
+                            adjuster spotlights dated 2018-06-22 ("Adjuster spotlight — Brooke
+                            Hill"), 2018-07-17 and 2025-01-03, and a career-growth first-person
+                            piece ("Accelerating my career growth: Crawford's Fast Track
+                            Program") and a culture piece ("People first is the only way at
+                            Crawford") that surfaced by search but not on any in-date index page.
+                            The 2018 items are the right content at the wrong vintage and were
+                            rejected on age, not recorded as absent.
+
+       D3 culture microsite attempted Y   URL: https://www.crawco.com/about/careers/life-at-crawford,
+                            /respect, /training-and-growth, /early-careers; plus the "Crawford
+                            Chat" video series at https://www.crawco.com/feature/video/crawford-chat
+                            outcome: FOUND, CURRENT, YIELDS NOTHING TOWARD D. The careers pages
+                            carry narrative text rather than bullet lists, but it is the same
+                            material already quoted in section A, so per the prompt's
+                            double-counting rule it does not count here. The Crawford Chat series
+                            is a current employee-interview video series (episode 21 dated
+                            2026-06-03, featuring a named director of business development — the
+                            same named employee whose testimonial appears in section A) but the
+                            episode pages carry only a company-written blurb and no transcript,
+                            and no transcript was reachable by either retrieval method. Video
+                            with no transcript is not quotable passage text. Recorded as
+                            "publication found, current, yields nothing quotable", which is a
+                            different finding from absence.
+
+       D4 leader interview  attempted Y   URL: https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx
+                            date: 2026-09-02
+                            outcome: YIELDED 2 passages. A named chief AI, data and cloud officer
+                            interviewed at length specifically on how decisions about new tools
+                            get made and who gets to veto them. Best D-class source in the build.
+                            Also attempted: https://www.crawco.com/resources/type/podcast (the
+                            company's own podcast index) — reachable, but the items there are
+                            client-facing market commentary, not accounts of internal working
+                            practice.
+
+       D5 public repos      attempted Y   URL: https://github.com/crawco (plus a search of
+                            obvious alternative handles)
+                            outcome: FOUND BUT STALE AND UNCONFIRMED. An organisation account
+                            exists at the obvious handle, with no bio, no public members, and one
+                            public repository ("dashboard", JavaScript, Apache-2.0) last updated
+                            2017-03-13. With no bio and no members I cannot confirm the account
+                            belongs to the subject company rather than a name collision, and
+                            either way it fails the 18-month staleness gate by roughly nine
+                            years. No repository discussions, RFC threads or contribution
+                            guidelines. NAME-COLLISION CHECK RUN, per the prompt: the other
+                            obvious handles belong to unrelated parties — three individuals
+                            surnamed Crawford, an academic "Crawford Lab", and an academic
+                            "CrawfordGroup". None is the company.
+
+       D6 press profile     attempted Y   URL: two web searches for a long-form profile
+                            date: n/a   outcome: NOT FOUND, in the sense the prompt defines.
+                            Searches returned company-profile databases (PitchBook, GlobalData,
+                            ZoomInfo), review sites, and an encyclopedia entry — none of which
+                            is reporting and none of which may be quoted. The one piece of
+                            long-form trade journalism carrying direct employee or executive
+                            quotes is the interview already credited to rung 4; crediting it
+                            twice would inflate the yield. Rung 6 therefore adds nothing beyond
+                            rung 4.
+
+       D7 conference talk   attempted Y   URL: https://www.crawco.com/events/namic-claims-conference-2026
+                            (and the company's other 2026 event pages: PLRB, Combined Claims,
+                            PAMIC, I Love Claims)
+                            date: event 2026-04-13/15, page read 2026-09-29
+                            outcome: FOUND, CURRENT, YIELDS NOTHING. The company maintains
+                            current event pages, but they describe EXHIBITING and trade-show
+                            attendance, not speaking. The NAMIC page reads "Crawford is
+                            exhibiting at the NAMIC Claims Conference"; no talk, session or
+                            programme entry by a company speaker was found, and no talk
+                            recording or transcript. A search of conference-talk archives in the
+                            company's technical domain surfaced a same-named unrelated software
+                            firm ("Crawford Technologies") — logged as a name collision, not as
+                            the company.
+
+       Rungs rejected as stale (>18 months): D5 (single repository, 2017-03-13). Within-rung
+       stale material found and rejected on age: D2 (employee/adjuster spotlight strand, 2018
+       items).
+
+       C fallbacks tried: reviews-site job view — NOT NEEDED (the live ATS rendered in full on the
+                          first attempt) but the review site's Jobs rail was observed and its
+                          listings noted; ATS param found — YES, the company's own careers page
+                          links out to an Oracle Cloud Recruiting candidate-experience site, which
+                          names both the system and the slug, so the ATS was identified rather
+                          than guessed; greenhouse — N/A (not this company's ATS); lever — N/A;
+                          workday — N/A; ashby — N/A; aggregator — NOT NEEDED for posting bodies;
+                          the review site's jobs rail was used only as a cross-check that roles
+                          are open.
+                          Every quoted posting was opened on its own page and checked for a
+                          removal notice. All four render an active APPLY NOW control and a
+                          2026-09-28 posting date; one states in its own body "Applications are
+                          currently being accepted."
+
+       E news searches run: 5
+       queries used: (1) "Crawford & Company Bruce Swain named President CEO 2026 Rohit Verma
+                     steps down"; (2) "Crawford & Company 2026 Swain permanent CEO appointment
+                     announcement claims"; (3) "Crawford & Company 2026 restructuring layoffs
+                     reorganization return to office news"; (4) "\"Crawford\" \"new operating
+                     divisions\" 2026 claims management segment structure reported";
+                     (5) "Crawford & Company executive interview podcast 2026 \"how we make
+                     decisions\" claims leadership transcript".
+
+
+2d. SOURCE ACCESS LOG
+
+    Two retrieval methods were used throughout and BOTH were tried on every source class,
+    including the aggregators, per the v4.11 restatement of the method bullets as priors:
+      - RENDERER = a JavaScript-rendering browser pane. needed JS / confirming route.
+      - PLAIN FETCH = an HTTP fetch that returns a processed rendition of the page.
+    Every excerpt in Section 1 was confirmed on a RENDERED copy of its source page, character for
+    character including the presence and position of quotation marks. Nothing entered Section 1 on
+    plain fetch alone.
+
+    FIRST-PARTY (crawco.com) — renderer first, per the prior. Prior held.
+      https://www.crawco.com/about/careers                        RENDERER OK (full text). needed JS: Y
+      https://www.crawco.com/about/careers/life-at-crawford       RENDERER OK. needed JS: Y
+      https://www.crawco.com/about/careers/respect                RENDERER OK. needed JS: Y
+      https://www.crawco.com/about/careers/training-growth        RENDERER → 404 "Page Not Found".
+                                                                  GUESSED URL, NOT AN ABSENCE.
+      https://www.crawco.com/about/careers/training-and-growth    RENDERER OK — correct URL, found
+                                                                  by a link survey of the careers
+                                                                  page (PLAIN FETCH used to
+                                                                  enumerate hrefs). needed JS: Y.
+                                                                  This is the prompt's
+                                                                  proof-of-absence rule working:
+                                                                  the first URL was a wrong guess.
+      https://www.crawco.com/about/our-story                      RENDERER OK. needed JS: Y
+      https://www.crawco.com/blog                                 RENDERER OK (index). needed JS: Y
+      https://www.crawco.com/blog/what-85-years-of-claims-have-taught-us-about-the-future
+                                                                  RENDERER OK. needed JS: Y
+      https://www.crawco.com/blog/employee-spotlight-meet-satoshi-yamazaki
+                                                                  RENDERER OK. needed JS: Y
+      https://www.crawco.com/blog/employee-spotlight-philip-meyerdierks
+                                                                  RENDERER OK. needed JS: Y
+      https://www.crawco.com/blog/what-a-cyber-claim-taught-me-about-response
+                                                                  RENDERER OK. needed JS: Y
+      https://www.crawco.com/resources/crawford-chat-episode-21-saying-yes-to-opportunities
+                                                                  RENDERER OK — blurb only, no
+                                                                  transcript. needed JS: Y
+      https://www.crawco.com/events/namic-claims-conference-2026  RENDERER OK. needed JS: Y
+      PDF code of business conduct (two URLs, see 2c D1)          NOT RENDERABLE — no text exposed.
+                                                                  Nothing quoted from it.
+
+    APPLICANT-TRACKING SYSTEM (Oracle Cloud Recruiting) — a JavaScript app; renderer required.
+      .../sites/crawco-jobs/jobs                                  RENDERER OK — "281 OPEN JOBS".
+                                                                  needed JS: Y
+      .../jobs/preview/4793  statistical / actuarial analytics     RENDERER OK. needed JS: Y
+      .../jobs/preview/5198  catastrophe field claims adjusting    RENDERER OK. needed JS: Y
+      .../jobs/preview/5385  medical case management               RENDERER OK. needed JS: Y
+      .../jobs/preview/5369  executive leadership, claims line     RENDERER OK. needed JS: Y
+
+    REVIEW AGGREGATOR — Indeed. Prior says start with plain fetch; the prior was WRONG here in the
+    direction v4.11 warns about. The RENDERER was not walled at all and returned every review page
+    in full, including the literal "...Show more" truncation markers that made the truncation
+    measurable. Plain fetch also worked. Both methods agreed on the review list, the dates, the
+    titles and the locations — a useful negative result on defect D26 for this source.
+      https://www.indeed.com/cmp/Crawford-&-Company/reviews?fcountry=US&sort=date
+                                                                  RENDERER OK (20 reviews).
+                                                                  PLAIN FETCH OK. needed JS: N
+                                                                  (both worked; renderer used as
+                                                                  the confirming route)
+      same URL, second independent pass (&start=0)                RENDERER OK — BYTE-EQUIVALENT to
+                                                                  pass one, including every
+                                                                  truncation marker. D28 two-pass
+                                                                  requirement satisfied; unlike
+                                                                  P-11 the two passes AGREED.
+      https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+                                                                  RENDERER OK — IDENTICAL result
+                                                                  to the fcountry=US page. See the
+                                                                  defect list: the country filter
+                                                                  is inert on this profile.
+      https://www.indeed.com/cmp/Crawford-&-Company/job-titles    RENDERER OK — full title index
+                                                                  with counts and per-title
+                                                                  ratings, grouped by function.
+                                                                  needed JS: N/A (renderer used)
+      https://www.indeed.com/companies/search?q=Crawford          RENDERER OK — entity check.
+      https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+                                                                  RENDERER OK (20 reviews).
+      https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date
+                                                                  RENDERER OK (8 reviews).
+      https://www.indeed.com/cmp/Crawford-Company/reviews?sort=date
+                                                                  RENDERER OK (7 reviews) — tested
+                                                                  and judged NOT the subject; see
+                                                                  2e.
+      https://www.indeed.com/cmp/Crawford-Companies/reviews?sort=date
+                                                                  RENDERER OK (5 reviews shown) —
+                                                                  IS the subject, all 2018 or
+                                                                  older; see 2e.
+
+    REVIEW AGGREGATOR — Glassdoor (OPTIONAL source, recency cross-check only). Both methods tried;
+    both partly failed, in opposite ways, on the same domain within two minutes.
+      /Reviews/...-E1309.htm?sort.sortType=RD&sort.ascending=false PLAIN FETCH → refused,
+                                                                  robots.txt disallowed.
+                                                                  RENDERER → bot-walled to a
+                                                                  Cloudflare interstitial titled
+                                                                  "Security | Glassdoor" with a
+                                                                  __cf_chl_rt_tk token in the URL.
+                                                                  Classic D13, both halves at once.
+      /Reviews/Crawford-and-Company-Reviews-E1309.htm             PLAIN FETCH OK — the UNSORTED
+                                                                  path is allowed by robots where
+                                                                  the sorted query is not.
+                                                                  Newest review 2026-07-05;
+                                                                  "959 reviews".
+      /Overview/Working-at-Crawford-and-Company-EI_IE1309.11,31.htm
+                                                                  PLAIN FETCH OK — "3.3 based on
+                                                                  963 ratings", "as of August
+                                                                  2026".
+                                                                  NOT renderer-confirmed. Nothing
+                                                                  from Glassdoor enters Section 1;
+                                                                  it is used only for the recency
+                                                                  cross-check and is flagged in 2f
+                                                                  as plain-fetch-only.
+
+    TRADE PRESS
+      https://www.claimsjournal.com/news/national/2025/11/24/334266.htm     RENDERER OK. needed JS: Y
+      https://coverager.com/crawford-company-announces-new-operating-divisions/  RENDERER OK. needed JS: Y
+      https://coverager.com/crawford-company-names-w-bruce-swain-jr-president-ceo/  RENDERER OK. needed JS: Y
+      https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx
+                                                                             RENDERER OK. needed JS: Y
+
+    SEC / EDGAR
+      /cgi-bin/browse-edgar?...&type=10-K                         PLAIN FETCH → refused, robots.txt
+                                                                  disallowed. Dead route, as the
+                                                                  prompt says, but by a different
+                                                                  failure mode than the register
+                                                                  records (see defect list).
+      /Archives/edgar/data/25475/000119312526085465/crda-20251231.htm
+                                                                  RENDERER OK — the Item 1 HUMAN
+                                                                  CAPITAL section was extracted
+                                                                  from the renderer's own page
+                                                                  text and is the confirming route
+                                                                  for all six F excerpts.
+                                                                  needed JS: N (but renderer used
+                                                                  as the authority on wording)
+                                                                  PLAIN FETCH also OK — its
+                                                                  rendition of this section
+                                                                  matched the rendered text
+                                                                  except for a dropped trademark
+                                                                  symbol and normalised
+                                                                  apostrophes. No fabricated
+                                                                  quotation marks on this build.
+      /Archives/edgar/data/25475/000119312526085465/0001193125-26-085465-index.htm
+                                                                  PLAIN FETCH OK — filing date
+                                                                  2026-03-02, period 2025-12-31.
+      A later 10-K/A exists at accession 0001193125-26-116011 with the same primary document name.
+      NOT opened. All F excerpts are taken from the original 10-K's Item 1. Flagged in 2e.
+
+    EXTERNAL CONFIRMATION OF THE OFF-COMPANY REVIEW
+      Web search for the review's own title plus its stated location returned a distinct company:
+      "Crawford Hoying" / "Crawford Hoying Real Estate Services, LLC", a Dublin, Ohio property
+      developer with its own website (crawfordhoying.com), its own LinkedIn page, a Better
+      Business Bureau business profile, a LoopNet commercial-brokerage listing and a Columbus
+      Chamber directory entry — AND its own separate profile on the same review site (3.7,
+      15 reviews, classified "Property Management").
+
+
+2e. FIDELITY NOTE
+
+    PARAPHRASE flags: NONE. No excerpt in Section 1 is marked [PARAPHRASE]. The one source that
+    could not be rendered at all (the code-of-conduct PDF) was not load-bearing, so option two of
+    the v4.11 three-option fallback was taken: nothing quoted, source recorded as found but not
+    quotably retrievable.
+
+    POSTINGS WHOSE OPEN/CLOSED STATUS COULD NOT BE CONFIRMED: NONE. All four were opened
+    individually, all four render an APPLY NOW control and a 2026-09-28 posting date, and none
+    carries a removal notice.
+
+    PRESERVED SOURCE TYPOS (verbatim-required and uniquely identifying — also listed in Section 4):
+    In reviews: "Mangers" for Managers; "anual" for annual; "ans" for and; "their" for there;
+    "Worked their for 4 years"; "compañerisno" for compañerismo; "l can say" (lower-case L for I);
+    "some our very horrible"; "as there client"; "envornment"; "training g new hires"; "compasion";
+    "allwoing"; "coat home" (apparently for "at home"); "gets promoted". Two reviews render the
+    review site's prompted questions inline with the answers; that is the site's layout, not the
+    reviewer's punctuation, and is marked on the excerpt lines. Section A pages use a non-breaking
+    hyphen (U+2011) in compounds such as "long‑standing" and "claims‑led" and curly apostrophes
+    throughout; both are reproduced exactly and both are unique-string identifiers.
+
+    ENTITY CHECK RESULT (B0) — the most consequential finding in this build.
+    The review site holds SIX profiles matching plausible name variants. All six were opened.
+      1. "Crawford & Company" — 3.4 · counts below · classified "Insurance Agencies & Brokerages"
+         · carries an employer-written company description (the only claim signal the site
+         exposes; no explicit claimed/unclaimed badge is rendered by either retrieval method on
+         any of these profiles, so claimed status is recorded as NOT DISPLAYED rather than
+         guessed). IS the subject. SAMPLED.
+      2. "Broadspire, a Crawford Company" — 3.2 · counts below · classified "Insurance" · carries
+         an employer-written description. IS the subject's main third-party-administration
+         operating brand; the profile name says so. SAMPLED.
+      3. "Broadspire by Crawford & Company" — 3.1 · counts below · no description. Same operating
+         brand as (2) under a second profile. IS the subject. SAMPLED.
+      4. "Crawford Companies" — 2.5 · counts below · no description. IS the subject: its reviews
+         name the subject's own locations and role types (a disability benefit specialist and a
+         bill reviewer in the same Florida city as the brand in (2); a claim adjuster; a
+         vocational case manager; a heavy-equipment appraiser in the subject's headquarters city;
+         one reviewer writes of 23.5 years "for Crawford"). NOT SAMPLED — every review on it is
+         dated 2018-10-30 or earlier, so none falls inside the newest-fifteen window. Recorded
+         rather than dropped, because it contains on-axis feedback material ("The management never
+         does any one on ones, or gives feedbacks") that a title-or-content-driven sample would
+         have been tempted to reach for and that recency correctly excludes.
+      5. "Crawford Company" — 3.3 · 7 reviews · no description. JUDGED NOT THE SUBJECT: its
+         review content identifies a mechanical/HVAC contractor in Rock Island, Illinois (an HVAC
+         service technician, a "Brew Division Welder", an assistant controller describing growth
+         from 75 to over 250 employees, a reviewer naming "the owners in the Rock Island office"),
+         plus one receptionist in Livingston, New Jersey at a firm that "shut down". This profile
+         is itself pooled across at least three unrelated businesses. NOT SAMPLED — but see the
+         defect list: it also holds a 2026-08-19 review from a "Property Adjuster — Remote"
+         describing "a commissioned adjuster" and "solid team at corporate and branch levels",
+         which fits the subject company and fits nothing else on that profile. Had it been the
+         subject's, it would have been the second-newest review in the merged set. It is recorded
+         here and NOT collected; the reasoning is in the defect list.
+      6. "Crawford Hoying" — 3.7 · 15 reviews · classified "Property Management". CONFIRMED NOT
+         THE SUBJECT (see 2d for the external evidence).
+
+    CONFIRMED OFF-COMPANY REVIEW EXCLUDED FROM SECTION 1 (B0 / D23):
+      One review inside profile (1) — dated 2026-03-04, headline "Crawford Hoying", job title
+      "Maintenance", location Columbus, OH — is confirmed by the external evidence in 2d to
+      describe entity (6), a Dublin/Columbus-area property developer that shares part of the name
+      and has its own separate profile on the same site. EXCLUDED. The next review in date order
+      was taken so the count still holds.
+      CORROBORATING STRUCTURAL EVIDENCE for the pooling, from the job-title index of profile (1):
+      that index carries function groups that fit a property developer with hospitality operations
+      and fit a claims-management company not at all — "Food Preparation & Service" (Server 1,
+      Senior Line Cook 1, Floor Manager 1), "Real Estate" (Property Management Specialist 2,
+      Property Manager 1, Senior Property Administrator 1) and "Installation & Maintenance"
+      (Maintenance Person 1, Heavy Equipment Supervisor 1). The pooling is therefore not a single
+      stray review.
+      SUSPICION-ONLY REVIEWS RETAINED AND FLAGGED: none. No other review in the sampled window
+      was hard to reconcile with the subject company.
+
+    IMPLAUSIBLE REVIEW COUNTS: The subject employs roughly ten thousand people across seventy
+    countries (see Section 3) and the four subject profiles together hold, on their own rating-block
+    elements, on the order of nine hundred and twenty reviews. That is not implausibly low for this
+    headcount; it is low relative to the review-site populations the prompt's earlier builds
+    describe, and it is spread across four profiles rather than one, which is the finding. The
+    profile the prompt's procedure would have led a builder to treat as "the" profile holds, on its
+    own list-header element, 444 — under half the merged population.
+
+    A SECOND 10-K DOCUMENT EXISTS AND WAS NOT OPENED: accession 0001193125-26-116011, a Form 10-K/A
+    filed after the original, carrying the same primary document filename. Amendments of this kind
+    most often restate Part III rather than Item 1, but that was not verified. All six F excerpts
+    come from the original annual report. If the amendment restates Item 1 Human Capital, section F
+    should be re-taken from it.
+
+    INDEED COUNTRY FILTER IS INERT ON THIS PROFILE: the fcountry=US page and the unfiltered page
+    returned identical review sets, including a review located in Chile. See the defect list.
+
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 6 (all opened; full detail in 2e)
+          1. https://www.indeed.com/cmp/Crawford-&-Company/reviews — 3.4 — SUBJECT — SAMPLED —
+             claimed status NOT DISPLAYED by either method (employer-written description present)
+          2. https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews — 3.2 — SUBJECT
+             (operating brand) — SAMPLED — claimed status NOT DISPLAYED (description present)
+          3. https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews — 3.1 — SUBJECT
+             (same brand, second profile) — SAMPLED — claimed status NOT DISPLAYED (no description)
+          4. https://www.indeed.com/cmp/Crawford-Companies/reviews — 2.5 — SUBJECT — not sampled,
+             all reviews 2018 or older — claimed status NOT DISPLAYED (no description)
+          5. https://www.indeed.com/cmp/Crawford-Company/reviews — 3.3 — NOT the subject (pooled
+             across ≥3 unrelated businesses) — not sampled
+          6. https://www.indeed.com/cmp/Crawford-Hoying/reviews (reached via the site's company
+             search) — 3.7 — NOT the subject, confirmed externally — not sampled
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Indeed, profile 1: "Working at Crawford & Company: 444 Reviews" (page <title>);
+             "444 reviews" (review-list header); "Based on 718 reviews" (rating-block line);
+             "718 Reviews" (navigation tab); "718 reviews" (company-search result row)
+          Indeed, profile 2: "Working at Broadspire, a Crawford Company: 166 Reviews" (<title>);
+             "166 reviews" (list header); "Based on 185 reviews" (rating block);
+             "185 reviews" (company-search result row)
+          Indeed, profile 3: "Working at Broadspire by Crawford & Company: 8 Reviews" (page
+             heading); "8 reviews" (list header); "Based on 11 reviews" (rating block);
+             "all Broadspire by Crawford & Company reviews worldwide (11 reviews)" (footer link)
+          Indeed, profile 4: "Working at Crawford Companies: 5 Reviews" (page heading);
+             "5 reviews" (list header); "Based on 6 reviews" (rating block)
+          Glassdoor E1309: "959 reviews" (reviews-page heading, PLAIN FETCH ONLY);
+             "3.3 based on 963 ratings" (overview snapshot, PLAIN FETCH ONLY);
+             "(961)" (search-engine result title for the same page)
+
+       Conflicting counts observed on a single page: YES, on all four subject Indeed profiles and
+          on Glassdoor's overview-versus-reviews pages. Profile 1 displays 444 and 718
+          simultaneously; profile 2 displays 166 and 185; profile 3 displays 8 and 11; profile 4
+          displays 5 and 6. Glassdoor reports 959, 963 and 961 across three elements/routes. No
+          site-reported total appears anywhere in Section 1.
+
+       Headline ratings BY SITE:
+          Indeed profile 1 — overall 3.4; work-life balance 3.3; pay and benefits 3.2; job
+             security and advancement 3.0; management 3.1; culture 3.2
+          Indeed profile 2 — overall 3.2; work-life balance 3.3; pay and benefits 3.3; job
+             security and advancement 2.9; management 3.0; culture 3.1
+          Indeed profile 3 — overall 3.1; work-life balance 3.4; pay and benefits 3.3; job
+             security and advancement 2.5; management 2.8; culture 3.0
+          Indeed profile 4 — overall 2.5; work-life balance 2.2; pay and benefits 2.2; job
+             security and advancement 1.8; management 1.6; culture 1.8
+          Glassdoor E1309 — overall 3.3 (PLAIN FETCH ONLY, not renderer-confirmed); its
+             work-life-balance subscore was NOT RETRIEVABLE by either method, so cross-site
+             work/life divergence cannot be recorded on this build.
+          DIVERGENCE, recorded not reconciled: overall 3.4 (Indeed, main profile) against 3.3
+             (Glassdoor) is small; the divergence that matters here is WITHIN the required site,
+             across the four subject profiles: 3.4 / 3.2 / 3.1 / 2.5.
+
+       Job titles sampled, each with review count and the element the count came from: NOT
+          APPLICABLE — the frame is recency, company-wide, per B2. Titles are per-review metadata
+          and are recorded on every excerpt line exactly as the reviewer wrote them.
+
+       Job-title INDEX collected (profile 1, https://www.indeed.com/cmp/Crawford-&-Company/job-titles;
+          every count below from that index's own per-title element):
+          Insurance — Adjuster 85 · Claims Adjuster 46 · Auto Appraiser 12 · Insurance Claims
+             Adjuster 11 · Claims Specialist 6 · Senior Claims Adjuster 5 (group truncated by a
+             "Show more" control)
+          Customer Service — Customer Service Representative 24 · Call Center Representative 3 ·
+             Desktop Support Technician 2 · three further titles at 1 each (truncated)
+          Administrative Assistance — Administrative Assistant 12 · Data Entry Clerk 5 ·
+             Appraiser 4 · three further titles at 2 each (truncated)
+          Community & Social Service — Case Manager 9 · Vocational Rehabilitation Counselor 3 ·
+             three further titles at 1 each
+          Accounting — Accountant 5 · Senior Accountant 2 · Estimator 2 · Billing Analyst 2 ·
+             two further titles at 1 each (truncated)
+          Software Development — Senior Software Engineer 3 · Software Engineer 2 · Principal
+             Software Engineer 1 · Software Engineering Manager 1 · ETL Developer 1 · Senior
+             Programmer Analyst 1
+          Nursing — Registered Nurse Case Manager 2 · Utilization Review Nurse 1
+          Mathematics — Business Analyst 2 · Senior Business Analyst 1 · Analytics Intern 1 ·
+             Senior Data Analyst 1
+          Human Resources — three titles at 1 each.  Marketing — three titles at 1 each.
+          Legal — 1.  Banking & Finance — four titles at 1 each.
+          Food Preparation & Service — three titles at 1 each (see the pooling finding in 2e).
+          Real Estate — four titles, 2 / 1 / 1 (see the pooling finding in 2e).
+          THE INDEX IS NOT AUTHORITATIVE (D21): profile 1's "popular job titles" and review pages
+          surface titles the index does not list, including "Claims Processor", "Flood Adjuster",
+          "CAT Adjuster", "Multi-Line Adjuster", "Property Desk Adjuster", "Customer Service
+          Representative III" and "Sr. RPA Software Engineer", several of which carry 2026
+          reviews. Also: "Senior RPA Engineer" is filed by the index under "Mechanical
+          Engineering", which is a category label and not a function label (D11).
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B.
+
+       Achievability gate run on every percentage recorded anywhere in the packet: Y
+       Percentages struck for failing the gate, with title and figure:
+          None struck for FAILING the gate. Results in full:
+          · Annual-report percentages (full-time share, regional concentration, gender shares,
+            US ethnicity shares, survey response rate, empowerment and speak-up figures) — n is
+            roughly ten thousand, so possible values step by about 0.01 points and every figure is
+            achievable. GATE PASS. All are stripped from Section 1 anyway under section F's
+            figure rule.
+          · Glassdoor "56% would recommend" at n = 959 — steps of about 0.10 points. GATE PASS.
+            Excluded from Section 1 regardless: it is an EVALUATIVE metric (hard rule 8) and it is
+            plain-fetch-only.
+          · Two external market statistics quoted inside a company blog post (a national breach-cost
+            figure, an incident-rate percentage of 86.5% and another of 73%) carry NO stated n, so
+            the gate cannot be run on them at all. STRUCK on that basis — they are recorded here
+            and appear nowhere in Section 1. They are also not evidence about this company.
+
+       Titles present but NOT sampled, with counts: not applicable under a recency frame; the full
+          index with counts is above, and the function gaps are in 2g.
+
+       Interview write-ups excluded from review lists: 0. None of the fifteen reviews taken is an
+          interview write-up. One review on profile 1 dated 2025-08-26 ("Worth the hiring process")
+          is substantially about the hiring process, but it falls outside the newest-fifteen window
+          and so required no exclusion.
+
+       Newest review date BY SITE: Indeed (merged across the three sampled subject profiles)
+          2026-09-13 — profile 1 2026-09-13, profile 2 2026-08-13, profile 3 2026-06-03.
+          Glassdoor 2026-07-05 (PLAIN FETCH ONLY).
+          THE REQUIRED SOURCE IS THE FRESHER ONE. The recency cross-check therefore DOES NOT FIRE,
+          not even non-materially: condition (a) requires the optional site to be more than twelve
+          months newer than the required source, and it is in fact seventy days older. Condition
+          (b) also fails — 15 of 15 reviews sit inside the 24-month gate, not fewer than half.
+          B1a-REMEDY NOT TRIGGERED. No Glassdoor fragments appear in Section 1.
+
+       Oldest review used: 2025-11-26 (10.1 months old at build date)
+       Median age of reviews used: 4.9 months (the eighth of fifteen by date is 2026-05-03)
+       Reviews truncated at source: 7/15 = 47%   ** exceeds 33% — NOTE TO RATER placed at the head
+          of Section 1 **
+          Three were cut at an explicit "...Show more" control that does not expand on fetch; four
+          more end mid-sentence behind a "Create an account or sign in" prompt, which is the same
+          truncation wearing a sign-in gate's clothes. Not signed in, per the parity rule.
+          Measured on two independent renderer passes over the same page, which AGREED exactly —
+          unlike the P-11 case in D28.
+          For context, on the full twenty reviews the first page renders, the figure is 7/20 = 35%.
+
+       Source-site duplicates retained: 0. No two entries carried identical text and date. NOTE:
+          two of the four subject profiles cover the same operating brand, so cross-profile
+          duplication was specifically checked for and none was found in the sampled window.
+
+       Newest careers-page modification date: NOT PUBLISHED. None of the four careers pages carries
+          a publication or modification date by either retrieval method, and no last-modified value
+          was exposed. This is why all 8 of 8 section A excerpts are access-dated (2026-09-29)
+          rather than dated — that is 100% of section A, and the rater is told so at the head of
+          Section 1.
+
+       Structural events found and their dates:
+          2025-11-21  Leadership transition announced: the chief executive of five years resigns
+                      to lead another public company; the chief financial officer, a thirty-year
+                      company veteran, is named interim president and chief executive and joins
+                      the board. Reported independently 2025-11-24.
+          2026-01-01  Interim chief executive takes office. A new chief financial officer,
+                      internally promoted, takes office the same day.
+          2026-01-01  NEW TWO-DIVISION GLOBAL OPERATING STRUCTURE takes effect (US Operations and
+                      International Operations), with a newly created global chief commercial and
+                      strategy officer role and four internal promotions to president or
+                      divisional-chief-executive level. Announced 2026-01-21, reported
+                      independently 2026-01-25.
+          2026-03-23  Interim chief executive confirmed as permanent president and chief
+                      executive. A director of forty years, a member of the founding family and a
+                      former board chair, moves to an honorary board role. Reported independently
+                      2026-03-28.
+          2026-04-10  A new global chief information officer is named.
+          No layoff, site-closure or return-to-office event was found by any of the five news
+          searches logged in 2c.
+
+       Does any structural event postdate the newest review? NO. The newest review is 2026-09-13;
+          the latest structural event found is 2026-04-10.
+          Two related figures the rater may want: only 2 of the 15 reviews predate the 2026-01-01
+          reorganisation, and 5 of the 15 predate the permanent chief-executive appointment. One
+          review dated 2026-03-06 names the OUTGOING chief executive by first name, two months
+          after he had left — reviews describe past employment, and the review date is not the
+          date of the experience.
+
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide — the global careers site, written for all
+                              seventy-plus countries
+       B employee reviews     population: claims-facing operational roles. By the titles the
+                              reviewers themselves wrote: customer service representative, claims
+                              processor, medical-only claims adjuster, case-management employee,
+                              consultative analyst (offshore), senior RPA software engineer,
+                              catastrophe adjuster, senior workers' compensation adjuster,
+                              adjuster, claims adjuster, client liaison manager, multi-line
+                              adjuster, workers' compensation claims examiner, plus two reviewers
+                              who posted no title. Heavily United States, with one Philippines
+                              entry; a high proportion marked Remote. Drawn from three of the
+                              site's profiles for this company and its main operating brand.
+       C job postings         population: four functions — statistical and actuarial analytics;
+                              catastrophe field claims adjusting; medical case management;
+                              executive leadership of a claims business line
+       D first-person         population: corporate communications and the company blog; one
+                              technology executive; one country business-line leader; one US
+                              account executive; one unnamed Canadian cyber practitioner
+       E news                 population: company-wide — leadership and operating structure
+       F human capital        population: company-wide — the global workforce
+
+       Working environments known to exist in this company but ABSENT from the review population:
+          · The corporate technology organisation. The review site's own title index lists Senior
+            Software Engineer 3, Software Engineer 2, Principal Software Engineer 1, Software
+            Engineering Manager 1, ETL Developer 1, Senior Programmer Analyst 1 — single digits
+            throughout, against Adjuster 85 and Claims Adjuster 46. Exactly one software engineer
+            reached the fifteen. Meanwhile the company runs a named global chief information
+            officer, a named chief AI, data and cloud officer, and an in-house AI build programme
+            (section D), so the organisation plainly exists and is simply not in the review
+            population. No sampling rule can fix that; the reviews do not exist.
+          · Finance, human resources, legal, marketing and procurement: one or two reviews each.
+          · The offshore global business-service centres in the Philippines. The company's live
+            board shows repeated openings in Manila and Iloilo across support, finance and
+            clinical roles, and the annual report names the Philippines as one of five countries
+            holding most of the workforce; the review population contributes exactly one such
+            voice to the fifteen.
+          · Managed-repair, contents-valuation and catastrophe-network operations, which the
+            company runs as distinct business units under their own brands.
+
+       Does the company-authored evidence (A, F) describe a wider population than the experiential
+       evidence (B)?  YES. Sections A and F address the whole global workforce; section B is very
+       largely United States claims-handling roles.
+
+       One-line scope declaration for the head of the packet: placed at the head of Section 1.
+
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount + date + source: "approximately 9,943 employees and third-party associates
+  operating in 70 countries" as of 2025-12-31, of which the filing states 94% are full-time —
+  Form 10-K Item 1 Human Capital, filed 2026-03-02
+  (https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm).
+  CONFIDENCE: HIGH — company-sourced, in a document the company is legally accountable for, nine
+  months old at build date.
+  CONFLICTING COMPANY FIGURE, recorded not reconciled: the company's own website states "nearly
+  9,000 employees in over 70 countries" (https://www.crawco.com/about/our-story, accessed
+  2026-09-29). The website figure is lower than the filing's and carries no date; the filing's
+  figure includes third-party associates, which may explain the gap, but the website does not say.
+  Use the filing.
+
+- Stage/size cues: PUBLIC. Dual-class common stock, both classes listed on the New York Stock
+  Exchange (Class A and Class B, $1.00 par value each), SEC commission file number 1-10356,
+  incorporated in Georgia, headquartered in metropolitan Atlanta. Public since 1968. Founded 1941;
+  eighty-five years old at build date. Describes itself on its own site as "the largest publicly
+  listed independent provider of claims management and outsourcing solutions globally". Founding
+  family still represented on the board at build date, with a forty-year director moving to an
+  honorary role in 2026. Growth has been substantially acquisitive — the company's own timeline
+  lists roughly a dozen named acquisitions, the two largest in 2006 and 2014 — with no
+  venture/private-equity funding stage. Mature, low-growth, structurally stable ownership. Source:
+  the 10-K cover page and https://www.crawco.com/about/our-story.
+
+- Pay-posture EVIDENCE vs. talent-market peers (no band assigned):
+  · Employee-review evidence, from the sampled window, is consistently BELOW-market: "the pay is
+    lower than the industry average" (2026-07-13); "Pay is lower than other competitors"
+    (2025-07-07, outside the sampled fifteen); "Some positions are underpaid based on all the
+    workload assigned" (2026-08-13); "compensation is subpar. You are given a high workload, and
+    the pay doesn't seem to reflect that" (2025-11-04, outside the fifteen); "Pay is ok when busy"
+    (2026-04-17); "the pay was good but normal ebbs and flows" (from the pooled profile, not the
+    subject's, and not relied on).
+  · Posting evidence: the company publishes pay ranges on its US postings. Read against the roles
+    they attach to, the ranges are wide and start low — a remote statistical/actuarial analyst role
+    requiring a quantitative degree and four years' experience opens in the high-thirties
+    (thousands of dollars annually); a registered-nurse case-management role requiring an active RN
+    licence, one to three years' clinical experience and roughly 70% travel opens in the
+    mid-fifties; a senior-vice-president role runs from the low-150s to the high-270s. The
+    company's own review-site jobs rail advertises temporary data-entry work at eleven dollars an
+    hour across five states.
+  · Non-cash posture is comparatively rich for the sector and is worth weighing against the cash
+    figures: tuition assistance, paid parental leave, a funded mental-wellbeing subscription
+    extended to 24/7 coaching, virtual physical therapy, caregiving services, a global scholarship
+    programme, free continuing-education credits and certification reimbursement on clinical roles,
+    and quarterly incentive opportunities.
+  · CORRECT REFERENCE CLASS: insurance claims administration, loss adjusting and third-party
+    administration — a labour-intensive, licence-gated, client-fee-driven services business. NOT
+    technology, and not carrier underwriting. The one software-engineering voice in the reviews is
+    a rounding error in this company's labour market, and pricing its pay posture against a tech
+    reference class would be a category error.
+
+- Industry (tech / finance / healthcare / retail / other) + one-line justification:
+  OTHER — insurance services, specifically outsourced claims management, loss adjusting and
+  third-party administration; it sells claims-handling capacity to insurers, brokers and
+  self-insured corporates rather than bearing underwriting risk itself, so it is not a finance/
+  insurance carrier, and the review site's own "Insurance Agencies & Brokerages" label is wrong in
+  the other direction — it is neither an agency nor a broker. If the roster requires one of the
+  four named buckets, FINANCE is the least-wrong mapping, but note that a large minority of the
+  workforce and of the review population is clinical (nurse case management, utilization review,
+  medical-only claims), which pulls toward HEALTHCARE. Flagged as a genuine mapping problem rather
+  than resolved.
+
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY-NAME OCCURRENCES IN SECTION 1
+  "Crawford" or "Crawford & Company" appears in: the A-section attributions and URLs (8 excerpts);
+  A-excerpt bodies — "At Crawford, respect means…" (A4) and "Crawford offers opportunities to grow…"
+  (A6); B-excerpt bodies — "at Broadspire" (2026-02-20), "Crawford had always been fair. …At
+  Crawford nothing is free." (2026-05-03), "Crawford & company is a solid company choice"
+  (2026-05-22); C-section attributions and URLs (10); D-excerpt bodies — "At Crawford, digital
+  transformation efforts…" (2026-09-23); E-excerpt bodies — all four name the company, and one
+  names it twice; F-section attributions and the RESTORE-values excerpt. Every URL in the packet
+  names the company or its brand.
+
+BRAND, SUBSIDIARY AND PRODUCT NAMES
+  Broadspire (appears INSIDE two Section 1 excerpt bodies and in six source URLs); "BSI", a
+  reviewer's initialism for that brand, inside the 2025-11-26 excerpt; Contractor Connection;
+  edjuster; Exclaim; Crawford Catastrophe Services; Global Technical Services; MAYDAY; Risk
+  Sciences Group; WeGoLook; Praxis Consulting; BosBoon Expertise Group; GAB Robins; Graham Miller;
+  Brocklehurst; Thomas Howell; Crawford Educational Services; Japan Connect; Crawford85;
+  ClaimsAlert; Crawford Vision; KMC OnDemand (trademarked in the filing); Global Business Service
+  Center / GBSC; Crawford Innovative Ventures.
+
+NAMED INTERNAL PROGRAMMES AND VALUE FRAMEWORKS — handle by REWRITE THE PROPER NOUN, KEEP THE
+CLAUSE (section F rule), NOT by dropping the excerpt
+  RESTORE (and its expansion: Respect, Empowerment, Sustainability, Training, One Crawford,
+  Recognition, Entrepreneurial Spirit) — this is inside F excerpt 1 and is the single most
+  identifying string in the packet, because it is a bespoke acronym built on the company's own
+  purpose verb. "One Crawford" is embedded inside the acronym's expansion, so the clause cannot be
+  de-identified by removing the acronym alone. Recommend rendering as "a seven-value framework
+  whose initials spell the company's own purpose verb, the first of which is respect" and keeping
+  the surrounding people-first-culture clause.
+  Also: The Crawford Way; Employee Pulse survey; Manager Acceleration Program / MAP; Aspiring
+  Manager Program; Crawford Emerging Leaders Program; Global Scholarship Program; Women LEAD;
+  Crawford Cares; Season of Service; Dare to Cure; Claims School; Fast Track Program; Crawford Chat.
+
+EXECUTIVE, AUTHOR AND EMPLOYEE NAMES
+  In Section 1 excerpt bodies: "Rohit" (2026-03-06 review, first name only) and "Rohit Verma" and
+  "W. Bruce Swain, Jr." (E excerpts). In Section 1 attributions: the named Coverager editor.
+  Elsewhere in the research, and therefore likely to reappear on a rebuild: Jim Crawford (founder);
+  Jesse Crawford, Sr.; Rohit Verma; W. Bruce Swain, Jr.; Holly Boudreau; Michael Hoberman; Andrew
+  Bart; Pat Van Bakel; Paul Kottler; Lance Malcolm; Jeffrey Sickles; Jemin Thakkar; David Wright
+  (the D-section technology executive); Satoshi Yamazaki (D); Philip Meyerdierks (D); Miles Eibe
+  (the A-section testimonial AND the subject of a current video episode); Justin McEwan; James
+  Purkis; Micah Salvanera (named inside a live job posting's internal note); Gabriella Ben-Hutta;
+  Chris Davis; Brooke Hill.
+  NOTE: the A-section testimonial (A8) and the D-section employee profiles are attributed to named
+  individuals with stated tenure, location and role. Stripping the names leaves "Crawford Employee
+  Since 2014" and "head of Cyber and Marine at Crawford & Company Japan K.K." — both still
+  re-identifying. Recommend role-and-tenure generalisation, not name deletion alone.
+
+NAMED CLIENTS AND THIRD PARTIES
+  USAA — named by a reviewer as the client on a deployment (2025-07-03 review; outside the fifteen,
+  but it will resurface on any rebuild that widens the window). Third-party vendors and platforms
+  named in postings and the filing: Xactimate / Xactware; Cotality / Symbility; Mitchell Cloud
+  Estimating; CCC ONE; Web-Est; Scott Systems MaxxTraxx; Headspace; Personify Health (formerly
+  Virgin Pulse); Hinge Health; LinkedIn Learning; Franklin Covey; The Institutes; Microsoft 365
+  Copilot; Helixco; Alight (the destination of the departing chief executive); NFIP; URAC; CMSA.
+
+OFFICE LOCATIONS AND SITE NAMES
+  Review locations, to be REPLACED WITH GENERIC SITE TOKENS AND NOT DELETED (the dispersion field
+  depends on the variation): Jacksonville FL; Sunrise FL; Houston TX; Taguig; Allen TX; El Paso TX;
+  Remote (×4); "not stated" (×4). Note that "Remote" and "not stated" are themselves signal and
+  should not be collapsed into a site token.
+  Locations appearing elsewhere in the research and to be kept out of Section 1: the Peachtree
+  Corners, Georgia headquarters street address (which appears on two live postings and on the 10-K
+  cover); Lake Zurich, Illinois; Columbus, Ohio; Rock Island, Illinois; Dublin, Ohio; Manila;
+  Iloilo; Tokyo; Victoria, Australia; Essex, United Kingdom; Chile; Columbus, Georgia (the 1941
+  founding city).
+  SALARY BANDS: present on three of the four postings and deliberately excluded from Section 1;
+  the ranges are summarised only in Section 3.
+
+DISTINCTIVE PHRASES THAT COULD RE-IDENTIFY THE COMPANY EVEN AFTER THE NAME IS REMOVED — flagged
+separately per the prompt, because verbatim self-descriptions are searchable
+  "restoring lives, businesses and communities" (the purpose statement; appears verbatim or nearly
+  so on the careers site, in the postings' shared ABOUT US block, in the review site's own company
+  description and in the 85-years blog post); "the largest publicly listed independent provider of
+  claims management and outsourcing solutions globally"; "we hail from more than 70 countries and
+  speak dozens of languages"; "employees are empowered to grow, emboldened to act and inspired to
+  innovate"; "Because a claim is more than a number - it's a person, a child, a friend"; "more than
+  70 countries" (recurs in A, C, D, E and F and is close to a fingerprint on its own); "Top
+  quality, promptly" (the 1948 slogan); "from hire to retire"; "a culture shaped by people, not
+  programs" (this is inside A3); "Work that fits real life"; "Respect Comes First". The F-excerpt
+  phrase "world-class claims professional" is also distinctive.
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS, FLAGGED
+  Inside Section 1: "Mangers" (2026-09-13); "anual" (2026-08-13); "ans" (2026-02-20); "Worked
+  their for 4 years" (2026-03-06); "Client LIAISON Manager" (the reviewer's own mid-word
+  capitalisation, 2026-01-30); "Crawford & company" (lower-case c, 2026-05-22); "Quite Satisfying
+  Case Management Employment" as a job title (2026-06-16); "compañerisno" (not used in Section 1
+  but present in the source set). Each is a verbatim string that will match the source page on a
+  search even after every name is removed. The non-breaking hyphens (U+2011) in "long‑standing"
+  (A1) and "claims‑led" (D4) are likewise exact-match strings from the company's own CMS.
+
+STRUCTURAL NOTE FOR THE SCRUB STEP
+  Section 1 contains no pointer to any Section 2, 3 or 4 artifact by name. The three NOTE TO RATER
+  blocks and the scope declaration at the head of Section 1 restate, in de-identifiable form,
+  everything the rater needs from 2f and 2g. Checked deliberately against the P-08 and P-09
+  dangling-pointer defect.
+
+
+########## END OF PACKET ##########

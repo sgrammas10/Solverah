@@ -44,6 +44,15 @@ export interface PsychometricScore {
 
 export type SkillLevel = 'beginner' | 'intermediate' | 'advanced';
 
+/** The statuses the API accepts -- `CAREER_STATUSES` in solverah/domain/profile.py.
+ *  `PATCH /me/profile` and `PATCH /me/career-status` both answer 400 to anything else. */
+export const CAREER_STATUSES = ["employed", "between_jobs", "first_job"] as const;
+export type CareerStatus = (typeof CAREER_STATUSES)[number];
+
+export function isCareerStatus(value: unknown): value is CareerStatus {
+  return typeof value === "string" && (CAREER_STATUSES as readonly string[]).includes(value);
+}
+
 export interface Certification {
   id: number;
   name: string;

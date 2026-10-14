@@ -38,6 +38,17 @@
  * here always means a real failure, never "nothing yet." A failed gate is an
  * error card, never an open form: rendering the intro anyway would let this
  * user reach a form the page never got to confirm they may submit.
+ *
+ * PAST MODE (`subject="past"`, `/environment-report/past`; PRODUCT_DECISIONS
+ * §2, 2026-10-01). The same sixteen questions about the job before the
+ * user's current or most recent one -- one such report per user, only once a
+ * current one exists. Always past tense, its own draft key (useEnvReport), and
+ * it never builds or changes the Situation Report, so it ends on a thank-you
+ * screen here rather than handing off to `/situation-report`. Three gates, each
+ * read from the report up front AND from the submit's 409 as a backstop, the
+ * same two-layer pattern as `first_job` above: first_job (no role at all),
+ * already filed (`past_job_report_filed` / `past_report_limit`) and no current
+ * report yet (`current_report_required`).
  */
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -46,13 +57,19 @@ import { useProfile } from "../../profile";
 import { useEnvReport } from "../useEnvReport";
 import {
   isCareerStatusNotSet,
+  isCurrentReportRequiredRefusal,
   isFirstJobRefusal,
+  isPastReportLimitRefusal,
   useSituationReport,
   useSubmitEnvironmentReport,
 } from "../useSituationReport";
-import type { EnvironmentReportSubmission } from "../useSituationReport";
+import type { EnvironmentReportSubmission, SituationReport } from "../useSituationReport";
 import { ENV_FORM_STEPS, ENV_ITEMS } from "../data/envQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
+import type { EnvReportDraft, EnvReportSubject } from "../useEnvReport";
+import type { EnvIndustry, EnvStep } from "../data/envQuestions";
 
 /** `work_pulse.situation_items.TENSE_BY_CAREER_STATUS`, client side. Unknown
  *  or unset statuses render present tense -- the common case by far, and the
@@ -63,6 +80,25 @@ function isPastTense(careerStatus: string | undefined): boolean {
 
 type Phase = "intro" | "questions";
 
+/** Whether a report about the CURRENT job is on file. `complete` implies one;
+ *  `needs_core` echoes it as `environment` when it exists; and
+ *  `needs_environment_report` is, by name, the state without one. */
+function hasCurrentReport(report: SituationReport): boolean {
+  if (report.state === "complete") return true;
+  if (report.state === "needs_core") return report.environment !== null;
+  return false;
+}
+
+/** Where a past-mode gate or the done screen sends the user back to. */
+const PAST_HOME = { path: "/intelligence", label: "Back to your Intelligence Hub →" };
+
+/** Answered = key PRESENCE (see useEnvReport: comp's and industry's "not sure" is a stored null). */
+function isStepAnswered(draft: EnvReportDraft, step: EnvStep): boolean {
+  return step.kind === "dimension"
+    ? draft.answers[step.item.itemId] !== undefined
+    : Object.prototype.hasOwnProperty.call(draft.context, step.item.itemId);
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen bg-cream-base overflow-hidden">
@@ -72,9 +108,39 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** A centred card: the frame every past-mode gate and the done screen share. */
+function GateCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
+      <div className="max-w-md w-full rounded-xl border border-cream-muted bg-white px-6 py-8 space-y-4">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const PRIMARY_BUTTON =
+  "w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors";
+
 /** The one screen a `first_job` user ever sees on this route. */
-function NoRoleToDescribe() {
+function NoRoleToDescribe({ pastSubject }: { pastSubject: boolean }) {
   const navigate = useNavigate();
+  if (pastSubject) {
+    return (
+      <GateCard>
+        <h1 className="font-display text-xl font-semibold text-ink-primary">
+          There's no earlier job to describe
+        </h1>
+        <p className="text-sm text-ink-secondary leading-relaxed">
+          This form asks about a job you've held before, and you've told us you're
+          heading into your first one. There's nothing to fill in here.
+        </p>
+        <button type="button" onClick={() => navigate(PAST_HOME.path)} className={PRIMARY_BUTTON}>
+          {PAST_HOME.label}
+        </button>
+      </GateCard>
+    );
+  }
   return (
     <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
       <div className="max-w-md w-full rounded-xl border border-cream-muted bg-white px-6 py-8 space-y-4">
@@ -108,7 +174,7 @@ function NoRoleToDescribe() {
  * reads experience), so the client cannot decide this up front without
  * duplicating that derivation.
  */
-function CareerStatusNeeded() {
+function CareerStatusNeeded({ returnTo }: { returnTo: { path: string; label: string } }) {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
@@ -126,7 +192,12 @@ function CareerStatusNeeded() {
           type="button"
           onClick={() =>
             navigate("/job-seeker/profile?tab=experience", {
-              state: { showCareerStatusModal: true },
+              // returnTo: the profile page offers to bring the user back here
+              // once the status is saved (shared/lib/careerStatusReturn).
+              state: {
+                showCareerStatusModal: true,
+                returnTo,
+              },
             })
           }
           className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
@@ -134,6 +205,114 @@ function CareerStatusNeeded() {
           Set your career status →
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Past mode: the user's one past-job report is already on file. */
+function PastAlreadyFiled() {
+  const navigate = useNavigate();
+  return (
+    <GateCard>
+      <h1 className="font-display text-xl font-semibold text-ink-primary">
+        You've already described your earlier job
+      </h1>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        We only ask about one earlier job, and yours is saved. Thanks for filling it in.
+      </p>
+      <button type="button" onClick={() => navigate(PAST_HOME.path)} className={PRIMARY_BUTTON}>
+        {PAST_HOME.label}
+      </button>
+    </GateCard>
+  );
+}
+
+/** Past mode: no report about the current job yet, which has to come first. */
+function CurrentReportFirst() {
+  const navigate = useNavigate();
+  return (
+    <GateCard>
+      <h1 className="font-display text-xl font-semibold text-ink-primary">
+        Start with your current job
+      </h1>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        Describe your current or most recent job first. Once that's done, you can
+        come back and tell us about the one before it.
+      </p>
+      <button
+        type="button"
+        onClick={() => navigate("/environment-report")}
+        className={PRIMARY_BUTTON}
+      >
+        Describe your current job →
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate(PAST_HOME.path)}
+        className="w-full text-sm text-ink-secondary hover:text-ink-primary"
+      >
+        Not now
+      </button>
+    </GateCard>
+  );
+}
+
+/** Past mode's ending. No numbers (D-15) and no hand-off to the Situation
+ *  Report: a past report changes nothing there. */
+function PastSaved() {
+  const navigate = useNavigate();
+  return (
+    <GateCard>
+      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+        Saved
+      </p>
+      <h1 className="font-display text-xl font-semibold text-ink-primary">
+        Thanks — your earlier job is saved
+      </h1>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        This doesn't change your Situation Report. It helps Solverah learn which
+        gaps between a person and a job matter most, so the guidance gets better
+        for you and for everyone after you.
+      </p>
+      <button type="button" onClick={() => navigate(PAST_HOME.path)} className={PRIMARY_BUTTON}>
+        {PAST_HOME.label}
+      </button>
+    </GateCard>
+  );
+}
+
+/** Past mode's intro. */
+function PastIntro({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="space-y-5">
+      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+        Your earlier job
+      </p>
+      <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+        Now the job before that one
+      </h1>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        The same questions you answered about your work, asked about the job before
+        your current or most recent one. Twelve about the work, four about the
+        setup. About five minutes.
+      </p>
+      <p className="text-sm text-ink-secondary leading-relaxed">
+        Describe it as it actually was. It won't change your Situation Report — it
+        helps Solverah learn which gaps matter most.
+      </p>
+      <p className="text-xs text-ink-secondary leading-relaxed">
+        This is a private working note. Nobody at any employer can see it.{" "}
+        <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
+          How this works, and what we hold back →
+        </Link>
+      </p>
+      <button
+        type="button"
+        onClick={onStart}
+        className="w-full bg-forest-dark text-white font-semibold py-4 rounded hover:bg-forest-mid transition-colors text-base"
+      >
+        Start
+      </button>
     </div>
   );
 }
@@ -149,8 +328,8 @@ function Intro({ past, onStart }: { past: boolean; onStart: () => void }) {
       </h1>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
-          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus three about the setup. About five minutes."
-          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus three about the setup. About five minutes."}
+          ? "Work Pulse asked how you work. These ask what your most recent role actually offered — how much of the how was yours, what the tempo was, how decisions got made. Twelve questions about the work, plus four about the setup. About five minutes."
+          : "Work Pulse asked how you work. These ask what your role actually offers — how much of the how is yours, what the tempo is, how decisions get made. Twelve questions about the work, plus four about the setup. About five minutes."}
       </p>
       <p className="text-sm text-ink-secondary leading-relaxed">
         {past
@@ -181,21 +360,46 @@ function Intro({ past, onStart }: { past: boolean; onStart: () => void }) {
   );
 }
 
-export default function EnvironmentReportPage() {
+interface EnvironmentReportPageProps {
+  /** Which job the form describes. `past` is `/environment-report/past`. */
+  subject?: EnvReportSubject;
+}
+
+export default function EnvironmentReportPage({ subject = "current" }: EnvironmentReportPageProps) {
   const navigate = useNavigate();
+  const pastSubject = subject === "past";
   const { data: profile } = useProfile();
   const reportQuery = useSituationReport();
   const submitMutation = useSubmitEnvironmentReport();
-  const { draft, setAnswer, setContext, reset } = useEnvReport();
+  const { draft, setAnswer, setContext, reset } = useEnvReport(subject);
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [stepIndex, setStepIndex] = useState(0);
+  // A saved draft gets the shared resume prompt in place of the intro.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => Object.keys(draft.answers).length + Object.keys(draft.context).length > 0
+  );
+  const draftAnsweredCount = ENV_FORM_STEPS.filter((st) => isStepAnswered(draft, st)).length;
+
+  function handleResume() {
+    setStepIndex(firstUnansweredIndex(ENV_FORM_STEPS, (st) => isStepAnswered(draft, st)));
+    setPhase("questions");
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    reset();
+    setStepIndex(0);
+    setPhase("questions");
+    dismissResumePrompt();
+  }
 
   // `ProfileData` is an open `Record<string, unknown>`, so this narrows rather
   // than trusting the index signature.
   const careerStatus =
     typeof profile?.career_status === "string" ? profile.career_status : undefined;
-  const past = isPastTense(careerStatus);
+  // A past-job report is about a job that ended, whatever the user's status.
+  const past = pastSubject || isPastTense(careerStatus);
 
   // Gate one: the report says this user cannot submit. Only ever false for
   // `first_job`, and only carried in the state where it is decidable.
@@ -207,22 +411,48 @@ export default function EnvironmentReportPage() {
   // Gate three: the submit itself came back 409.
   const blockedBySubmit = isFirstJobRefusal(submitMutation.error);
 
+  // Past mode's done screen comes before every gate: the successful submit
+  // refetches the report, which then says `past_job_report_filed`.
+  if (pastSubject && submitMutation.isSuccess) {
+    return <PastSaved />;
+  }
+
   if (blockedByReport || blockedByProfile || blockedBySubmit) {
-    return <NoRoleToDescribe />;
+    return <NoRoleToDescribe pastSubject={pastSubject} />;
   }
 
   if (isCareerStatusNotSet(submitMutation.error)) {
-    return <CareerStatusNeeded />;
+    return (
+      <CareerStatusNeeded
+        returnTo={
+          // The label names where the path actually goes back to: in past mode
+          // that is this form about the earlier job, not the Situation Report
+          // (which a past report never changes) -- audit 2026-10-02, F7.
+          pastSubject
+            ? { path: "/environment-report/past", label: "the form about your earlier job" }
+            : { path: "/environment-report", label: "your Situation Report" }
+        }
+      />
+    );
+  }
+
+  if (pastSubject) {
+    if (report?.past_job_report_filed || isPastReportLimitRefusal(submitMutation.error)) {
+      return <PastAlreadyFiled />;
+    }
+    if (
+      (report && !hasCurrentReport(report)) ||
+      isCurrentReportRequiredRefusal(submitMutation.error)
+    ) {
+      return <CurrentReportFirst />;
+    }
   }
 
   const step = ENV_FORM_STEPS[stepIndex];
   const total = ENV_FORM_STEPS.length;
   const isLast = stepIndex === total - 1;
 
-  const isAnswered =
-    step.kind === "dimension"
-      ? draft.answers[step.item.itemId] !== undefined
-      : Object.prototype.hasOwnProperty.call(draft.context, step.item.itemId);
+  const isAnswered = isStepAnswered(draft, step);
 
   function handleNext() {
     if (!isLast) {
@@ -234,13 +464,17 @@ export default function EnvironmentReportPage() {
         ENV_ITEMS.map((item) => [item.itemId, draft.answers[item.itemId]]),
       ) as Record<string, string>,
       stage_size: draft.context.stage_size as number,
-      comp: draft.context.comp ?? null,
+      comp: (draft.context.comp as number | null | undefined) ?? null,
+      industry: (draft.context.industry as EnvIndustry | null | undefined) ?? null,
       experienced: draft.context.experienced as number,
+      subject,
     };
     submitMutation.mutate(body, {
       onSuccess: () => {
         reset();
-        navigate("/situation-report");
+        // Past mode stays here and renders PastSaved; the hook has already
+        // invalidated the report so `past_job_report_filed` refreshes.
+        if (!pastSubject) navigate("/situation-report");
       },
     });
   }
@@ -280,8 +514,25 @@ export default function EnvironmentReportPage() {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
-        <p className="text-sm text-ink-secondary">Building your Situation Report…</p>
+        <p className="text-sm text-ink-secondary">
+          {pastSubject ? "Saving your answers…" : "Building your Situation Report…"}
+        </p>
       </div>
+    );
+  }
+
+  // ── A saved draft: ask before resuming ──
+  if (showResumePrompt && draftAnsweredCount > 0) {
+    return (
+      <Shell>
+        <ResumePrompt
+          title={pastSubject ? "Your earlier job" : "Situation Report"}
+          answeredCount={draftAnsweredCount}
+          total={total}
+          onResume={handleResume}
+          onStartOver={handleStartOver}
+        />
+      </Shell>
     );
   }
 
@@ -289,7 +540,11 @@ export default function EnvironmentReportPage() {
   if (phase === "intro") {
     return (
       <Shell>
-        <Intro past={past} onStart={() => setPhase("questions")} />
+        {pastSubject ? (
+          <PastIntro onStart={() => setPhase("questions")} />
+        ) : (
+          <Intro past={past} onStart={() => setPhase("questions")} />
+        )}
       </Shell>
     );
   }

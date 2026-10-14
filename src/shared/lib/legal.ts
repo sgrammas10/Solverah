@@ -11,6 +11,9 @@
 export const TERMS_VERSION = "v0.9-draft-2026-08-20";
 export const LEGAL_IS_DRAFT = true; // flips the "under review" banner off when counsel signs off
 
+/** Shown as "Last updated" on /privacy and /terms. Change it whenever either text changes. */
+export const LEGAL_LAST_UPDATED = "28 September 2026";
+
 export const PRIVACY_POLICY_MD = `
 # Privacy Policy
 
@@ -26,7 +29,7 @@ Solverah ("we," "us") is a career platform. This policy explains what personal i
 
 **Assessment responses and results.** Your answers to Solverah assessments (such as Work Pulse) and the scores, narratives, and match results derived from them.
 
-**Early-access requests.** If you request early access, the name and email you submit.
+**Contact requests.** If you write to us or send us an interest form, the name, email, and message you submit.
 
 **Usage and security information.** IP address, browser/device information, and security events (such as logins and account changes) in our security audit log.
 
@@ -55,7 +58,7 @@ We do **not** collect government identifiers, precise geolocation, biometric dat
 
 ## How long we keep it
 
-We keep your information while your account is active. Specific limits: incomplete intake submissions that are never attached to an account are deleted after 90 days; IP addresses and device information in our security log are removed after 12 months; early-access contact information is kept only through the launch period. When you delete your account (below), deletion happens immediately, except where a short backup-retention window or a legal obligation applies.
+We keep your information while your account is active. Specific limits: incomplete intake submissions that are never attached to an account are deleted after 90 days; IP addresses and device information in our security log are removed after 12 months; contact requests are kept only as long as we need them to respond. When you delete your account (below), deletion happens immediately, except where a short backup-retention window or a legal obligation applies.
 
 ## Your choices and rights
 

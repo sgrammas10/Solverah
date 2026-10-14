@@ -1,0 +1,4 @@
+- [Core retakes live](core-retakes-live.md) — retakeable since 2026-10-02, no cooldown (one constant); which sitting each consumer reads; pin surprise open
+- [Legacy work_pulse retired](legacy-work-pulse-retired.md) — 410 kind_retired on every write door, scorer deleted, read-only result kept; contract script + matcher handed off
+- [form_version bump re-prompts everyone](form-version-bump-reprompts-everyone.md) — wording edits keep tokens; a version bump is a new instrument; never rename item_ids
+- [FocusType after fix wave 2026-10-02](focustype-scene-defects-2026-10-02.md) — fixes landed; touch-action is manipulation ON PURPOSE; 3000ms rule dead (Julie); spec missing

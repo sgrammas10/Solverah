@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { PRIMARY } from "../../../shared/ui/publicStyles";
 
 const UNLOCK_ITEMS = [
   "Your full 12-question Work Pulse assessment",
@@ -10,13 +11,13 @@ const UNLOCK_ITEMS = [
 export default function AccountGate() {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light mb-2">
+      <p className="text-[0.95rem] font-medium text-forest-mid mb-2">
         Your Work Pulse report is ready
       </p>
-      <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
+      <h1 className="font-headline text-[clamp(1.6rem,3.4vw,2.2rem)] font-extrabold leading-[1.1] tracking-[-0.02em] text-ink-primary">
         Unlock your full results
       </h1>
-      <p className="text-sm text-ink-secondary mt-2 mb-5">
+      <p className="text-[1.02rem] leading-[1.6] text-ink-secondary mt-3 mb-5">
         Create a free account to access:
       </p>
 
@@ -31,7 +32,7 @@ export default function AccountGate() {
 
       <Link
         to="/register?from=wpll"
-        className="w-full block text-center bg-forest-dark text-white font-semibold py-3.5 rounded hover:bg-forest-mid transition-colors mt-6"
+        className={`${PRIMARY} w-full mt-6`}
       >
         Create my free account →
       </Link>

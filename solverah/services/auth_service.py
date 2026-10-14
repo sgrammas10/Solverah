@@ -36,6 +36,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
+import sqlalchemy as sa
+
 from model import User, db
 from solverah.domain import auth as domain
 from solverah.repositories import (
@@ -47,10 +49,15 @@ from solverah.services import outbox
 
 __all__ = [
     "AuthResult",
+    "CONFIRM_CODE_EXPIRED",
+    "CONFIRM_INVALID_CODE",
     "MAX_LOGIN_ATTEMPTS",
     "LOGIN_LOCKOUT_MINUTES",
+    "RESET_INVALID_OR_EXPIRED",
+    "clear_failed_logins",
     "confirm_email",
     "login",
+    "record_failed_login",
     "register",
     "request_password_reset",
     "resend_confirmation",
@@ -59,6 +66,17 @@ __all__ = [
 
 MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", "5"))
 LOGIN_LOCKOUT_MINUTES = int(os.environ.get("LOGIN_LOCKOUT_MINUTES", "15"))
+
+#: The ``error`` strings a bad one-time code answers with.  They ARE the
+#: machine-readable codes: the SPA keys its user-facing copy on these exact
+#: values (``src/features/auth/otpErrorCopy.ts``, G8), the contract baseline
+#: records ``{"error": "invalid code"}`` byte-for-byte, and the legacy
+#: ``{"error": ...}`` body has no other field to carry a code in.  Named so a
+#: reword here is a deliberate wire change rather than a copy edit that
+#: silently drops every verify screen back to raw server text.
+CONFIRM_INVALID_CODE = "invalid code"
+CONFIRM_CODE_EXPIRED = "code expired"
+RESET_INVALID_OR_EXPIRED = "invalid_or_expired_code"
 
 
 @dataclass
@@ -84,6 +102,80 @@ class AuthResult:
 
 def _error(status: int, message: str, **extra: Any) -> AuthResult:
     return AuthResult(status=status, body=dict({"error": message}, **extra))
+
+
+def _account(user: User) -> Dict[str, Any]:
+    """The four identity fields an auth response carries, read off *user* now.
+
+    Callers read these before they commit, not after. A commit expires every
+    loaded attribute, so the same four reads afterwards are a SELECT of a row
+    the transaction already holds.
+    """
+    return {"id": user.id, "email": user.email, "name": user.name, "role": user.role}
+
+
+_users = User.__table__
+
+
+def _write_login_counter(user_id: int, **values: Any) -> None:
+    """Write the lockout columns in one UPDATE, then commit.
+
+    In SQL rather than through the ORM instance, so the new values are computed
+    from the row as the database holds it when the UPDATE runs. Two counter
+    writes that overlap therefore both land: the second waits on the first's
+    row lock, then computes from its committed count. Counted in Python, both
+    read the same count and ``version``; ``users`` carries ``version_id_col``,
+    so the second write matched no row and raised ``StaleDataError`` -- a 500,
+    and a lost count.
+
+    The UPDATE moves ``version`` but does not check it, and not checking is
+    what lets two counter writes serialise instead of failing. What moving it
+    keeps is the ORM side of the contract: a session that loaded this row
+    before the UPDATE still gets ``StaleDataError`` from its own flush rather
+    than overwriting these values. The ``User`` instance in the caller's session
+    is stale until the commit below expires it, and nothing reads it in between.
+    """
+    db.session.execute(
+        sa.update(_users)
+        .where(_users.c.id == user_id)
+        .values(version=_users.c.version + 1, **values)
+    )
+    db.session.commit()
+
+
+def record_failed_login(user: User) -> None:
+    """Count one wrong password against *user*. Commits.
+
+    The lockout rule for every password sign-in -- :func:`login` and
+    ``intake_service.sign_in`` -- lives here once, so the two share one counter
+    and one threshold. The intake path used to keep its own copy, counted in
+    Python, with the lost update :func:`_write_login_counter` describes. The
+    failure that reaches :data:`MAX_LOGIN_ATTEMPTS` sets ``locked_until`` and
+    restarts the count; every SET expression reads the pre-update row.
+    """
+    reached = _users.c.failed_login_count + 1 >= MAX_LOGIN_ATTEMPTS
+    _write_login_counter(
+        user.id,
+        failed_login_count=sa.case((reached, 0), else_=_users.c.failed_login_count + 1),
+        locked_until=sa.case(
+            (reached, domain.lockout_until(LOGIN_LOCKOUT_MINUTES)),
+            else_=_users.c.locked_until,
+        ),
+    )
+
+
+def clear_failed_logins(user: User) -> None:
+    """After a correct password, zero the count and lift any lock. Commits if it writes.
+
+    Both password paths call this *before* their email-confirmation gate, so
+    confirming an address never leaves a stale counter behind. A row with
+    nothing to clear is not written: a commit with nothing in it still costs a
+    round trip and expires ``user``, and the next read reloads the row. When it
+    does write, ``user`` comes back expired, so callers read what they need off
+    it first.
+    """
+    if user.failed_login_count or user.locked_until is not None:
+        _write_login_counter(user.id, failed_login_count=0, locked_until=None)
 
 
 # ---------------------------------------------------------------------------
@@ -160,20 +252,13 @@ def register(
     entry_id = outbox.enqueue(
         outbox.TOPIC_EMAIL_VERIFICATION, {"to": new_user.email, "code": code}
     )
+    account = _account(new_user)
     db.session.commit()
     outbox.publish_soon(entry_id)
 
     return AuthResult(
         status=201,
-        body={
-            "message": "registered",
-            "user": {
-                "id": new_user.id,
-                "email": new_user.email,
-                "name": new_user.name,
-                "role": new_user.role,
-            },
-        },
+        body={"message": "registered", "user": account},
         user=new_user,
     )
 
@@ -197,6 +282,11 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
     a password oracle; and the confirmation gate is tested *after* the failed-
     attempt counter is reset, so confirming an email does not leave a stale
     counter behind.
+
+    The counter is :func:`record_failed_login` and :func:`clear_failed_logins`,
+    shared with the intake sign-in. A successful login with nothing to reset
+    writes and commits nothing: the session row ``refresh_tokens.issue``
+    inserts next is then the request's only commit.
     """
     email = (email or "").strip().lower()
     password = password or ""
@@ -220,39 +310,33 @@ def login(*, email: str, password: str, check_password, wp_v2_completed) -> Auth
 
     if not user or not check_password(user.password_hash, password):
         if user:
-            user.failed_login_count += 1
-            if user.failed_login_count >= MAX_LOGIN_ATTEMPTS:
-                user.locked_until = domain.lockout_until(LOGIN_LOCKOUT_MINUTES)
-                user.failed_login_count = 0
-            db.session.commit()
+            record_failed_login(user)
         return _error(401, "Invalid credentials")
 
-    # Reset failed attempts and clear lockout
-    user.failed_login_count = 0
-    user.locked_until = None
-    db.session.commit()
+    # Read before clear_failed_logins can commit and expire the row.
+    user_id = user.id
+    account = _account(user)
+    email_confirmed = getattr(user, "email_confirmed", False)
+    clear_failed_logins(user)
 
     # Require email confirmation
-    if not getattr(user, "email_confirmed", False):
+    if not email_confirmed:
         return _error(
             403,
             "Email not confirmed. Please check your inbox or use the resend option.",
         )
 
-    finished = assessment_repository.completed_kinds(user.id)
+    finished = assessment_repository.completed_kinds(user_id)
     return AuthResult(
         status=200,
         body={
             "message": "login successful",
             "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "role": user.role,
-                "profileData": profile_repository.load_document(user.id),
+                **account,
+                "profileData": profile_repository.load_document(user_id),
                 "wpl_completed": "work_pulse" in finished,
                 "wpll_completed": "wpll" in finished,
-                "wp_v2_completed": wp_v2_completed(user.id),
+                "wp_v2_completed": wp_v2_completed(user_id),
             },
         },
         user=user,
@@ -273,14 +357,14 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
 
     user = user_repository.find_by_email(email)
     if not user or not user.confirmation_token:
-        return _error(400, "invalid code")
+        return _error(400, CONFIRM_INVALID_CODE)
 
     # Check expiry (15 minutes for 6-digit codes)
     if domain.is_code_expired(user.confirmation_sent_at):
-        return _error(400, "code expired")
+        return _error(400, CONFIRM_CODE_EXPIRED)
 
     if user.confirmation_token != code:
-        return _error(400, "invalid code")
+        return _error(400, CONFIRM_INVALID_CODE)
 
     user.email_confirmed = True
     # Phase 2c's `users.status`. Nothing reads it yet, and it is maintained here
@@ -407,29 +491,22 @@ def verify_password_reset(*, email: str, code: str) -> AuthResult:
 
     user = user_repository.find_by_email(email)
     if not user or not user.reset_token:
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     if domain.is_code_expired(user.reset_sent_at):
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     if user.reset_token != code:
-        return _error(400, "invalid_or_expired_code")
+        return _error(400, RESET_INVALID_OR_EXPIRED)
 
     user.reset_token = None
     user.reset_sent_at = None
+    account = _account(user)
     db.session.commit()
 
     return AuthResult(
         status=200,
-        body={
-            "message": "login successful",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "name": user.name,
-                "role": user.role,
-            },
-        },
+        body={"message": "login successful", "user": account},
         user=user,
         issue_token=True,
     )

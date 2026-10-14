@@ -303,9 +303,10 @@ def patch_my_profile():
     diffed against the stored parser snapshot to record ResumeParseCorrection
     rows for anything the user changed after a resume upload.
 
-    Still a read-modify-write of a whole JSON column (P0-1), and still without a
-    version to check. Phase 2 is what fixes that; the envelope this returns is
-    where the version will go.
+    Two concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge
+    runs under a server-side compare-and-swap on the profile's version and is
+    re-applied to a fresh read when another writer got there first. The version
+    is not exposed; the envelope this returns is where it would go.
     """
     user = _current_user()
     if not user:
@@ -400,10 +401,11 @@ def put_my_skills():
 @me_bp.route("/me/dashboard", methods=["GET"])
 @jwt_required()
 def get_my_dashboard():
-    """GET /me/dashboard - profile completion, match count, application count.
+    """GET /me/dashboard - profile completion, counts, activity, next steps.
 
-    recentActivity and recommendations are static placeholders until those
-    features exist; the three counts are live.
+    recentActivity is the caller's real events (newest first, ISO timestamps)
+    and recommendations their next unfinished steps; see
+    solverah.services.dashboard_feed. The three counts are live.
     """
     email = get_jwt_identity()
     user = user_repository.find_by_email(email)
@@ -472,7 +474,14 @@ SITUATION_REPORT_SUBMIT_LIMIT = "5 per minute"
         "from the caller's profile at submit time, not taken from the request body. "
         "`first_job` has no role to describe and is refused with a distinguishable "
         "`409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip "
-        "path (PRODUCT_DECISIONS.md §2, 2026-09-10)."
+        "path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default "
+        "`current`): `past` files the user's one report about the job before their "
+        "current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is "
+        "refused `409` with `errors[0].code` `first_job_no_role` for first_job, "
+        "`current_report_required` before any current report exists, and "
+        "`past_report_limit` once one is filed. A past report is stored and "
+        "exported but never changes `GET /me/situation-report` beyond its "
+        "`past_job_report_filed` flag. The response echoes `subject`."
     ),
 )
 @me_bp.route("/me/environment-report", methods=["POST"])
@@ -507,7 +516,14 @@ def post_my_environment_report():
         "Manager Decoder. `complete` additionally carries `events_since_report` "
         "(BUILD_PLAN B-4): Pulse life/work events logged after the environment "
         "report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- "
-        "what the frontend's resubmission banner reads."
+        "what the frontend's resubmission banner reads -- and `career_status_changed` "
+        "(bool): whether the user's live career status now reads in a different tense "
+        "from the one the report was filed under, so the frontend can ask them to "
+        "describe the job again (the report itself is not re-sliced). `needs_core` "
+        "carries `core_unreadable: true` when a core sitting exists but the pinned one "
+        "has no readable scores. Every state carries "
+        "`past_job_report_filed` (bool): whether the user's one past-job environment "
+        "report exists. Only reports about the current job feed the report itself."
     ),
 )
 @me_bp.route("/me/situation-report", methods=["GET"])
@@ -742,9 +758,10 @@ PULSE_SUBMIT_LIMIT = "5 per minute"
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
-        "The server derives both the sequence (`pulse_checkin_count`) and the three "
-        "dimensions it must answer (`dimensions_for_checkin`) -- the client never "
-        "chooses either. Posting a different dimension set, or a score outside 1..5, "
+        "The server derives both the sequence (`claim_checkin_sequence`, which counts "
+        "the user's check-ins under a per-user lock held until the commit) and the "
+        "three dimensions it must answer (`dimensions_for_checkin`) -- the client "
+        "never chooses either. Posting a different dimension set, or a score outside 1..5, "
         "is refused `422` in problem+json rather than accepted or 500ing."
     ),
 )

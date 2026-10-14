@@ -11,8 +11,9 @@
  *   2. Stored: `profile.manager_match_result` on the already-cached profile
  *      document — answered from cache, no ManagerMatch request.
  *   3. Fetched: `GET /me/assessments/manager_match/result` through
- *      `useManagerMatchResult`. Its 404 ("No ManagerMatch result found")
- *      means the instrument was never finished — redirect to the quiz.
+ *      `useManagerMatchResult`. Its 404 means the instrument was never
+ *      finished — redirect to the quiz. The status decides that, not the
+ *      message (`isNoManagerMatchResult`).
  *
  * This used to be a hand-rolled `FetchState` machine over the same three
  * sources; the tiers are unchanged, only the machinery moved into the query.
@@ -20,7 +21,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { MMResult } from "../useMM";
-import { useManagerMatchResult } from "../useManagerMatchResult";
+import { isNoManagerMatchResult, useManagerMatchResult } from "../useManagerMatchResult";
 import { useProfile } from "../../profile";
 
 const DIMENSIONS = [
@@ -60,9 +61,8 @@ export default function ManagerMatchResultsPage() {
   // Tier 3 finding nothing is not an error state, it is "the instrument was
   // never finished" — same redirect the hand-rolled fetch made. The 404 is a
   // client error in shouldRetry's classification, so it arrives here without
-  // retry delay.
-  const errMsg = mmQuery.error instanceof Error ? mmQuery.error.message : "";
-  const noStoredResult = errMsg.includes("No ManagerMatch result found");
+  // retry delay. Read off the status, never the message text (F6).
+  const noStoredResult = isNoManagerMatchResult(mmQuery.error);
   useEffect(() => {
     if (noStoredResult) navigate("/manager-match", { replace: true });
   }, [noStoredResult, navigate]);

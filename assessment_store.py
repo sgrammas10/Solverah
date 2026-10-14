@@ -18,6 +18,10 @@ would have put us in.
 
 RETAKE SEMANTICS
 ----------------
+Retakes are live since 2026-10-02 (Sebastian's ruling: retakeable, no cooldown for now; the
+switch is `assessment_service.CORE_RETAKE_COOLDOWN`). Before that date the UI offered no way
+to start a second sitting, though everything below already held.
+
 Raw responses are append-only: a retake writes 24 new rows under a new submission_id, and
 the old sitting stays readable forever. Derived scores are unique per
 (user, dimension, scoring_key_version), so a retake under the same key version UPDATES the
@@ -53,10 +57,12 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+from datetime import datetime
 
 from assessment_form import ScoredSubmission
 
 __all__ = [
+    "completed_core_sittings",
     "dimension_scores_for_submission",
     "export_person_side",
     "first_completed_core_submission_id",
@@ -64,6 +70,7 @@ __all__ = [
     "get_dimension_scores",
     "has_completed_assessment",
     "latest_completed_core_submission_id",
+    "latest_core_completed_at",
     "persist_submission",
     "respondent_id_for_user",
 ]
@@ -101,7 +108,13 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
     transaction by construction: a scores row whose raw responses were not written is
     un-recomputable, raw responses with no scores are invisible to every consumer, and a
     submission row without either is a sitting that never happened.
+
+    Four statements however many dimensions are scored, and none of them a read: the form
+    registration, the sitting's INSERT (whose RETURNING brings `public_id` back), one
+    multi-row INSERT of the raw responses, and one upsert of the scores.
     """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     from model import (
         AssessmentForm,
         AssessmentResponse,
@@ -124,10 +137,13 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
         scored_at=db.func.now(),
     )
     db.session.add(sitting)
-    # Flushed and refreshed because `public_id` defaults to `uuidv7()` in the database
-    # (A13) -- the value does not exist until the INSERT has run.
+    # Flushed because `public_id` defaults to `uuidv7()` in the database (A13) -- the value
+    # does not exist until the INSERT has run. The INSERT fetches it back with RETURNING
+    # (the mapper's eager_defaults="auto" on a driver that supports it), so there is no
+    # second read. Added through the ORM rather than as a Core insert on purpose:
+    # dashboard_feed's after_flush hook is what retires the cached Recent Activity when a
+    # sitting lands, and a Core statement would slip past it.
     db.session.flush()
-    db.session.refresh(sitting, ["public_id"])
     submission_id = sitting.public_id.hex
 
     for item_id, choice in result.choices.items():
@@ -140,36 +156,48 @@ def persist_submission(db, user_id: int, result: ScoredSubmission) -> str:
                 form_version=result.form_version,
             )
         )
+    # One multi-row INSERT, sent now rather than at the caller's commit: the upsert below
+    # is a Core statement, which does not autoflush, and the raw rows land before the
+    # scores derived from them -- the order this function has always written them in.
+    db.session.flush()
 
-    for dimension_key, score in result.scores.items():
-        existing = PersonDimensionScore.query.filter_by(
-            user_id=user_id,
-            dimension_key=dimension_key,
-            scoring_key_version=result.scoring_key_version,
-        ).first()
-        # D-17: confidence comes from the submission, indexed strictly -- a dimension the
-        # scorer scored but did not grade for confidence is a contract violation, not a
-        # default-to-NULL (D-07). None is a legitimate VALUE here for exactly one reason:
-        # CONFIDENCE_PENDING_DIMENSIONS (feedback, D-17(a)).
-        confidence = result.confidences[dimension_key]
-        if existing is None:
-            db.session.add(
-                PersonDimensionScore(
-                    user_id=user_id,
-                    dimension_key=dimension_key,
-                    score=score,
-                    confidence=confidence,
-                    scoring_key_version=result.scoring_key_version,
-                    submission_id=submission_id,
-                )
+    scores = [
+        {
+            "user_id": user_id,
+            "dimension_key": dimension_key,
+            "score": score,
+            # D-17: confidence comes from the submission, indexed strictly -- a dimension
+            # the scorer scored but did not grade for confidence is a contract violation,
+            # not a default-to-NULL (D-07). None is a legitimate VALUE here for exactly one
+            # reason: CONFIDENCE_PENDING_DIMENSIONS (feedback, D-17(a)).
+            "confidence": result.confidences[dimension_key],
+            "scoring_key_version": result.scoring_key_version,
+            "submission_id": submission_id,
+        }
+        for dimension_key, score in result.scores.items()
+    ]
+    if scores:
+        # One statement on the table's own unique key, uq_pscore_person_dim_keyversion,
+        # instead of a SELECT and a write per dimension. The first sitting under a key
+        # inserts (scored_at from its column default); a retake overwrites in place, as
+        # the RETAKE SEMANTICS above describe. Two first sittings at once no longer race:
+        # the second waits for the first's rows and updates them, where select-then-insert
+        # had already decided "no row" and failed on the unique key.
+        upsert = pg_insert(PersonDimensionScore.__table__).values(scores)
+        db.session.execute(
+            upsert.on_conflict_do_update(
+                index_elements=["user_id", "dimension_key", "scoring_key_version"],
+                set_={
+                    "score": upsert.excluded.score,
+                    # A retake refreshes confidence with the score -- a new sitting's score
+                    # carrying the OLD sitting's e would attribute one submission's answer
+                    # pattern to another.
+                    "confidence": upsert.excluded.confidence,
+                    "submission_id": upsert.excluded.submission_id,
+                    "scored_at": db.func.now(),
+                },
             )
-        else:
-            existing.score = score
-            # A retake refreshes confidence with the score -- a new sitting's score carrying
-            # the OLD sitting's e would attribute one submission's answer pattern to another.
-            existing.confidence = confidence
-            existing.submission_id = submission_id
-            existing.scored_at = db.func.now()
+        )
 
     return submission_id
 
@@ -268,6 +296,14 @@ def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | No
     Returns None if `submission_id` names no responses -- an unknown or malformed
     handle, never a partial score (D-07): a caller with a real pin always gets either
     a complete six-dimension dict or an explicit absence to handle.
+
+    Also None when the sitting's rows cannot be scored against the CURRENT item file
+    -- a sitting from before an item-bank change whose item ids the file no longer
+    holds. The Situation Report's default pin (`situation_report_service._default_pin`,
+    over `completed_core_sittings`) is deliberately not keyed to the scoring-key
+    version, so it can name such a sitting; raising here turned that into a 500. An
+    absence is the honest answer: the default pin falls forward to the next readable
+    sitting on it, and an explicit pin gates on `core_unreadable`.
     """
     from model import AssessmentResponse
 
@@ -275,10 +311,13 @@ def dimension_scores_for_submission(submission_id: str) -> dict[str, float] | No
     if not rows:
         return None
 
-    from assessment_form import score_stored_choices
+    from assessment_form import AssessmentError, score_stored_choices
 
     choices = {r.item_id: r.choice for r in rows}
-    return score_stored_choices(choices)
+    try:
+        return score_stored_choices(choices)
+    except AssessmentError:
+        return None
 
 
 def first_completed_core_submission_id(user_id: int) -> str | None:
@@ -327,6 +366,62 @@ def latest_completed_core_submission_id(user_id: int) -> str | None:
         .first()
     )
     return row.public_id.hex if row is not None else None
+
+
+def completed_core_sittings(user_id: int) -> list[tuple[str, datetime]]:
+    """Every completed `core` sitting this user has, as `(submission_id, completed_at)`
+    pairs, oldest first. Empty list if none. Read-only.
+
+    The candidate list for BUILD_PLAN A-5's default D-15 pin (⚑5) once core became
+    retakeable (6babb39): `situation_report_service._default_pin` picks the sitting
+    that was current when the user's first Environment Report was filed, which needs
+    the sittings in time order rather than just the two ends of it. Same order as
+    `first_completed_core_submission_id` (`completed_at`, then `id`, ascending), so
+    element 0 is always that function's answer and element -1 is
+    `latest_completed_core_submission_id`'s.
+
+    Deliberately NOT keyed to the scoring-key version, like the two functions it
+    mirrors. The pin rule is about WHEN a sitting happened relative to the report, and
+    a version filter would silently drop the sitting that was current at filing time
+    and anchor on a different one. Whether a sitting can still be scored is
+    `dimension_scores_for_submission`'s question (it returns None for one it cannot),
+    and the caller asks it per candidate. `completed_at IS NULL` rows are excluded: a
+    `core` row is always written complete (`persist_submission`), and a sitting with no
+    completion time cannot be placed before or after anything.
+
+    Ids only, never answers or scores -- same D-01 reasoning as
+    `first_completed_core_submission_id`.
+    """
+    from model import AssessmentSubmission
+
+    rows = (
+        AssessmentSubmission.query.filter(
+            AssessmentSubmission.user_id == user_id,
+            AssessmentSubmission.kind == "core",
+            AssessmentSubmission.completed_at.isnot(None),
+        )
+        .order_by(AssessmentSubmission.completed_at.asc(), AssessmentSubmission.id.asc())
+        .with_entities(AssessmentSubmission.public_id, AssessmentSubmission.completed_at)
+        .all()
+    )
+    return [(public_id.hex, completed_at) for public_id, completed_at in rows]
+
+
+def latest_core_completed_at(user_id: int):
+    """When this user's most recent `core` sitting completed (aware datetime), or None.
+
+    Read by `assessment_service.CORE_RETAKE_COOLDOWN`'s check and nothing else. Same row
+    and same order as `latest_completed_core_submission_id`.
+    """
+    from model import AssessmentSubmission
+
+    row = (
+        AssessmentSubmission.query.filter_by(user_id=user_id, kind="core")
+        .order_by(AssessmentSubmission.completed_at.desc(), AssessmentSubmission.id.desc())
+        .with_entities(AssessmentSubmission.completed_at)
+        .first()
+    )
+    return row[0] if row is not None else None
 
 
 def export_person_side(user_id: int) -> dict[str, list[dict]]:

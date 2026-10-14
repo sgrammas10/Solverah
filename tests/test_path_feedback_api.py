@@ -48,6 +48,11 @@ CODE = "15-1252.00"
 OTHER = "15-1251.00"
 RESIDUAL = "15-1299.99"
 
+#: Narrator completions one job's narration makes for the two-card lists these
+#: tests score (CODE, OTHER). W-17: both are in the page's first three, and each
+#: of those is its own one-card call, so one narration is two calls, not one.
+ONE_NARRATION = 2
+
 PROFILE = {
     "career_status": "employed",
     "skills": ["Python", "SQL"],
@@ -438,7 +443,7 @@ def test_the_job_a_reload_polls_carries_the_stored_judgements(
 
     with app.app_context():
         user = User.query.filter_by(email=EMAIL).first()
-        status, result, error = scoring_jobs._score_path_suggestions(
+        status, result, error, _narration = scoring_jobs._score_path_suggestions(
             {"user_id": user.id}
         )
 
@@ -1080,14 +1085,24 @@ def test_a_reserve_miss_is_an_empty_mapping_not_an_error():
 
 
 def _run_job():
-    """``(status, result, error)`` from the job a page load posts and polls."""
+    """``(status, result, error)`` from the job a page load posts and polls.
+
+    W-16 split the job into a scored phase and a narration phase that its
+    caller runs afterwards; this runs both, in that order, and returns the
+    NARRATED result -- what the page's poll settles on.
+    """
     from app import app
     from model import User
     from solverah.services import scoring_jobs
 
     with app.app_context():
         user = User.query.filter_by(email=EMAIL).first()
-        return scoring_jobs._score_path_suggestions({"user_id": user.id})
+        status, result, error, narration = scoring_jobs._score_path_suggestions(
+            {"user_id": user.id}
+        )
+        if narration is not None:
+            result = narration()
+        return status, result, error
 
 
 def _reserve():
@@ -1133,7 +1148,7 @@ def test_a_removed_card_comes_back_with_the_job_prose(
     card = next(s for s in restored["suggestions"] if s["onet_code"] == CODE)
     assert card["why_text"] == "Because %s." % CODE
     assert card["profile_dimensions"] == ["a", "b"]
-    assert mock_narrator.call_count == 1, "the job narrated once; nothing else did"
+    assert mock_narrator.call_count == ONE_NARRATION, "the job narrated once; nothing else did"
 
 
 def test_a_tap_on_a_cold_cache_does_not_poison_the_next_job(
@@ -1152,7 +1167,7 @@ def test_a_tap_on_a_cold_cache_does_not_poison_the_next_job(
 
     _, result, _ = _run_job()
 
-    assert mock_narrator.call_count == 1, "the job must still narrate"
+    assert mock_narrator.call_count == ONE_NARRATION, "the job must still narrate"
     assert all("Because" in s["why_text"] for s in result["suggestions"])
     assert all(s["profile_dimensions"] == ["a", "b"] for s in result["suggestions"])
 
@@ -1205,11 +1220,11 @@ def test_a_narrated_payload_is_still_served_warm(
     """
     mock_scorer.return_value = _scored(CODE, OTHER)
     _run_job()
-    assert mock_narrator.call_count == 1
+    assert mock_narrator.call_count == ONE_NARRATION
 
     _, result, _ = _run_job()
 
-    assert mock_narrator.call_count == 1
+    assert mock_narrator.call_count == ONE_NARRATION
     assert all("Because" in s["why_text"] for s in result["suggestions"])
 
 
@@ -1229,7 +1244,7 @@ def test_a_tap_on_a_narrated_list_leaves_the_cache_warm(
 
     _, result, _ = _run_job()
 
-    assert mock_narrator.call_count == 1, "the reload served the warm cache"
+    assert mock_narrator.call_count == ONE_NARRATION, "the reload served the warm cache"
     assert all("Because" in s["why_text"] for s in result["suggestions"])
 
 
@@ -1250,3 +1265,316 @@ def test_the_cache_records_whether_a_payload_was_narrated():
 
     path_cache.invalidate(4243)
     assert path_cache.is_narrated(4243) is False, "a miss is not narrated either"
+
+
+# ---------------------------------------------------------------------------
+# W-16 -- a tap that lands while the job's narration is still running
+# ---------------------------------------------------------------------------
+#
+# The job now shows its scored cards first and narrates after, off the request
+# thread, so a user can tap before the sentences exist. Two promises: the tap
+# works (and prints no placeholder that the narration would then overwrite),
+# and the narration is not lost when it lands after the tap.
+
+
+def _score_without_narrating():
+    """Run a job's scored phase and hand back its narration un-run."""
+    from app import app
+    from model import User
+    from solverah.services import intelligence_service
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        result = intelligence_service.path_suggestions(user, app.logger)
+    assert result.status == 200
+    assert result.body["narration_pending"] is True
+    assert result.narration is not None
+    return result
+
+
+def _run_narration(narration):
+    from app import app
+
+    with app.app_context():
+        return narration()
+
+
+def test_a_tap_during_narration_leaves_unwritten_cards_empty_and_is_filled_later(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    job = _score_without_narrating()
+
+    # The tap re-ranks: OTHER first now. No sentence exists for either card yet
+    # and one is on its way, so both are left empty -- not "Uses your Python
+    # and SQL.", which would change under the reader two seconds later.
+    mock_scorer.return_value = _scored(OTHER, CODE)
+    tapped = _post(client, signed_in, code=OTHER, verdict="interesting").get_json()
+
+    assert [s["onet_code"] for s in tapped["suggestions"]] == [OTHER, CODE]
+    assert tapped["narration_pending"] is True
+    assert [s["why_text"] for s in tapped["suggestions"]] == ["", ""]
+    assert mock_narrator.call_count == 0, "the tap is still LLM-free"
+
+    final = _run_narration(job.narration)
+
+    # The job's own result is its own list, narrated...
+    assert [s["onet_code"] for s in final["suggestions"]] == [CODE, OTHER]
+    assert final["narration_pending"] is False
+    # ...and the list the user is LOOKING AT -- the tap's -- was filled in
+    # place, in the tap's order. This is what the page re-reads.
+    shown = client.get("/api/v1/me/path-suggestions").get_json()
+    assert [s["onet_code"] for s in shown["suggestions"]] == [OTHER, CODE]
+    assert shown["narration_pending"] is False
+    assert [s["why_text"] for s in shown["suggestions"]] == [
+        "Because %s." % OTHER,
+        "Because %s." % CODE,
+    ]
+    assert shown["feedback"] == {OTHER: "interesting"}
+
+
+def test_a_tap_after_the_narration_landed_reads_the_stored_sentences(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """No shimmer once nothing is running: the tap reads the reserve, and on a
+    cold worker (reserve gone) the table -- `_describe`'s source 1b."""
+    from solverah.services import path_cache
+
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    _run_narration(_score_without_narrating().narration)
+
+    path_cache.clear()  # a deploy: the reserve and the list are gone
+    tapped = _post(client, signed_in, code=CODE, verdict="interesting").get_json()
+
+    assert tapped["narration_pending"] is False
+    assert [s["why_text"] for s in tapped["suggestions"]] == [
+        "Because %s." % CODE,
+        "Because %s." % OTHER,
+    ]
+    assert all(s["profile_dimensions"] == ["a", "b"] for s in tapped["suggestions"])
+    assert mock_narrator.call_count == ONE_NARRATION
+
+
+def test_a_reload_during_narration_scores_again_rather_than_serving_the_pending_list(
+    client, signed_in, corpus, mock_scorer, mock_narrator
+):
+    """A pending list is not a hit, even after a tap marked it narrated.
+
+    The tap above takes prose from the reserve for some cards and so stores the
+    list as "narrated" while other cards still wait. A job served THAT list would
+    have no narration of its own to finish it and would shimmer until the
+    deadline. Regression for the W-14 hit rule, extended.
+    """
+    from solverah.services import path_cache
+
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    job = _score_without_narrating()
+    path_cache.store_reserve(_user_id(), {CODE: {"why_text": "Kept.", "profile_dimensions": []}})
+    mock_scorer.return_value = _scored(CODE, OTHER)
+    tapped = _post(client, signed_in, code=CODE, verdict="interesting").get_json()
+    assert tapped["narration_pending"] is True
+    assert path_cache.is_narrated(_user_id())
+
+    _, result, _ = _run_job()
+
+    assert result["narration_pending"] is False
+    assert mock_scorer.call_count == 3, "the reload scored again"
+    del job
+
+
+def test_the_cache_fills_a_tap_that_raced_a_finishing_narration():
+    """`store_rescore`'s lock-held branch, at the module that owns it.
+
+    The tap read the cache while the narration was running (so it left a card
+    empty), and the narration finished before the tap stored. Stored as it was,
+    that list would wait forever for a narration that already came and went.
+    """
+    from solverah.services import intelligence_service, path_cache
+
+    path_cache.clear()
+    card = {"onet_code": CODE, "why_text": "", "profile_dimensions": [], "overlapping_skills": ["SQL"]}
+    job_payload = {"suggestions": [dict(card)], "narration_pending": True}
+    path_cache.store(7, job_payload, narrated=False, token="t1", pending=True)
+
+    landed = path_cache.finish_narration(
+        7, "t1", {CODE: {"why_text": "Written.", "profile_dimensions": ["x", "y"]}},
+        intelligence_service._fill_payload,
+    )
+    assert landed["narration_pending"] is False
+
+    tap_payload = {"suggestions": [dict(card)], "narration_pending": True}
+    stored = path_cache.store_rescore(7, tap_payload, False, intelligence_service._fill_payload)
+
+    assert stored["narration_pending"] is False
+    assert stored["suggestions"][0]["why_text"] == "Written."
+    assert path_cache.get(7) == stored
+    assert path_cache.is_narrated(7)
+    path_cache.clear()
+
+
+def test_a_narration_for_a_list_that_is_gone_touches_nothing():
+    """Invalidated (a profile write) or replaced (a newer job): the narration's
+    sentences may describe a person who no longer exists, so they fill no list
+    and replace no reserve."""
+    from solverah.services import intelligence_service, path_cache
+
+    path_cache.clear()
+    fill = intelligence_service._fill_payload
+    payload = {"suggestions": [{"onet_code": CODE, "why_text": "", "overlapping_skills": []}],
+               "narration_pending": True}
+
+    path_cache.store(8, payload, narrated=False, token="old", pending=True)
+    path_cache.invalidate(8)
+    assert path_cache.finish_narration(8, "old", {CODE: {"why_text": "Stale."}}, fill) is None
+    assert path_cache.get(8) is None
+    assert path_cache.get_reserve(8) == {}
+
+    path_cache.store(8, payload, narrated=False, token="new", pending=True)
+    assert path_cache.finish_narration(8, "old", {CODE: {"why_text": "Stale."}}, fill) is None
+    assert path_cache.get(8)["narration_pending"] is True
+    assert path_cache.narration_token(8) == "new"
+    path_cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# W-17: the first three land before the rest
+# ---------------------------------------------------------------------------
+
+
+def test_a_partial_landing_fills_the_list_but_never_marks_it_narrated():
+    """`land_partial` at the module that owns it.
+
+    W-14's flag means "a job may serve this instead of narrating". A list with
+    three sentences and seven still coming is not that: a reload that served it
+    would have nothing to finish the other seven. Only `finish_narration` sets
+    the flag, and the entry stays pending (so a tap still waits for the rest).
+    """
+    from solverah.services import intelligence_service, path_cache
+
+    path_cache.clear()
+    cards = [
+        {"onet_code": code, "why_text": "", "profile_dimensions": [], "overlapping_skills": []}
+        for code in (CODE, OTHER)
+    ]
+    path_cache.store(9, {"suggestions": cards, "narration_pending": True},
+                     narrated=False, token="t", pending=True)
+
+    partial = path_cache.land_partial(
+        9, "t", {CODE: {"why_text": "First.", "profile_dimensions": ["a", "b"]}},
+        intelligence_service._fill_landed,
+    )
+
+    assert [s["why_text"] for s in partial["suggestions"]] == ["First.", ""], (
+        "the landed card is filled; the other stays empty -- no fallback yet"
+    )
+    assert partial["narration_pending"] is True
+    assert path_cache.get(9) == partial
+    assert not path_cache.is_narrated(9)
+    assert path_cache.narration_token(9) == "t", "still pending: the rest is coming"
+    assert path_cache.get_reserve(9) == {}, "the reserve is the finish's to replace"
+
+    assert path_cache.land_partial(9, "other", {}, intelligence_service._fill_landed) is None
+    path_cache.clear()
+
+
+def test_a_tap_while_only_the_first_three_have_landed_keeps_them(
+    client, signed_in, corpus, mock_scorer, monkeypatch
+):
+    """A tap between the first three landing and the tail landing.
+
+    It must keep the three sentences that are already on screen -- not blank
+    them, and not swap them for fallbacks -- and leave the cards whose
+    sentences are still coming empty, for the narration to fill when it ends.
+    Regression for W-17: before it, no sentence reached the list before the
+    whole narration ended, so there was nothing for a tap to keep.
+    """
+    import threading
+
+    from app import app
+
+    codes = [CODE, OTHER, "15-1253.00", "15-1254.00", "15-1255.00"]
+    head, tail = codes[:3], codes[3:]
+    release = threading.Event()
+
+    def narrate(candidates, _ctx):
+        if len(candidates) > 1:  # a tail batch: held until the tap is done
+            assert release.wait(10), "the test never released the tail"
+        return [
+            PathSuggestion(onet_code=c.onet_code, title=c.title,
+                           why_text="Because %s." % c.onet_code, profile_dimensions=["a", "b"])
+            for c in candidates
+        ]
+
+    monkeypatch.setattr(pn, "generate_narratives", MagicMock(side_effect=narrate))
+    mock_scorer.return_value = _scored(*codes)
+    job = _score_without_narrating()
+
+    three_landed = threading.Event()
+    partials: list = []
+
+    def on_partial(payload):
+        partials.append(payload)
+        if all(s["why_text"] for s in payload["suggestions"][:3]):
+            three_landed.set()
+
+    finals: list = []
+
+    def run():
+        with app.app_context():
+            finals.append(job.narration(on_partial=on_partial))
+
+    worker = threading.Thread(target=run)
+    worker.start()
+    try:
+        assert three_landed.wait(10), "the first three never landed on their own"
+        partial = partials[-1]
+        assert partial["narration_pending"] is True
+        assert [s["why_text"] for s in partial["suggestions"]] == [
+            "Because %s." % code for code in head
+        ] + ["", ""]
+
+        mock_scorer.return_value = _scored(*reversed(codes))
+        tapped = _post(client, signed_in, code=CODE, verdict="interesting").get_json()
+    finally:
+        release.set()
+        worker.join(10)
+
+    by_code = {s["onet_code"]: s["why_text"] for s in tapped["suggestions"]}
+    assert tapped["narration_pending"] is True
+    assert [by_code[code] for code in head] == ["Because %s." % code for code in head]
+    assert [by_code[code] for code in tail] == ["", ""], "still coming: left empty"
+
+    assert finals and finals[0]["narration_pending"] is False
+    shown = client.get("/api/v1/me/path-suggestions").get_json()
+    assert [s["onet_code"] for s in shown["suggestions"]] == list(reversed(codes))
+    assert shown["narration_pending"] is False
+    assert all(s["why_text"] == "Because %s." % s["onet_code"] for s in shown["suggestions"])
+
+
+# ---------------------------------------------------------------------------
+# W-18 -- the tap path carries the O*NET summary too
+# ---------------------------------------------------------------------------
+
+
+def test_a_tap_carries_every_cards_summary_including_one_promoted_from_the_reserve(
+    client, signed_in, corpus, mock_scorer, mock_narrator, monkeypatch
+):
+    """`_describe` builds the tapped list card by card, so it must fill the
+    summary itself: a card lifted out of the reserve was never on the wire and
+    has no cached card to carry one from. Fails before W-18 (no `summary`)."""
+    from backend.services import occupation_summaries
+
+    table = occupation_summaries.SummariesTable(
+        summaries={CODE: "Develop software.", OTHER: "Write programs."}
+    )
+    monkeypatch.setattr(occupation_summaries, "get_summaries", lambda _corpus: table)
+    _store_reserve({OTHER: {"why_text": "Card 11's sentence.", "profile_dimensions": []}})
+    mock_scorer.return_value = _scored(CODE, OTHER)
+
+    body = _post(client, signed_in, verdict="interesting").get_json()
+
+    summaries = {s["onet_code"]: s["summary"] for s in body["suggestions"]}
+    assert summaries == {CODE: "Develop software.", OTHER: "Write programs."}
+    shown = client.get("/api/v1/me/path-suggestions").get_json()
+    assert {s["onet_code"]: s["summary"] for s in shown["suggestions"]} == summaries
+    assert mock_narrator.call_count == 0, "the tap is still LLM-free"

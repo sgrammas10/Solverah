@@ -60,6 +60,13 @@ SAFE_QUERY_KEYS = frozenset(
 #: `solverah_modeldev_b` and friends without widening the rule.
 DEV_DB_PREFIX = "solverah_modeldev"
 
+#: The pilot-form research database (`causal_graph/v1_model/pilot_form/`). Its
+#: own prefix rather than a widening of DEV_DB_PREFIX: pilot rows are REAL
+#: respondents and synthetic cohorts must never land beside them, so each
+#: harness accepts only its own family of names. Same three conditions, same
+#: refusal, no override.
+PILOT_DB_PREFIX = "solverah_pilot"
+
 
 class UnsafeDatabaseError(RuntimeError):
     """The URL is not a local model-dev database. Never downgraded to a warning."""
@@ -90,6 +97,15 @@ def assert_local_dev_database(url: str, *, app_env: str | None = None) -> str:
     `app_env` defaults to os.environ["APP_ENV"]; it is a parameter so the check
     itself is testable without mutating the process environment.
     """
+    return assert_local_database(url, prefix=DEV_DB_PREFIX, app_env=app_env)
+
+
+def assert_local_database(url: str, *, prefix: str, app_env: str | None = None) -> str:
+    """The guard itself, for any database-name family (`DEV_DB_PREFIX`,
+    `PILOT_DB_PREFIX`). Every condition in the module docstring applies; only
+    the required name prefix differs."""
+    if not prefix:
+        raise UnsafeDatabaseError("no database-name prefix given -- refusing to guess")
     if not isinstance(url, str) or not url.strip():
         raise UnsafeDatabaseError(
             "no database URL given -- this harness never falls back to a default "
@@ -125,18 +141,18 @@ def assert_local_dev_database(url: str, *, app_env: str | None = None) -> str:
         )
 
     name = _database_name(url)
-    if not name.startswith(DEV_DB_PREFIX):
+    if not name.startswith(prefix):
         raise UnsafeDatabaseError(
             "database %r does not start with %r -- a local host is not enough. "
             "The pipeline database is `%s`; the app's own database, the test "
             "databases and every other lane's database are all off limits here."
-            % (name, DEV_DB_PREFIX, DEV_DB_PREFIX)
+            % (name, prefix, prefix)
         )
 
     return url
 
 
-def require_database_url(explicit: str | None = None) -> str:
+def require_database_url(explicit: str | None = None, *, prefix: str = DEV_DB_PREFIX) -> str:
     """The URL these scripts will actually use, guarded.
 
     `explicit` is the --database-url argument. Falling back to the DATABASE_URL
@@ -145,7 +161,7 @@ def require_database_url(explicit: str | None = None) -> str:
     neither is set, this raises rather than connecting to something unnamed.
     """
     url = explicit or os.environ.get("DATABASE_URL") or ""
-    return assert_local_dev_database(url)
+    return assert_local_database(url, prefix=prefix)
 
 
 def add_database_argument(parser) -> None:

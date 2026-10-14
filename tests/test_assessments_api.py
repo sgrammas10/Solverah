@@ -17,11 +17,16 @@ that could have been quietly lost in it:
 
 Phase 3c split the route down the middle, and the per-kind submit tests below
 are the statement of the split: `core` and `focus_type` still submit here (they
-score in-process, A19, and keep this door permanently), while `work_pulse`,
-`wpll` and `manager_match` are refused with a 410 pointing at `POST
-/assessments/{kind}/scoring-jobs`. Two accept, three refuse -- a blanket gate
-that 410'd all five, or a route that quietly accepted a moved kind again, each
-fail exactly one half of the pair.
+score in-process, A19, and keep this door permanently), while `wpll` and
+`manager_match` are refused with a 410 pointing at `POST
+/assessments/{kind}/scoring-jobs`. Two accept, two refuse -- a blanket gate
+that 410'd all of them, or a route that quietly accepted a moved kind again,
+each fail exactly one half of the pair. The retired `work_pulse` (2026-10-02)
+is a 410 of its own, with no pointer: its tests are in test_work_pulse_submit.py.
+
+`core` is retakeable since 2026-10-02 (Sebastian's ruling: no cooldown for
+now). The retake tests at the bottom pin what a second sitting does to the
+stored state, and that the cooldown switch works when it is turned on.
 """
 
 import json
@@ -81,6 +86,14 @@ MM_LLM_RESPONSE = {
 
 def _noop(*_args, **_kwargs):
     return None
+
+
+# `respondent_id_for_user` reads this at call time and has no default by design
+# (D-05). Set per file, never in conftest.py: test_assessment_form.py deletes it
+# to prove the no-default rule holds.
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
 
 
 def _mock_openai(monkeypatch, payload):
@@ -201,21 +214,26 @@ def _assert_refused(resp, kind):
     assert body["replaced_by"] == "/assessments/%s/scoring-jobs" % kind
 
 
-def test_work_pulse_synchronous_submit_is_refused_with_a_pointer(
+def test_work_pulse_synchronous_submit_is_retired_without_a_pointer(
     client, auth, monkeypatch
 ):
-    """Refuse #1. Even a perfectly valid body: the operation is gone, not picky."""
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    """The retired kind. Even a perfectly valid body: the operation is gone and
+    has no replacement route to point at."""
+    provider = _mock_openai(monkeypatch, WP_LLM_RESPONSE)
 
-    _assert_refused(
-        _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth), "work_pulse"
-    )
+    resp = _submit(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
+
+    assert resp.status_code == 410
+    body = resp.get_json()
+    assert body["errors"] == [{"field": "kind", "code": "kind_retired"}]
+    assert "replaced_by" not in body
+    assert provider.chat.completions.create.call_count == 0
 
 
 def test_manager_match_synchronous_submit_is_refused_with_a_pointer(
     client, auth, monkeypatch
 ):
-    """Refuse #2."""
+    """Refuse #1."""
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     _assert_refused(
@@ -224,7 +242,7 @@ def test_manager_match_synchronous_submit_is_refused_with_a_pointer(
 
 
 def test_wpll_synchronous_submit_is_refused_even_anonymously(client):
-    """Refuse #3. `wpll` needs no JWT, so the tombstone must not either."""
+    """Refuse #2. `wpll` needs no JWT, so the tombstone must not either."""
     _assert_refused(
         _submit(client, "wpll", {"answers": [{"question_id": "q1", "option_id": "a"}]}),
         "wpll",
@@ -234,20 +252,22 @@ def test_wpll_synchronous_submit_is_refused_even_anonymously(client):
 def test_the_result_shapes_are_still_not_interchangeable(client, auth, monkeypatch):
     """The hazard the collapse creates: one route inviting one payload.
 
-    A Work Pulse result carries a narrative and an archetype; a FocusType result
-    carries dimension scores and recommendations. If a future refactor
-    harmonised them into a shared envelope this is the test that notices. Work
-    Pulse's body now arrives through its only door, the scoring job.
+    A WPLL result carries a teaser sentence and locked section titles; a
+    FocusType result carries dimension scores and recommendations. If a future
+    refactor harmonised them into a shared envelope this is the test that
+    notices. WPLL's body arrives through its only door, the scoring job. (It
+    was Work Pulse's narrative here until that instrument was retired.)
     """
-    _mock_openai(monkeypatch, WP_LLM_RESPONSE)
+    _mock_openai(monkeypatch, {"insight_text": "You do your sharpest thinking in quiet blocks."})
 
-    work_pulse = _job_result(
-        client, "work_pulse", _queue(client, "work_pulse", {"answers": WP_ANSWERS}, auth)
-    )
+    wpll_answers = [
+        {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i} for i in range(1, 6)
+    ]
+    wpll = _job_result(client, "wpll", _queue(client, "wpll", {"answers": wpll_answers}))
     focus_type = _submit(client, "focus_type", FOCUS_TYPE_PAYLOAD, auth).get_json()
 
-    assert "narrative" in work_pulse and "narrative" not in focus_type
-    assert "dimension_scores" in focus_type and "dimension_scores" not in work_pulse
+    assert "insight_text" in wpll and "insight_text" not in focus_type
+    assert "dimension_scores" in focus_type and "dimension_scores" not in wpll
 
 
 # ── `core` withholds its scores, through every door ─────────────────────────
@@ -396,3 +416,148 @@ def test_each_kind_gets_its_own_rate_limit_bucket(enforcing, auth, monkeypatch):
     assert other.status_code != 429
 
 
+# ── `core` retakes (ruling 2026-10-02: retakeable, no cooldown for now) ─────
+
+
+def _complete_core(client, csrf, pick):
+    """One `core` sitting through the real form; *pick(i)* chooses item i's option.
+
+    Two options per item, position-balanced against the pole, so a fixed index
+    scores flat 0.5 everywhere -- a retake needs a different PATTERN to score
+    differently (the same note test_situation_report_api.py carries).
+    """
+    form = client.get("/api/v1/assessments/core/form")
+    assert form.status_code == 200
+    responses = {}
+    i = 0
+    for block in form.get_json()["blocks"]:
+        for item in block["items"]:
+            responses[item["token"]] = item["options"][pick(i) % len(item["options"])]["key"]
+            i += 1
+    return _submit(client, "core", {"responses": responses}, csrf)
+
+
+def _uniform(_i):
+    return 0
+
+
+def _varied(i):
+    return 1 if i % 3 == 0 else 0
+
+
+def _user_id(email="assess-api@example.com"):
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=email).first().id
+
+
+def test_a_core_retake_is_accepted_and_stored_as_its_own_sitting(
+    client, auth, monkeypatch
+):
+    """Two sittings, two rows, two ids; the current scores follow the newest,
+    and the first sitting's scores stay re-derivable from its own raw rows --
+    which is what the Situation Report's pin reads."""
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+    import assessment_store
+
+    first = _complete_core(client, auth, _uniform)
+    second = _complete_core(client, auth, _varied)
+
+    assert first.status_code == 200 and second.status_code == 200
+    assert first.get_json()["submission_id"] != second.get_json()["submission_id"]
+
+    from app import app
+
+    user_id = _user_id()
+    with app.app_context():
+        assert assessment_store.first_completed_core_submission_id(user_id) == (
+            first.get_json()["submission_id"]
+        )
+        assert assessment_store.latest_completed_core_submission_id(user_id) == (
+            second.get_json()["submission_id"]
+        )
+        first_scores = assessment_store.dimension_scores_for_submission(
+            first.get_json()["submission_id"]
+        )
+        second_scores = assessment_store.dimension_scores_for_submission(
+            second.get_json()["submission_id"]
+        )
+        assert first_scores != second_scores
+        assert assessment_store.get_dimension_scores(user_id) == second_scores
+        assert assessment_store.has_completed_assessment(user_id) is True
+
+
+def test_a_retake_keeps_core_completed_throughout(client, auth, monkeypatch):
+    """The decision for a retake in progress: still completed.
+
+    An unfinished retake lives only in the browser (the answers are a client
+    draft until Finish), so nothing on the server changes until the second
+    sitting lands -- and when it does, completion holds.
+    """
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+    assert _complete_core(client, auth, _uniform).status_code == 200
+
+    # The retake starts: the form is fetched again, nothing is submitted yet.
+    assert client.get("/api/v1/assessments/core/form").status_code == 200
+    mid = client.get("/api/v1/auth/session").get_json()["flags"]
+    catalogue = client.get("/api/v1/assessments").get_json()["data"]
+    assert mid["wp_v2_completed"] is True
+    assert {e["kind"] for e in catalogue if e["completed"]} == {"core"}
+
+    assert _complete_core(client, auth, _varied).status_code == 200
+    assert client.get("/api/v1/auth/session").get_json()["flags"]["wp_v2_completed"] is True
+
+
+def test_the_retake_cooldown_is_off_by_default():
+    from solverah.services import assessment_service
+
+    assert assessment_service.CORE_RETAKE_COOLDOWN is None
+
+
+def test_a_retake_inside_the_cooldown_is_a_409_when_one_is_set(
+    client, auth, monkeypatch
+):
+    """The switch works when it is turned on: the first sitting is never
+    refused, the retake inside the window is, and nothing is written."""
+    import datetime
+
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+    from solverah.services import assessment_service
+
+    monkeypatch.setattr(
+        assessment_service, "CORE_RETAKE_COOLDOWN", datetime.timedelta(days=30)
+    )
+
+    assert _complete_core(client, auth, _uniform).status_code == 200
+    refused = _complete_core(client, auth, _varied)
+
+    assert refused.status_code == 409
+    assert refused.mimetype == "application/problem+json"
+    body = refused.get_json()
+    assert body["errors"] == [{"field": "core", "code": "retake_cooldown"}]
+    assert body["retake_available_at"]
+
+    from app import app
+    from model import AssessmentSubmission
+
+    with app.app_context():
+        assert (
+            AssessmentSubmission.query.filter_by(user_id=_user_id(), kind="core").count()
+            == 1
+        )
+
+
+def test_a_retake_after_the_cooldown_is_accepted(client, auth, monkeypatch):
+    import datetime
+
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+    from solverah.services import assessment_service
+
+    assert _complete_core(client, auth, _uniform).status_code == 200
+    monkeypatch.setattr(
+        assessment_service, "CORE_RETAKE_COOLDOWN", datetime.timedelta(seconds=0)
+    )
+
+    assert _complete_core(client, auth, _varied).status_code == 200

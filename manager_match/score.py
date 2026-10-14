@@ -34,11 +34,27 @@ def score_manager_match(answers: list[dict]) -> dict:
     if len(answers) != 15:
         raise ValueError(f"Expected 15 answers, got {len(answers)}")
 
+    # The same three checks as `manager_profile._validate`, in the same order.
+    # Without the first two an unknown id was a KeyError out of the lookup
+    # below and a duplicate silently left another question unanswered (and
+    # then a KeyError in the dimension means) -- either way an unhandled
+    # exception rather than the ValueError every caller turns into a 400.
+    seen: set[str] = set()
     for ans in answers:
+        if not isinstance(ans, dict):
+            raise ValueError("Each answer must be an object with question_id and choice")
+        qid = ans.get("question_id")
+        if not isinstance(qid, str) or qid not in _SCORE_LOOKUP:
+            raise ValueError(f"Unknown question_id '{qid}'")
+        if qid in seen:
+            raise ValueError(f"Duplicate answer for question '{qid}'")
+        seen.add(qid)
         if ans.get("choice") not in _VALID_CHOICES:
             raise ValueError(
-                f"Invalid choice '{ans.get('choice')}' for question '{ans.get('question_id')}'; must be 'a' or 'b'"
+                f"Invalid choice '{ans.get('choice')}' for question '{qid}'; must be 'a' or 'b'"
             )
+    # Fifteen unique, known ids cover every question, so a missing answer is
+    # already impossible by the time we get here.
 
     scores_by_question: dict[str, float] = {
         ans["question_id"]: _SCORE_LOOKUP[ans["question_id"]][ans["choice"]]

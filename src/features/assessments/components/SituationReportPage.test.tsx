@@ -179,6 +179,7 @@ const COMPLETE: SituationComplete = {
   dimensions: [STRAINING_AUTONOMY, NOTABLE_FEEDBACK, ALIGNED_PACE],
   guidance_notice: GUIDANCE_NOTICE,
   events_since_report: [],
+  past_job_report_filed: false,
 };
 
 /** The needs-forward slice of the autonomy row, written out in full rather
@@ -218,7 +219,30 @@ const COMPLETE_NEEDS_FORWARD: SituationComplete = {
   dimensions: [NEEDS_FORWARD_AUTONOMY],
   guidance_notice: GUIDANCE_NOTICE,
   events_since_report: [],
+  past_job_report_filed: false,
 };
+
+/** Open every strained card's guidance, the way a reader would: one click
+ *  per card toggle. The panels stay in the DOM while closed (print shows them),
+ *  so role queries -- which skip `hidden` content -- are the ones that need this. */
+function expandAll() {
+  screen
+    .getAllByRole("button", { name: /^Show guidance for/ })
+    .forEach((toggle) => fireEvent.click(toggle));
+}
+
+/** The card for one dimension, found by its heading. */
+function cardFor(name: string): HTMLElement {
+  return screen.getByRole("heading", { level: 3, name }).closest("article") as HTMLElement;
+}
+
+/** The dimension names in the order the list renders them. */
+function renderedOrder(): string[] {
+  const list = screen.getByRole("region", { name: "Dimension by dimension" });
+  return within(list)
+    .getAllByRole("listitem")
+    .map((item) => within(item).getByRole("heading", { level: 3 }).textContent ?? "");
+}
 
 /** No digit from `env_score` or `rank` may appear anywhere on the page. */
 function expectNoScoresLeaked() {
@@ -251,6 +275,7 @@ describe("SituationReportPage", () => {
       state: "needs_core",
       manager: { has_profile: false },
       environment: null,
+      past_job_report_filed: false,
     };
 
     it("bridges to Work Pulse", async () => {
@@ -280,6 +305,20 @@ describe("SituationReportPage", () => {
       expect(screen.queryByText(/Straining|Notable|Aligned/)).not.toBeInTheDocument();
       expectNoScoresLeaked();
     });
+
+    // Audit 2026-10-02, F2: a sitting exists but the pinned one can't be read.
+    // "You haven't finished Work Pulse" would be false; the way back is a retake.
+    it("says the sitting couldn't be read, not that it was never taken, when core_unreadable", async () => {
+      serve({ ...NEEDS_CORE, core_unreadable: true });
+      renderPage();
+
+      expect(
+        await screen.findByRole("heading", { name: "We couldn't read your side" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/isn't finished yet/)).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /Take Work Pulse again/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse");
+    });
   });
 
   describe("needs_environment_report", () => {
@@ -287,6 +326,7 @@ describe("SituationReportPage", () => {
       state: "needs_environment_report",
       manager: { has_profile: false },
       can_submit_environment_report: true,
+      past_job_report_filed: false,
     };
 
     it("prompts for the environment report", async () => {
@@ -294,7 +334,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       expect(await screen.findByRole("heading", { name: "One half to go" })).toBeInTheDocument();
-      expect(screen.getByText(/fifteen questions about your job/)).toBeInTheDocument();
+      expect(screen.getByText(/sixteen questions about your job/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
       expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
     });
@@ -326,6 +366,18 @@ describe("SituationReportPage", () => {
         .getAllByRole("heading", { level: 3 })
         .map((h) => h.textContent);
       expect(headings).toEqual(["Autonomy", "Feedback", "Pace"]);
+      expect(renderedOrder()).toEqual(["Autonomy", "Feedback", "Pace"]);
+      expectNoScoresLeaked();
+    });
+
+    it("never re-sorts: an order the client would not have chosen renders exactly as sent", async () => {
+      // Aligned first, notable before straining -- not the server's tiering,
+      // which is the point: a client that groups or sorts by bucket fails here.
+      serve({ ...COMPLETE, dimensions: [ALIGNED_PACE, NOTABLE_FEEDBACK, STRAINING_AUTONOMY] });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(renderedOrder()).toEqual(["Pace", "Feedback", "Autonomy"]);
       expectNoScoresLeaked();
     });
 
@@ -340,36 +392,200 @@ describe("SituationReportPage", () => {
       expect(screen.getByText("More than you need")).toBeInTheDocument();
     });
 
-    it("renders the at-a-glance strip in document order, words only and no digits", async () => {
+    it("leads with one line naming the most strained dimension, from the payload, no digits", async () => {
       serve(COMPLETE);
       renderPage();
 
-      const heading = await screen.findByText("At a glance");
-      const strip = heading.closest("section");
-      expect(strip).not.toBeNull();
-
-      const chips = within(strip as HTMLElement).getAllByRole("listitem");
-      expect(chips.map((chip) => chip.textContent)).toEqual([
-        "Autonomy — Straining",
-        "Feedback — Notable",
-        "Pace — Aligned",
-      ]);
-      expect(strip?.textContent ?? "").not.toMatch(/\d/);
+      const lead = await screen.findByText(/where you and this job sit furthest apart/);
+      expect(lead.textContent).toBe(
+        "Autonomy is where you and this job sit furthest apart. The rest follow in order, most strain first.",
+      );
+      expect(lead.textContent ?? "").not.toMatch(/\d/);
+      // The old "In short" box restated the list below it; it is gone.
+      expect(screen.queryByRole("region", { name: "In short" })).not.toBeInTheDocument();
     });
 
-    it("renders all three guidance registers on a straining dimension", async () => {
+    it("leads with the first strained row even when the server put an aligned row first", async () => {
+      serve({ ...COMPLETE, dimensions: [ALIGNED_PACE, NOTABLE_FEEDBACK, STRAINING_AUTONOMY] });
+      renderPage();
+
+      expect(
+        await screen.findByText(/^Feedback is where you and this job sit furthest apart/),
+      ).toBeInTheDocument();
+    });
+
+    it("says nothing is straining in the lead when every row is aligned", async () => {
+      serve({ ...COMPLETE, dimensions: [ALIGNED_PACE] });
+      renderPage();
+
+      expect(
+        await screen.findByText(/^Nothing is straining: on every dimension we measure/),
+      ).toBeInTheDocument();
+    });
+
+    it("shows each strained dimension compactly: name, bucket, direction, headline", async () => {
       serve(COMPLETE);
       renderPage();
 
-      expect(await screen.findByText("Change it in place")).toBeInTheDocument();
-      expect(screen.getByText("Negotiate it")).toBeInTheDocument();
-      expect(screen.getAllByText("This one rarely moves").length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { level: 3, name: "Autonomy" });
+      const card = cardFor("Autonomy");
+      expect(within(card).getByText("Straining")).toBeVisible();
+      expect(within(card).getByText("Less than you need")).toBeVisible();
+      expect(
+        within(card).getByText("The role decides more of the how than you want decided"),
+      ).toBeVisible();
+      // The guidance itself is behind the disclosure until asked for.
+      expect(within(card).getByRole("tab", { name: "Try a change", hidden: true })).not.toBeVisible();
+      expect(
+        within(card).getByText("This role settles more of that before it reaches you."),
+      ).not.toBeVisible();
+    });
 
-      expect(screen.getByText("One piece, your method, for a fortnight")).toBeInTheDocument();
-      expect(screen.getByText("Name the piece before you start.")).toBeInTheDocument();
-      expect(screen.getByText(/I'd like to own the approach on X end to end/)).toBeInTheDocument();
-      expect(screen.getByText(/Ask whether the constraint is real/)).toBeInTheDocument();
-      expect(screen.getByText(/How you'll know it worked/)).toBeInTheDocument();
+    it("expands and collapses a card's guidance with an accessible disclosure", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const toggle = await screen.findByRole("button", { name: "Show guidance for Autonomy" });
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+      expect(panel).not.toBeNull();
+      expect(panel).not.toBeVisible();
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "true");
+      expect(toggle).toHaveAccessibleName("Hide guidance for Autonomy");
+      expect(panel).toBeVisible();
+      expect(within(panel as HTMLElement).getByRole("tab", { name: "Negotiate it" })).toBeVisible();
+      // Only the card that was asked for opens.
+      expect(screen.getByRole("button", { name: "Show guidance for Feedback" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+
+      fireEvent.click(toggle);
+      expect(toggle).toHaveAttribute("aria-expanded", "false");
+      expect(panel).not.toBeVisible();
+    });
+
+    it("opens and closes every card at once", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      fireEvent.click(await screen.findByRole("button", { name: "Open all" }));
+      expect(screen.getByRole("button", { name: "Hide guidance for Autonomy" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      expect(screen.getByRole("button", { name: "Hide guidance for Feedback" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Close all" }));
+      expect(screen.getAllByRole("button", { name: /^Show guidance for/ })).toHaveLength(2);
+    });
+
+    it("prints every card expanded and every register, with the toggles and tabs hidden", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const toggles = await screen.findAllByRole("button", { name: /^Show guidance for/ });
+      expect(toggles).toHaveLength(2);
+      toggles.forEach((toggle) => {
+        // Collapsed on screen, but `print:block` overrides `hidden` on paper.
+        const panel = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+        expect(panel).toHaveAttribute("hidden");
+        expect(panel).toHaveClass("print:block");
+        expect(toggle).toHaveClass("print:hidden");
+      });
+      // The unselected registers are hidden on screen and printed on paper,
+      // each under its own print-only heading, with the tab strip left off.
+      const tabpanels = cardFor("Autonomy").querySelectorAll("[role=tabpanel]");
+      expect(tabpanels).toHaveLength(3);
+      tabpanels.forEach((tabpanel) => expect(tabpanel).toHaveClass("print:block"));
+      expect(cardFor("Autonomy").querySelector("[role=tablist]")).toHaveClass("print:hidden");
+      expect(screen.getByRole("button", { name: "Open all" })).toHaveClass("print:hidden");
+      expect(screen.getByRole("button", { name: "Print this report" }).parentElement).toHaveClass(
+        "print:hidden",
+      );
+    });
+
+    it("shows one register at a time, as tabs, starting with the first the server sent", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const card = cardFor("Autonomy");
+
+      expect(within(card).getByText("This role settles more of that before it reaches you.")).toBeVisible();
+      const tabs = within(card).getAllByRole("tab");
+      expect(tabs.map((tab) => tab.textContent)).toEqual([
+        "Try a change",
+        "Negotiate it",
+        "If it won't move",
+      ]);
+      expect(tabs[0]).toHaveAttribute("aria-selected", "true");
+
+      // Change it in place: visible; the others are not.
+      expect(within(card).getByText("One piece, your method, for a fortnight")).toBeVisible();
+      expect(
+        within(card).getByText("Pick one live piece of work and run the approach yourself."),
+      ).toBeVisible();
+      expect(within(card).getByText("Name the piece before you start.")).toBeVisible();
+      expect(within(card).getByText("Put one checkpoint in the middle.")).toBeVisible();
+      expect(within(card).getByText("How many decisions you made without waiting.")).toBeVisible();
+      expect(within(card).getByText(/How you'll know it worked/)).toBeVisible();
+      expect(within(card).getByText("Whoever sets the approach on your work.")).not.toBeVisible();
+
+      fireEvent.click(within(card).getByRole("tab", { name: "Negotiate it" }));
+      expect(within(card).getByRole("tab", { name: "Negotiate it" })).toHaveAttribute("aria-selected", "true");
+      expect(within(card).getByText("Whoever sets the approach on your work.")).toBeVisible();
+      expect(within(card).getByText("Open on the work rather than on how it feels.")).toBeVisible();
+      expect(within(card).getByText(/I'd like to own the approach on X end to end/)).toBeVisible();
+      expect(within(card).getByText(/Ask whether the constraint is real/)).toBeVisible();
+      expect(within(card).getByText("One piece, your method, for a fortnight")).not.toBeVisible();
+
+      fireEvent.click(within(card).getByRole("tab", { name: "If it won't move" }));
+      expect(within(card).getByText(/Decision rights are usually set well above/)).toBeVisible();
+      expect(within(card).getByText(/The judgement you are best at does not get exercised/)).toBeVisible();
+      expect(within(card).getByText(/A question about fit and not a failure/)).toBeVisible();
+    });
+
+    it("moves between register tabs with the arrow keys, Home and End", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const card = cardFor("Autonomy");
+      const [first, second, third] = within(card).getAllByRole("tab");
+      expect(first).toHaveAttribute("tabindex", "0");
+      expect(second).toHaveAttribute("tabindex", "-1");
+
+      fireEvent.keyDown(first, { key: "ArrowRight" });
+      expect(second).toHaveAttribute("aria-selected", "true");
+      expect(second).toHaveFocus();
+      fireEvent.keyDown(second, { key: "End" });
+      expect(third).toHaveAttribute("aria-selected", "true");
+      fireEvent.keyDown(third, { key: "ArrowRight" });
+      expect(first).toHaveAttribute("aria-selected", "true");
+      fireEvent.keyDown(first, { key: "ArrowLeft" });
+      expect(third).toHaveAttribute("aria-selected", "true");
+      fireEvent.keyDown(third, { key: "Home" });
+      expect(first).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("renders a lone register under a plain heading, with no one-tab strip", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const card = cardFor("Feedback");
+      expect(within(card).queryByRole("tablist")).not.toBeInTheDocument();
+      expect(within(card).getByRole("heading", { level: 4, name: "If it won't move" })).toBeVisible();
+      expect(within(card).getByText(/A running commentary you brace for/)).toBeVisible();
     });
 
     it("renders the aligned note on an aligned dimension, and no registers", async () => {
@@ -378,29 +594,56 @@ describe("SituationReportPage", () => {
 
       expect(
         await screen.findByText(/You and this job want much the same tempo/),
-      ).toBeInTheDocument();
-      // One straining dimension carries the registers; the aligned one adds none.
-      expect(screen.getAllByText("Change it in place")).toHaveLength(1);
+      ).toBeVisible();
+      // A one-sentence note is the whole of it: nothing to open.
+      expect(screen.queryByRole("button", { name: /for Pace$/ })).not.toBeInTheDocument();
+      expandAll();
+      // One straining dimension carries the change register; the aligned one adds none.
+      expect(screen.getAllByRole("tab", { name: "Try a change" })).toHaveLength(1);
+    });
+
+    it("leads an aligned row with its note's first sentence and keeps the rest behind 'Read more'", async () => {
+      serve({
+        ...COMPLETE,
+        dimensions: [
+          {
+            ...ALIGNED_PACE,
+            aligned_note: "You and this job want much the same tempo. That is worth protecting.",
+          },
+        ],
+      });
+      renderPage();
+
+      const card = await screen.findByRole("heading", { level: 3, name: "Pace" });
+      const article = card.closest("article") as HTMLElement;
+      expect(within(article).getByText("You and this job want much the same tempo.")).toBeVisible();
+      expect(within(article).getByText("That is worth protecting.")).not.toBeVisible();
+
+      fireEvent.click(within(article).getByRole("button", { name: "Read more for Pace" }));
+      expect(within(article).getByText("That is worth protecting.")).toBeVisible();
     });
 
     it("hands the deferred dimension to the Decoder, and cross-refs the softer one", async () => {
       serve(COMPLETE);
       renderPage();
 
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      expect(within(cardFor("Feedback")).getByText(/How feedback reaches you is set by one person/)).toBeVisible();
       expect(
-        await screen.findByText(/How feedback actually reaches you is enacted by one person/),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Some of what limits your latitude may be your manager/),
-      ).toBeInTheDocument();
+        within(cardFor("Autonomy")).getByText(/Some of what limits your latitude may be your manager/),
+      ).toBeVisible();
     });
 
     it("routes the manager links to the profile flow when there is no profile yet", async () => {
       serve(COMPLETE);
       renderPage();
 
-      const links = await screen.findAllByRole("link", { name: /Profile your manager/ });
-      expect(links.length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const links = screen.getAllByRole("link", { name: /Profile your manager/ });
+      // The manager section plus both Decoder hand-offs inside the cards.
+      expect(links).toHaveLength(3);
       links.forEach((link) => expect(link).toHaveAttribute("href", "/manager-profile"));
       expect(screen.queryByRole("link", { name: /Open your playbook/ })).not.toBeInTheDocument();
     });
@@ -409,21 +652,27 @@ describe("SituationReportPage", () => {
       serve({ ...COMPLETE, manager: { has_profile: true } });
       renderPage();
 
-      const links = await screen.findAllByRole("link", { name: /Open your playbook/ });
-      expect(links.length).toBeGreaterThan(0);
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
+      const links = screen.getAllByRole("link", { name: /Open your playbook/ });
+      expect(links).toHaveLength(3);
       links.forEach((link) =>
         expect(link).toHaveAttribute("href", "/manager-profile/playbook"),
       );
     });
 
-    it("renders the guidance notice and the honest footer", async () => {
+    it("says each thing about the report once: the notice, not-advice, the pin, and the trust link", async () => {
       serve(COMPLETE);
       renderPage();
 
-      expect(await screen.findByText(GUIDANCE_NOTICE)).toBeInTheDocument();
+      await screen.findByRole("heading", { name: "About this report" });
+      expect(screen.getAllByText(GUIDANCE_NOTICE)).toHaveLength(1);
+      expect(screen.getAllByText(/advice to leave or to stay/)).toHaveLength(1);
+      expect(screen.getAllByText(/retaking Work Pulse/)).toHaveLength(1);
+      // The old four-paragraph footer restated the notice; it is gone.
       expect(
-        screen.getByRole("heading", { name: "What this is, and what it isn't" }),
-      ).toBeInTheDocument();
+        screen.queryByRole("heading", { name: "What this is, and what it isn't" }),
+      ).not.toBeInTheDocument();
       expect(screen.getByRole("link", { name: /How this works, and what we hold back/ })).toHaveAttribute(
         "href",
         "/trust",
@@ -435,8 +684,57 @@ describe("SituationReportPage", () => {
       renderPage();
 
       expect(await screen.findByText(/Nothing is straining/)).toBeInTheDocument();
-      expect(screen.queryByText("At a glance")).not.toBeInTheDocument();
+      expect(screen.queryByRole("region", { name: "Dimension by dimension" })).not.toBeInTheDocument();
       expectNoScoresLeaked();
+    });
+  });
+
+  // The one past-job report (PRODUCT_DECISIONS §2, 2026-10-01). Same gate as
+  // IntelligencePage's entry card: not yet filed, and not a `first_job`
+  // career status -- read straight off `report.career_status`, the pinned
+  // snapshot this page already has in hand for the `complete` state.
+  describe("the past-job link", () => {
+    const LINK_NAME = /Tell us about the job before this one/;
+
+    it("shows in the complete state when the flag is false", async () => {
+      serve(COMPLETE);
+      renderPage();
+
+      const link = await screen.findByRole("link", { name: LINK_NAME });
+      expect(link).toHaveAttribute("href", "/environment-report/past");
+    });
+
+    it("is hidden once the past report is already filed", async () => {
+      serve({ ...COMPLETE, past_job_report_filed: true });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
+    });
+
+    // Audit 2026-10-02, F7: the old `career_status !== "first_job"` gate read
+    // the SNAPSHOT, which is never first_job (the server files no report for
+    // it), so it could not fire. The link now depends on the flag alone; a
+    // live first_job user is gated by the past form and the server.
+    it("shows on a needs-forward report too, gated on the flag alone", async () => {
+      serve(COMPLETE_NEEDS_FORWARD);
+      renderPage();
+
+      const link = await screen.findByRole("link", { name: LINK_NAME });
+      expect(link).toHaveAttribute("href", "/environment-report/past");
+    });
+
+    it("is absent outside the complete state", async () => {
+      serve({
+        state: "needs_environment_report",
+        manager: { has_profile: false },
+        can_submit_environment_report: true,
+        past_job_report_filed: false,
+      });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "One half to go" });
+      expect(screen.queryByRole("link", { name: LINK_NAME })).not.toBeInTheDocument();
     });
   });
 
@@ -458,17 +756,20 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "What to look for next" });
+      expandAll();
 
       // change_in_place is reduced to its signal, under a forward-facing heading.
-      expect(screen.getByText(/What to watch for next time/)).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "What to look for" })).toBeVisible();
+      expect(screen.getByText(/What to watch for next time/)).toBeVisible();
       expect(screen.queryByText(/How you'll know it worked/)).not.toBeInTheDocument();
       // negotiate is gone entirely, and so is the Decoder cross-reference.
-      expect(screen.queryByText("Negotiate it")).not.toBeInTheDocument();
+      expect(screen.queryByRole("tab", { name: "Negotiate it" })).not.toBeInTheDocument();
       expect(
         screen.queryByText(/Some of what limits your latitude may be your manager/),
       ).not.toBeInTheDocument();
       // rarely_moves carries over unchanged.
-      expect(screen.getByText("This one rarely moves")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("tab", { name: "Why it rarely moves" }));
+      expect(screen.getByText(/Decision rights are usually set well above/)).toBeVisible();
       // No aligned card, because the server dropped those rows.
       expect(screen.queryByText("Aligned")).not.toBeInTheDocument();
       expectNoScoresLeaked();
@@ -480,14 +781,14 @@ describe("SituationReportPage", () => {
       expect(await screen.findByText("Less than you needed")).toBeInTheDocument();
     });
 
-    it("shows fewer chips in the strip rather than backfilling the dropped aligned dimension", async () => {
+    it("leads in the past tense without backfilling the dropped aligned dimension", async () => {
       serve(COMPLETE_NEEDS_FORWARD);
       renderPage();
 
-      const heading = await screen.findByText("At a glance");
-      const strip = heading.closest("section");
-      const chips = within(strip as HTMLElement).getAllByRole("listitem");
-      expect(chips.map((chip) => chip.textContent)).toEqual(["Autonomy — Straining"]);
+      expect(
+        await screen.findByText(/^Autonomy was where you and that role sat furthest apart/),
+      ).toBeInTheDocument();
+      expect(renderedOrder()).toEqual(["Autonomy"]);
     });
   });
 
@@ -562,7 +863,82 @@ describe("SituationReportPage", () => {
     });
   });
 
+  // Audit 2026-10-02, F1: the report renders from the career status it was
+  // filed under. A live status in the other tense raises a banner -- and only
+  // a banner: the report itself is not re-rendered.
+  describe("career-status banner", () => {
+    it("says nothing when the career status still matches the report", async () => {
+      serve({ ...COMPLETE, career_status_changed: false });
+      renderPage();
+
+      await screen.findByRole("heading", { name: "You, and this job" });
+      expect(screen.queryByText(/Your career status says/)).not.toBeInTheDocument();
+    });
+
+    it("asks a user who has left the job to describe it again, without re-rendering the report", async () => {
+      serve({ ...COMPLETE, career_status_changed: true });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Your career status says you've moved on from this job/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Describe it again" })).toHaveAttribute(
+        "href",
+        "/environment-report",
+      );
+      // Banner only: still the current-role report it was filed as.
+      expect(screen.getByRole("heading", { name: "You, and this job" })).toBeInTheDocument();
+      expect(renderedOrder()).toEqual(["Autonomy", "Feedback", "Pace"]);
+      expectNoScoresLeaked();
+    });
+
+    it("asks a user who has started a job to describe it, on a needs-forward report", async () => {
+      serve({ ...COMPLETE_NEEDS_FORWARD, career_status_changed: true });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Your career status says you're in a job now/),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Describe your job" })).toHaveAttribute(
+        "href",
+        "/environment-report",
+      );
+      expect(screen.getByRole("heading", { name: "What to look for next" })).toBeInTheDocument();
+    });
+
+    it("sits alongside the resubmission banner when both apply", async () => {
+      serve({
+        ...COMPLETE,
+        career_status_changed: true,
+        events_since_report: [{ type: "reorg", date: "2026-09-12T00:00:00Z" }],
+      });
+      renderPage();
+
+      expect(await screen.findByText(/went through a reorg since this report/)).toBeInTheDocument();
+      expect(screen.getByText(/Your career status says/)).toBeInTheDocument();
+    });
+  });
+
   describe("experienced trend (BUILD_PLAN B-4)", () => {
+    // Audit 2026-10-02, F5: a failed history fetch used to read as zero
+    // check-ins and tell a user who HAS checked in that they haven't.
+    it("shows an error with a retry, not the no-check-ins invitation, when the history fetch fails", async () => {
+      mocks.fetchWithAuth.mockImplementation((path: string) => {
+        if (path === "/me/situation-report") return Promise.resolve(COMPLETE);
+        if (path === "/me/experiments") return Promise.resolve({ experiments: [] });
+        // 4xx so `shouldRetry` doesn't hold the query mid-retry.
+        if (path === "/me/pulse/history") return Promise.reject(new ApiError("boom", { status: 403 }));
+        return Promise.reject(new Error(`unexpected path ${path}`));
+      });
+      renderPage();
+
+      expect(
+        await screen.findByText(/We couldn't load your Pulse check-ins just now/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/You haven't checked in on Pulse yet/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    });
+
     it("invites a user with no check-ins to Pulse, rather than showing an empty chart", async () => {
       serve(COMPLETE, undefined, { checkins: [], events: [] });
       renderPage();
@@ -724,6 +1100,7 @@ describe("SituationReportPage", () => {
       serveWithExperiments([]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Open all" }));
       const buttons = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
       expect(buttons).toHaveLength(2);
       buttons.forEach((button) => expect(button).not.toBeDisabled());
@@ -733,6 +1110,7 @@ describe("SituationReportPage", () => {
       serveWithExperiments([]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Open all" }));
       const [firstButton] = await screen.findAllByRole("button", { name: /Try this for two weeks/ });
       fireEvent.click(firstButton);
 
@@ -752,7 +1130,8 @@ describe("SituationReportPage", () => {
       ]);
       renderPage();
 
-      expect(await screen.findByText(/Running since/)).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole("button", { name: "Open all" }));
+      expect(await screen.findByText(/Running since/)).toBeVisible();
       const otherButton = await screen.findByRole("button", { name: /Try this for two weeks/ });
       expect(otherButton).toBeDisabled();
       expect(
@@ -772,6 +1151,7 @@ describe("SituationReportPage", () => {
       ]);
       renderPage();
 
+      fireEvent.click(await screen.findByRole("button", { name: "Open all" }));
       const abandon = await screen.findByRole("button", { name: "Abandon" });
       // No modal, no window.confirm -- one click is the whole interaction.
       fireEvent.click(abandon);
@@ -786,7 +1166,7 @@ describe("SituationReportPage", () => {
         {
           id: 1, dimension: "autonomy", direction: "under",
           started_at: "2026-08-01T00:00:00Z", ends_at: "2026-08-15T00:00:00Z",
-          status: "active", abandoned_at: null, phase: "ended",
+          status: "completed", abandoned_at: null, phase: "ended",
           experiment_name: "One piece, your method, for a fortnight",
           readout: { verdict: "moved_up", before_count: 2, after_count: 3 },
         },
@@ -813,14 +1193,15 @@ describe("SituationReportPage", () => {
       renderPage();
 
       const heading = await screen.findByText("Your experiments");
-      const guidance = await screen.findByText(GUIDANCE_NOTICE);
-      // Positioned after the guidance notice, per the brief's "under the
-      // guidance section".
-      expect(heading.compareDocumentPosition(guidance) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+      // Under the guidance: after the dimension list, before the footer.
+      const list = screen.getByRole("region", { name: "Dimension by dimension" });
+      const footer = screen.getByRole("heading", { name: "About this report" });
+      expect(heading.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+      expect(heading.compareDocumentPosition(footer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-      const list = heading.closest("section") as HTMLElement;
-      expect(within(list).getByText(/One piece, your method, for a fortnight/)).toBeInTheDocument();
-      expect(within(list).getByText("Abandoned")).toBeInTheDocument();
+      const record = heading.closest("section") as HTMLElement;
+      expect(within(record).getByText(/One piece, your method, for a fortnight/)).toBeInTheDocument();
+      expect(within(record).getByText("Abandoned")).toBeInTheDocument();
     });
 
     it("does not offer the experiment button in the needs-forward rendering", async () => {
@@ -828,6 +1209,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "What to look for next" });
+      expandAll();
       expect(
         screen.queryByRole("button", { name: /Try this for two weeks/ }),
       ).not.toBeInTheDocument();
@@ -857,6 +1239,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
       // Without the fix, `experiments ?? []` reads a failed fetch as "nothing
       // running" and both cells offer their button anyway.
       expect(
@@ -883,6 +1266,7 @@ describe("SituationReportPage", () => {
       renderPage();
 
       await screen.findByRole("heading", { name: "You, and this job" });
+      expandAll();
       expect(
         screen.queryByRole("button", { name: /Try this for two weeks/ }),
       ).not.toBeInTheDocument();

@@ -252,3 +252,89 @@ describe("AgentChat — error state", () => {
     expect(screen.queryByText("Dismiss")).not.toBeInTheDocument();
   });
 });
+
+// ─── audit 2026-10-02 #13 ─────────────────────────────────────────────────────
+
+/** A response whose stream carries exactly these SSE events, then ends. */
+function makeEventsResponse(events: object[]): Response {
+  const text = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
+  const mockReader = {
+    read: vi.fn()
+      .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(text) })
+      .mockResolvedValue({ done: true, value: undefined }),
+    releaseLock: vi.fn(),
+  };
+  return { ok: true, status: 200, body: { getReader: () => mockReader }, json: vi.fn() } as unknown as Response;
+}
+
+async function send(text: string) {
+  const textarea = screen.getByPlaceholderText(/message solverah ai/i);
+  await act(async () => {
+    fireEvent.change(textarea, { target: { value: text } });
+    fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+  });
+  await waitFor(() => expect(textarea).not.toBeDisabled());
+}
+
+describe("AgentChat — incomplete replies", () => {
+  it("says the reply was cut off, and drops it, when the stream ends without done", async () => {
+    mockStreamFetch.mockResolvedValueOnce(makeEventsResponse([{ chunk: "Half an ans" }]));
+    renderChat();
+    await send("Hi");
+
+    expect(screen.getByText(/cut off/i)).toBeInTheDocument();
+    expect(screen.queryByText("Half an ans")).toBeNull();
+    expect(screen.getByText("Hi")).toBeInTheDocument();
+  });
+
+  it("says so when the reply is empty", async () => {
+    mockStreamFetch.mockResolvedValueOnce(makeEventsResponse([{ done: true, model: "m" }]));
+    renderChat();
+    await send("Hi");
+
+    expect(screen.getByText(/didn't send a reply/i)).toBeInTheDocument();
+  });
+
+  it("never sends a partial reply back as history after a mid-stream error", async () => {
+    mockStreamFetch
+      .mockResolvedValueOnce(makeEventsResponse([
+        { chunk: "Partial " },
+        { error: "The reply was interrupted. Please try again.", code: "agent_stream_interrupted" },
+      ]))
+      .mockResolvedValueOnce(makeSseResponse(["Second answer"]));
+    renderChat();
+    await send("First");
+
+    expect(screen.getByText(/interrupted/i)).toBeInTheDocument();
+    expect(screen.queryByText("Partial")).toBeNull();
+
+    await send("Second");
+    const body = JSON.parse(mockStreamFetch.mock.calls[1][1].body);
+    expect(body.messages).toEqual([
+      { role: "user", content: "First" },
+      { role: "user", content: "Second" },
+    ]);
+    expect(body).not.toHaveProperty("model");
+    await waitFor(() => expect(screen.getByText("Second answer")).toBeInTheDocument());
+  });
+});
+
+describe("AgentChat — leaving the page", () => {
+  it("aborts the in-flight stream on unmount", async () => {
+    let signal: AbortSignal | undefined;
+    mockStreamFetch.mockImplementationOnce((_path: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      return new Promise<Response>(() => {});
+    });
+    const { unmount } = renderChat();
+    const textarea = screen.getByPlaceholderText(/message solverah ai/i);
+    await act(async () => {
+      fireEvent.change(textarea, { target: { value: "Hi" } });
+      fireEvent.click(screen.getByRole("button", { name: /send message/i }));
+    });
+
+    expect(signal?.aborted).toBe(false);
+    unmount();
+    expect(signal?.aborted).toBe(true);
+  });
+});

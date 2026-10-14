@@ -93,9 +93,11 @@ def company_list():
         "slices -- `best_fits` and `worst_fits` -- in one body, with nothing "
         "reachable beyond them. `?order=worst` carries the second slice over: "
         "the two halves are now two directions through one paginated list.\n\n"
-        "Still an O(all-companies) in-process scan that can commit a backfill "
-        "on the read path (P0-2). The cursor is what lets Phase 2 fix that "
-        "behind an unchanged contract; it is not itself the fix."
+        "Writes nothing. Still an O(all-companies) in-process scan (P0-2), of "
+        "each company's id and eight culture columns only; names, slugs and "
+        "industries are read afterwards for the returned page alone. The cursor "
+        "is what lets that scan be replaced behind an unchanged contract; it is "
+        "not itself the fix."
     ),
 )
 @companies_bp.route("/me/matches", methods=["GET"])
@@ -104,7 +106,9 @@ def my_matches():
     """GET /me/matches - companies ranked by culture fit, one page at a time.
 
     A user who completed Work Pulse before culture_preferences was persisted
-    gets it backfilled here, which is why a GET can write.
+    has it derived here from their Work Pulse answers but not stored: since
+    Phase 3 this GET writes nothing, and the maintenance backfill
+    (matching_service.backfill_culture_preferences) persists it.
     """
     user = user_repository.find_by_email(get_jwt_identity())
     if not user:

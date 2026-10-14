@@ -35,10 +35,12 @@ import re
 from pathlib import Path
 
 from manager_match.manager_profile import EXPECTED_ANSWER_COUNT, MANAGER_PROFILE_QUESTIONS
+from manager_match.questions import QUESTIONS as MANAGER_MATCH_QUESTIONS
 from work_pulse.situation_items import (
     COMP_ITEM,
     EXPECTED_DIMENSION_ITEM_COUNT,
     EXPERIENCED_ITEM,
+    INDUSTRY_ITEM,
     OPTION_KEYS,
     STAGE_SIZE_ITEM,
     item_list_in_form_order,
@@ -48,6 +50,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "src" / "features" / "assessments" / "data"
 ENV_TS = DATA_DIR / "envQuestions.ts"
 MP_TS = DATA_DIR / "mpQuestions.ts"
+MM_TS = DATA_DIR / "mmQuestions.ts"
 
 
 def _read(path: Path) -> str:
@@ -127,7 +130,8 @@ def test_env_context_items_match_situation_items_py():
 
     for py_item, start_marker, end_marker in [
         (STAGE_SIZE_ITEM, "export const STAGE_SIZE_ITEM", "export const COMP_ITEM"),
-        (COMP_ITEM, "export const COMP_ITEM", "export const EXPERIENCED_ITEM"),
+        (COMP_ITEM, "export const COMP_ITEM", "export const INDUSTRY_ITEM"),
+        (INDUSTRY_ITEM, "export const INDUSTRY_ITEM", "export const EXPERIENCED_ITEM"),
         (EXPERIENCED_ITEM, "export const EXPERIENCED_ITEM", "export type EnvStep"),
     ]:
         block = _section(text, start_marker, end_marker)
@@ -135,7 +139,8 @@ def test_env_context_items_match_situation_items_py():
         item_ids = _field(r'\bitemId:\s*"([^"]*)"', block)
         prompts = _field(r'\bprompt:\s*"([^"]*)"', block)
         prompts_past = _field(r'\bpromptPast:\s*"([^"]*)"', block)
-        raw_values = _field(r'\bvalue:\s*(-?\d+|null)', block)
+        # An int, null, or (industry only) a quoted level key.
+        raw_values = _field(r'\bvalue:\s*(-?\d+|null|"[^"]*")', block)
         texts = _field(r'\btext:\s*"([^"]*)"', block)
         texts_past = _field(r'\btextPast:\s*"([^"]*)"', block)
 
@@ -147,10 +152,33 @@ def test_env_context_items_match_situation_items_py():
         assert len(texts) == expected_option_count, py_item["item_id"]
         assert len(texts_past) == expected_option_count, py_item["item_id"]
 
-        values = [None if v == "null" else int(v) for v in raw_values]
+        values = [
+            None if v == "null" else v.strip('"') if v.startswith('"') else int(v)
+            for v in raw_values
+        ]
         assert values == [o["value"] for o in py_item["options"]], py_item["item_id"]
         assert texts == [o["text"] for o in py_item["options"]], py_item["item_id"]
         assert texts_past == [o["text_past"] for o in py_item["options"]], py_item["item_id"]
+
+
+def test_env_form_steps_order_and_version_match_situation_items_py():
+    """The form order is load-bearing (context facts first, `experienced`
+    last), and the TS stamps the same FORM_VERSION the server writes."""
+    from work_pulse.situation_items import CONTEXT_ITEMS, FORM_VERSION
+
+    text = _read(ENV_TS)
+    steps = _section(text, "export const ENV_FORM_STEPS: EnvStep[] = [", "\n];")
+    names = re.findall(r'\{ kind: "context", item: (\w+) \}|(\.\.\.ENV_ITEMS)', steps)
+    order = [a or b for a, b in names]
+    ts_ids = {
+        "STAGE_SIZE_ITEM": "stage_size", "COMP_ITEM": "comp",
+        "INDUSTRY_ITEM": "industry", "EXPERIENCED_ITEM": "experienced",
+        "...ENV_ITEMS": "<twelve>",
+    }
+    py_ids = [i["item_id"] for i in CONTEXT_ITEMS]
+    assert [ts_ids[n] for n in order] == py_ids[:-1] + ["<twelve>", py_ids[-1]]
+
+    assert re.search(r'ENV_FORM_VERSION = "([^"]*)"', text).group(1) == FORM_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -182,3 +210,44 @@ def test_mp_questions_match_manager_profile_py():
     assert option_a == [q["option_a_text"] for q in MANAGER_PROFILE_QUESTIONS]
     assert option_b == [q["option_b_text"] for q in MANAGER_PROFILE_QUESTIONS]
     assert dimensions == [q["dimension"] for q in MANAGER_PROFILE_QUESTIONS]
+
+
+# ---------------------------------------------------------------------------
+# mmQuestions.ts vs manager_match/questions.py
+# ---------------------------------------------------------------------------
+
+#: Pinned here rather than taken from `len(MANAGER_MATCH_QUESTIONS)`: the
+#: scorer (`score_manager_match`) and the API precheck both hard-code 15, so a
+#: Python list that grew or shrank must fail this file too, not re-scale it.
+EXPECTED_MM_QUESTION_COUNT = 15
+
+
+def test_mm_questions_match_questions_py():
+    """Added 2026-10-02 (manager-match audit, F5). Before it, mmQuestions.ts had
+    no guard and had drifted: eight option texts carried straight apostrophes
+    where `questions.py` (the scoring authority, and the text the LLM narrative
+    prompt quotes) has curly ones."""
+    text = _read(MM_TS)
+    block = _section(text, "export const MM_QUESTIONS: MMQuestion[] = [", "\n];")
+
+    ids = _field(r'\bid:\s*"([^"]*)"', block)
+    option_a = _field(r'\boptionA:\s*"([^"]*)"', block)
+    option_b = _field(r'\boptionB:\s*"([^"]*)"', block)
+    dimensions = _field(r'\bdimension:\s*"([^"]*)"', block)
+
+    assert len(MANAGER_MATCH_QUESTIONS) == EXPECTED_MM_QUESTION_COUNT
+    for name, values in [
+        ("id", ids),
+        ("optionA", option_a),
+        ("optionB", option_b),
+        ("dimension", dimensions),
+    ]:
+        assert len(values) == EXPECTED_MM_QUESTION_COUNT, (
+            f"{name}: expected {EXPECTED_MM_QUESTION_COUNT} in mmQuestions.ts, found {len(values)} "
+            "-- the field scan may have stopped matching"
+        )
+
+    assert ids == [q["question_id"] for q in MANAGER_MATCH_QUESTIONS]
+    assert option_a == [q["option_a_text"] for q in MANAGER_MATCH_QUESTIONS]
+    assert option_b == [q["option_b_text"] for q in MANAGER_MATCH_QUESTIONS]
+    assert dimensions == [q["dimension"] for q in MANAGER_MATCH_QUESTIONS]

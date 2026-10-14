@@ -1,14 +1,19 @@
 """Company lookup and culture matching.
 
 :func:`_score_all` is **P0-2**, the second-largest scale blocker in the system,
-and it is preserved unchanged here rather than fixed:
+and it is narrowed here rather than fixed:
 
-    Every request pulls *every* company row into Python with its
-    ``profile_json`` attached, constructs a ``CultureValues`` per row, scores it,
-    sorts the whole set, and slices.  There is no cache, no index, and no limit
-    on the query.  At ten companies it is invisible; at a hundred thousand
-    companies times meaningful RPS it saturates the database and every worker
-    simultaneously.
+    Every request pulls every scoreable company into Python, constructs a
+    ``CultureValues`` per row, scores it, sorts the whole set, and slices.
+    There is no cache, no index, and no limit on the query.  At ten companies
+    it is invisible; at a hundred thousand companies times meaningful RPS it
+    saturates the database and every worker simultaneously.
+
+What the scan reads is the key and the eight culture columns, with
+``pace IS NOT NULL`` in the query.  It used to read every column of every row,
+``profile_json`` -- the whole research document -- included, for a page that
+shows one field of it; the page's names and industries are now read for the
+page alone, in one more query.
 
 It **used to commit a write on a GET** as well: a user who completed Work Pulse
 before ``culture_preferences`` was stored got a backfill written and committed
@@ -35,7 +40,7 @@ deleted with the thing it caches.  See ``solverah/infra/cache.py``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from model import User, db
 from packages.ml.culture import CultureValues, culture_fit_score
@@ -66,6 +71,9 @@ __all__ = [
 DEFAULT_LIMIT = 5
 MIN_LIMIT = 1
 MAX_LIMIT = 50
+
+#: The ``profiles.extra`` key the culture vector lives under.
+_PREFERENCES_KEY = "culture_preferences"
 
 
 @dataclass
@@ -123,23 +131,22 @@ def company_detail(company_id: int) -> MatchingResult:
     return MatchingResult(status=200, body=body)
 
 
-def _derive_culture_preferences(user_id: int, profile: Dict[str, Any]) -> Optional[dict]:
-    """Compute the culture vector from stored Work Pulse answers, or None.
+def _derive_culture_preferences(answers: Any) -> Optional[dict]:
+    """Compute the culture vector from stored Work Pulse *answers*, or None.
 
-    Reads the Work Pulse submission since Phase 2d; it read
-    ``user_intake.wpl_answers`` before, which was the last query outside the
+    The answers come from the Work Pulse submission since Phase 2d; they came
+    from ``user_intake.wpl_answers`` before, which was the last query outside the
     assessment tables that treated an instrument's answers as profile state.
 
-    Pure with respect to the database: it reads and returns, and persisting the
-    result is the caller's decision.  That separation is what lets the read path
-    have the value without writing it.
+    Pure: it computes and returns, and reading the answers and persisting the
+    result are the callers' decisions.  That separation is what lets the read
+    path have the value without writing it.
     """
     from work_pulse.derive_preferences import derive_culture_preferences
 
-    submission = assessment_repository.current_submission(user_id, "work_pulse")
-    if submission is None or not submission.answers:
+    if not answers:
         return None
-    return derive_culture_preferences(submission.answers)
+    return derive_culture_preferences(answers)
 
 
 def resolve_culture_preferences(user: User) -> Optional[dict]:
@@ -147,17 +154,42 @@ def resolve_culture_preferences(user: User) -> Optional[dict]:
 
     Returns None when neither is available, which the caller turns into a 400.
 
+    One read of the one key, where this used to assemble the whole profile
+    document -- six statements -- to look at it; and, when it is absent, one read
+    of the Work Pulse row without its narrative.
+
     **Writes nothing.**  This derived and then committed inside a GET until
     Phase 3 -- see the module docstring.  The derivation is unchanged and so is
     the value returned; only the INSERT is gone, and
     :func:`backfill_culture_preferences` is where it went.
     """
-    profile = profile_repository.load_document(user.id)
-    user_prefs = profile.get("culture_preferences")
+    user_prefs = profile_repository.read_extra_key(user.id, _PREFERENCES_KEY)
     if user_prefs:
         return user_prefs
 
-    return _derive_culture_preferences(user.id, profile)
+    submission = assessment_repository.current_result(user.id, "work_pulse")
+    return _derive_culture_preferences(submission.answers if submission is not None else None)
+
+
+class _AlreadyStored(Exception):
+    """The key gained a value after the sweep chose this user: leave it alone."""
+
+
+def _fill_if_empty(value: dict) -> Callable[[Any], dict]:
+    """An ``update_extra_key`` mutate that stores *value* only where nothing is stored.
+
+    Pure, as ``update_extra_key`` requires: it closes over the value to write,
+    never over a stored one, and re-running it against a fresh read re-decides.
+    Raising is how it declines -- ``update_extra_key`` has written nothing when
+    the mutate runs, so nothing needs undoing.
+    """
+
+    def mutate(stored: Any) -> dict:
+        if stored:
+            raise _AlreadyStored()
+        return value
+
+    return mutate
 
 
 def backfill_culture_preferences(limit: int = 500) -> Dict[str, int]:
@@ -171,31 +203,46 @@ def backfill_culture_preferences(limit: int = 500) -> Dict[str, int]:
     Idempotent and bounded.  Selects only users whose profile lacks the key, so
     running it twice over a finished backfill is a query and no writes.
 
+    The rule for writing is the one it has always had -- a user is written only
+    if the key is still empty and their answers yield a vector -- but the "still
+    empty" check now runs inside ``update_extra_key``'s compare-and-swap.  It used
+    to run before the derivation, and the write after it was unconditional, so
+    a Work Pulse submit landing in between (the submit writes the key itself)
+    was overwritten with a vector derived from the answers the sweep had read.
+
+    One read of every candidate's answers, three statements per user written,
+    and **one commit for the sweep**, where there was a commit per user.  A
+    failure part-way -- ``ConcurrentProfileUpdate``, say -- leaves the sweep
+    uncommitted and the caller's teardown rolls it back; the next run redoes it.
+    The rows written stay locked until that commit, so a user saving their
+    profile meanwhile waits for the sweep, which is a few statements a user.
+
     Returns:
         ``{"considered": n, "written": n, "underivable": n}``.
     """
     counts = {"considered": 0, "written": 0, "underivable": 0}
 
-    for user_id in profile_repository.user_ids_missing("culture_preferences", limit=limit):
+    user_ids = profile_repository.user_ids_missing(_PREFERENCES_KEY, limit=limit)
+    answers = assessment_repository.work_pulse_answers_for_users(user_ids)
+    for user_id in user_ids:
         counts["considered"] += 1
-        profile = profile_repository.load_document(user_id)
-        if profile.get("culture_preferences"):
-            continue
-
-        derived = _derive_culture_preferences(user_id, profile)
+        derived = _derive_culture_preferences(answers.get(user_id))
         if not derived:
             # No Work Pulse submission to derive from. Not an error: most accounts
             # in this state simply have not taken the instrument yet.
             counts["underivable"] += 1
             continue
 
-        profile_repository.update_document(
-            user_id,
-            lambda existing, value=derived: {**existing, "culture_preferences": value},
-        )
-        db.session.commit()
+        try:
+            profile_repository.update_extra_key(
+                user_id, _PREFERENCES_KEY, _fill_if_empty(derived)
+            )
+        except _AlreadyStored:
+            continue
         counts["written"] += 1
 
+    if counts["written"]:
+        db.session.commit()
     return counts
 
 
@@ -214,14 +261,17 @@ def _clamp_limit(raw: Any) -> Any:
 
 
 def _format_entry(company, fit) -> Dict[str, Any]:
-    """One match row, as the company-lens UI renders it."""
+    """One match row, as the company-lens UI renders it.
+
+    *company* is a ``company_repository.summaries`` row: ``industry`` comes out
+    of the research document by JSON path, not with it.
+    """
     matching, mismatching = domain.top_and_bottom_dimensions(fit.dimension_scores)
-    overview = (company.profile_json or {}).get("overview") or {}
     return {
         "id": company.id,
         "name": company.name,
         "slug": company.slug,
-        "industry": overview.get("industry"),
+        "industry": company.industry,
         "fit_score": fit.total_score,
         "top_matching_dimensions": matching,
         "top_mismatching_dimensions": mismatching,
@@ -233,14 +283,14 @@ def _format_entry(company, fit) -> Dict[str, Any]:
 # Phase 1b -- cursor-paginated lists
 # ---------------------------------------------------------------------------
 #
-# Both lists below page with a keyset cursor rather than an offset (A5).  Both
-# still do the work in process, which is P0-2 and is not fixed here -- what
-# changes is the *interface*.  A client that has been handed opaque cursors and
-# never an offset does not have to change when Phase 2 pushes the same keyset
-# into a pgvector-backed query, and a client that has been handed
-# ``?page=3&per_page=20`` does.  Paginating the contract before the storage can
-# support it efficiently is the cheap half of the fix and the half that has to
-# come first.
+# Both lists below page with a keyset cursor rather than an offset (A5).  The
+# company list's keyset is in the query: a page reads its rows and no others.
+# The matches list still pages in process, because its sort key is a score that
+# exists only once Python has computed it for every company (P0-2).  What the
+# cursor fixed first is the *interface*: a client that has been handed opaque
+# cursors and never an offset does not have to change when Phase 2 pushes the
+# matches keyset into a pgvector-backed query, and a client that has been
+# handed ``?page=3&per_page=20`` does.
 
 #: The only scoring lens that exists. Declared rather than assumed so adding a
 #: second one is a change to this tuple and a branch, not a new endpoint.
@@ -251,8 +301,66 @@ ORDERS = ("best", "worst")
 DEFAULT_ORDER = "best"
 
 
-def _company_industry(company) -> Optional[str]:
-    return ((company.profile_json or {}).get("overview") or {}).get("industry")
+def _company_key(row) -> Dict[str, Any]:
+    """The company list's cursor key. Unique, because ``name`` is."""
+    return {"id": row.id, "name": row.name}
+
+
+def _company_follows(row, key: Dict[str, Any]) -> bool:
+    # Ordered by (name, id) ascending, so a row follows the cursor when its sort
+    # tuple is greater. Spelled out rather than inferred because the matches
+    # list below sorts the other way and a guessed comparison would page it
+    # backwards.
+    return (row.name, row.id) > (key.get("name"), key.get("id"))
+
+
+def _seek_position(after: Dict[str, Any]) -> Optional[Tuple[str, int]]:
+    """``(name, id)`` from a cursor the database can seek to, or None.
+
+    This list mints ``{"id": int, "name": str}``. A key of any other shape --
+    hand-edited, or from the matches list -- is not sent to the database, where
+    a string id or a NUL in the name is an error rather than a comparison; the
+    in-memory rule answers it, as it always has.
+    """
+    company_id, name = after.get("id"), after.get("name")
+    if type(company_id) is not int or type(name) is not str or "\x00" in name:
+        return None
+    try:
+        name.encode("utf-8")
+    except UnicodeEncodeError:  # a lone surrogate, which JSON can carry
+        return None
+    return name, company_id
+
+
+def _company_page_after(
+    after: Dict[str, Any], page_size: int, *, q: Optional[str], industry: Optional[str]
+) -> Tuple[List[Any], Optional[str]]:
+    """The page after cursor *after*: a keyset read when its row is still listed.
+
+    The rule is ``pagination.page``'s, unchanged: start just after the cursor's
+    row, and, if that row has left the list -- deleted, renamed, or no longer
+    matching the filters -- at the first row that follows it by ``_company_follows``.
+
+    The common case is one query: seek to the cursor's ``(name, id)`` inclusive,
+    in the database's order, and see the cursor's own row come back first. The
+    fallback is not the same comparison moved into SQL. ``_company_follows``
+    compares names by code point and the list is in the database's collation,
+    which disagree (``eBay`` follows every capitalised name by code point, and
+    sits among the E's by collation), so the fallback reads the list without its
+    documents and applies the rule in memory, exactly as before.
+    """
+    seek = _seek_position(after)
+    if seek is not None:
+        rows = company_repository.list_rows(
+            q=q, industry=industry, start_at=seek, limit=page_size + 2
+        )
+        if rows and _company_key(rows[0]) == after:
+            return pagination.page(rows, limit=page_size, after=after, key_of=_company_key)
+
+    rows = company_repository.list_rows(q=q, industry=industry)
+    return pagination.page(
+        rows, limit=page_size, after=after, key_of=_company_key, follows=_company_follows
+    )
 
 
 def list_companies(
@@ -267,40 +375,28 @@ def list_companies(
     New in Phase 1b: there was no list endpoint at all, so any screen wanting
     several companies fetched the full research document for each by id.
 
-    The industry filter runs in Python because ``industry`` lives inside
-    ``profile_json`` and not in a column -- a scan, and honest about being one.
-    Phase 4.5 promotes it and the filter moves into the query.
+    Both filters, the keyset and the LIMIT are in the query, and ``industry`` is
+    read out of ``profile_json`` by JSON path, so a page is one query for its own
+    rows. It used to read every company, document and all, and filter and page
+    in Python. The industry filter is still unindexed -- Phase 4.5 promotes
+    ``industry`` to a column.
     """
     after = pagination.decode_cursor(cursor)
     page_size = pagination.resolve_limit(limit)
+    wanted = industry.strip().lower() if industry else None
 
-    rows = company_repository.search_companies(q=q)
-    if industry:
-        wanted = industry.strip().lower()
-        rows = [c for c in rows if (_company_industry(c) or "").lower() == wanted]
-
-    window, next_cursor = pagination.page(
-        rows,
-        limit=page_size,
-        after=after,
-        key_of=lambda c: {"id": c.id, "name": c.name},
-        # Ordered by (name, id) ascending, so a row follows the cursor when its
-        # sort tuple is greater. Spelled out rather than inferred because the
-        # matches list below sorts the other way and a guessed comparison would
-        # page it backwards.
-        follows=lambda c, key: (c.name, c.id) > (key.get("name"), key.get("id")),
-    )
+    if after is None:
+        # One row past the page is what says there is another page.
+        rows = company_repository.list_rows(q=q, industry=wanted, limit=page_size + 1)
+        window, next_cursor = pagination.page(rows, limit=page_size, key_of=_company_key)
+    else:
+        window, next_cursor = _company_page_after(after, page_size, q=q, industry=wanted)
 
     return MatchingResult(
         status=200,
         body={
             "data": [
-                {
-                    "id": c.id,
-                    "name": c.name,
-                    "slug": c.slug,
-                    "industry": _company_industry(c),
-                }
+                {"id": c.id, "name": c.name, "slug": c.slug, "industry": c.industry}
                 for c in window
             ],
             "next_cursor": next_cursor,
@@ -325,9 +421,10 @@ def matches(
     halves become two directions through one paginated list, so a client can
     walk as far as it wants in either.
 
-    Still an O(all-companies) in-process scan with a commit on the read path
-    (P0-2). See the module docstring; the cursor makes the contract survive the
-    fix, it is not the fix.
+    Still an O(all-companies) in-process scan (P0-2), though of the key and the
+    eight culture columns only; names, slugs and industries are read afterwards
+    for the page being returned. See the module docstring; the cursor makes the
+    contract survive the fix, it is not the fix.
     """
     resolved_lens = (lens or DEFAULT_LENS).strip().lower()
     if resolved_lens not in LENSES:
@@ -363,10 +460,18 @@ def matches(
         follows=_follows,
     )
 
+    # One IN query for the page's names, slugs and industries. A company deleted
+    # between the scan and this read has nothing left to show and is left out;
+    # nothing in the application deletes companies.
+    summaries = company_repository.summaries(company.id for company, _fit in window)
     return MatchingResult(
         status=200,
         body={
-            "data": [_format_entry(company, fit) for company, fit in window],
+            "data": [
+                _format_entry(summaries[company.id], fit)
+                for company, fit in window
+                if company.id in summaries
+            ],
             "next_cursor": next_cursor,
             "total_companies_scored": len(scored),
             "lens": resolved_lens,
@@ -382,11 +487,12 @@ def _score_all(user: User, user_prefs: dict, logger) -> List[Any]:
     things rather than one -- Phase 2 replaces this function with a pgvector
     query and a cached match set, and the paging above does not have to change
     when it does.
+
+    Each company is a ``company_repository.culture_rows`` row: the key and the
+    eight culture columns, and only for companies with a pace.
     """
     scored = []
-    for company in company_repository.all_companies():
-        if company.pace is None:
-            continue
+    for company in company_repository.culture_rows():
         try:
             culture_values = CultureValues(
                 work_environment=company.work_environment,

@@ -1,0 +1,13 @@
+P-15 CONTENT DEFECTS (second-reader findings; recorded, not fixed)
+
+CD-1  Section B header declares "(12-15, most recent first)" and holds 5 entries. The builder's note and QA explain the shortfall (required source holds 2 reviews), so this is a known and disclosed shortfall, but the header still undercounts its own section. Header reproduced verbatim.
+
+CD-2  Section B draws 3 of its 5 entries from a second review site that the packet itself says shows 3 of 119 reviews to an anonymous reader. The 3 fragments are one-line Pros/Cons strings with no feedback content; coverage for the feedback dimension is acknowledged THIN by the build. Not an error, but the section carries little evidence per entry.
+
+CD-3  Section 2e opens "all three are unique-string identifiers" and then lists four typo strings across three bullets; section 4 repeats the grouping. Count wording only; build record, not rater-facing.
+
+CD-4  Section E mixes one trade-press piece (3 excerpts, same article) with one other source. The build already records this as a source-class judgment call; flagged here for the rater-facing consequence: E is effectively two sources, not four, and the section header says "yield: 4".
+
+CD-5  Section D passage 1 attribution carries "(approx. 13 years' tenure per the post; no title stated)"; passages 2-4 carry only "no title stated". Consistent but unequal; no contradiction.
+
+No quote was found that is absent from its section, no excerpt-count mismatch other than CD-1, and no date that cannot be right (newest review 2026-09-29 against build 2026-09-30 is consistent).

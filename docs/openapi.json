@@ -204,14 +204,18 @@
         "type": "object"
       },
       "AgentChatMessage": {
-        "additionalProperties": true,
         "properties": {
           "content": {
+            "maxLength": 4000,
             "title": "Content",
             "type": "string"
           },
           "role": {
             "description": "\"user\" or \"assistant\".",
+            "enum": [
+              "user",
+              "assistant"
+            ],
             "title": "Role",
             "type": "string"
           }
@@ -227,26 +231,14 @@
         "description": "``POST /agent/messages``. The response is Server-Sent Events, not JSON.\n\nThe server prepends its own system message carrying RAG context assembled\nfrom the profile, the company network, and the user's resume text -- so a\nclient must not send a system message of its own expecting it to be\nhonoured.",
         "properties": {
           "messages": {
-            "description": "Full conversation history; must be non-empty.",
+            "description": "Conversation history, oldest first; must be non-empty. The server may drop the oldest turns to fit its context budget.",
             "items": {
               "$ref": "#/components/schemas/AgentChatMessage"
             },
+            "maxItems": 40,
             "minItems": 1,
             "title": "Messages",
             "type": "array"
-          },
-          "model": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Groq model. Defaults to \"llama-3.1-8b-instant\".",
-            "title": "Model"
           }
         },
         "required": [
@@ -348,25 +340,19 @@
       "AssessmentScoringJobStatus": {
         "anyOf": [
           {
-            "$ref": "#/components/schemas/WorkPulseScoringJobStatus"
-          },
-          {
             "$ref": "#/components/schemas/WpllScoringJobStatus"
           },
           {
             "$ref": "#/components/schemas/ManagerMatchScoringJobStatus"
           }
         ],
-        "description": "Documentation-only union of the three poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
+        "description": "Documentation-only union of the two poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
         "title": "AssessmentScoringJobStatus"
       },
       "AssessmentSubmissionRequest": {
         "anyOf": [
           {
             "$ref": "#/components/schemas/AssessmentSubmitRequest"
-          },
-          {
-            "$ref": "#/components/schemas/WorkPulseSubmitRequest"
           },
           {
             "$ref": "#/components/schemas/WpllSubmitRequest"
@@ -776,6 +762,7 @@
       },
       "DashboardActivity": {
         "additionalProperties": true,
+        "description": "One real event: the newest of its source (see ``dashboard_repository``).",
         "properties": {
           "icon": {
             "anyOf": [
@@ -787,6 +774,7 @@
               }
             ],
             "default": null,
+            "description": "A lucide icon name the dashboard maps.",
             "title": "Icon"
           },
           "text": {
@@ -811,6 +799,7 @@
               }
             ],
             "default": null,
+            "description": "ISO-8601 UTC timestamp of the event. The client humanizes it.",
             "title": "Time"
           },
           "type": {
@@ -823,6 +812,7 @@
               }
             ],
             "default": null,
+            "description": "\"assessment\", \"pulse\" or \"profile\".",
             "title": "Type"
           }
         },
@@ -831,6 +821,7 @@
       },
       "DashboardRecommendation": {
         "additionalProperties": true,
+        "description": "One unfinished next step, most important first.",
         "properties": {
           "action": {
             "anyOf": [
@@ -866,7 +857,21 @@
               }
             ],
             "default": null,
+            "description": "An SPA route.",
             "title": "Href"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stable rule name, e.g. \"career_status\", \"work_pulse\", \"pulse\".",
+            "title": "Id"
           },
           "priority": {
             "anyOf": [
@@ -878,6 +883,7 @@
               }
             ],
             "default": null,
+            "description": "\"urgent\" or \"normal\".",
             "title": "Priority"
           },
           "title": {
@@ -898,7 +904,7 @@
       },
       "DashboardResponse": {
         "additionalProperties": false,
-        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` and ``recommendations`` are static placeholders in the\ncurrent implementation; the three counts are live.",
+        "description": "Job-seeker dashboard summary.\n\n``recentActivity`` (at most five, newest first) and ``recommendations`` (every\nstep that applies, most important first; the dashboard shows three after\ndropping those its other cards already link to) are derived from the\ncaller's own rows; the counts are live.",
         "properties": {
           "applications": {
             "title": "Applications",
@@ -1048,12 +1054,42 @@
             "title": "Experienced",
             "type": "integer"
           },
+          "industry": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tech",
+                  "finance",
+                  "healthcare",
+                  "retail",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The organization's industry, one of the causal model's `industry` levels, or null (or absent) for 'not sure / prefer not to say'.",
+            "title": "Industry"
+          },
           "stage_size": {
             "description": "1 (seed) .. 5 (enterprise).",
             "maximum": 5,
             "minimum": 1,
             "title": "Stage Size",
             "type": "integer"
+          },
+          "subject": {
+            "default": "current",
+            "description": "Which job this report describes: 'current' (the default -- the current or most recent job) or 'past' (the one job before that). A past report is accepted once per user, only after a current report exists, and never for first_job; it never changes the Situation Report.",
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
           }
         },
         "required": [
@@ -1095,9 +1131,36 @@
             "title": "Experienced",
             "type": "integer"
           },
+          "industry": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tech",
+                  "finance",
+                  "healthcare",
+                  "retail",
+                  "other"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Industry"
+          },
           "stage_size": {
             "title": "Stage Size",
             "type": "integer"
+          },
+          "subject": {
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
           },
           "version": {
             "title": "Version",
@@ -1109,7 +1172,8 @@
           "stage_size",
           "experienced",
           "career_status",
-          "version"
+          "version",
+          "subject"
         ],
         "title": "EnvironmentReportSubmitResponse",
         "type": "object"
@@ -1164,7 +1228,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -1279,7 +1343,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -1369,7 +1433,7 @@
             "type": "string"
           },
           "status": {
-            "description": "'active' or 'abandoned' -- the stored fact.",
+            "description": "'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.",
             "title": "Status",
             "type": "string"
           }
@@ -1456,6 +1520,7 @@
         "description": "One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).\n\nPassed straight through from ``environment_report_store``'s own serialization --\nthe same dict the store already hands the ``GET /me/situation-report`` read path --\nrather than a second, export-specific shape.",
         "properties": {
           "career_status": {
+            "description": "The user's career status when they filed -- on a 'past' report, not the past job's.",
             "title": "Career Status",
             "type": "string"
           },
@@ -1498,6 +1563,19 @@
             "title": "Id",
             "type": "integer"
           },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Industry level key, or null: 'not sure' or, before env-v2, never asked.",
+            "title": "Industry"
+          },
           "raw_answers": {
             "additionalProperties": true,
             "title": "Raw Answers",
@@ -1506,6 +1584,15 @@
           "stage_size": {
             "title": "Stage Size",
             "type": "integer"
+          },
+          "subject": {
+            "description": "Which job the report describes: 'current' (the current or most recent job) or 'past' (the one before it).",
+            "enum": [
+              "current",
+              "past"
+            ],
+            "title": "Subject",
+            "type": "string"
           },
           "submitted_at": {
             "anyOf": [
@@ -1535,7 +1622,8 @@
           "stage_size",
           "experienced_outcome",
           "career_status",
-          "version"
+          "version",
+          "subject"
         ],
         "title": "ExportedEnvironmentReport",
         "type": "object"
@@ -2783,6 +2871,28 @@
         "title": "LegacyError",
         "type": "object"
       },
+      "LlmErrorResponse": {
+        "additionalProperties": false,
+        "description": "A failure from an LLM-backed route.\n\n``error`` is generic, user-facing text; ``code`` is stable and\nmachine-readable. The provider's own exception text, its name, and the model\nid are logged server-side and never sent (2026-10-02 audit #4).",
+        "properties": {
+          "code": {
+            "description": "\"insight_generation_failed\", \"insight_malformed\", \"agent_unavailable\", \"agent_model_unavailable\", or \"agent_failed\".",
+            "title": "Code",
+            "type": "string"
+          },
+          "error": {
+            "description": "Human-readable failure message.",
+            "title": "Error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "code"
+        ],
+        "title": "LlmErrorResponse",
+        "type": "object"
+      },
       "LoginRequest": {
         "additionalProperties": false,
         "properties": {
@@ -3410,6 +3520,12 @@
             "title": "Generated At",
             "type": "string"
           },
+          "narration_pending": {
+            "default": false,
+            "description": "W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` \"\" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.",
+            "title": "Narration Pending",
+            "type": "boolean"
+          },
           "suggestions": {
             "items": {
               "$ref": "#/components/schemas/PathSuggestion"
@@ -3503,7 +3619,7 @@
             "title": "Narrative"
           },
           "onet_calls": {
-            "description": "O*NET requests this fit cost. Four unless a call failed.",
+            "description": "O*NET requests this fit cost. Zero when the fit sidecar has the occupation (the normal case since W-9); otherwise four, unless a call failed.",
             "title": "Onet Calls",
             "type": "integer"
           },
@@ -3529,7 +3645,7 @@
             "type": "array"
           },
           "tech_stack": {
-            "description": "Hot technologies, most in-demand first.",
+            "description": "Hot technologies, most in-demand first, leaving out any already listed in matched_skills or gap_skills. A name O*NET spells out in full before its acronym shows as the acronym alone (for example 'HTML').",
             "items": {
               "type": "string"
             },
@@ -3729,6 +3845,14 @@
             "default": null,
             "title": "Onet Code"
           },
+          "overlapping_skills": {
+            "description": "W-16, additive. The user's own skills this occupation uses, as the scorer found them -- the same list the narrator is handed and the fallback sentence is built from. Carried on the card because the fallback can now be written after the card (when a narration fails or never lands). Not rendered by the SPA.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Overlapping Skills",
+            "type": "array"
+          },
           "profile_dimensions": {
             "default": null,
             "description": "Which parts of the profile drove the match.",
@@ -3741,6 +3865,12 @@
             },
             "title": "Reasons",
             "type": "array"
+          },
+          "summary": {
+            "default": "",
+            "description": "W-18, additive. O*NET's own description of this occupation, first sentence only, capped at about 200 characters on a clause boundary. Static per occupation and filled at scoring time, so it is present on the first poll that carries cards, before any `why_text`. Empty when the server has no summaries sidecar; the SPA then shows no summary line.",
+            "title": "Summary",
+            "type": "string"
           },
           "title": {
             "anyOf": [
@@ -3764,7 +3894,7 @@
               }
             ],
             "default": null,
-            "description": "LLM-generated rationale for this path.",
+            "description": "LLM-generated rationale for this path. Empty while the response's `narration_pending` is true and this card's sentence has not landed.",
             "title": "Why Text"
           }
         },
@@ -3833,7 +3963,7 @@
             "description": "Present only on 'succeeded'."
           },
           "status": {
-            "description": "queued, running, succeeded or failed. The last two are terminal.",
+            "description": "queued, running, succeeded or failed. The last two are terminal for the job. W-16: `succeeded` now arrives as soon as the list is scored; while `result.narration_pending` is true the result is still being updated in place with the cards' sentences, so a client keeps polling until it is false.",
             "title": "Status",
             "type": "string"
           }
@@ -3865,6 +3995,12 @@
             "description": "ISO 8601 UTC, second precision.",
             "title": "Generated At",
             "type": "string"
+          },
+          "narration_pending": {
+            "default": false,
+            "description": "W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` \"\" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.",
+            "title": "Narration Pending",
+            "type": "boolean"
           },
           "suggestions": {
             "items": {
@@ -4728,9 +4864,10 @@
       },
       "QuizInsightsRequest": {
         "additionalProperties": false,
-        "description": "Quizzes to generate insights for.\n\nA quiz with no key, no title, or no answered items is discarded before the\nmodel is called; if that leaves nothing, the request is a 400.",
+        "description": "Quizzes to generate insights for.\n\nA quiz with no key, no title, or no answered items is discarded before the\nmodel is called; if that leaves nothing, the request is a 400. Counts and\nlengths are capped (a 422 past them) on the signed-in and the anonymous\nendpoint alike, since both pay for the same completion.",
         "properties": {
           "quizGroup": {
+            "maxLength": 64,
             "title": "Quizgroup",
             "type": "string"
           },
@@ -4738,6 +4875,7 @@
             "items": {
               "$ref": "#/components/schemas/QuizPayload"
             },
+            "maxItems": 8,
             "title": "Quizzes",
             "type": "array"
           }
@@ -4780,10 +4918,12 @@
         "additionalProperties": false,
         "properties": {
           "question": {
+            "maxLength": 400,
             "title": "Question",
             "type": "string"
           },
           "selected": {
+            "maxLength": 300,
             "title": "Selected",
             "type": "string"
           }
@@ -4802,15 +4942,18 @@
             "items": {
               "$ref": "#/components/schemas/QuizItem"
             },
+            "maxItems": 40,
             "title": "Items",
             "type": "array"
           },
           "key": {
             "description": "Echoed verbatim in the matching insight.",
+            "maxLength": 64,
             "title": "Key",
             "type": "string"
           },
           "title": {
+            "maxLength": 120,
             "title": "Title",
             "type": "string"
           }
@@ -5340,6 +5483,11 @@
             "title": "Manager",
             "type": "object"
           },
+          "past_job_report_filed": {
+            "description": "Whether the user has filed their one past-job environment report (subject 'past'). Present in every state; a past report never changes anything else in this response.",
+            "title": "Past Job Report Filed",
+            "type": "boolean"
+          },
           "state": {
             "description": "One of 'needs_core', 'needs_environment_report', 'complete'.",
             "title": "State",
@@ -5348,7 +5496,8 @@
         },
         "required": [
           "state",
-          "manager"
+          "manager",
+          "past_job_report_filed"
         ],
         "title": "SituationReportResponse",
         "type": "object"
@@ -5497,7 +5646,7 @@
       },
       "WorkPulseResult": {
         "additionalProperties": true,
-        "description": "Work Pulse narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``.",
+        "description": "The retired original Work Pulse's narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``. Read-only since the instrument\nwas retired on 2026-10-02: nothing writes a new one, and its submit body\nand job-status models are deleted with the write doors.",
         "properties": {
           "archetype": {
             "title": "Archetype",
@@ -5530,70 +5679,6 @@
           "archetype"
         ],
         "title": "WorkPulseResult",
-        "type": "object"
-      },
-      "WorkPulseScoringJobStatus": {
-        "additionalProperties": true,
-        "description": "``GET /assessments/work_pulse/scoring-jobs/{job_id}``.",
-        "properties": {
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
-            "title": "Error"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WorkPulseResult"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'succeeded'."
-          },
-          "status": {
-            "description": "queued, running, succeeded or failed. The last two are terminal.",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "status"
-        ],
-        "title": "WorkPulseScoringJobStatus",
-        "type": "object"
-      },
-      "WorkPulseSubmitRequest": {
-        "additionalProperties": false,
-        "properties": {
-          "answers": {
-            "description": "Exactly 12 answers.",
-            "items": {
-              "$ref": "#/components/schemas/WorkPulseAnswer"
-            },
-            "title": "Answers",
-            "type": "array"
-          }
-        },
-        "required": [
-          "answers"
-        ],
-        "title": "WorkPulseSubmitRequest",
         "type": "object"
       },
       "WpllAnswer": {
@@ -5741,7 +5826,7 @@
   "paths": {
     "/api/v1/agent/messages": {
       "post": {
-        "description": "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure that happens mid-stream is delivered as a `data: {\"error\": ...}` frame on a 200, because the status line has already been sent.",
+        "description": "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure that happens mid-stream is delivered as a `data: {\"error\": ..., \"code\": \"agent_stream_interrupted\"}` frame on a 200, because the status line has already been sent. A stream that ends without `done` was cut off and its partial reply should be discarded.\n\nThe server picks the model; a `model` in the body is ignored. Roles are `user` and `assistant` only, the history is capped at 40 messages of 4,000 characters each, and the server may drop the oldest turns to fit its context budget.",
         "operationId": "post_intelligence_agent_messages",
         "requestBody": {
           "content": {
@@ -5768,7 +5853,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
                 }
               }
             },
@@ -5778,7 +5863,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -5788,7 +5873,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -6005,7 +6090,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs": {
       "post": {
-        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
+        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
         "operationId": "post_assessments_assessment_kind_scoring_job",
         "parameters": [
           {
@@ -6058,6 +6143,16 @@
             },
             "description": "Not found"
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -6085,7 +6180,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs/{job_id}": {
       "get": {
-        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.",
+        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.",
         "operationId": "get_assessments_assessment_kind_scoring_job_status",
         "parameters": [
           {
@@ -6126,6 +6221,16 @@
             },
             "description": "Not found"
           },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Gone"
+          },
           "default": {
             "content": {
               "application/problem+json": {
@@ -6150,7 +6255,7 @@
     },
     "/api/v1/assessments/{kind}/submissions": {
       "post": {
-        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\nThe three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.",
+        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\n`core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.\n\nThe two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.",
         "operationId": "post_assessments_assessment_kind_submit",
         "parameters": [
           {
@@ -6202,6 +6307,16 @@
               }
             },
             "description": "Not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "410": {
             "content": {
@@ -7098,11 +7213,21 @@
             },
             "description": "Bad request"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -7417,7 +7542,7 @@
     },
     "/api/v1/me/assessments/{kind}/result": {
       "get": {
-        "description": "`{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.",
+        "description": "`{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `work_pulse` is the retired original instrument: its stored narrative stays readable here, read-only, and a sitting without one is a `404` like no sitting at all. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.",
         "operationId": "get_assessments_assessment_kind_result",
         "parameters": [
           {
@@ -7449,16 +7574,6 @@
               }
             },
             "description": "Not found"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Validation failed"
           },
           "default": {
             "content": {
@@ -7554,7 +7669,7 @@
     },
     "/api/v1/me/dashboard": {
       "get": {
-        "description": "GET /me/dashboard - profile completion, match count, application count.\n\nrecentActivity and recommendations are static placeholders until those\nfeatures exist; the three counts are live.",
+        "description": "GET /me/dashboard - profile completion, counts, activity, next steps.\n\nrecentActivity is the caller's real events (newest first, ISO timestamps)\nand recommendations their next unfinished steps; see\nsolverah.services.dashboard_feed. The three counts are live.",
         "operationId": "get_me_get_my_dashboard",
         "responses": {
           "200": {
@@ -7601,7 +7716,7 @@
     },
     "/api/v1/me/environment-report": {
       "post": {
-        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10).",
+        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md \u00a72, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.",
         "operationId": "post_me_post_my_environment_report",
         "requestBody": {
           "content": {
@@ -7970,7 +8085,7 @@
     },
     "/api/v1/me/matches": {
       "get": {
-        "description": "Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.\n\nStill an O(all-companies) in-process scan that can commit a backfill on the read path (P0-2). The cursor is what lets Phase 2 fix that behind an unchanged contract; it is not itself the fix.",
+        "description": "Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.\n\nWrites nothing. Still an O(all-companies) in-process scan (P0-2), of each company's id and eight culture columns only; names, slugs and industries are read afterwards for the returned page alone. The cursor is what lets that scan be replaced behind an unchanged contract; it is not itself the fix.",
         "operationId": "get_companies_my_matches",
         "parameters": [
           {
@@ -8818,7 +8933,7 @@
         ]
       },
       "patch": {
-        "description": "PATCH /me/profile - merge incoming keys into the stored profile.\n\nUnknown keys are stripped by clean_profile_data rather than rejected. Quiz\nresults merge at the sub-key level so existing entries survive. Edits are\ndiffed against the stored parser snapshot to record ResumeParseCorrection\nrows for anything the user changed after a resume upload.\n\nStill a read-modify-write of a whole JSON column (P0-1), and still without a\nversion to check. Phase 2 is what fixes that; the envelope this returns is\nwhere the version will go.",
+        "description": "PATCH /me/profile - merge incoming keys into the stored profile.\n\nUnknown keys are stripped by clean_profile_data rather than rejected. Quiz\nresults merge at the sub-key level so existing entries survive. Edits are\ndiffed against the stored parser snapshot to record ResumeParseCorrection\nrows for anything the user changed after a resume upload.\n\nTwo concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge\nruns under a server-side compare-and-swap on the profile's version and is\nre-applied to a fresh read when another writer got there first. The version\nis not exposed; the envelope this returns is where it would go.",
         "operationId": "patch_me_patch_my_profile",
         "requestBody": {
           "content": {
@@ -8888,7 +9003,7 @@
     },
     "/api/v1/me/pulse/checkins": {
       "post": {
-        "description": "The server derives both the sequence (`pulse_checkin_count`) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.",
+        "description": "The server derives both the sequence (`claim_checkin_sequence`, which counts the user's check-ins under a per-user lock held until the commit) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.",
         "operationId": "post_me_post_my_pulse_checkin",
         "requestBody": {
           "content": {
@@ -9346,11 +9461,21 @@
             },
             "description": "Not found"
           },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
           "500": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/LlmErrorResponse"
                 }
               }
             },
@@ -9734,7 +9859,7 @@
     },
     "/api/v1/me/situation-report": {
       "get": {
-        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads.",
+        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
         "operationId": "get_me_get_my_situation_report",
         "responses": {
           "200": {

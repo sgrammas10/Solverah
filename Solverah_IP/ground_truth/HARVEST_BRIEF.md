@@ -147,6 +147,27 @@ and its harvest is deferred to tomorrow. A research run can take all night when 
 are slow — that happened on 2026-09-08 — and harvesting a packet out from under a session that
 is still writing it is how a half-built packet reaches `packets/` looking finished.
 
+**There is no age limit. An old `IN PROGRESS` is a run waiting on Sebastian, not a dead one.**
+A research run that goes quiet for days is sitting on a site-access or permission prompt that
+nobody is awake to answer. P-13's run opened its report on 2026-09-23, waited five days on an
+unanswered approval, and resumed and carried on building the moment Sebastian accepted it on
+2026-09-28. Never move, delete, or abort an `IN PROGRESS` report because of its age: the
+session is still alive and will write into `packets/` again the moment it is approved. No new
+research run starts while that report sits there — research refuses a non-empty `packets/` —
+and that is intended: one run at a time, finished before the next begins.
+
+What an old report does need is a human, so make it impossible to miss. If `RUN_REPORT.md`
+has not been modified in more than 24 hours, the FIRST line of your log entry, above
+`RESEARCH`, is:
+
+```
+ACTION     research waiting on approval since <report mtime> (P-## Company) -- open the
+           Company Research task in Claude Desktop and answer its pending prompt
+```
+
+Repeat it every harvest until the report changes. Do not describe the run as crashed or dead;
+it is waiting.
+
 **`ABORTED` means the run failed, and the report is that night's only deliverable.** Fold it
 into the log in full — which company, how far it got, what stopped it — then delete it. Change
 neither list: research updates them only after a packet exists on disk, so the company is still
@@ -154,10 +175,13 @@ correctly queued and will simply be retried. Say plainly that the research faile
 reason it gave. Never soften that into "nothing to do", which is the wording for an empty queue;
 the two must not read alike.
 
-**A report with no status line at all** was written by a session predating this rule — the
-2026-09-08 run is one, since the rule was added while it was still working. Judge that one by
-the packet: if a packet folder is there and passed its checks, treat the run as `COMPLETE` and
-harvest it normally; if there is no packet, treat it as `ABORTED` and say so.
+**A report with no status line at all is treated as `IN PROGRESS`.** Touch nothing in
+`_build_env/`, defer, and flag it in the log as a report missing its status line. The sessions
+that predated the status rule are long finished; a status-less report now means a live session
+rewrote its report after an interruption — P-13's run did exactly that on 2026-09-28, resuming
+with a report that began at an `INTERRUPTION` heading and had no status line. The old rule here
+("no packet → ABORTED, fold it and delete it") would have pulled the report out from under a
+session that was building at that moment. A deferred harvest costs a day; that costs a packet.
 
 **No report and no packet** means research never started. Say that, and say it as a distinct
 outcome from the three above.

@@ -45,6 +45,14 @@ of any list built on it. Scores are mapped to integer band indices via
 `rater_agreement.band_index` (which refuses off-band scores rather than snapping -- an off-band
 score means an edited file or an average, and "do not average" is the rule) and compared as
 integers. No float comparison exists anywhere in this module.
+
+INSUFFICIENT EVIDENCE (2026-09-29, anchors v3.1)
+------------------------------------------------
+A reading of "insufficient evidence" has no band, so it has no distance to anything. A cell
+where any of the three raters skipped is excluded from every pair distance and from the
+three-way spread, and is counted in `cells_skipped` -- counted, not dropped, for the same
+reason incomplete cells are. `cells_skipped` is the one key added to SUMMARY_KEYS; it is a
+count, not a flag.
 """
 
 from __future__ import annotations
@@ -59,12 +67,17 @@ from rater_agreement import (  # noqa: F401  (band_index re-exported for tests)
     band_index,
     load_band_values,
     load_readings,
+    permits_insufficient_evidence,
 )
 
 # The three pairs, fixed. "A-B" and "A-C" are the Julie-involving pairs; "B-C" is the blind
 # pair the S-15 flag computes over. Dropping any of these is a defect, not a simplification --
 # the whole point of the diagnostic is the pairs the flag cannot see.
 PAIRS: tuple[tuple[str, str], ...] = (("A", "B"), ("A", "C"), ("B", "C"))
+# The three raters this diagnostic is about -- round 1's A, B, C. Deliberately NOT
+# set(RATER_ROLES): round 2 added a reference rater (D), and "complete" must keep meaning
+# "all three round-1 readers present", or every round-1 cell turns incomplete.
+THREE_WAY_RATERS = frozenset(r for pair in PAIRS for r in pair)
 
 # Frozen output schema. Tests assert these exact key sets so that a later edit cannot quietly
 # grow a `needs_review` (or any other flag-shaped) key -- the guard as an executable test.
@@ -72,6 +85,7 @@ SUMMARY_KEYS = frozenset(
     {
         "n_cells",
         "cells_incomplete",
+        "cells_skipped",
         "pair_distance_distribution",
         "three_way_spread_distribution",
         "licensed_inference",
@@ -99,27 +113,49 @@ class ThreeWayCell:
         return max(self.bands.values()) - min(self.bands.values())
 
 
+def split_three_way_cells(
+    readings: list[Reading],
+) -> tuple[list[ThreeWayCell], int, int]:
+    """Group readings into three-rater cells.
+
+    Returns (complete_cells, n_incomplete, n_skipped). A cell missing any of the three raters
+    carries no three-way information and is counted, not silently dropped -- an absence is a
+    fact about coverage, not nothing. A cell with all three raters present where any of them
+    recorded insufficient evidence is counted in n_skipped, not n_incomplete: the rater did
+    return that dimension, and said there was nothing to score.
+    """
+    grouped: dict[tuple[str, str], dict[str, int | None]] = {}
+    for r in readings:
+        if r.rater in THREE_WAY_RATERS:
+            grouped.setdefault((r.packet_id, r.dimension), {})[r.rater] = r.band
+
+    complete: list[ThreeWayCell] = []
+    incomplete = skipped = 0
+    for key in sorted(grouped):  # canonical order -- guard clause 3
+        bands = grouped[key]
+        if not set(bands) >= THREE_WAY_RATERS:
+            incomplete += 1
+        elif any(b is None for b in bands.values()):
+            skipped += 1
+        else:
+            complete.append(ThreeWayCell(key[0], key[1], dict(bands)))
+    return complete, incomplete, skipped
+
+
 def build_three_way_cells(
     readings: list[Reading],
 ) -> tuple[list[ThreeWayCell], int]:
-    """Group readings into three-rater cells.
+    """(complete_cells, n_incomplete) for readings that carry no skips.
 
-    Returns (complete_cells, n_incomplete). A cell missing any of the three raters carries no
-    three-way information and is counted, not silently dropped -- an absence is a fact about
-    coverage, not nothing.
+    The pre-v3.1 interface, kept so its callers cannot silently lose skipped cells: it refuses
+    any skip and points at split_three_way_cells, which counts them.
     """
-    grouped: dict[tuple[str, str], dict[str, int]] = {}
-    for r in readings:
-        grouped.setdefault((r.packet_id, r.dimension), {})[r.rater] = r.band
-
-    complete: list[ThreeWayCell] = []
-    incomplete = 0
-    for key in sorted(grouped):  # canonical order -- guard clause 3
-        bands = grouped[key]
-        if set(bands) >= set(RATER_ROLES):
-            complete.append(ThreeWayCell(key[0], key[1], dict(bands)))
-        else:
-            incomplete += 1
+    complete, incomplete, skipped = split_three_way_cells(readings)
+    if skipped:
+        raise AgreementError(
+            f"{skipped} cell(s) carry insufficient-evidence readings; use "
+            f"split_three_way_cells, which counts them, instead of build_three_way_cells."
+        )
     return complete, incomplete
 
 
@@ -142,7 +178,8 @@ def per_cell_records(cells: list[ThreeWayCell]) -> list[dict]:
     ]
 
 
-def dispersion_summary(cells: list[ThreeWayCell], *, n_incomplete: int = 0) -> dict:
+def dispersion_summary(cells: list[ThreeWayCell], *, n_incomplete: int = 0,
+                       n_skipped: int = 0) -> dict:
     """The primary output: distributions over cells, plus the one licensed inference.
 
     `pair_distance_distribution` maps each pair to {distance: count}.
@@ -165,6 +202,7 @@ def dispersion_summary(cells: list[ThreeWayCell], *, n_incomplete: int = 0) -> d
     return {
         "n_cells": n,
         "cells_incomplete": n_incomplete,
+        "cells_skipped": n_skipped,
         "pair_distance_distribution": pair_dist,
         "three_way_spread_distribution": dict(sorted(spread_dist.items())),
         "licensed_inference": {"mass_d_ge_2": mass},
@@ -174,6 +212,7 @@ def dispersion_summary(cells: list[ThreeWayCell], *, n_incomplete: int = 0) -> d
 def run(paths, anchors_path) -> dict:
     """Load returned rater JSONs and produce the summary. File-in, dict-out; no side effects."""
     band_values = load_band_values(anchors_path)
-    readings = load_readings(paths, band_values)
-    cells, incomplete = build_three_way_cells(readings)
-    return dispersion_summary(cells, n_incomplete=incomplete)
+    readings = load_readings(paths, band_values,
+                             allow_insufficient=permits_insufficient_evidence(anchors_path))
+    cells, incomplete, skipped = split_three_way_cells(readings)
+    return dispersion_summary(cells, n_incomplete=incomplete, n_skipped=skipped)

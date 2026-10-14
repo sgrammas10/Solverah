@@ -16,6 +16,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import PulseTrendPage from "./PulseTrendPage";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
 import type { PulseCadence, PulseHistory } from "../usePulse";
 
 const mocks = vi.hoisted(() => ({
@@ -189,9 +190,8 @@ describe("PulseTrendPage", () => {
   it("sets monthly with one click, like every other cadence", async () => {
     serve({ cadence: "weekly" });
     renderPage();
-    await screen.findByText("Check-in cadence");
-
-    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
+    // The buttons render once settings arrive (the heading is earlier).
+    fireEvent.click(await screen.findByRole("button", { name: "Monthly" }));
 
     await waitFor(() =>
       expect(mocks.fetchWithAuth).toHaveBeenCalledWith(
@@ -201,12 +201,53 @@ describe("PulseTrendPage", () => {
     );
   });
 
+  // F10 (2026-10-02): four unpressed buttons is not a loading state and not
+  // an error state.
+  it("shows a loading line for the cadence until settings arrive, not four unpressed buttons", async () => {
+    let resolveSettings: (value: unknown) => void = () => {};
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path === "/me/pulse/history") return Promise.resolve(EMPTY_HISTORY);
+      if (path === "/me/pulse/settings") return new Promise((resolve) => { resolveSettings = resolve; });
+      return Promise.reject(new Error(`unexpected call ${path}`));
+    });
+    renderPage();
+
+    expect(await screen.findByText("Loading your cadence…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Weekly" })).not.toBeInTheDocument();
+
+    resolveSettings({ cadence: "weekly", auto_slowed: false });
+    expect(await screen.findByRole("button", { name: "Weekly", pressed: true })).toBeInTheDocument();
+  });
+
+  it("shows an error with a retry when the cadence fails to load", async () => {
+    let settingsCalls = 0;
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path === "/me/pulse/history") return Promise.resolve(EMPTY_HISTORY);
+      if (path === "/me/pulse/settings") {
+        settingsCalls += 1;
+        // 4xx so `shouldRetry` doesn't hold the query mid-retry.
+        return settingsCalls === 1
+          ? Promise.reject(new ApiError("boom", { status: 403 }))
+          : Promise.resolve({ cadence: "biweekly", auto_slowed: false });
+      }
+      return Promise.reject(new Error(`unexpected call ${path}`));
+    });
+    renderPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't load your cadence/);
+    expect(screen.queryByRole("button", { name: "Weekly" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(
+      await screen.findByRole("button", { name: "Every two weeks", pressed: true }),
+    ).toBeInTheDocument();
+  });
+
   it("turns cadence off with one click and no confirmation step", async () => {
     serve({ cadence: "weekly" });
     renderPage();
-    await screen.findByText("Check-in cadence");
 
-    fireEvent.click(screen.getByRole("button", { name: "Off" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Off" }));
 
     await waitFor(() =>
       expect(mocks.fetchWithAuth).toHaveBeenCalledWith(

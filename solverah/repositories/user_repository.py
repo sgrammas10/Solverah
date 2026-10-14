@@ -19,7 +19,9 @@ Both things this file previously called out as wrong are fixed as of Phase 2c
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Tuple
+
+import sqlalchemy as sa
 
 from model import User, db
 
@@ -31,16 +33,36 @@ __all__ = [
 ]
 
 
+def _live_email(email: str) -> Tuple[sa.ColumnElement, sa.ColumnElement]:
+    """The WHERE clause of every lookup by address: ``uq_users_email``'s own.
+
+    ``uq_users_email`` is partial on ``deleted_at IS NULL``, and Postgres uses a
+    partial index only for a query whose WHERE implies the index's predicate.
+    Filtering on the address alone therefore could not use the one index on it,
+    and every lookup -- every signed-in request resolves its user here -- was a
+    sequential scan of ``users``.
+
+    The predicate is for the index, not a soft-delete: nothing sets
+    ``deleted_at`` (tombstoning frees an address by rewriting it, see
+    ``account_repository.tombstone_user``), so no account reads differently for
+    it. It does say out loud the rule the index draws -- an address belongs to
+    its live row -- which is the right answer on the day something does set it.
+    """
+    return User.email == email.strip().lower(), User.deleted_at.is_(None)
+
+
 def find_by_email(email: Optional[str]) -> Optional[User]:
-    """Return the user with this email, or None.
+    """Return the live user with this email, or None.
 
     The email is stripped and lower-cased here rather than at each of the eight
     call sites that used to do it inline -- a caller that forgot produced a
     "no such account" for an address that exists, which reads as a data bug.
+    The lookup is served by ``uq_users_email``; :func:`_live_email` says why it
+    carries ``deleted_at IS NULL``.
     """
     if not email:
         return None
-    return User.query.filter_by(email=email.strip().lower()).first()
+    return User.query.filter(*_live_email(email)).first()
 
 
 def find_by_id(user_id: int) -> Optional[User]:
@@ -49,8 +71,16 @@ def find_by_id(user_id: int) -> Optional[User]:
 
 
 def email_exists(email: Optional[str]) -> bool:
-    """Whether an account already exists for this email."""
-    return find_by_email(email) is not None
+    """Whether a live account already holds this email.
+
+    An ``EXISTS`` on :func:`find_by_email`'s predicate: the same index answers
+    it, and no row is loaded to learn a boolean.
+    """
+    if not email:
+        return False
+    return bool(
+        db.session.execute(sa.select(sa.exists().where(*_live_email(email)))).scalar()
+    )
 
 
 def add(user: User) -> User:

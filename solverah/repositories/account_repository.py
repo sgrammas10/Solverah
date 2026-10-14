@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 
 from model import (
     IntakeSubmission,
@@ -34,7 +34,12 @@ from model import (
     UserSession,
     db,
 )
-from solverah.repositories import assessment_repository, profile_repository
+from solverah.repositories import (
+    assessment_repository,
+    intake_repository,
+    path_narrative_repository,
+    profile_repository,
+)
 
 __all__ = [
     "delete_personal_rows",
@@ -50,16 +55,24 @@ def find_intakes_for_email(email: str) -> List[IntakeSubmission]:
 
     Case-insensitive: an intake filed as ``Alice@Example.com`` belongs to
     ``alice@example.com``, and missing it on deletion would leave a resume and a
-    full contact record behind.
+    full contact record behind. Compares through ``IntakeSubmission.email_key``,
+    the expression ``ix_intake_submissions_email_lower`` is built on, with the
+    argument lowered by the same ``lower()`` in the database.
     """
     return IntakeSubmission.query.filter(
-        func.lower(IntakeSubmission.email) == (email or "").lower()
+        IntakeSubmission.email_key == func.lower(email or "")
     ).all()
 
 
 def find_user_intake(user_id: int):
-    """The legacy quiz payloads attached to this account, or None."""
-    return UserIntake.query.filter_by(user_id=user_id).first()
+    """The legacy quiz payloads attached to this account, or None.
+
+    No production caller is left (the export asks
+    ``intake_repository.find_user_intake(user_id, only=("id",))``); kept because
+    tests/test_dbopt_profile_account.py still recomputes the export with it, and
+    now simply the whole-row form of that one reader rather than a second copy.
+    """
+    return intake_repository.find_user_intake(user_id)
 
 
 def find_job_recommendations(user_id: int) -> List[JobRecommendation]:
@@ -76,8 +89,15 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
 
     Does not commit.
     """
-    for intake in intakes:
-        db.session.delete(intake)
+    # One DELETE ... WHERE id IN (...) for every intake, where a session.delete()
+    # per row used to flush one statement each. The default synchronisation marks
+    # the matching instances in the session deleted, so the caller's loaded list
+    # cannot be flushed back or lazily re-read afterwards.
+    intake_ids = [intake.id for intake in intakes]
+    if intake_ids:
+        db.session.execute(
+            delete(IntakeSubmission).where(IntakeSubmission.id.in_(intake_ids))
+        )
     UserIntake.query.filter_by(user_id=user_id).delete()
     JobRecommendation.query.filter_by(user_id=user_id).delete()
     ResumeParseCorrection.query.filter_by(user_id=user_id).delete()
@@ -163,6 +183,12 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # rows for anything but rotating one user's own retrieval query, so a
     # retained row would be retention with no reader.
     PathWant.query.filter_by(user_id=user_id).delete()
+    # Stored narrator sentences (BUILD_PLAN W-16). `why_text` is model-written
+    # prose ABOUT the person -- "uses your Python and SQL" -- and free text about a
+    # person is never retained de-identified: the `path_fits` answer. Explicit
+    # rather than by the `ON DELETE CASCADE` on `fk_pathnarrative_user`, for the
+    # reason the paragraphs above give: deletion tombstones the user row.
+    path_narrative_repository.delete_for_user(user_id)
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

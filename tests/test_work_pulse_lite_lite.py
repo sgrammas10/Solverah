@@ -40,6 +40,11 @@ def _score(client, answers):
     return _poll(client, queued.get_json()["job_id"])
 
 
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+
+
 # ── Endpoint tests ──────────────────────────────────────────────────────────
 
 def test_lite_lite_result_returns_insight_and_locked_sections(client):
@@ -84,6 +89,45 @@ def test_lite_lite_result_rejects_non_list_answers(client):
     res = _queue(client, {"answers": "not a list"})
     assert res.status_code == 422
     assert "answers" in {error["field"] for error in res.get_json()["errors"]}
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"question_id": "wpll-q1", "option_id": None},
+        {"question_id": None, "option_id": "wpll-q1-a"},
+        {"question_id": "wpll-q1"},
+    ],
+)
+def test_lite_lite_null_ids_are_refused_at_the_enqueue(client, answer):
+    """F10 regression: a null option_id reached the rules engine's ``.split``
+    and raised (a failed job). It is a 400 at the door now, before any job."""
+    from app import app
+    from model import ScoringJob, db
+
+    with app.app_context():
+        before = db.session.query(ScoringJob).count()
+    res = _queue(client, {"answers": VALID_ANSWERS[:2] + [answer]})
+    assert res.status_code == 400
+    with app.app_context():
+        assert db.session.query(ScoringJob).count() == before
+
+
+def test_lite_lite_worker_refuses_null_ids_the_same_way():
+    """The worker path (``wpll_insight``) shares the precheck's guard."""
+    from solverah.services.assessment_service import wpll_insight
+
+    result = wpll_insight([{"question_id": "wpll-q1", "option_id": None}])
+    assert result.status == 400
+
+
+def test_score_answers_skips_null_ids():
+    scores = score_answers([
+        {"question_id": "wpll-q1", "option_id": None},
+        {"question_id": None, "option_id": "wpll-q2-d"},
+        "not-an-object",
+    ])
+    assert all(v == 0 for v in scores.values())
 
 
 def test_lite_lite_result_does_not_require_auth(client):

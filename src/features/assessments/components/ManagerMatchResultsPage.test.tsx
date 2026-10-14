@@ -190,8 +190,8 @@ describe("ManagerMatchResultsPage - server fetch (tier 3)", () => {
   });
 
   it("redirects to the instrument when the server has no result", async () => {
-    // The 404's message is the routing signal, as it was for the hand-rolled
-    // fetch; 4xx means no retry delay before the redirect.
+    // The 404 status is the routing signal; 4xx means no retry delay before
+    // the redirect.
     mocks.fetchWithAuth.mockRejectedValueOnce(
       new ApiError("No ManagerMatch result found", { status: 404 })
     );
@@ -199,6 +199,30 @@ describe("ManagerMatchResultsPage - server fetch (tier 3)", () => {
     await waitFor(() =>
       expect(mocks.navigate).toHaveBeenCalledWith("/manager-match", { replace: true })
     );
+  });
+
+  it("redirects on a 404 whatever its message says", async () => {
+    // Regression (audit 2026-10-02, F6): the redirect matched the message
+    // prose, so a reworded 404 fell through to the generic error card.
+    mocks.fetchWithAuth.mockRejectedValueOnce(
+      new ApiError("Nothing stored for this assessment yet", { status: 404 })
+    );
+    renderPage();
+    await waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith("/manager-match", { replace: true })
+    );
+    expect(screen.queryByText("We couldn't load your results right now.")).toBeNull();
+  });
+
+  it("does not redirect on a non-404 that happens to carry the old message", async () => {
+    mocks.fetchWithAuth.mockRejectedValueOnce(
+      new ApiError("No ManagerMatch result found", { status: 403 })
+    );
+    renderPage();
+    await waitFor(() =>
+      expect(screen.getByText("We couldn't load your results right now.")).toBeInTheDocument()
+    );
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 });
 

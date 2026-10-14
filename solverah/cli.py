@@ -14,6 +14,7 @@ dashboard env vars:
 
     flask outbox sweep         # suggested: every 5 minutes
     flask retention run        # suggested: daily
+    flask retention cleanup    # daily, chained after `retention run` (R2 + DB)
     flask backups run          # suggested: daily, 03:30 UTC
     flask pulse send-prompts   # suggested: daily (BUILD_PLAN B-2)
     flask corpus build         # suggested: quarterly (BUILD_PLAN F-1)
@@ -23,6 +24,7 @@ dashboard env vars:
                                # working-conditions sidecar (BUILD_PLAN W-3)
     flask corpus tasks         # no O*NET; the wants panel's eight tasks per job
                                # with plain-words labels (BUILD_PLAN W-3)
+    flask corpus summaries     # no network; one O*NET sentence per card (W-18)
 
 ``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
 the way the first two are -- nothing breaks if a run is skipped, a due user is
@@ -160,8 +162,25 @@ def outbox_sweep(limit: int) -> None:
     show_default=True,
     help="Delete dead user_sessions rows older than this many days.",
 )
+@click.option(
+    "--path-fit-days",
+    default=30,  # path_fit_repository.MAX_AGE; ditto
+    show_default=True,
+    help="Delete stored path_fits rows computed more than this many days ago.",
+)
+@click.option(
+    "--narrative-days",
+    default=30,  # path_narrative_repository.MAX_AGE; ditto
+    show_default=True,
+    help="Delete stored path_narratives rows written more than this many days ago.",
+)
 def retention_run(
-    outbox_hours: int, scoring_days: int, resume_days: int, session_days: int
+    outbox_hours: int,
+    scoring_days: int,
+    resume_days: int,
+    session_days: int,
+    path_fit_days: int,
+    narrative_days: int,
 ) -> None:
     """Purge rows whose retention window has passed.  Deletes are narrow by design:
 
@@ -174,6 +193,10 @@ def retention_run(
       ``expires_at`` -- AND older than the window.  A live session is somebody
       signed in right now, and deleting one signs them out with no event
       anywhere saying why.
+    * path_fits / path_narratives (W-19): every row older than the window,
+      with no second condition.  Both tables already refuse to serve a row past
+      their repository's thirty-day ``MAX_AGE``, so nothing this deletes was
+      still readable at the default window.
 
     The sessions pass has two steps and the order is the point.  ``expire_stale``
     stamps ``retired_reason = 'expired'`` on rows whose ``expires_at`` has passed
@@ -187,11 +210,25 @@ def retention_run(
 
     ``user_sessions`` has two self-referencing foreign keys (parent/successor),
     both ``ON DELETE SET NULL``, so deleting an old row breaks a link and takes
-    nothing with it.  No other table references any of the four.
+    nothing with it.  No other table references any of the six.
 
     Prints what it deleted; exits non-zero only if the pass itself crashed.
     """
+    import datetime
+
+    from model import db
+    from solverah.repositories import path_fit_repository, path_narrative_repository
     from solverah.services import outbox, refresh_tokens, resume_jobs, scoring_jobs
+
+    # The two Path Intelligence repositories never commit (their package's
+    # rule), so this command owns that transaction.
+    path_fits_deleted = path_fit_repository.purge_older_than(
+        datetime.timedelta(days=path_fit_days)
+    )
+    narratives_deleted = path_narrative_repository.purge_older_than(
+        datetime.timedelta(days=narrative_days)
+    )
+    db.session.commit()
 
     summary = {
         "event": "retention_run",
@@ -204,8 +241,43 @@ def retention_run(
         "sessions_expired": refresh_tokens.expire_stale(),
         "sessions_deleted": refresh_tokens.purge_terminal(older_than_days=session_days),
         "session_window_days": session_days,
+        "path_fits_deleted": path_fits_deleted,
+        "path_fit_window_days": path_fit_days,
+        "path_narratives_deleted": narratives_deleted,
+        "narrative_window_days": narrative_days,
     }
     click.echo(json.dumps(summary))
+
+
+@retention_cli.command("cleanup")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Report what all three rules would delete or scrub (counts and up to 20 "
+    "sample ids/keys); write nothing to the database and delete nothing from R2.",
+)
+def retention_cleanup_cmd(dry_run: bool) -> None:
+    """Run retention_cleanup.py's three rules (DATA_RETENTION_SCHEDULE.md):
+
+    \b
+    1. abandoned intakes past 90 days -- row and R2 resume object deleted;
+    2. audit_log rows past 365 days -- ip_address and user_agent nulled;
+    3. R2 objects under intake/ and profile/ that no row references, past 48h.
+
+    Unlike ``retention run`` this touches object storage, so it needs the
+    app's S3_* variables.  Exits non-zero if an object delete failed, or if R2
+    is not configured while rule 1 or rule 3 had work for it -- a pass that
+    skipped the storage half of its job is not a clean pass.
+    """
+    # Repo-root module, importable because the Flask CLI puts app.py's
+    # directory on sys.path; imported here for the reason the header gives.
+    import retention_cleanup
+
+    summary = retention_cleanup.run_cleanup(dry_run=dry_run)
+    click.echo(json.dumps({"event": "retention_cleanup", **summary}))
+    code = retention_cleanup.exit_code(summary)
+    if code:
+        click.get_current_context().exit(code)
 
 
 @backups_cli.command("run")
@@ -1146,6 +1218,101 @@ def corpus_tasks(
     )
 
 
+@corpus_cli.command("summaries")
+@click.option(
+    "--corpus",
+    default=None,
+    help="The .npy artifact, or a directory holding one "
+    "(default: $SOLVERAH_CORPUS_PATH, then $SOLVERAH_CORPUS_DIR).",
+)
+@click.option(
+    "--documents",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="The corpus documents JSONL (default: <artifact>.documents.jsonl).",
+)
+@click.option(
+    "--show",
+    default=0,
+    show_default=True,
+    type=int,
+    help="Print the N longest summaries (stderr), to read the cuts.",
+)
+def corpus_summaries(corpus: str | None, documents: str | None, show: int) -> None:
+    """Write the one-sentence card summaries beside an existing corpus artifact.
+
+    BUILD_PLAN W-18: each Path Intelligence card shows O*NET's own description
+    of the occupation, first sentence only, under its title the moment the card
+    appears -- before the narrator's personal sentence lands.
+
+    **Makes no network calls and spends nothing.**  It reads the corpus
+    documents file `corpus build` wrote beside the artifact and writes
+    `<artifact>.summaries.json`; see `backend.services.occupation_summaries` for
+    how a long sentence is cut.  `corpus refresh` runs it before publishing, so
+    the summaries rebuild themselves with the corpus.
+    """
+    from backend.services import occupation_retrieval, occupation_summaries, occupation_tasks
+
+    resolved = (
+        corpus
+        or os.environ.get("SOLVERAH_CORPUS_PATH")
+        or os.environ.get("SOLVERAH_CORPUS_DIR")
+    )
+    if not resolved:
+        raise click.ClickException(
+            "No corpus artifact. Pass --corpus or set SOLVERAH_CORPUS_PATH."
+        )
+
+    try:
+        matrix_path = occupation_retrieval.resolve_matrix_path(resolved)
+    except occupation_retrieval.CorpusUnavailable as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    docs_path = (
+        Path(documents)
+        if documents
+        else occupation_tasks.documents_path_for(matrix_path)
+    )
+    if not docs_path.is_file():
+        raise click.ClickException(
+            f"no corpus documents at {docs_path}. Pass --documents, or re-run "
+            "`flask corpus build` (it writes the JSONL beside the artifact)."
+        )
+
+    table = occupation_summaries.build_table(
+        occupation_tasks.iter_documents(docs_path), source=docs_path.name
+    )
+    if not table.count:
+        raise click.ClickException(
+            "no retrievable occupation carried a description; refusing to write "
+            "an empty sidecar."
+        )
+    path = occupation_summaries.write_summaries_sidecar(matrix_path, table)
+
+    lengths = sorted(len(text) for text in table.summaries.values())
+    if show > 0:
+        longest = sorted(table.summaries.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+        for code, text in longest[:show]:
+            # ASCII-only: this console is cp1252 and O*NET prose is not.
+            line = "  %s [%d] %s" % (code, len(text), text)
+            click.echo(line.encode("ascii", "replace").decode("ascii"), err=True)
+
+    click.echo(
+        json.dumps(
+            {
+                "event": "corpus_summaries",
+                "matrix_path": str(matrix_path),
+                "summaries_path": str(path),
+                "documents": str(docs_path),
+                "occupations": table.count,
+                "bytes": path.stat().st_size,
+                "chars_p50": lengths[len(lengths) // 2],
+                "chars_max": lengths[-1],
+            }
+        )
+    )
+
+
 def _checkpointed_labeller(occupation_tasks, openai_client, matrix_path, checkpoint, usage):
     """A `labels_for` that reads a checkpoint first and appends what it buys.
 
@@ -1247,7 +1414,9 @@ def corpus_publish(
     cadence unable to publish at all -- but a corpus published without them
     silently strips the wants layer of its data, which is what the corpus
     deploy dependency in `docs/RUNBOOK_DEPLOY_MAIN_MERGE.md` exists to catch.
-    Count the objects in the echoed summary.
+    W-9's `*.fit.json` and W-18's `*.summaries.json` ride the same optional
+    tier; `corpus refresh` does build the summaries (no network), so a refresh
+    always carries that one. Count the objects in the echoed summary.
 
     **Versioned by filename and never overwriting.** A key that already exists
     with different bytes is a refusal: workers cache the artifact and never
@@ -1352,7 +1521,7 @@ def corpus_refresh(
     resume: bool,
     dry_run: bool,
 ) -> None:
-    """The quarterly cadence: build, zones, clusters, publish.
+    """The quarterly cadence: build, zones, clusters, summaries, publish.
 
     O*NET's content changes quarterly and an artifact nobody refreshes is a
     slowly rotting one, so this is the whole cycle as one command -- and as one
@@ -1363,7 +1532,9 @@ def corpus_refresh(
     refresh does, which a copied body would have allowed within one round.
 
     Cost: ~3,070 O*NET requests at the shared 4/s ceiling (~13 minutes), 11 more
-    for the zones, ~$0.01 of embeddings, and no network at all for the clusters.
+    for the zones, ~$0.01 of embeddings, and no network at all for the clusters
+    or the card summaries (W-18) -- the summaries are cut from the documents
+    file the build just wrote, so they rebuild themselves with the corpus.
     Resumable by construction rather than by bookkeeping -- the build reuses its
     checkpoint, the zones and clusters are idempotent rewrites, and the publish
     skips objects already in the bucket byte-for-byte. A re-run after a trip
@@ -1397,20 +1568,21 @@ def corpus_refresh(
         plan = {
             "event": "corpus_refresh",
             "dry_run": True,
-            "steps": ["build", "zones", "clusters", "publish"],
+            "steps": ["build", "zones", "clusters", "summaries", "publish"],
             "out_dir": str(Path(resolved_out_dir)),
             "version": stamp,
             "matrix_filename": matrix_name,
             "bucket": os.environ.get("S3_BUCKET_NAME", "") or None,
             "key_prefix": resolved_prefix or None,
-            # The four this refresh will BUILD.  W-3's two sidecars are
-            # published when they exist beside the artifact, but a refresh
-            # builds a new artifact and does not build them for it, so a plan
-            # that listed them would be promising something this command does
-            # not do.  See `corpus_publish`'s docstring and the runbook.
+            # The five this refresh will BUILD: the four required ones and
+            # W-18's summaries.  W-3's two sidecars and W-9's are published
+            # when they exist beside the artifact, but a refresh builds a new
+            # artifact and does not build them for it, so a plan that listed
+            # them would be promising something this command does not do.
+            # See `corpus_publish`'s docstring and the runbook.
             "would_publish": (
                 [f"{resolved_prefix}/onet_corpus_{stamp}{suffix}"
-                 for suffix in occupation_corpus.PUBLISHED_SUFFIXES]
+                 for suffix in (*occupation_corpus.PUBLISHED_SUFFIXES, ".summaries.json")]
                 if resolved_prefix
                 else []
             ),
@@ -1457,6 +1629,7 @@ def corpus_refresh(
     matrix = str(build.matrix_path) if build is not None else resolved_out_dir
     ctx.invoke(corpus_zones, corpus=matrix, rate=rate)
     ctx.invoke(corpus_clusters, corpus=matrix, k=None, show=False)
+    ctx.invoke(corpus_summaries, corpus=matrix, documents=None, show=0)
     ctx.invoke(
         corpus_publish, corpus=matrix, prefix=prefix, bucket=None, dry_run=False
     )

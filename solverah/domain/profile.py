@@ -25,8 +25,10 @@ __all__ = [
     "apply_skill_levels",
     "compute_quiz_stats",
     "merge_profile",
+    "merge_resume_parse",
     "profile_completion_percent",
     "resume_field_corrections",
+    "validate_career_status",
     "validate_skill_ratings",
 ]
 
@@ -132,6 +134,44 @@ def merge_profile(existing: Optional[dict], incoming: dict) -> Dict[str, Any]:
             merged["skills_proficiency_confirmed"] = False
 
     return merged
+
+
+def merge_resume_parse(
+    existing: Optional[dict], updates: dict, snapshot: dict
+) -> Dict[str, Any]:
+    """Merge a resume parse over *existing* without letting an empty section win.
+
+    A parsed section (``experience``, ``education``, ``skills``) that came back
+    empty leaves the stored section exactly as it was. Before 2026-10-02 the
+    parse was a plain ``{**existing, **updates}``, so a resume the parser found
+    nothing in wiped all three and the job still said ``succeeded`` (audit item
+    1). A NON-empty section still replaces the stored one wholesale: whether it
+    should merge instead is an open product decision, not this function's.
+
+    Every other key in *updates* (``uploadedResume``, ``resumeKey``) is taken
+    as sent, and *snapshot* is recorded as ``_parsedResumeSnapshot``.
+    """
+    merged: Dict[str, Any] = dict(existing or {})
+    for key, value in updates.items():
+        if key in TRACKED_RESUME_FIELDS and not value:
+            continue
+        merged[key] = value
+    merged["_parsedResumeSnapshot"] = snapshot
+    return merged
+
+
+def validate_career_status(profile_data: dict) -> Optional[str]:
+    """``"invalid_status"`` when *profile_data* carries an unknown career status.
+
+    Only a key that is present is checked: a partial profile without
+    ``career_status`` leaves the stored one alone. ``None`` is not a status
+    either -- ``PATCH /me/career-status`` has never accepted it, and the
+    profile PATCH accepting it would be a second, weaker door to the same
+    column (audit 2026-10-02, item 13).
+    """
+    if "career_status" in profile_data and profile_data["career_status"] not in CAREER_STATUSES:
+        return "invalid_status"
+    return None
 
 
 def resume_field_corrections(

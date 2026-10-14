@@ -34,6 +34,8 @@ from __future__ import annotations
 import datetime
 from typing import Dict, List
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 from model import PathFeedback, db
 
 __all__ = [
@@ -74,6 +76,11 @@ def record(user_id: int, onet_code: str, verdict: str) -> PathFeedback:
     need a "which one counts" rule at every read and has no reader asking for
     one.
 
+    One ``INSERT ... ON CONFLICT (user_id, onet_code) DO UPDATE`` with no read
+    first, so a double tap converges on one row instead of the second failing
+    on ``uq_path_feedback_user_occupation`` at commit.  The returned row comes
+    back through ``RETURNING``, refreshing any copy already in the session.
+
     Does not commit -- the service owns the transaction boundary, as everywhere
     else in this package.
 
@@ -86,21 +93,25 @@ def record(user_id: int, onet_code: str, verdict: str) -> PathFeedback:
     if verdict not in VERDICTS:
         raise ValueError("unknown verdict %r" % (verdict,))
 
-    row = PathFeedback.query.filter_by(user_id=user_id, onet_code=onet_code).first()
     now = datetime.datetime.now(datetime.timezone.utc)
-    if row is None:
-        row = PathFeedback(
-            user_id=user_id,
-            onet_code=onet_code,
-            verdict=verdict,
-            created_at=now,
-            updated_at=now,
-        )
-        db.session.add(row)
-        return row
-    row.verdict = verdict
-    row.updated_at = now
-    return row
+    statement = pg_insert(PathFeedback).values(
+        user_id=user_id,
+        onet_code=onet_code,
+        verdict=verdict,
+        created_at=now,
+        updated_at=now,
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=["user_id", "onet_code"],
+        set_={
+            "verdict": statement.excluded.verdict,
+            "updated_at": statement.excluded.updated_at,
+        },
+    )
+    return db.session.scalars(
+        statement.returning(PathFeedback),
+        execution_options={"populate_existing": True},
+    ).one()
 
 
 def verdicts_for_user(user_id: int) -> Dict[str, str]:
@@ -108,12 +119,15 @@ def verdicts_for_user(user_id: int) -> Dict[str, str]:
 
     The exact shape ``path_scoring.score_paths`` takes: a plain mapping, with no
     model objects in it, so the scorer stays importable without the app context
-    and the two halves can be tested apart.
+    and the two halves can be tested apart.  Selects just those two columns --
+    nothing else in the row reaches the mapping.
     """
-    return {
-        row.onet_code: row.verdict
-        for row in PathFeedback.query.filter_by(user_id=user_id).all()
-    }
+    rows = (
+        db.session.query(PathFeedback.onet_code, PathFeedback.verdict)
+        .filter_by(user_id=user_id)
+        .all()
+    )
+    return {onet_code: verdict for onet_code, verdict in rows}
 
 
 def list_for_user(user_id: int) -> List[PathFeedback]:

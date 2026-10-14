@@ -1,0 +1,252 @@
+SCRUB DIFF  P-14   (raw above, scrubbed below; every changed line)
+
+Raw lines 1-10 (BUILD RECORD block) replaced by the de-identified header block.
+Raw lines 166-969 (Sections 2, 3, 4: researcher QA, roster/confounder block, pre-flags) not carried into the output; they are build record only.
+
+--- raw line 39
+RAW :    • "As a long‑standing global organization, we've learned that people do their best work when expectations are clear, support is consistent and careers are allowed to develop at a steady, sustainable pace."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+ANON:    • "As a long‑standing global organization, we've learned that people do their best work when expectations are clear, support is consistent and careers are allowed to develop at a steady, sustainable pace."  — [company careers page] — company-authored — accessed 2026-09-29
+
+--- raw line 41
+RAW :    • "Teams are built on trust, collaboration and accountability, creating an environment where people feel safe, included and valued for who they are."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+ANON:    • "Teams are built on trust, collaboration and accountability, creating an environment where people feel safe, included and valued for who they are."  — [company careers page] — company-authored — accessed 2026-09-29
+
+--- raw line 43
+RAW :    • "Support shows up in our everyday interactions: how leaders listen, how teams work together and how colleagues support one another through both professional and personal moments. It's a culture shaped by people, not programs."  — [company careers page] — Crawford & Company, "Life at Crawford" — https://www.crawco.com/about/careers/life-at-crawford — accessed 2026-09-29
+ANON:    • "Support shows up in our everyday interactions: how leaders listen, how teams work together and how colleagues support one another through both professional and personal moments. It's a culture shaped by people, not programs."  — [company careers page] — company-authored — accessed 2026-09-29
+
+--- raw line 45
+RAW :    • "At Crawford, respect means people are treated with dignity, listened to and valued for who they are. It means creating safe spaces where differences are acknowledged and voices are heard, without people having to explain or defend themselves to belong."  — [company careers page] — Crawford & Company, "Respect Comes First" — https://www.crawco.com/about/careers/respect — accessed 2026-09-29
+ANON:    • "At [the company], respect means people are treated with dignity, listened to and valued for who they are. It means creating safe spaces where differences are acknowledged and voices are heard, without people having to explain or defend themselves to belong."  — [company careers page] — company-authored — accessed 2026-09-29 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 47
+RAW :    • "We develop leaders at all levels through targeted programs that build coaching, decision-making and business leadership capabilities."  — [company careers page] — Crawford & Company, "Training & Growth" — https://www.crawco.com/about/careers/training-and-growth — accessed 2026-09-29
+ANON:    • "We develop leaders at all levels through targeted programs that build coaching, decision-making and business leadership capabilities."  — [company careers page] — company-authored — accessed 2026-09-29
+
+--- raw line 49
+RAW :    • "Crawford offers opportunities to grow across disciplines, business lines and regions. Whether you're building new skills, deepening expertise or stepping into leadership, you'll find the support and flexibility to move forward at a pace that works for you."  — [company careers page] — Crawford & Company, "Training & Growth" — https://www.crawco.com/about/careers/training-and-growth — accessed 2026-09-29
+ANON:    • "[The company] offers opportunities to grow across disciplines, business lines and regions. Whether you're building new skills, deepening expertise or stepping into leadership, you'll find the support and flexibility to move forward at a pace that works for you."  — [company careers page] — company-authored — accessed 2026-09-29 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 51
+RAW :    • "Here, careers are built over time. You'll gain experience that moves you forward, opportunities to grow in different directions and the support to build a career that fits alongside your life."  — [company careers page] — Crawford & Company, "Careers at Crawford" — https://www.crawco.com/about/careers — accessed 2026-09-29
+ANON:    • "Here, careers are built over time. You'll gain experience that moves you forward, opportunities to grow in different directions and the support to build a career that fits alongside your life."  — [company careers page] — company-authored — accessed 2026-09-29
+
+--- raw line 53
+RAW :    • "I've been able to grow my career here without having to sacrifice stability or my life outside of work. I trust the company, I see where I'm going, and I'm proud of the work we do for people every day."  — [company careers page — testimonial attributed on the page to a named employee, "Crawford Employee Since 2014"] — Crawford & Company, "Careers at Crawford" — https://www.crawco.com/about/careers — accessed 2026-09-29
+ANON:    • "I've been able to grow my career here without having to sacrifice stability or my life outside of work. I trust the company, I see where I'm going, and I'm proud of the work we do for people every day."  — [company careers page — testimonial attributed on the page to a named employee, "[company name] Employee Since 2014"] — company-authored — accessed 2026-09-29 — [company name in the page’s own employee label replaced in brackets; tenure kept]
+
+--- raw line 58
+RAW :    • "Poor workplace. Company has no integrity. You are over worked and unpaid. You do your workload and others. Mangers [sic] or supervisors does not communicate with you about anything. […]"  — [employee review] — reviewer's job title as written: "Customer Service Representative III"; location: Jacksonville, FL — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-09-13
+ANON:    • "Poor workplace. Company has no integrity. You are over worked and unpaid. You do your workload and others. Mangers [sic] or supervisors does not communicate with you about anything. […]"  — [employee review] — reviewer's job title as written: "Customer Service Representative III"; location: [Site A] — rev-01 — 2026-09-13
+
+--- raw line 60
+RAW :    • "Overall good environment and benefits for employees. Some people from management micromanage really hard but that does not apply to all of them. Some positions are underpaid based on all the workload assigned and the anual [sic] "increase" is not much."  — [employee review] — reviewer's job title as written: "Claims Processor"; location: Sunrise, FL — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-08-13
+ANON:    • "Overall good environment and benefits for employees. Some people from management micromanage really hard but that does not apply to all of them. Some positions are underpaid based on all the workload assigned and the anual [sic] "increase" is not much."  — [employee review] — reviewer's job title as written: "Claims Processor"; location: [Site B] — rev-02 — 2026-08-13
+
+--- raw line 62
+RAW :    • "You put in the work to get to know the job and continue to train outside of the job, you'll do great. Management was supportive, and supervisors were, for the most part, very supportive as well."  — [employee review] — reviewer's job title as written: "Medical Only Claims Adjuster"; location: not stated — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-08-12
+ANON:    • "You put in the work to get to know the job and continue to train outside of the job, you'll do great. Management was supportive, and supervisors were, for the most part, very supportive as well."  — [employee review] — reviewer's job title as written: "Medical Only Claims Adjuster"; location: not stated — rev-03 — 2026-08-12
+
+--- raw line 64
+RAW :    • "They are a fully remote work environment, and are flexible with actual time worked from a day to day standpoint. But the pay is lower than the industry average, and you don't receive much support from upper management, until things are a real problem."  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-07-13
+ANON:    • "They are a fully remote work environment, and are flexible with actual time worked from a day to day standpoint. But the pay is lower than the industry average, and you don't receive much support from upper management, until things are a real problem."  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — rev-04 — 2026-07-13
+
+--- raw line 66
+RAW :    • "My boss in Houston, Texas is very, very, very supportive, love him so much! He is very considerate, not condescending and very respectful, he listens to each employee, and if any concerns he has a listening ears, not judgmental. His goal is to earn good camaraderie not to lose any employee at all means, […]"  — [employee review] — reviewer's job title as written: "Quite Satisfying Case Management Employment"; location: Houston, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-06-16
+ANON:    • "My boss in [Site C] is very, very, very supportive, love him so much! He is very considerate, not condescending and very respectful, he listens to each employee, and if any concerns he has a listening ears, not judgmental. His goal is to earn good camaraderie not to lose any employee at all means, […]"  — [employee review] — reviewer's job title as written: "Quite Satisfying Case Management Employment"; location: [Site C] — rev-05 — 2026-06-16 — [place name replaced with a site token; clause otherwise verbatim]
+
+--- raw line 68
+RAW :    • "Pros: Solid benefits: The benefits package is actually really good. PH management is awesome: Leadership in the Philippines is great and super easy to work with. Shoutout to my manager: My direct manager was amazing, though your mileage may vary depending on the team. Cons: US side disconnect: Management […]"  — [employee review — reviewer wrote in a Pros/Cons layout] — reviewer's job title as written: "Consultative Analyst"; location: Taguig — https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date — 2026-06-03
+ANON:    • "Pros: Solid benefits: The benefits package is actually really good. PH management is awesome: Leadership in the Philippines is great and super easy to work with. Shoutout to my manager: My direct manager was amazing, though your mileage may vary depending on the team. Cons: US side disconnect: Management […]"  — [employee review — reviewer wrote in a Pros/Cons layout] — reviewer's job title as written: "Consultative Analyst"; location: [Site D] — rev-06 — 2026-06-03
+
+--- raw line 70
+RAW :    • "Crawford & company is a solid company choice if you are looking for Job Security. It's strong standing in the industry helps you stay employed even during the difficult times. Only cons that I have experience here is that the prioritization of task is very indecisive as the management wanted to work […]"  — [employee review] — reviewer's job title as written: "Sr. RPA Software Engineer"; location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-05-22
+ANON:    • "[The company] is a solid company choice if you are looking for Job Security. It's strong standing in the industry helps you stay employed even during the difficult times. Only cons that I have experience here is that the prioritization of task is very indecisive as the management wanted to work […]"  — [employee review] — reviewer's job title as written: "Sr. RPA Software Engineer"; location: not stated — rev-07 — 2026-05-22 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 72
+RAW :    • "Crawford had always been fair. The training is sparse. At Crawford nothing is free. You have to sign up and attend one of their classes and pay a fee and for all travel expenses. You are treated as an employee and paid and hourly rate not a per file fee."  — [employee review] — reviewer's job title as written: "CAT Adjuster"; location: Allen, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-05-03
+ANON:    • "[The company] had always been fair. The training is sparse. At [the company] nothing is free. You have to sign up and attend one of their classes and pay a fee and for all travel expenses. You are treated as an employee and paid and hourly rate not a per file fee."  — [employee review] — reviewer's job title as written: "CAT Adjuster"; location: [Site E] — rev-08 — 2026-05-03 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 74
+RAW :    • "What is the best part of working at the company? Working remote. That's about it / What is the most stressful part about working at the company? Ignorant and disrespectful management. / What is the work environment and culture like at the company? Hostile. If you ask any question...you get thrown under […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Senior Workers' Compensation Adjuster"; location: Remote — https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date — 2026-04-15
+ANON:    • "What is the best part of working at the company? Working remote. That's about it / What is the most stressful part about working at the company? Ignorant and disrespectful management. / What is the work environment and culture like at the company? Hostile. If you ask any question...you get thrown under […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Senior Workers' Compensation Adjuster"; location: Remote — rev-09 — 2026-04-15
+
+--- raw line 76
+RAW :    • "Pay is ok when busy but management is a nightmare. Highly focused on metrics and couldn't care less about their employees. Don't speak your mind on anything and hit your metrics and you should be fine."  — [employee review] — reviewer's job title as written: "Adjuster"; location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-04-17
+ANON:    • "Pay is ok when busy but management is a nightmare. Highly focused on metrics and couldn't care less about their employees. Don't speak your mind on anything and hit your metrics and you should be fine."  — [employee review] — reviewer's job title as written: "Adjuster"; location: not stated — rev-10 — 2026-04-17
+
+--- raw line 78
+RAW :    • "The CEO Rohit shares all his success throughout the week and forgets that we don't make the same salary. Such a huge disconnect with management. Worked their [sic] for 4 years in two different roles, but I just couldn't take it anymore."  — [employee review] — reviewer's job title as written: "Claims Adjuster"; location: Remote — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-03-06
+ANON:    • "The CEO [name stripped] shares all his success throughout the week and forgets that we don't make the same salary. Such a huge disconnect with management. Worked their [sic] for 4 years in two different roles, but I just couldn't take it anymore."  — [employee review] — reviewer's job title as written: "Claims Adjuster"; location: Remote — rev-11 — 2026-03-06 — [named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+--- raw line 80
+RAW :    • "Company is a decent place to work but managers are micromanaging employees if you're not a favorite - ans [sic] the rules do not apply to the favorites at Broadspire …Promotions are based on popularity and who you know- definitely not what you know! There are people that gets promoted who barely know what […]"  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2026-02-20
+ANON:    • "Company is a decent place to work but managers are micromanaging employees if you're not a favorite - ans [sic] the rules do not apply to the favorites at [name stripped] …Promotions are based on popularity and who you know- definitely not what you know! There are people that gets promoted who barely know what […]"  — [employee review] — job title: not stated (posted as "Anonymous"); location: not stated — rev-12 — 2026-02-20 — [branded name replaced in brackets; clause otherwise verbatim]
+
+--- raw line 82
+RAW :    • "What is the best part of working at the company? Flexibility because you are salaried, but that's where the "best part" stops. / What is the most stressful part about working at the company? micromanagement leadership, retaliation against the "little people" employees, leadership lacks accountability, […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Client LIAISON Manager"; location: Remote — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2026-01-30
+ANON:    • "What is the best part of working at the company? Flexibility because you are salaried, but that's where the "best part" stops. / What is the most stressful part about working at the company? micromanagement leadership, retaliation against the "little people" employees, leadership lacks accountability, […]"  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Client LIAISON Manager"; location: Remote — rev-13 — 2026-01-30
+
+--- raw line 84
+RAW :    • "What is the best part of working at the company? Everyone is really helpful. Our managers are more than willing to coach you when something new pops up. / What is the most stressful part about working at the company? You have to be on top of your deadlines. So long as you do that, it's smooth sailing."  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Multi-Line Adjuster"; location: El Paso, TX — https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date — 2025-12-14
+ANON:    • "What is the best part of working at the company? Everyone is really helpful. Our managers are more than willing to coach you when something new pops up. / What is the most stressful part about working at the company? You have to be on top of your deadlines. So long as you do that, it's smooth sailing."  — [employee review — site's prompted question-and-answer format] — reviewer's job title as written: "Multi-Line Adjuster"; location: [Site F] — rev-14 — 2025-12-14
+
+--- raw line 86
+RAW :    • "I was hired with an expectation that my incredible skills and knowledge would be valued. BSI gives no autonomy in claims and questions labor codes that are fact. Management spends more time having adjusters justify their job rather than trusting us to do it."  — [employee review] — reviewer's job title as written: "Workers' Compensation Claims Examiner"; location: Remote — https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date — 2025-11-26
+ANON:    • "I was hired with an expectation that my incredible skills and knowledge would be valued. [name stripped] gives no autonomy in claims and questions labor codes that are fact. Management spends more time having adjusters justify their job rather than trusting us to do it."  — [employee review] — reviewer's job title as written: "Workers' Compensation Claims Examiner"; location: Remote — rev-15 — 2025-11-26 — [branded name replaced in brackets; clause otherwise verbatim]
+
+--- raw line 91
+RAW :    • "Keeps supervisor informed verbally and in writing of activities and problems within areas of responsibility, refers matters beyond limits of authority and expertise to supervisor for direction."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+ANON:    • "Keeps supervisor informed verbally and in writing of activities and problems within areas of responsibility, refers matters beyond limits of authority and expertise to supervisor for direction."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+--- raw line 93
+RAW :    • "Ability to initiate independent action to resolve problems and issues and to achieve desired results."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+ANON:    • "Ability to initiate independent action to resolve problems and issues and to achieve desired results."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+--- raw line 95
+RAW :    • "Analytical ability to gather and study facts and data and draw correct inferences from the data: identify root causes of problems and create solutions; identify inefficient business processes and recommends technological or process improvements."  — [job posting — statistical / actuarial analytics function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793 — posted 2026-09-28
+ANON:    • "Analytical ability to gather and study facts and data and draw correct inferences from the data: identify root causes of problems and create solutions; identify inefficient business processes and recommends technological or process improvements."  — [job posting — statistical / actuarial analytics function; confirmed open] — company applicant-tracking system — [posting 1] — posted 2026-09-28
+
+--- raw line 97
+RAW :    • "Under minimal to intermediate direction, adjusters determine coverage, investigate and evaluate losses, negotiate settlements, and maintain complete, accurate, high-quality claim files."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+ANON:    • "Under minimal to intermediate direction, adjusters determine coverage, investigate and evaluate losses, negotiate settlements, and maintain complete, accurate, high-quality claim files."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+--- raw line 99
+RAW :    • "Willingness to work long hours and prolonged schedules away from home during significant catastrophe events."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+ANON:    • "Willingness to work long hours and prolonged schedules away from home during significant catastrophe events."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+--- raw line 101
+RAW :    • "Professional, dependable, responsive, service-oriented, adaptable, and receptive to coaching and change."  — [job posting — catastrophe field claims adjusting function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198 — posted 2026-09-28
+ANON:    • "Professional, dependable, responsive, service-oriented, adaptable, and receptive to coaching and change."  — [job posting — catastrophe field claims adjusting function; confirmed open] — company applicant-tracking system — [posting 2] — posted 2026-09-28
+
+--- raw line 103
+RAW :    • "Demonstrates ability to meet administrative requirements, including productivity, time management and QA standards, with a minimum of supervisory intervention."  — [job posting — medical case management function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5385 — posted 2026-09-28
+ANON:    • "Demonstrates ability to meet administrative requirements, including productivity, time management and QA standards, with a minimum of supervisory intervention."  — [job posting — medical case management function; confirmed open] — company applicant-tracking system — [posting 3] — posted 2026-09-28
+
+--- raw line 105
+RAW :    • "Reviews cases with supervisor monthly to evaluate files and obtain directions."  — [job posting — medical case management function; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5385 — posted 2026-09-28
+ANON:    • "Reviews cases with supervisor monthly to evaluate files and obtain directions."  — [job posting — medical case management function; confirmed open] — company applicant-tracking system — [posting 3] — posted 2026-09-28
+
+--- raw line 107
+RAW :    • "Establish business performance metrics and dashboards that provide clear visibility into financial, operational, quality, service, client, and growth performance."  — [job posting — executive leadership of a claims business line; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5369 — posted 2026-09-28
+ANON:    • "Establish business performance metrics and dashboards that provide clear visibility into financial, operational, quality, service, client, and growth performance."  — [job posting — executive leadership of a claims business line; confirmed open] — company applicant-tracking system — [posting 4] — posted 2026-09-28
+
+--- raw line 109
+RAW :    • "Monitor competitive offerings, industry developments, emerging technologies, and changing employer and claimant expectations to identify opportunities for innovation and differentiation."  — [job posting — executive leadership of a claims business line; confirmed open] — Crawford & Company applicant-tracking system — https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5369 — posted 2026-09-28
+ANON:    • "Monitor competitive offerings, industry developments, emerging technologies, and changing employer and claimant expectations to identify opportunities for innovation and differentiation."  — [job posting — executive leadership of a claims business line; confirmed open] — company applicant-tracking system — [posting 4] — posted 2026-09-28
+
+--- raw line 121
+RAW :    • "We give them a prototype of a new interaction – different from how they've been doing it – and say: if AI were to help you on this interaction, is this good for you?"  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx — 2026-09-02
+ANON:    • "We give them a prototype of a new interaction – different from how they've been doing it – and say: if AI were to help you on this interaction, is this good for you?"  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — 2026-09-02
+
+--- raw line 123
+RAW :    • "What we really want is to enable hundreds and hundreds of workers to be the sources of ideas and innovation," he said. "Getting tools in their hands and getting them into a mindset of experimenting and trying things is one of the most important things I work on, because over time that will multiply our innovation capacity."  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — https://www.insurancebusinessmag.com/us/news/technology/crawfords-ai-chief-explains-claims-innovation-strategy-588347.aspx — 2026-09-02
+ANON:    • "What we really want is to enable hundreds and hundreds of workers to be the sources of ideas and innovation," he said. "Getting tools in their hands and getting them into a mindset of experimenting and trying things is one of the most important things I work on, because over time that will multiply our innovation capacity."  — [trade-press interview] — named chief AI, data and cloud officer, quoted directly — 2026-09-02
+
+--- raw line 125
+RAW :    • "That's why I push disciplined triage right away: preserve what matters, establish clear authority, and decide who can approve containment steps and communications. I also want legal, forensics, communications, and finance/operations aligned early so we work from one set of facts."  — [company blog — unsigned first-person practitioner account] — no author named on the page — https://www.crawco.com/blog/what-a-cyber-claim-taught-me-about-response — 2026-05-08
+ANON:    • "That's why I push disciplined triage right away: preserve what matters, establish clear authority, and decide who can approve containment steps and communications. I also want legal, forensics, communications, and finance/operations aligned early so we work from one set of facts."  — [company blog — unsigned first-person practitioner account] — no author named on the page — 2026-05-08
+
+--- raw line 127
+RAW :    • "What I value most is a steady, claims‑led approach: keep the response moving while maintaining insurer visibility on coverage, reserves, and strategy. Cyber claims reward readiness over perfection, and speed only helps when it's deliberate."  — [company blog — unsigned first-person practitioner account] — no author named on the page — https://www.crawco.com/blog/what-a-cyber-claim-taught-me-about-response — 2026-05-08
+ANON:    • "What I value most is a steady, claims‑led approach: keep the response moving while maintaining insurer visibility on coverage, reserves, and strategy. Cyber claims reward readiness over perfection, and speed only helps when it's deliberate."  — [company blog — unsigned first-person practitioner account] — no author named on the page — 2026-05-08
+
+--- raw line 129
+RAW :    • "For me, good loss adjusting begins with clarity — understanding the facts, applying sound judgement, and maintaining balance. By keeping the insurer's perspective in mind, we can help clients reach solutions that are fair, practical and built on trust."  — [company blog — employee profile] — named head of a country business line, quoted directly — https://www.crawco.com/blog/employee-spotlight-meet-satoshi-yamazaki — 2026-08-11
+ANON:    • "For me, good loss adjusting begins with clarity — understanding the facts, applying sound judgement, and maintaining balance. By keeping the insurer's perspective in mind, we can help clients reach solutions that are fair, practical and built on trust."  — [company blog — employee profile] — named head of a country business line, quoted directly — 2026-08-11
+
+--- raw line 131
+RAW :    • "While he sees real value in AI when applied thoughtfully, he cautions against overdependence without fully understanding the models being used. In his view, technology should support subrogation, not replace the critical thinking and conversations that lead to the best outcomes."  — [company blog — employee profile; this is the company's own wording ABOUT a named account executive, not his words] — https://www.crawco.com/blog/employee-spotlight-philip-meyerdierks — 2026-04-21
+ANON:    • "While he sees real value in AI when applied thoughtfully, he cautions against overdependence without fully understanding the models being used. In his view, technology should support subrogation, not replace the critical thinking and conversations that lead to the best outcomes."  — [company blog — employee profile; this is the company's own wording ABOUT a named account executive, not his words] — 2026-04-21
+
+--- raw line 133
+RAW :    • "At Crawford, digital transformation efforts have focused on simplifying the claims journey through automation, analytics, AI and modernized platforms that enhance speed, accuracy and transparency."  — [company blog — unsigned corporate voice] — no author named on the page — https://www.crawco.com/blog/what-85-years-of-claims-have-taught-us-about-the-future — 2026-09-23
+ANON:    • "At [the company], digital transformation efforts have focused on simplifying the claims journey through automation, analytics, AI and modernized platforms that enhance speed, accuracy and transparency."  — [company blog — unsigned corporate voice] — no author named on the page — 2026-09-23 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 138
+RAW :    • "Crawford & Company CEO Rohit Verma is stepping down at the end of the year to take the helm of another firm, and the company has named Crawford veteran W. Bruce Swain, Jr. interim president CEO."  — [trade press reporting] — Claims Journal staff — https://www.claimsjournal.com/news/national/2025/11/24/334266.htm — 2025-11-24
+ANON:    • "[The company] CEO [name stripped] is stepping down at the end of the year to take the helm of another firm, and the company has named [the company] veteran [name stripped] interim president CEO."  — [trade press reporting] — trade-press staff — 2025-11-24 — [company name substituted in brackets; named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+--- raw line 140
+RAW :    • "Crawford & Company  is rolling out a new global operating structure, splitting the business into US Operations and International Operations as it looks to simplify execution and accelerate a more client-centric model."  — [trade press reporting] — named Coverager editor — https://coverager.com/crawford-company-announces-new-operating-divisions/ — 2026-01-25
+ANON:    • "[The company]  is rolling out a new global operating structure, splitting the business into US Operations and International Operations as it looks to simplify execution and accelerate a more client-centric model."  — [trade press reporting] — named trade-press editor — 2026-01-25 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 142
+RAW :    • "Crawford & Company  appointed W. Bruce Swain Jr. as President and CEO, effective immediately, following his time serving in the interim role since January 1, 2026."  — [trade press reporting] — named Coverager editor — https://coverager.com/crawford-company-names-w-bruce-swain-jr-president-ceo/ — 2026-03-28
+ANON:    • "[The company]  appointed [name stripped] as President and CEO, effective immediately, following his time serving in the interim role since January 1, 2026."  — [trade press reporting] — named trade-press editor — 2026-03-28 — [company name substituted in brackets; named person’s name replaced in brackets, role kept; clause otherwise verbatim]
+
+--- raw line 144
+RAW :    • "By aligning our businesses under two global divisions and elevating proven leaders, we are clarifying accountability, strengthening collaboration across geographies and positioning Crawford to move at the speed our markets demand."  — [company-authored] — interim president and CEO, statement carried inside the trade article above; does not count toward this section's yield — https://coverager.com/crawford-company-announces-new-operating-divisions/ — 2026-01-25
+ANON:    • "By aligning our businesses under two global divisions and elevating proven leaders, we are clarifying accountability, strengthening collaboration across geographies and positioning [the company] to move at the speed our markets demand."  — [company-authored] — interim president and CEO, statement carried inside the trade article above; does not count toward this section's yield — 2026-01-25 — [company name substituted in brackets; clause otherwise verbatim]
+
+--- raw line 153
+RAW :    • "Human Capital is a key component to our success. Our people-first culture is reflected in our RESTORE values of Respect, Empowerment, Sustainability, Training, One Crawford, Recognition and Entrepreneurial Spirit which are supported in our workforce programs."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "Human Capital is a key component to our success. Our people-first culture is reflected in our [name stripped] values of Respect, Empowerment, Sustainability, Training, One [the company], Recognition and Entrepreneurial Spirit which are supported in our workforce programs."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02 — [branded value-framework name and company name replaced in brackets; value names and clause otherwise verbatim]
+
+--- raw line 155
+RAW :    • "In September 2025, we conducted our annual Employee Pulse survey for all our global workforce to measure their sentiment on our employee experience and culture."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "In September 2025, we conducted our annual [name stripped] survey for all our global workforce to measure their sentiment on our employee experience and culture."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02 — [branded programme name replaced in brackets; clause otherwise verbatim]
+
+--- raw line 157
+RAW :    • "We saw encouraging gains in areas like team collaboration and leadership support. Notably, the most significant improvement was in employees' feeling supported in balancing their health and well-being, and in experiencing stronger cooperation across teams."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "We saw encouraging gains in areas like team collaboration and leadership support. Notably, the most significant improvement was in employees' feeling supported in balancing their health and well-being, and in experiencing stronger cooperation across teams."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+--- raw line 159
+RAW :    • "Employees reported the highest scores in having a clear understanding of what is expected of them in their role, a strong sense of purpose in their job and alignment of their work with business strategy."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "Employees reported the highest scores in having a clear understanding of what is expected of them in their role, a strong sense of purpose in their job and alignment of their work with business strategy."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+--- raw line 161
+RAW :    • "They also feel safe to speak up and feel that the Company is committed to fair treatment of our employees."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "They also feel safe to speak up and feel that the Company is committed to fair treatment of our employees."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+--- raw line 163
+RAW :    • "Through these classes, adjusters were not only exposed to the technical aspect of claims handling but also trained on critical success behaviors such as empathy and customer service – attributes we consider to be core and crucial for becoming a world-class claims professional."  — [annual report, Item 1 Human Capital — company-authored] — Crawford & Company Form 10-K, FY ended 2025-12-31 — https://www.sec.gov/Archives/edgar/data/25475/000119312526085465/crda-20251231.htm — filed 2026-03-02
+ANON:    • "Through these classes, adjusters were not only exposed to the technical aspect of claims handling but also trained on critical success behaviors such as empathy and customer service – attributes we consider to be core and crucial for becoming a world-class claims professional."  — [annual report, Item 1 Human Capital — company-authored] — Form 10-K, FY ended 2025-12-31 — filed 2026-03-02
+
+--- raw line 165
+RAW : 
+ANON: ########## END OF PACKET ##########
+
+=== QUOTE-BODY WORD DIFF (only tokens that differ) ===
+raw line 45: 'Crawford,' -> '[the company],'
+raw line 49: '"Crawford' -> '"[The company]'
+raw line 66: 'Houston, Texas' -> '[Site C]'
+raw line 70: '"Crawford & company' -> '"[The company]'
+raw line 72: '"Crawford' -> '"[The company]'; 'Crawford' -> '[the company]'
+raw line 78: 'Rohit' -> '[name stripped]'
+raw line 80: 'Broadspire' -> '[name stripped]'
+raw line 86: 'BSI' -> '[name stripped]'
+raw line 133: 'Crawford,' -> '[the company],'
+raw line 138: '"Crawford & Company' -> '"[The company]'; 'Rohit Verma' -> '[name stripped]'; 'Crawford' -> '[the company]'; 'W. Bruce Swain, Jr.' -> '[name stripped]'
+raw line 140: '"Crawford & Company' -> '"[The company]'
+raw line 142: '"Crawford & Company' -> '"[The company]'; 'W. Bruce Swain Jr.' -> '[name stripped]'
+raw line 144: 'Crawford' -> '[the company]'
+raw line 153: 'RESTORE' -> '[name stripped]'; 'Crawford,' -> '[the company],'
+raw line 155: 'Employee Pulse' -> '[name stripped]'
+
+=== MAPPING OF REMOVED STRINGS (never in the rater-facing packet) ===
+rev-01  2026-09-13  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-02  2026-08-13  https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+rev-03  2026-08-12  https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+rev-04  2026-07-13  https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+rev-05  2026-06-16  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-06  2026-06-03  https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date
+rev-07  2026-05-22  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-08  2026-05-03  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-09  2026-04-15  https://www.indeed.com/cmp/Broadspire-By-Crawford-&-Company/reviews?sort=date
+rev-10  2026-04-17  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-11  2026-03-06  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-12  2026-02-20  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-13  2026-01-30  https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+rev-14  2025-12-14  https://www.indeed.com/cmp/Crawford-&-Company/reviews?sort=date
+rev-15  2025-11-26  https://www.indeed.com/cmp/Broadspire,-A-Crawford-Company/reviews?sort=date
+[posting 1]  https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/4793
+[posting 2]  https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5198
+[posting 3]  https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5385
+[posting 4]  https://fa-esau-saasfaprod1.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/crawco-jobs/jobs/preview/5369
+[Site A]  <-  Jacksonville, FL   (minted; also replaced in quote body where present)
+[Site B]  <-  Sunrise, FL   (minted; also replaced in quote body where present)
+[Site C]  <-  Houston, TX   (minted; also replaced in quote body where present)
+[Site D]  <-  Taguig   (minted; also replaced in quote body where present)
+[Site E]  <-  Allen, TX   (minted; also replaced in quote body where present)
+[Site F]  <-  El Paso, TX   (minted; also replaced in quote body where present)

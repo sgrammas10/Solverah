@@ -12,7 +12,9 @@ for doing the same.
 from __future__ import annotations
 
 import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
+
+from sqlalchemy.exc import IntegrityError
 
 from model import User, db
 from solverah.errors import ConflictError, NotFoundError, ValidationError
@@ -74,41 +76,95 @@ def _experiment_name(dimension: str, direction: str) -> str:
     return cell["experiment_name"]
 
 
-def _enrich(row: Dict[str, Any]) -> Dict[str, Any]:
+def _enrich_all(user_id: int, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Add the three things `experiment_store`'s row never carries: the
     derived `phase`, the before/after `readout`, and the cell's own
-    `experiment_name`."""
+    `experiment_name` -- for every row of one user's experiments, reading that
+    user's check-ins once for all of them
+    (`experiment_store.experienced_values_by_window`) rather than twice per row."""
     import experiment_store
     from work_pulse import experiments as experiment_engine
 
-    started_at = datetime.datetime.fromisoformat(row["started_at"])
-    ends_at = datetime.datetime.fromisoformat(row["ends_at"])
+    windows = [
+        (
+            datetime.datetime.fromisoformat(row["started_at"]),
+            datetime.datetime.fromisoformat(row["ends_at"]),
+        )
+        for row in rows
+    ]
+    values = experiment_store.experienced_values_by_window(user_id, windows)
+
+    enriched = []
+    for row, (_started_at, ends_at), (before_values, after_values) in zip(rows, windows, values):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        readout = experiment_engine.compute_readout(before_values, after_values)
+        phase = experiment_engine.derive_phase(row["status"], ends_at, now)
+
+        # `user_id` is always the caller's own (the route resolves it from the JWT),
+        # `created_at` is bookkeeping the wire has no use for, and `register` is
+        # always `"change_in_place"` today (`model.Experiment`'s docstring) with no
+        # UI that renders any other value -- all three dropped, the same reasoning
+        # `pulse_service._drop_user_id` gives for its own field.
+        enriched.append(
+            {
+                **{k: v for k, v in row.items() if k not in ("user_id", "created_at", "register")},
+                "phase": phase,
+                "readout": readout,
+                "experiment_name": _experiment_name(row["dimension"], row["direction"]),
+            }
+        )
+    return enriched
+
+
+def _enrich(row: Dict[str, Any]) -> Dict[str, Any]:
+    """`_enrich_all` for one row."""
+    return _enrich_all(row["user_id"], [row])[0]
+
+
+def _close_ended(user_id: int) -> None:
+    """Move this user's ended-but-`active` rows to `completed` before anything
+    else reads or writes them (`experiment_store.close_ended_experiments`).
+    Every route calls this first, so an experiment that ran its two weeks
+    never reaches the 409 check, the one-active index, or the wire as
+    `status = 'active'`. Committed on its own only when something moved: the
+    common case moves nothing and writes nothing."""
+    import experiment_store
+
     now = datetime.datetime.now(datetime.timezone.utc)
+    if experiment_store.close_ended_experiments(db, user_id, now=now):
+        db.session.commit()
 
-    before_values, after_values = experiment_store.checkin_experienced_values(
-        row["user_id"], started_at=started_at, ends_at=ends_at
+
+def _already_active() -> ConflictError:
+    return ConflictError(
+        detail="An experiment is already running -- finish or abandon it first.",
+        errors=[{"field": "experiment", "code": "experiment_already_active"}],
     )
-    readout = experiment_engine.compute_readout(before_values, after_values)
-    phase = experiment_engine.derive_phase(row["status"], ends_at, now)
 
-    # `user_id` is always the caller's own (the route resolves it from the JWT),
-    # `created_at` is bookkeeping the wire has no use for, and `register` is
-    # always `"change_in_place"` today (`model.Experiment`'s docstring) with no
-    # UI that renders any other value -- all three dropped, the same reasoning
-    # `pulse_service._drop_user_id` gives for its own field.
-    return {
-        **{k: v for k, v in row.items() if k not in ("user_id", "created_at", "register")},
-        "phase": phase,
-        "readout": readout,
-        "experiment_name": _experiment_name(row["dimension"], row["direction"]),
-    }
+
+def _lost_the_one_active_race(exc: IntegrityError) -> bool:
+    """Whether *exc* is `experiment_store.ONE_ACTIVE_INDEX` refusing a second
+    active experiment -- and not some other constraint, which stays a 500."""
+    import experiment_store
+
+    diag = getattr(exc.orig, "diag", None)
+    return getattr(diag, "constraint_name", None) == experiment_store.ONE_ACTIVE_INDEX
 
 
 def start_experiment(user: User, payload: Any) -> Dict[str, Any]:
     """``POST /me/experiments``. 422 for a bad cell, 409
-    (``errors[0].code == "experiment_already_active"``) if one is already
+    (``errors[0].code == "experiment_already_active"``) if one is still
     running -- the methodological one-at-a-time rule
-    (``model.Experiment``'s docstring)."""
+    (``model.Experiment``'s docstring). An experiment whose two weeks are up
+    is closed first (`_close_ended`), so a natural end never blocks the next
+    start -- the 2026-10-02 blocker.
+
+    The same 409 when this start loses a race: another start for this user
+    commits between the check below and this INSERT, and the one-active index
+    refuses the second row. Nothing else of this start has been written by
+    then (the close committed on its own, the check is a read), so rolling it
+    back loses nothing.
+    """
     import experiment_store
 
     payload = _require_dict(payload)
@@ -116,33 +172,44 @@ def start_experiment(user: User, payload: Any) -> Dict[str, Any]:
     direction = payload.get("direction")
     _require_change_in_place_cell(dimension, direction)
 
+    _close_ended(user.id)
     if experiment_store.active_experiment(user.id) is not None:
-        raise ConflictError(
-            detail="An experiment is already running -- finish or abandon it first.",
-            errors=[{"field": "experiment", "code": "experiment_already_active"}],
-        )
+        raise _already_active()
 
-    row = experiment_store.start_experiment(db, user.id, dimension=dimension, direction=direction)
-    db.session.commit()
+    try:
+        row = experiment_store.start_experiment(
+            db, user.id, dimension=dimension, direction=direction
+        )
+        db.session.commit()
+    except IntegrityError as exc:
+        if not _lost_the_one_active_race(exc):
+            raise
+        db.session.rollback()
+        raise _already_active() from exc
     return _enrich(row)
 
 
 def list_experiments(user: User) -> Dict[str, Any]:
     """``GET /me/experiments``. Newest first, each enriched with phase,
-    readout, and the cell's own name."""
+    readout, and the cell's own name -- at most two queries (the experiments,
+    then their check-ins) however many experiments there are."""
     import experiment_store
 
+    _close_ended(user.id)
     rows = experiment_store.experiments_for_user(user.id)
-    return {"experiments": [_enrich(row) for row in rows]}
+    return {"experiments": _enrich_all(user.id, rows)}
 
 
 def abandon_experiment(user: User, experiment_id: int) -> Dict[str, Any]:
     """``POST /me/experiments/{id}/abandon``. Idempotent: abandoning an
     already-abandoned experiment is a 200 with the row unchanged, not an
-    error. 404 (never a bare failure) if the id does not exist or belongs to
-    someone else -- indistinguishable on purpose (`solverah.errors.NotFoundError`)."""
+    error -- and so is abandoning one that has already run its two weeks,
+    which keeps its `completed` status and its readout. 404 (never a bare
+    failure) if the id does not exist or belongs to someone else --
+    indistinguishable on purpose (`solverah.errors.NotFoundError`)."""
     import experiment_store
 
+    _close_ended(user.id)
     row = experiment_store.abandon_experiment(db, user.id, experiment_id)
     if row is None:
         raise NotFoundError(detail="No experiment with that id.")

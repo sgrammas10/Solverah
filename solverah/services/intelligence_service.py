@@ -32,15 +32,22 @@ Two behaviours are preserved deliberately, and one is gone.
 from __future__ import annotations
 
 import datetime
+import logging
 import re
+import threading
+import uuid
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 
 from model import User, db
 from solverah.infra import llm
 from solverah.repositories import (
+    intake_repository,
     path_feedback_repository,
     path_fit_repository,
+    path_narrative_repository,
     profile_repository,
 )
 from solverah.services import path_cache
@@ -49,18 +56,25 @@ __all__ = [
     "IntelligenceResult",
     "PATH_PRIORITIES",
     "MOVE_INTENTS",
+    "ScoringIntake",
     "read_path_preferences",
+    "read_scoring_intake",
     "SENIORITY_INTENTS",
     "build_user_context",
     "build_user_profile",
     "cached_path_suggestions",
     "clear_path_feedback",
     "derive_career_status",
+    "end_read_transaction",
     "path_fit",
     "path_suggestions",
     "record_path_feedback",
+    "resolve_stale_narration",
     "save_path_preferences",
+    "start_narration",
 ]
+
+_log = logging.getLogger("solverah.intelligence")
 
 MOVE_INTENTS = {"stay_in_field", "adjacent", "fresh_start"}
 SENIORITY_INTENTS = {"move_up", "stay_lateral", "open"}
@@ -87,10 +101,44 @@ _CURRENT_ROLE_MARKERS = ("present", "current")
 #: own (six un-narrated cards).  Twenty more would double the job's second
 #: batch for the tail of a distribution nobody has walked.
 #:
-#: The cost is one extra narrator completion per job -- ~1,520 tokens, about
-#: +$0.0007 -- and no wall time, because the two batches run on threads
-#: (`path_narrative.generate_narratives_batched` has the measurements).
+#: The cost was one extra narrator completion per job -- ~1,520 tokens, about
+#: +$0.0007 -- and no wall time, because the batches run on threads
+#: (W-12 measured it; `path_narrative._BATCH_SIZE` has the batch numbers). Since
+#: W-16 it is also paid once per set of narrator inputs rather than once per
+#: job: every sentence is stored in `path_narratives`.
 RESERVE_DEPTH: int = 10
+
+#: W-16, re-sized by W-17. How many narrations are ORCHESTRATED at once in this
+#: process.
+#:
+#: Since W-17 an orchestrating thread does no provider I/O of its own: it hands
+#: its calls to `path_narrative`'s shared priority pool (`_CALL_WORKERS`, with
+#: tails held to W-16's old ceiling of sixteen) and waits, landing each
+#: completion as it arrives. So this bound is on WAITERS, not on provider
+#: calls, and it has to be at least the number of users narrating at once --
+#: with four, a fifth user's first three sentences waited for somebody's whole
+#: narration to finish, which is exactly the unfairness W-17 removes. Sixteen
+#: idle threads are cheap; a waiting orchestrator holds no database connection
+#: (`_narration_phase` ends its read transaction before it waits). It is
+#: deliberately not the gunicorn thread pool -- holding one of those eight for
+#: the ~5 s a narration takes was the whole of Sebastian's "imagine 10 users at
+#: the same time".
+NARRATION_WORKERS: int = 16
+
+#: W-16. How long a scored list may say `narration_pending` before a read stops
+#: believing it.
+#:
+#: A narration normally lands in ~4-5 s. Past this the worker that was running it
+#: has almost certainly died (a deploy, a recycle, an OOM) -- nothing else leaves
+#: a list pending -- and a page polling it would shimmer forever. So every READ
+#: of a pending list older than this (the job poll and `GET
+#: /me/path-suggestions`) answers with the fallback sentence in each empty slot
+#: instead, and `narration_pending: false`. Read-side on purpose: a dead worker
+#: cannot run a sweep, and the rule has to hold on the very next poll.
+NARRATION_DEADLINE: datetime.timedelta = datetime.timedelta(seconds=60)
+
+_narration_pool: Optional[ThreadPoolExecutor] = None
+_narration_pool_lock = threading.Lock()
 
 
 @dataclass
@@ -99,6 +147,17 @@ class IntelligenceResult:
 
     status: int
     body: Dict[str, Any] = field(default_factory=dict)
+    #: W-16. The narration phase still to run for a scored list, or None.
+    #:
+    #: A zero-argument callable returning the job's FINAL payload (every card
+    #: filled, `narration_pending: false`). The caller decides when and where it
+    #: runs -- `scoring_jobs.run` hands it to :func:`start_narration` only after
+    #: the scored result is durably stored, so the narrated one can never be
+    #: overwritten by it. W-17: it takes an optional ``on_partial`` callback,
+    #: called with the job's payload each time a card on the page lands.
+    narration: Optional[Callable[..., Dict[str, Any]]] = field(
+        default=None, repr=False, compare=False
+    )
 
     @property
     def ok(self) -> bool:
@@ -119,6 +178,9 @@ def save_path_preferences(user: User, data: Dict[str, Any]) -> IntelligenceResul
     All three are required and validated against closed sets; an unknown value
     is a 400 rather than being stored, because the scorer branches on them and a
     typo would silently change ranking.
+
+    A 200's body is the saved document in :func:`read_path_preferences`' shape,
+    which is what ``PUT /me/path-preferences`` answers with.
     """
     move_intent = data.get("move_intent")
     seniority_intent = data.get("seniority_intent")
@@ -136,14 +198,26 @@ def save_path_preferences(user: User, data: Dict[str, Any]) -> IntelligenceResul
         "seniority_intent": seniority_intent,
         "priority": priority,
     }
-    profile_repository.update_document(
-        user.id, lambda existing: {**existing, "path_preferences": preferences}
+    # Taken before the commit, which expires the row: reading it after would
+    # reload the user just to learn a number we already had.
+    user_id = user.id
+    # DB ledger I. One `profiles.extra` key, written as one key: the swap and
+    # nothing else, where the whole-document write re-read and re-wrote every
+    # profile table to change three strings. No behaviour is lost with it.
+    # This path never ran `clean_profile_data` (the three values are validated
+    # against closed sets above instead), and the document write's completeness
+    # recompute could not move -- `path_preferences` is not a completion field,
+    # which is what admits it to `NARROW_EXTRA_KEYS`.
+    stored = profile_repository.update_extra_key(
+        user_id, "path_preferences", lambda _existing: dict(preferences)
     )
-    path_fit_repository.invalidate(user.id)  # F-5, with the Tier-1 cache below
+    path_fit_repository.invalidate(user_id)  # F-5, with the Tier-1 cache below
     db.session.commit()
 
-    path_cache.invalidate(user.id)
-    return IntelligenceResult(status=200, body={"message": "Preferences saved"})
+    path_cache.invalidate(user_id)
+    # The saved document, in `read_path_preferences`' shape, from the value the
+    # write returned -- so the PUT needs no second read to answer with it.
+    return IntelligenceResult(status=200, body=_preferences_body(stored))
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +237,42 @@ def derive_career_status(profile: Dict[str, Any]) -> Optional[str]:
         if str(entry.get("endDate", "")).strip().lower() in _CURRENT_ROLE_MARKERS:
             return "employed"
     return None
+
+
+@dataclass(frozen=True)
+class ScoringIntake:
+    """The one ``user_intake`` column the scorer and the narrator read."""
+
+    wpl_result: Any
+
+
+def read_scoring_intake(user_id: int) -> Optional[ScoringIntake]:
+    """The *intake* :func:`build_user_profile` and :func:`build_user_context` take.
+
+    DB ledger I. One SELECT of ``wpl_result`` -- the only column
+    :func:`_archetype_fields` reads -- where ``user.intake`` lazily loaded the
+    whole row, dead ``wpll_*`` JSON included. A plain value rather than the
+    row, because the callers end their read transaction before the scorer's
+    network calls, and ending it expires every loaded row: an ORM instance
+    handed on past that point would be read again. None when there is no row.
+    """
+    row = intake_repository.find_user_intake(user_id, only=("wpl_result",))
+    return None if row is None else ScoringIntake(wpl_result=row.wpl_result)
+
+
+def end_read_transaction() -> None:
+    """End the session's transaction before a network call. Nothing may be unwritten.
+
+    DB ledger I. A session keeps its pooled connection -- idle in transaction,
+    with any locks it took -- until the transaction ends, and a provider round
+    trip is seconds. Every caller has only READ since its last commit, so a
+    rollback discards nothing; it also expires loaded rows, which is why the
+    callers carry ids and plain values across it rather than ORM instances.
+
+    Public because the agent route needs it too (before its Groq stream), and a
+    route may not touch the session itself (`tests/test_layering.py`).
+    """
+    db.session.rollback()
 
 
 def _archetype_fields(intake) -> Tuple[str, str, List[str]]:
@@ -276,22 +386,27 @@ def cached_path_suggestions(user: User) -> Optional[IntelligenceResult]:
     cached = path_cache.get(user.id)
     if cached is None:
         return None
-    return IntelligenceResult(status=200, body=cached)
+    return IntelligenceResult(status=200, body=resolve_stale_narration(cached))
 
 
 def path_suggestions(user: User, logger) -> IntelligenceResult:
-    """Score and narrate career-path suggestions, caching the result per user.
+    """Score career-path suggestions, cache them, and return the narration to run.
 
-    Since Phase 3c this runs only off the request path -- `scoring_jobs` calls
-    it from a worker, and the cache it stores into is what the GET serves. Kept
-    whole rather than split from its cache write because the succeeded job and
-    the warm cache must never disagree about what was computed.
+    Since Phase 3c this runs only from a scoring job, and the cache it stores
+    into is what the GET serves. Kept whole rather than split from its cache
+    write because the succeeded job and the warm cache must never disagree about
+    what was computed.
+
+    Since W-16 it returns as soon as the list is SCORED. Sentences already
+    stored for these inputs are on the cards; the rest are empty, the payload
+    says ``narration_pending: true``, and ``result.narration`` is the phase that
+    writes them -- which the caller runs off the request thread
+    (:func:`start_narration`). The narrator failing no longer fails the job: the
+    cards are the product and they are already scored, so a card the narrator
+    could not write gets the fallback sentence instead.
     """
     from backend.services.onet_client import OnetClient
-    from backend.services.path_narrative import (
-        NarrativeGenerationError,
-        generate_narratives_batched,
-    )
+    from backend.services.path_narrative import narrative_fingerprint
     from backend.services.path_scoring import (
         PAGE_SIZE,
         CorpusUnavailable,
@@ -323,11 +438,22 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
     # as narration* separates the two jobs the cache does: it is still the
     # record of what the user is looking at, and it is no longer an excuse to
     # skip the narrator.
-    cached = path_cache.get(user.id)
-    if cached is not None and path_cache.is_narrated(user.id):
+    #
+    # W-16 adds the second half: nor is a list still WAITING for sentences. Its
+    # narration belongs to the job that scored it and lands on that job's
+    # result; a new job served the same pending list would have nothing that
+    # ever finishes it, and its page would shimmer until the deadline.
+    # DB ledger I: the id, never the row, past the transaction ended below.
+    user_id = user.id
+    cached = path_cache.get(user_id)
+    if (
+        cached is not None
+        and path_cache.is_narrated(user_id)
+        and not cached.get("narration_pending")
+    ):
         return IntelligenceResult(status=200, body=cached)
 
-    profile = profile_repository.load_document(user.id)
+    profile = profile_repository.load_document(user_id)
     career_status = profile.get("career_status")
     if not career_status:
         # Derive from experience before giving up. This used to persist and
@@ -339,7 +465,8 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
             return _error(400, "career_status_not_set")
         profile = {**profile, "career_status": career_status}
 
-    user_profile = build_user_profile(profile, user.intake, career_status)
+    intake = read_scoring_intake(user_id)
+    user_profile = build_user_profile(profile, intake, career_status)
 
     try:
         onet_client = OnetClient()
@@ -355,16 +482,19 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # recording what the user asked for sat untouched in the database. The
         # judgements are user state, not a property of one re-rank, so every
         # generation reads them.
-        judgements = path_feedback_repository.verdicts_for_user(user.id)
+        judgements = path_feedback_repository.verdicts_for_user(user_id)
         # W-4: the cold generation honours the stored wants for the same reason
         # it honours the judgements -- `path_cache` is per worker and lost on a
         # deploy, so without this a reload would rebuild the ranking as though
         # the user had never answered the panel. Read by ALL THREE intents,
         # unlike the judgements: a want is the user's own statement about their
         # own day, not an opinion about a card the scorer chose (design doc §8.3).
-        wants = path_wants_service.wants_for_scoring(
-            user, user_profile, onet_client, openai_client
+        wants = path_wants_service.wants_for_scoring_by_id(
+            user_id, user_profile, onet_client, openai_client
         )
+        # DB ledger I. Every read the scoring needs is done; the scorer's
+        # embedding, O*NET and corpus calls run with no transaction open.
+        end_read_transaction()
         scored = score_paths(
             user_profile,
             onet_client,
@@ -385,7 +515,7 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # dead only because the backend never sent the string.
         logger.info(
             "Insufficient profile for path scoring, user %s (title=%r, skills=%d)",
-            user.id,
+            user_id,
             user_profile.current_title,
             len(user_profile.skills),
         )
@@ -398,10 +528,10 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # the generic 500 below instead, and the job it runs under carried the
         # untyped string where the SPA's `stateForFailure()` already had a
         # `corpus_unavailable` branch waiting for it (F-8 follow-up).
-        logger.warning("Corpus unavailable for path scoring, user %s", user.id)
+        logger.warning("Corpus unavailable for path scoring, user %s", user_id)
         return _error(503, "corpus_unavailable")
     except Exception:  # noqa: BLE001 -- logged with a traceback
-        logger.exception("Path scoring failed for user %s", user.id)
+        logger.exception("Path scoring failed for user %s", user_id)
         return _error(500, "Unable to score career paths")
 
     if not scored:
@@ -410,80 +540,43 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # transient, so genuinely a 500 -- deliberately NOT the branch above.
         logger.warning(
             "Empty scored list for user %s (title=%r, skills=%d)",
-            user.id,
+            user_id,
             user_profile.current_title,
             len(user_profile.skills),
         )
         return _error(500, "Unable to score career paths")
 
     # W-12. The page is the first `PAGE_SIZE` of what came back; everything after
-    # it is the reserve, which is narrated and cached but never served.
+    # it is the reserve, which is narrated and remembered but never served.
     page = scored[:PAGE_SIZE]
-    page_codes = {path.onet_code for path in page}
+    context = build_user_context(profile, intake, career_status)
 
-    try:
-        narrated = generate_narratives_batched(
-            scored, build_user_context(profile, user.intake, career_status)
-        )
-    except NarrativeGenerationError:
-        logger.exception("Path narrative generation failed for user %s", user.id)
-        return _error(500, "Unable to generate path narratives")
-
-    suggestions = [s for s in narrated if s.onet_code in page_codes]
-    if page and not suggestions:
-        # The batch carrying the page came back unusable. Fatal, exactly as it
-        # was before W-12 -- the shortlist IS the product, and a job that
-        # succeeded with no prose on any card would warm the cache with a
-        # ten-card page of fallback sentences and no way to ask again.
-        #
-        # A RESERVE batch failing is not fatal and is not handled here:
-        # `generate_narratives_batched` logs it and returns the batches that
-        # worked, so those cards simply have no reserve entry and get the
-        # `_overlap_sentence` fallback if a tap ever promotes them.
-        logger.error(
-            "Path narrative generation produced nothing for the page, user %s",
-            user.id,
-        )
-        return _error(500, "Unable to generate path narratives")
-
-    # W-14. **Every** narrative this job wrote, the page included -- not just the
-    # ten below it, which is what W-12 stored.
+    # W-16. Cards first, sentences after.
     #
-    # The page cards' prose is also on the payload, and `_describe` carries it
-    # forward from there, so storing it twice looks redundant. It is redundant
-    # right up to the moment a card LEAVES the page: a "Not for me" tap drops it
-    # from the payload, "Start over" brings it back, and a reserve defined as the
-    # complement of the page has no entry for it either. The card returned
-    # reading "Uses your SQL." with no pills beside its narrated neighbours --
-    # W-14's first bug, found driving the real stack after the fourth user test.
+    # Everything above is scoring: 0.3-3 s. The narrator is ~5 s more, and until
+    # W-16 the job ran both before anything reached the screen -- inside the
+    # POST, because Celery runs eager in production, on one of the eight gunicorn
+    # threads. Now the job stores the SCORED list the moment it exists and hands
+    # the narration back to its caller to run off the request thread.
     #
-    # The rule this restores is the simple one: a card that ever had prose in
-    # this job gets that prose back, whichever half of the list it came from.
-    reserve_narratives = {
-        s.onet_code: {
-            "why_text": s.why_text,
-            "profile_dimensions": list(s.profile_dimensions),
-        }
-        for s in narrated
-    }
+    # Sentences the narrator already wrote for these exact inputs are read from
+    # `path_narratives` first, keyed by `narrative_fingerprint`. A wants save or
+    # a tap changes the order but not one narrator input, so a re-sort finds
+    # every sentence it had and the narrator is not called at all.
+    fingerprints = {path.onet_code: narrative_fingerprint(path, context) for path in scored}
+    # Before the stored-sentence read, not after it: on a worker whose corpus
+    # is not loaded yet, this is an S3 fetch, and it must not run inside the
+    # transaction that read opens (DB ledger I).
+    summary_of = _summary_lookup(logger)
+    stored = _read_stored_narratives(user_id, fingerprints, logger)
 
-    score_map = {path.onet_code: path.score for path in scored}
-    # W-4, additive and keyed the same way `score_map` is: the narrator returns
-    # its own objects, so the scorer's per-card fields are joined back on by
-    # code rather than by position.
-    reasons_map = {path.onet_code: path.reasons for path in scored}
+    cards = [
+        _card(path, stored.get(path.onet_code), summary_of(path.onet_code))
+        for path in page
+    ]
+    pending = any(not card["why_text"] for card in cards)
     payload = {
-        "suggestions": [
-            {
-                "onet_code": s.onet_code,
-                "title": s.title,
-                "why_text": s.why_text,
-                "profile_dimensions": s.profile_dimensions,
-                "match_score": score_map.get(s.onet_code, 0.0),
-                "reasons": reasons_map.get(s.onet_code, []),
-            }
-            for s in suggestions
-        ],
+        "suggestions": cards,
         "career_status": career_status,
         "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ"
@@ -493,14 +586,404 @@ def path_suggestions(user: User, logger) -> IntelligenceResult:
         # already pressed and offer the reset. Without it a returning user would
         # be handed a list bent by invisible state with no way to straighten it.
         "feedback": judgements,
+        # W-16. True while at least one card on the page is still waiting for
+        # its sentence. The page shimmers those cards and keeps polling; the
+        # narration phase (or NARRATION_DEADLINE, if it never lands) clears it.
+        "narration_pending": pending,
     }
 
-    path_cache.store(user.id, payload)
+    token = uuid.uuid4().hex
+    # W-14's flag, kept honest: a list that is still waiting for its sentences
+    # is not a narrated list, so a job arriving meanwhile scores again rather
+    # than serving it -- and reads every sentence that has landed by then.
+    path_cache.store(user_id, payload, narrated=not pending, token=token, pending=pending)
     # Written unconditionally, empty included: this generation's reserve must
     # replace the last one rather than be merged with it, or a card dropped from
-    # the shortlist would keep prose written against an older profile.
-    path_cache.store_reserve(user.id, reserve_narratives)
-    return IntelligenceResult(status=200, body=payload)
+    # the shortlist would keep prose written against an older profile. The
+    # narration phase replaces it again with everything it wrote.
+    path_cache.store_reserve(user_id, dict(stored))
+
+    misses = [path for path in scored if path.onet_code not in stored]
+    if not misses:
+        return IntelligenceResult(status=200, body=payload)
+
+    return IntelligenceResult(
+        status=200,
+        body=payload,
+        narration=_narration_phase(
+            user_id=user_id,
+            token=token,
+            context=context,
+            payload=payload,
+            misses=misses,
+            stored=stored,
+            fingerprints=fingerprints,
+            logger=logger,
+        ),
+    )
+
+
+def _summary_lookup(logger=None) -> Callable[[str], str]:
+    """``code -> O*NET summary`` for this corpus, ``""`` for anything missing (W-18).
+
+    The summary is static per occupation, so it is filled when the card is
+    built -- which puts it on the very first poll that carries cards, seconds
+    before the narrator's sentence. It can only ever add a line: no sidecar, an
+    unloadable corpus or an unknown code all answer ``""``, and the card then
+    looks exactly as it did before W-18.
+    """
+    from backend.services import occupation_summaries
+    from backend.services.occupation_retrieval import CorpusUnavailable, get_corpus
+
+    try:
+        table = occupation_summaries.get_summaries(get_corpus())
+    except CorpusUnavailable:
+        # Only reachable where scoring ran without the real corpus (tests with
+        # a scorer double); in production scoring would have failed first.
+        table = None
+    except Exception:  # noqa: BLE001 -- a missing line, never a failed list
+        (logger or _log).warning("Card summaries unavailable", exc_info=True)
+        table = None
+    if table is None:
+        return lambda _code: ""
+    return table.for_code
+
+
+def _card(path, narrative: Optional[Dict[str, Any]], summary: str = "") -> Dict[str, Any]:
+    """One card on the wire, with its sentence if there is one yet (W-16).
+
+    `overlapping_skills` is on the card since W-16 because the fallback sentence
+    is built from it, and the fallback is now written LATER than the card: by the
+    narration phase for a card the narrator could not write, or by a read past
+    :data:`NARRATION_DEADLINE` when the narration never landed. Both need the
+    skills the card was scored with, and the card is the one place they travel.
+
+    `summary` (W-18) is O*NET's own first sentence for the occupation. It is on
+    the card from the moment the card exists, so the pending payload and the
+    cached one carry it alike, and nothing that fills `why_text` later touches it.
+    """
+    return {
+        "onet_code": path.onet_code,
+        "title": path.title,
+        "summary": summary,
+        "why_text": (narrative or {}).get("why_text") or "",
+        "profile_dimensions": list((narrative or {}).get("profile_dimensions") or []),
+        "match_score": path.score,
+        # W-4. Joined by code from the scorer, never carried from a cached
+        # card: a reason is a function of the PAGE (see `_describe`).
+        "reasons": path.reasons,
+        "overlapping_skills": list(path.overlapping_skills),
+    }
+
+
+def _read_stored_narratives(
+    user_id: int, fingerprints: Dict[str, str], logger
+) -> Dict[str, Dict[str, Any]]:
+    """`path_narrative_repository.read_many`, degrading to "nothing stored".
+
+    The table is an optimisation over the narrator, never a precondition for a
+    list: if it cannot be read, every card is a miss and the narrator writes it,
+    which is exactly what happened before W-16.
+    """
+    try:
+        return path_narrative_repository.read_many(user_id, fingerprints)
+    except Exception:  # noqa: BLE001 -- logged; the narrator covers the miss
+        db.session.rollback()
+        logger.exception("Stored narrative read failed for user %s", user_id)
+        return {}
+
+
+def _narration_phase(
+    *,
+    user_id: int,
+    token: str,
+    context,
+    payload: Dict[str, Any],
+    misses: list,
+    stored: Dict[str, Dict[str, Any]],
+    fingerprints: Dict[str, str],
+    logger,
+) -> Callable[[], Dict[str, Any]]:
+    """The deferred half of a scoring job: narrate the misses, land them (W-16).
+
+    Returns a closure over everything the phase needs -- no ORM object crosses
+    into it, because it runs on another thread with its own app context and
+    session. The closure NEVER raises and ALWAYS returns a final payload:
+    whatever goes wrong, the job and the cached list must reach a state the page
+    understands, and a card the narrator could not write takes the fallback
+    sentence rather than shimmering until the deadline.
+
+    Rules it keeps: W-13's scrub has already run inside the narrator; a fallback
+    sentence (`PathSuggestion.is_fallback`) is shown but never stored; and
+    nothing is stored for an account deleted while the narrator was out.
+    """
+    from backend.services.path_narrative import _HEAD_SIZE, narrate_page_first
+
+    #: W-17. The cards the page shows before "Show more", narrated first.
+    head_codes = {
+        card.get("onet_code") for card in (payload.get("suggestions") or [])[:_HEAD_SIZE]
+    }
+
+    def run(
+        on_partial: Optional[Callable[[Dict[str, Any]], None]] = None
+    ) -> Dict[str, Any]:
+        narratives: Dict[str, Dict[str, Any]] = dict(stored)
+        published: List[str] = [card.get("why_text") or "" for card in payload["suggestions"]]
+
+        def land(written) -> None:
+            # W-17. One completion's cards, as it lands, on this thread (the one
+            # with the app context): record them, store them, and put them on the
+            # cached list and the job's result so the next poll shows them.
+            _record_written(user_id, written, narratives, fingerprints, logger)
+            path_cache.land_partial(user_id, token, narratives, _fill_landed)
+            partial, _ = _fill_landed(payload, narratives)
+            texts = [card.get("why_text") or "" for card in partial["suggestions"]]
+            # Only when a card on the PAGE changed: a reserve batch landing
+            # changes nothing the poll serves, and is not worth a row update.
+            if on_partial is not None and texts != published:
+                published[:] = texts
+                on_partial(partial)
+
+        try:
+            # A narration that overlapped this one (a reload inside the window)
+            # may have stored some of these already: read again, pay once.
+            wanted = {path.onet_code: fingerprints[path.onet_code] for path in misses}
+            landed = path_narrative_repository.read_many(user_id, wanted)
+            narratives.update(landed)
+            # W-17. End the read's transaction BEFORE the narrator wait. A
+            # session holds its pooled connection until the transaction ends,
+            # and up to NARRATION_WORKERS narrations now wait at once -- more
+            # than the pool has connections to spare for the request threads.
+            db.session.rollback()
+            todo = [path for path in misses if path.onet_code not in landed]
+            head = [path for path in todo if path.onet_code in head_codes]
+            tail = [path for path in todo if path.onet_code not in head_codes]
+            narrate_page_first(head, tail, context, on_landed=land)
+        except Exception:  # noqa: BLE001 -- logged; the fallback covers the cards
+            db.session.rollback()
+            logger.exception("Path narration failed for user %s", user_id)
+
+        path_cache.finish_narration(user_id, token, narratives, _fill_payload)
+        final, _ = _fill_payload(payload, narratives)
+        return final
+
+    return run
+
+
+def _record_written(
+    user_id: int,
+    written,
+    narratives: Dict[str, Dict[str, Any]],
+    fingerprints: Dict[str, str],
+    logger,
+) -> None:
+    """Add one completion's suggestions to *narratives* and store the prose.
+
+    W-16's storage rules, applied per completion since W-17: W-13's scrub has
+    already run inside the narrator; a fallback sentence
+    (`PathSuggestion.is_fallback`) goes into *narratives* -- it is shown -- but
+    is never stored; and nothing is stored for an account deleted while the
+    narrator was out. A storage failure is logged and leaves the sentences on
+    the page: the table is an optimisation over the narrator, not a record the
+    page depends on.
+    """
+    rows = {}
+    for suggestion in written:
+        narratives[suggestion.onet_code] = {
+            "why_text": suggestion.why_text,
+            "profile_dimensions": list(suggestion.profile_dimensions),
+            "fallback": suggestion.is_fallback,
+        }
+        if suggestion.why_text and not suggestion.is_fallback:
+            rows[suggestion.onet_code] = (
+                fingerprints[suggestion.onet_code],
+                suggestion.why_text,
+                list(suggestion.profile_dimensions),
+            )
+    if not rows:
+        return
+    try:
+        if _account_deleted(user_id):
+            db.session.rollback()
+            return
+        path_narrative_repository.store_many(user_id, rows)
+        db.session.commit()
+    except Exception:  # noqa: BLE001 -- logged; the sentences are still shown
+        db.session.rollback()
+        logger.exception("Stored narrative write failed for user %s", user_id)
+
+
+def _account_deleted(user_id: int) -> bool:
+    """Was this account deleted while its narration was running?
+
+    Deletion tombstones the profile to `{"deleted_at": ...}` and destroys this
+    user's stored narratives; a narration already in flight must not write them
+    back a second later.
+    """
+    return bool(profile_repository.load_document(user_id).get("deleted_at"))
+
+
+def _fill_payload(
+    payload: Dict[str, Any], narratives: Dict[str, Dict[str, Any]]
+) -> Tuple[Dict[str, Any], bool]:
+    """*payload* with every empty card filled, and whether any card is prose (W-16).
+
+    A card with a sentence keeps it. An empty one takes the narrator's sentence
+    for its code if there is one, and otherwise `_overlap_sentence` from the
+    card's own skills with no tags -- the one fallback voice the tap path and the
+    grade scrub already use. `narration_pending` comes out False either way:
+    this is the function that ends a narration, successful or not.
+
+    Pure, and copying rather than mutating: `path_cache.finish_narration` calls it
+    under the cache's lock on a payload that is also the stored job result.
+    """
+    prose = False
+    cards = []
+    for card in payload.get("suggestions") or []:
+        card = dict(card)
+        if card.get("why_text"):
+            prose = True
+        else:
+            narrative = narratives.get(card.get("onet_code")) or {}
+            if narrative.get("why_text"):
+                card["why_text"] = narrative["why_text"]
+                card["profile_dimensions"] = list(narrative.get("profile_dimensions") or [])
+                prose = prose or not narrative.get("fallback")
+            else:
+                card["why_text"] = _overlap_sentence(card.get("overlapping_skills") or [])
+                card["profile_dimensions"] = []
+        cards.append(card)
+    return {**payload, "suggestions": cards, "narration_pending": False}, prose
+
+
+def _fill_landed(
+    payload: Dict[str, Any], narratives: Dict[str, Dict[str, Any]]
+) -> Tuple[Dict[str, Any], bool]:
+    """*payload* with the sentences that have landed so far, and nothing else (W-17).
+
+    The partial counterpart of :func:`_fill_payload`, for a narration still
+    running: an empty card with a sentence in *narratives* takes it, an empty
+    card without one STAYS empty (its sentence is still coming, so no fallback
+    is printed that would then change under the reader), and
+    ``narration_pending`` is left exactly as it was. Only :func:`_fill_payload`
+    ends a narration.
+
+    Pure and copying, for the same reason as :func:`_fill_payload`:
+    `path_cache.land_partial` calls it under the cache's lock.
+    """
+    prose = False
+    cards = []
+    for card in payload.get("suggestions") or []:
+        card = dict(card)
+        if not card.get("why_text"):
+            narrative = narratives.get(card.get("onet_code")) or {}
+            if narrative.get("why_text"):
+                card["why_text"] = narrative["why_text"]
+                card["profile_dimensions"] = list(narrative.get("profile_dimensions") or [])
+                prose = prose or not narrative.get("fallback")
+        else:
+            prose = True
+        cards.append(card)
+    return {**payload, "suggestions": cards}, prose
+
+
+def resolve_stale_narration(
+    payload: Dict[str, Any], now: Optional[datetime.datetime] = None
+) -> Dict[str, Any]:
+    """*payload* as a reader should see it, past :data:`NARRATION_DEADLINE` (W-16).
+
+    Unchanged unless it says `narration_pending` AND was generated longer ago
+    than the deadline -- the signature of a narration whose worker died. Then
+    every empty card gets the fallback sentence and `narration_pending` is False,
+    so the page stops shimmering and stops polling. Nothing is written: a read
+    that wrote would be the P0-3 shape, and the next scoring job (a reload)
+    replaces the list and narrates it properly anyway.
+    """
+    if not payload.get("narration_pending"):
+        return payload
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    try:
+        generated = datetime.datetime.strptime(
+            str(payload.get("generated_at")), "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=datetime.timezone.utc)
+    except ValueError:
+        generated = None
+    if generated is not None and now - generated < NARRATION_DEADLINE:
+        return payload
+    return _fill_payload(payload, {})[0]
+
+
+def start_narration(
+    narration: Callable[..., Dict[str, Any]],
+    on_done: Callable[[Dict[str, Any]], None],
+    on_partial: Optional[Callable[[Dict[str, Any]], None]] = None,
+) -> Optional[Future]:
+    """Run *narration* off the request thread, then hand its payload to *on_done*.
+
+    *on_partial* (W-17) is passed through to the narration, which calls it --
+    on the same thread, before *on_done* -- each time a card on the page gets
+    its sentence, so the first three reach the job's result as they land. An
+    exception from it is the narration's to log (`path_narrative` catches
+    whatever a landing raises), never the job's.
+
+    W-16. Celery runs eager in production, so "off the request thread" cannot be
+    a second Celery task -- that would run inline too. It is this module's own
+    small, bounded pool (:data:`NARRATION_WORKERS`), with the app context pushed
+    in the worker thread so the narration gets its own database session.
+
+    ``PATH_NARRATION_INLINE`` (default: on under ``TESTING``) runs it on the
+    calling thread instead. The code path is the same -- scored result stored
+    first, narration after, `on_done` last -- only the thread differs, which
+    keeps the API tests deterministic. `tests/test_path_suggestions_api.py` runs
+    the threaded path explicitly too.
+
+    The Flask app is taken from the queue adapter (the one `init_celery` bound)
+    rather than from `flask` directly: services stay free of Flask imports
+    (`tests/test_layering.py`), and it is the same app a worker's tasks run in.
+
+    Returns the Future, or None when it ran inline.
+    """
+    from solverah.infra.queue import celery_app
+
+    app = celery_app.conf.get("solverah_flask_app")
+    if app is None:
+        # No app bound (a bare script): nothing to push a context from, so run
+        # on the caller's thread and context, which is the inline path anyway.
+        final = narration(on_partial=on_partial)
+        on_done(final)
+        return None
+
+    def run_in_context() -> None:
+        with app.app_context():
+            try:
+                final = narration(on_partial=on_partial)
+            except Exception:  # noqa: BLE001 -- the deadline read covers the job
+                _log.exception("path_narration_crashed")
+                return
+            try:
+                on_done(final)
+            except Exception:  # noqa: BLE001 -- the deadline read covers the job
+                _log.exception("path_narration_result_not_recorded")
+
+    if app.config.get("PATH_NARRATION_INLINE", app.testing):
+        run_in_context()
+        return None
+    return _pool().submit(run_in_context)
+
+
+def _pool() -> ThreadPoolExecutor:
+    """The narration pool, created on first use rather than at import.
+
+    Lazily, so a CLI command or a migration that imports this module never
+    starts threads it will not use.
+    """
+    global _narration_pool
+    with _narration_pool_lock:
+        if _narration_pool is None:
+            _narration_pool = ThreadPoolExecutor(
+                max_workers=NARRATION_WORKERS, thread_name_prefix="path-narration"
+            )
+        return _narration_pool
 
 
 def read_path_preferences(user: User) -> IntelligenceResult:
@@ -511,16 +994,22 @@ def read_path_preferences(user: User) -> IntelligenceResult:
     read them out of the profile blob -- which is exactly the coupling to
     the profile document's shape that putting schemas at the API boundary exists
     to stop.
+
+    One SELECT of the one ``profiles.extra`` key (DB ledger I), where the whole
+    document was six.
     """
-    saved = profile_repository.load_document(user.id).get("path_preferences") or {}
-    return IntelligenceResult(
-        status=200,
-        body={
-            "move_intent": saved.get("move_intent"),
-            "seniority_intent": saved.get("seniority_intent"),
-            "priority": saved.get("priority"),
-        },
-    )
+    saved = profile_repository.read_extra_key(user.id, "path_preferences")
+    return IntelligenceResult(status=200, body=_preferences_body(saved))
+
+
+def _preferences_body(saved: Any) -> Dict[str, Any]:
+    """The preferences document on the wire, nulls for anything unset."""
+    saved = saved or {}
+    return {
+        "move_intent": saved.get("move_intent"),
+        "seniority_intent": saved.get("seniority_intent"),
+        "priority": saved.get("priority"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -572,20 +1061,27 @@ def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
     )
     from backend.services.path_scoring import InsufficientProfile
 
-    profile = profile_repository.load_document(user.id)
+    # DB ledger I: the id, never the row, past the transaction ended below.
+    user_id = user.id
+    profile = profile_repository.load_document(user_id)
     career_status = profile.get("career_status") or derive_career_status(profile)
     if not career_status:
         return _error(400, "career_status_not_set")
 
     user_profile = build_user_profile(
-        {**profile, "career_status": career_status}, user.intake, career_status
+        {**profile, "career_status": career_status},
+        read_scoring_intake(user_id),
+        career_status,
     )
     fingerprint = path_fit_repository.fingerprint(user_profile)
 
-    stored = path_fit_repository.read(user.id, onet_code, fingerprint)
+    stored = path_fit_repository.read(user_id, onet_code, fingerprint)
     if stored is not None:
         return IntelligenceResult(status=200, body={**stored, "cached": True})
 
+    # A miss: the deep fit's embedding (and, on a cold worker, corpus) calls
+    # run with no transaction open, and the store below opens a new one.
+    end_read_transaction()
     try:
         try:
             openai_client = llm.get_openai_client()
@@ -597,7 +1093,7 @@ def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
     except InsufficientProfile:
         logger.info(
             "Insufficient profile for deep fit, user %s (title=%r, skills=%d)",
-            user.id,
+            user_id,
             user_profile.current_title,
             len(user_profile.skills),
         )
@@ -609,10 +1105,10 @@ def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
     except CorpusUnavailable:
         # The corpus is a build artifact fetched from S3 and cached on disk;
         # unreachable is an outage, not a bad request, and retrying works.
-        logger.warning("Corpus unavailable for deep fit, user %s", user.id)
+        logger.warning("Corpus unavailable for deep fit, user %s", user_id)
         return _error(503, "corpus_unavailable")
     except Exception:  # noqa: BLE001 -- logged with a traceback
-        logger.exception("Deep fit failed for user %s (%s)", user.id, onet_code)
+        logger.exception("Deep fit failed for user %s (%s)", user_id, onet_code)
         return _error(500, "Unable to compute path fit")
 
     body = {
@@ -624,7 +1120,7 @@ def path_fit(user: User, onet_code: str, logger) -> IntelligenceResult:
     # `computed_at` is stored with the payload so a later cache hit reports when
     # the analysis actually ran; `cached` is not, because it is a fact about the
     # response and not about the fit.
-    path_fit_repository.store(user.id, onet_code, body, fingerprint)
+    path_fit_repository.store(user_id, onet_code, body, fingerprint)
     db.session.commit()
     return IntelligenceResult(status=200, body={**body, "cached": False})
 
@@ -699,10 +1195,12 @@ def record_path_feedback(
     if not isinstance(onet_code, str) or not _ONET_CODE_PATTERN.match(onet_code):
         return _error(404, "invalid_onet_code")
 
-    prepared = _prepare_rescore(user)
+    # DB ledger I: the id, never the row, past the transaction ended below.
+    user_id = user.id
+    prepared = _prepare_rescore(user_id)
     if isinstance(prepared, IntelligenceResult):
         return prepared
-    _, career_status, user_profile = prepared
+    profile, career_status, user_profile, intake = prepared
 
     from backend.services.occupation_retrieval import (
         CorpusUnavailable,
@@ -710,10 +1208,13 @@ def record_path_feedback(
         is_all_other_title,
     )
 
+    # On a worker whose corpus is not loaded yet this is an S3 fetch: end the
+    # profile read's transaction first (DB ledger I).
+    end_read_transaction()
     try:
         corpus = get_corpus()
     except CorpusUnavailable:
-        logger.warning("Corpus unavailable for path feedback, user %s", user.id)
+        logger.warning("Corpus unavailable for path feedback, user %s", user_id)
         return _error(503, "corpus_unavailable")
 
     row = corpus.index_of(onet_code)
@@ -722,7 +1223,7 @@ def record_path_feedback(
     if is_all_other_title(corpus.titles[row]):
         return _error(404, "unsupported_occupation")
 
-    path_feedback_repository.record(user.id, onet_code, verdict)
+    path_feedback_repository.record(user_id, onet_code, verdict)
     # Committed before the re-rank rather than after it. The judgement is what
     # the user asked for, and it is small and durable; the shortlist is a cache.
     # If the narrator times out on the next line the tap is still recorded and a
@@ -730,7 +1231,9 @@ def record_path_feedback(
     # something downstream of it failed.
     db.session.commit()
 
-    return _rescore(user, career_status, user_profile, logger)
+    return _rescore(
+        user_id, career_status, user_profile, logger, profile=profile, intake=intake
+    )
 
 
 def clear_path_feedback(user: User, logger) -> IntelligenceResult:
@@ -743,48 +1246,76 @@ def clear_path_feedback(user: User, logger) -> IntelligenceResult:
     Same error vocabulary as :func:`record_path_feedback`, minus the three that
     are about a code and a verdict it is not given.
     """
-    prepared = _prepare_rescore(user)
+    # Taken before the commit, which expires the row (DB ledger I).
+    user_id = user.id
+    prepared = _prepare_rescore(user_id)
     if isinstance(prepared, IntelligenceResult):
         return prepared
-    _, career_status, user_profile = prepared
+    profile, career_status, user_profile, intake = prepared
 
-    path_feedback_repository.clear_for_user(user.id)
+    path_feedback_repository.clear_for_user(user_id)
     db.session.commit()
 
-    return _rescore(user, career_status, user_profile, logger)
+    # Every judgement was just deleted, so reading them back is a query with a
+    # known answer: hand the re-rank the empty set instead (DB ledger I).
+    return _rescore(
+        user_id,
+        career_status,
+        user_profile,
+        logger,
+        profile=profile,
+        intake=intake,
+        judgements={},
+    )
 
 
-def _prepare_rescore(user: User):
-    """``(profile_document, career_status, UserProfile)``, or the error to return.
+def _prepare_rescore(user_id: int):
+    """``(profile_document, career_status, UserProfile, intake)``, or the error to return.
 
     The half of both handlers above that is about the *user* rather than about
     the judgement, lifted out because getting it subtly different between the two
     is how a POST and its matching DELETE end up disagreeing over whose profile
-    is complete.
+    is complete. The intake travels with the rest because `_rescore` builds the
+    narrator's context from it after the caller's commit.
     """
-    profile = profile_repository.load_document(user.id)
+    profile = profile_repository.load_document(user_id)
     career_status = profile.get("career_status") or derive_career_status(profile)
     if not career_status:
         return _error(400, "career_status_not_set")
     profile = {**profile, "career_status": career_status}
+    intake = read_scoring_intake(user_id)
     return (
         profile,
         career_status,
-        build_user_profile(profile, user.intake, career_status),
+        build_user_profile(profile, intake, career_status),
+        intake,
     )
 
 
 def _rescore(
-    user: User,
+    user_id: int,
     career_status: str,
     user_profile,
     logger,
+    profile: Optional[Dict[str, Any]] = None,
+    intake: Optional[ScoringIntake] = None,
+    judgements: Optional[Dict[str, str]] = None,
 ) -> IntelligenceResult:
     """Re-run Tier 1 with the user's stored judgements and cache the result.
 
     Writes into `path_cache` rather than invalidating it, so `GET
     /me/path-suggestions` serves exactly the list this returned and the two
     cannot disagree about what the user is looking at.
+
+    *profile* (W-16) is the document `_prepare_rescore` already loaded; it is
+    what the narrator's context -- and so the stored-sentence fingerprint -- is
+    built from, so `_describe` can read `path_narratives` before falling back.
+    *intake* is the one `_prepare_rescore` read with it.
+
+    Takes the user's id rather than the row (DB ledger I): both callers commit
+    first, and the commit expires the row, so touching it would reload it.
+    *judgements*, when given, are the stored judgements already known -- the
+    reset passes ``{}`` rather than reading back the rows it just deleted.
     """
     from backend.services.occupation_retrieval import CorpusUnavailable
     from backend.services.onet_client import OnetClient
@@ -793,7 +1324,8 @@ def _rescore(
     # See `path_suggestions` for why this import is deferred.
     from solverah.services import path_wants_service
 
-    judgements = path_feedback_repository.verdicts_for_user(user.id)
+    if judgements is None:
+        judgements = path_feedback_repository.verdicts_for_user(user_id)
 
     try:
         try:
@@ -805,9 +1337,11 @@ def _rescore(
         # must not quietly drop the wants: the re-rank writes its result into
         # `path_cache`, so a list built without them would become the list `GET
         # /me/path-suggestions` serves until the next profile write.
-        wants = path_wants_service.wants_for_scoring(
-            user, user_profile, onet_client, openai_client
+        wants = path_wants_service.wants_for_scoring_by_id(
+            user_id, user_profile, onet_client, openai_client
         )
+        # DB ledger I: nothing is held open across the scorer's network calls.
+        end_read_transaction()
         scored = score_paths(
             user_profile,
             onet_client,
@@ -816,15 +1350,15 @@ def _rescore(
             wants=wants,
         )
     except InsufficientProfile:
-        logger.info("Insufficient profile for path feedback rescore, user %s", user.id)
+        logger.info("Insufficient profile for path feedback rescore, user %s", user_id)
         return _error(400, "profile_incomplete")
     except CorpusUnavailable:
         logger.warning(
-            "Corpus unavailable during path feedback rescore, user %s", user.id
+            "Corpus unavailable during path feedback rescore, user %s", user_id
         )
         return _error(503, "corpus_unavailable")
     except Exception:  # noqa: BLE001 -- logged with a traceback
-        logger.exception("Path feedback rescore failed for user %s", user.id)
+        logger.exception("Path feedback rescore failed for user %s", user_id)
         return _error(500, "Unable to score career paths")
 
     if not scored:
@@ -834,11 +1368,16 @@ def _rescore(
         # that makes that unreachable rather than merely unlikely, and this
         # branch is what it would look like if the guard ever stopped working.
         logger.warning(
-            "Empty rescore for user %s (%d judgements)", user.id, len(judgements)
+            "Empty rescore for user %s (%d judgements)", user_id, len(judgements)
         )
         return _error(500, "Unable to score career paths")
 
-    suggestions, narrated = _describe(user, scored)
+    context = (
+        build_user_context(profile, intake, career_status)
+        if profile is not None
+        else None
+    )
+    suggestions, narrated, pending = _describe(user_id, scored, context, logger)
     payload = {
         "suggestions": suggestions,
         "career_status": career_status,
@@ -865,14 +1404,25 @@ def _rescore(
         # cache write inline: the succeeded job and the warm cache must never
         # disagree about what was computed.
         "feedback": judgements,
+        # W-16. A tap that lands while the scoring job's narration is still
+        # running leaves the cards it has no sentence for EMPTY and says so,
+        # rather than printing a fallback that the narration would then replace
+        # under the reader. The narration fills this list too when it lands
+        # (`path_cache.finish_narration`), and the page picks it up from `GET
+        # /me/path-suggestions` once its job poll says narration is done.
+        "narration_pending": pending,
     }
     # W-14. Stored either way -- the GET and the job a reload polls both read
     # this, and the list the user is looking at is this one -- but flagged with
     # whether any of it was written by the narrator. A fallback-only page is a
     # true record of the screen and a false basis for skipping the next job's
     # narration, and `path_suggestions` is where those two part company.
-    path_cache.store(user.id, payload, narrated=narrated)
-    return IntelligenceResult(status=200, body=payload)
+    #
+    # W-16: through `store_rescore`, which keeps the running narration attached
+    # to this list and closes the race where it finishes mid-tap. What it returns
+    # is what was stored, and so what this tap must answer with.
+    stored = path_cache.store_rescore(user_id, payload, narrated, _fill_payload)
+    return IntelligenceResult(status=200, body=stored)
 
 
 #: Copy for a card the re-rank surfaced that had no narrative yet.
@@ -888,9 +1438,12 @@ def _overlap_sentence(overlapping_skills: List[str]) -> str:
     return "Uses your %s and %s." % (", ".join(names[:-1]), names[-1])
 
 
-def _describe(user: User, scored) -> Tuple[List[Dict[str, Any]], bool]:
-    """The re-ranked list with a "why" for every card and NO LLM call, and
-    whether any of those "why"s came from the narrator (W-14).
+def _describe(
+    user_id: int, scored, context=None, logger=None
+) -> Tuple[List[Dict[str, Any]], bool, bool]:
+    """The re-ranked list with a "why" for every card and NO LLM call, whether
+    any of those "why"s came from the narrator (W-14), and whether any card is
+    waiting on a narration still running (W-16).
 
     ── WHY THE NARRATOR IS NOT ON THIS PATH, MEASURED ─────────────────────────
 
@@ -953,51 +1506,99 @@ def _describe(user: User, scored) -> Tuple[List[Dict[str, Any]], bool]:
     invented tags: an empty list renders nothing, and a fabricated tag is worse
     than a missing one.
 
-    ── THE SECOND RETURN VALUE (W-14) ─────────────────────────────────────────
+    ── THE STORED SENTENCES (W-16), BETWEEN SOURCES 1 AND 2 ──────────────────
 
-    True when at least one card took its prose from source 1 or from a source-2
-    payload that was itself narrated; False when every card fell through to
-    source 3. That is the difference between a re-rank of a narrated list and a
-    re-rank of nothing, and `path_suggestions` needs it to decide whether the
-    cache entry `_rescore` is about to write is worth serving in place of a
-    narrator run. It is computed here rather than sniffed off the finished list
-    because a fallback sentence is indistinguishable from prose once written:
-    only the site that chose the source knows which it used.
+    **1b. `path_narratives`.** Every sentence the narrator ever wrote for this
+    person, filed under the fingerprint of its inputs -- durable, unlike the
+    reserve, so it survives the deploy or recycle that empties `path_cache`.
+    Read in one query for the cards the reserve did not cover, and only when
+    *context* is given (it is what the fingerprint is computed from). Before the
+    carry-forward for source 1's reason: a stored sentence is prose, and a
+    carried one may be a fallback from an earlier tap.
+
+    **And a fourth answer where there was only source 3.** If the scoring job's
+    narration is still running (`path_cache.narration_token`), a card with no
+    sentence yet is left EMPTY and the third return value is True: the sentence
+    is seconds away, and printing the fallback now would change the text under
+    the reader when it lands. `_rescore` stores that through
+    `path_cache.store_rescore`, and the narration fills it.
+
+    ── THE SECOND AND THIRD RETURN VALUES ─────────────────────────────────────
+
+    The second (W-14): True when at least one card took its prose from source 1,
+    1b, or a source-2 payload that was itself narrated; False when every card
+    fell through to source 3. That is the difference between a re-rank of a
+    narrated list and a re-rank of nothing, and `path_suggestions` needs it to
+    decide whether the cache entry `_rescore` is about to write is worth serving
+    in place of a narrator run. It is computed here rather than sniffed off the
+    finished list because a fallback sentence is indistinguishable from prose
+    once written: only the site that chose the source knows which it used.
+
+    The third (W-16): True when any card was left empty for a narration still
+    running -- the payload's `narration_pending`.
     """
-    reserve = path_cache.get_reserve(user.id)
-    cached = path_cache.get(user.id) or {}
-    cached_narrated = path_cache.is_narrated(user.id)
+    reserve = path_cache.get_reserve(user_id)
+    cached = path_cache.get(user_id) or {}
+    cached_narrated = path_cache.is_narrated(user_id)
+    in_flight = path_cache.narration_token(user_id) is not None
     carried = {
         item.get("onet_code"): item
         for item in cached.get("suggestions") or []
         if item.get("onet_code") and item.get("why_text")
     }
+    # Before the stored-sentence read, for `path_suggestions`' reason: on a
+    # worker whose corpus is not loaded this is an S3 fetch (DB ledger I).
+    summary_of = _summary_lookup(logger)
+    stored: Dict[str, Dict[str, Any]] = {}
+    if context is not None:
+        from backend.services.path_narrative import narrative_fingerprint
+
+        stored = _read_stored_narratives(
+            user_id,
+            {
+                path.onet_code: narrative_fingerprint(path, context)
+                for path in scored
+                if path.onet_code not in reserve
+            },
+            logger or _log,
+        )
 
     out: List[Dict[str, Any]] = []
     narrated = False
+    pending = False
     for path in scored:
         prior = reserve.get(path.onet_code)
         if prior is not None:
-            narrated = True
+            narrated = narrated or not prior.get("fallback")
         else:
-            prior = carried.get(path.onet_code)
-            # A carried sentence is only narrator prose if the payload it came
-            # off was. Tap twice on a cold worker and the second tap carries the
-            # first tap's fallbacks forward -- truthy, and still not narration.
-            if prior is not None and cached_narrated:
+            prior = stored.get(path.onet_code)
+            if prior is not None:
                 narrated = True
+            else:
+                prior = carried.get(path.onet_code)
+                # A carried sentence is only narrator prose if the payload it
+                # came off was. Tap twice on a cold worker and the second tap
+                # carries the first tap's fallbacks forward -- truthy, and still
+                # not narration.
+                if prior is not None and cached_narrated:
+                    narrated = True
+        if prior:
+            why_text = prior["why_text"]
+            dimensions = list(prior.get("profile_dimensions") or [])
+        elif in_flight:
+            why_text, dimensions = "", []
+            pending = True
+        else:
+            why_text, dimensions = _overlap_sentence(path.overlapping_skills), []
         out.append(
             {
                 "onet_code": path.onet_code,
                 "title": path.title,
-                "why_text": (
-                    prior["why_text"]
-                    if prior
-                    else _overlap_sentence(path.overlapping_skills)
-                ),
-                "profile_dimensions": (
-                    prior.get("profile_dimensions") or [] if prior else []
-                ),
+                # W-18. Static per occupation, so read afresh like the title --
+                # a card promoted out of the reserve has one on its first tap.
+                "summary": summary_of(path.onet_code),
+                "why_text": why_text,
+                "profile_dimensions": dimensions,
                 "match_score": path.score,
                 # W-4. NOT carried across from the cached card the way `why_text`
                 # is, and the difference is what the two are about: a `why_text`
@@ -1007,6 +1608,8 @@ def _describe(user: User, scored) -> Tuple[List[Dict[str, Any]], bool]:
                 # re-rank that changed which ten they are has changed which
                 # phrases are worth printing.
                 "reasons": path.reasons,
+                # W-16. What a fallback is built from, wherever it is built.
+                "overlapping_skills": list(path.overlapping_skills),
             }
         )
-    return out, narrated
+    return out, narrated, pending

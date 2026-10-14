@@ -178,5 +178,4 @@ export const defaultHandlers = [
     csrfToken: "test-csrf-token",
     user: TEST_USER,
   }),
-  mock("post", "/api/v1/intake/early-access").reply(200, { ok: true }),
 ];

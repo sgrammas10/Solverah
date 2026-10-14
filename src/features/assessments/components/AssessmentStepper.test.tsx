@@ -220,4 +220,27 @@ describe("AssessmentStepper", () => {
     renderStepper(ALL_ANSWERED, { submitError: "Could not submit the assessment." });
     expect(screen.getByRole("alert")).toHaveTextContent("Could not submit the assessment.");
   });
+
+  it("offers 'Reload the questions' beside a submit error (F5)", () => {
+    const onReloadQuestions = vi.fn();
+    renderStepper(ALL_ANSWERED, { submitError: "We couldn't save it.", onReloadQuestions });
+    fireEvent.click(screen.getByRole("button", { name: "Reload the questions" }));
+    expect(onReloadQuestions).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no reload action when there is no error", () => {
+    renderStepper(ALL_ANSWERED, { onReloadQuestions: vi.fn() });
+    expect(screen.queryByRole("button", { name: "Reload the questions" })).toBeNull();
+  });
+
+  it("opens at initialIndex when resuming a draft", () => {
+    renderStepper({ "tok-zulu": "A" }, { initialIndex: 1 });
+    expect(screen.getByText("Question 2 of 3")).toBeInTheDocument();
+    expect(screen.getByText("Mike prompt")).toBeInTheDocument();
+  });
+
+  it("clamps an out-of-range initialIndex to the last question", () => {
+    renderStepper(ALL_ANSWERED, { initialIndex: 99 });
+    expect(screen.getByText("Question 3 of 3")).toBeInTheDocument();
+  });
 });

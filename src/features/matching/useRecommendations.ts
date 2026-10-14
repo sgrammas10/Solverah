@@ -1,6 +1,10 @@
 /**
- * useRecommendations.ts — the recommendations list, shared by Feed and
- * SearchResults instead of each holding its own `useState` copy.
+ * useRecommendations.ts — the recommendations list.
+ *
+ * NO CONSUMER TODAY. Feed and SearchResults both read it until 2026-09-28,
+ * when they became honest coming-soon screens because this list is always
+ * empty (below). The hook is kept as the seam for the day the list is wired:
+ * whichever screen shows it again should read it through here.
  *
  * Paginated since Phase 1b: `{ data, next_cursor }`. The list is always
  * empty today -- the ML pipeline behind it was replaced by the agent and

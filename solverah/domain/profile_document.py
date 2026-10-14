@@ -79,6 +79,7 @@ __all__ = [
     "SkillRow",
     "assemble",
     "decompose",
+    "proficiency_level",
 ]
 
 #: ``endDate`` values meaning the user still holds the role. Same pair
@@ -93,6 +94,27 @@ PROFICIENCY_SCORES = {"beginner": 1, "intermediate": 3, "advanced": 5}
 
 #: The inverse. Injective, so the round-trip is exact.
 PROFICIENCY_BY_SCORE = {score: level for level, score in PROFICIENCY_SCORES.items()}
+
+
+def proficiency_level(score: Optional[int]) -> Optional[str]:
+    """The ``skill_levels`` word for a ``profile_skills.proficiency``, or None.
+
+    The column holds 1-5 and this module writes only 1, 3 and 5, but nothing
+    stops a 2 or a 4 arriving -- the 1-5 spread exists precisely so a finer
+    widget can write them. A plain ``PROFICIENCY_BY_SCORE[score]`` raised
+    KeyError on one and turned ``GET /me/profile`` into a 500 (audit
+    2026-10-02, item 12). An in-between score rounds DOWN to the named level
+    below it, so a self-rating is never read back as higher than it was given;
+    anything outside 1-5 is not a rating and is left out.
+    """
+    if score is None or isinstance(score, bool) or not isinstance(score, int):
+        return None
+    if not 1 <= score <= 5:
+        return None
+    for floor in sorted(PROFICIENCY_BY_SCORE, reverse=True):
+        if score >= floor:
+            return PROFICIENCY_BY_SCORE[floor]
+    return None
 
 #: ``profiles`` columns that take a top-level string key straight across.
 #: ``(document key, column name)``.
@@ -488,9 +510,11 @@ def _decompose_resume(document: Dict[str, Any]) -> Optional[ResumeRecord]:
 
     ``uploadedResume`` stays in ``extra`` -- it carries the original filename,
     which has no column -- and its ``type``/``size`` are *copied* here so the
-    queryable row is complete. The copy cannot drift: every write rewrites the
-    whole profile state from the document, so the two are re-derived together or
-    not at all.
+    queryable row is complete. The copy cannot drift: every write that can
+    change either one re-derives this record from the whole document, and the
+    ``resumes`` row is rewritten whenever the record differs from it. A write
+    that leaves the row alone -- ``update_document`` skips an unchanged one --
+    is a write the row already agrees with.
     """
     object_key = document.get("resumeKey")
     if not isinstance(object_key, str) or not object_key:
@@ -607,11 +631,13 @@ def assemble(state: ProfileState) -> Dict[str, Any]:
     if listed:
         document["skills"] = [row.label for row in listed]
 
-    rated = [row for row in state.skills if row.proficiency is not None]
-    if rated:
-        document["skill_levels"] = {
-            row.label: PROFICIENCY_BY_SCORE[row.proficiency] for row in rated
-        }
+    levels = {
+        row.label: level
+        for row in state.skills
+        if (level := proficiency_level(row.proficiency)) is not None
+    }
+    if levels:
+        document["skill_levels"] = levels
 
     if state.resume is not None:
         document["resumeKey"] = state.resume.object_key

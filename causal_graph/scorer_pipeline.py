@@ -74,6 +74,9 @@ else:
 ANCHORS_PATH = REPO_IP / "ground_truth" / "rater_app" / "anchors.json"
 
 VALID_PACKETS = ["P-01", "P-02", "P-03", "P-04", "P-05", "P-06"]
+# Round 2 (PREREG_ROUND2_2026-09-29.md). Kept apart from VALID_PACKETS, which the round-1
+# tests parametrize over and pin to collector build v4.6.
+ROUND2_PACKETS = [f"P-{n:02d}" for n in range(7, 20)]
 DIMENSIONS = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"]
 SCORE_BAND_VALUES = [0.1, 0.3, 0.5, 0.7, 0.9]
 CONFIDENCE_BAND_VALUES = [0.1, 0.3, 0.6, 0.9]
@@ -86,20 +89,41 @@ BACKOFF_BASE_SECONDS = 2.0
 
 
 def packet_path_for(packet_id: str) -> Path:
-    if packet_id not in VALID_PACKETS:
-        raise ValueError(f"packet must be one of {VALID_PACKETS}, got {packet_id!r}")
+    if packet_id not in VALID_PACKETS + ROUND2_PACKETS:
+        raise ValueError(f"packet must be one of {VALID_PACKETS + ROUND2_PACKETS}, got {packet_id!r}")
     return REPO_IP / "ground_truth" / "anonymization" / f"{packet_id}_packet_ANON.txt"
 
 
-def load_anchors() -> dict:
-    if not ANCHORS_PATH.exists():
-        raise FileNotFoundError(f"anchors.json not found at {ANCHORS_PATH}.")
-    return json.loads(ANCHORS_PATH.read_text(encoding="utf-8"))
+def load_anchors(path: Path | str | None = None) -> dict:
+    """The frozen anchors.json by default; any other anchors file by path (e.g. v3.1)."""
+    p = Path(path) if path is not None else ANCHORS_PATH
+    if not p.exists():
+        raise FileNotFoundError(f"anchors file not found at {p}.")
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# Insufficient evidence (Julie's ruling 4, anchors v3.1+). The model may abstain on a
+# dimension -- score AND confidence null -- instead of being forced onto a band, so its
+# output can be compared with human raters' on the same terms. Switched on by the RUBRIC:
+# an anchors file without an `insufficient_evidence` block (the frozen v1, and v3) gets
+# exactly the pre-2026-09-29 schema, prompt and instruction, pinned byte for byte by
+# fixtures/scorer_v1_golden.json.
+# ---------------------------------------------------------------------------
+INSUFFICIENT_MARKER = "INSUFFICIENT EVIDENCE --"
+
+
+def permits_insufficient_evidence(anchors: dict) -> bool:
+    return "insufficient_evidence" in anchors
 
 
 def build_rubric_text(anchors: dict) -> str:
+    allow = permits_insufficient_evidence(anchors)
+    # "frozen for round 1" was always a claim about v1; a rubric that offers the skip is
+    # by construction not the round-1 instrument, so it does not repeat the claim.
+    status = "" if allow else " · frozen for round 1"
     lines = ["SOLVERAH", "Company Culture Rating Rubric",
-              f"Ground-truth scoring instrument · {anchors['rubric_version']} · frozen for round 1", ""]
+              f"Ground-truth scoring instrument · {anchors['rubric_version']}{status}", ""]
     lines.append(
         "Score each of the six dimensions independently, using ONLY the evidence packet "
         "provided. For each dimension, pick exactly one band value from "
@@ -109,6 +133,16 @@ def build_rubric_text(anchors: dict) -> str:
         "your score -- copy them exactly as they appear, do not paraphrase."
     )
     lines.append("")
+    if allow:
+        ie = anchors["insufficient_evidence"]
+        lines.append(
+            f"{INSUFFICIENT_MARKER} {ie['label']}: {ie['text']} To record it, set BOTH score "
+            "and confidence to null for that dimension. Quotes are optional when you do; if "
+            "you give any, they should show why the packet cannot support a score. Use this "
+            "only when the packet genuinely cannot characterise the company on that "
+            "dimension -- never as a way to avoid an extreme band."
+        )
+        lines.append("")
     lines.append("Five gates -- read before scoring:")
     for i, gate in enumerate(anchors["gates"], 1):
         lines.append(f"{i}. {gate}")
@@ -201,6 +235,13 @@ def classify_source(attribution: str, byline: Optional[str] = None) -> str:
             or "company careers" in a or "company code" in a or "job posting" in a
             or "company values" in a or "attributed on the page" in a):
         return "company"
+    # 2026-09-29: same appended block as build_rater_page.classify_source -- v4.7-v4.11 tags.
+    # After every earlier branch, so only former "unknown" excerpts can be classified by it.
+    if ("company press release" in a or "company-published" in a
+            or "employer response" in a):
+        return "company"
+    if "news reporting" in a or "television news" in a or "local news" in a:
+        return "noncompany"
     return "unknown"
 
 
@@ -267,9 +308,13 @@ def parse_excerpts(packet_text: str) -> list[Excerpt]:
 @dataclass
 class DimensionScore:
     dimension: str
-    score: float
-    confidence: float
+    score: Optional[float]        # None = insufficient evidence (anchors v3.1+ only)
+    confidence: Optional[float]   # None exactly when score is None
     evidence_quotes: list[str]
+
+    @property
+    def insufficient_evidence(self) -> bool:
+        return self.score is None
 
 
 @dataclass
@@ -291,7 +336,9 @@ class ScorerResult:
             "reasoning_effort": self.reasoning_effort, "timestamp": self.timestamp,
             "dimensions": [
                 {"dimension": d.dimension, "score": d.score, "confidence": d.confidence,
-                 "evidence_quotes": d.evidence_quotes}
+                 "evidence_quotes": d.evidence_quotes,
+                 # present only on an abstention, so a scored row is shaped as before
+                 **({"insufficient_evidence": True} if d.insufficient_evidence else {})}
                 for d in self.dimensions
             ],
         }
@@ -321,15 +368,53 @@ RESPONSE_SCHEMA = {
     "additionalProperties": False,
 }
 
+# The abstaining variant. Strict mode needs every property in `required`, so score and
+# confidence stay required and become nullable (an anyOf with null -- the union form
+# OpenAI documents for strict mode; NOT yet sent to the live API as of 2026-09-29, so the
+# first live call is also its acceptance test); evidence_quotes may be empty. "Null score
+# means null confidence" is not expressible in strict JSON schema, so score_packet enforces
+# it on the parsed response.
+_DIMENSION_SCHEMA_INSUFFICIENT = {
+    "type": "object",
+    "properties": {
+        "score": {"anyOf": [{"type": "number", "enum": SCORE_BAND_VALUES}, {"type": "null"}]},
+        "confidence": {"anyOf": [{"type": "number", "enum": CONFIDENCE_BAND_VALUES},
+                                 {"type": "null"}]},
+        "evidence_quotes": {
+            "type": "array", "minItems": 0, "maxItems": 3,
+            "items": {"type": "string"},
+            "description": "1-3 short verbatim phrases copied exactly from the packet that "
+                            "most directly support this score. Copy exactly; do not "
+                            "paraphrase, summarize, or combine multiple sentences. May be "
+                            "empty only when score is null (insufficient evidence).",
+        },
+    },
+    "required": ["score", "confidence", "evidence_quotes"],
+    "additionalProperties": False,
+}
+
+RESPONSE_SCHEMA_INSUFFICIENT = {
+    "type": "object",
+    "properties": {dim: _DIMENSION_SCHEMA_INSUFFICIENT for dim in DIMENSIONS},
+    "required": DIMENSIONS,
+    "additionalProperties": False,
+}
+
+
+def response_schema(allow_insufficient_evidence: bool = False) -> dict:
+    return RESPONSE_SCHEMA_INSUFFICIENT if allow_insufficient_evidence else RESPONSE_SCHEMA
+
 
 # ---------------------------------------------------------------------------
 # S1-2: score_packet() -- clean interface, no file-writing side effects.
 # ---------------------------------------------------------------------------
 def call_with_retry(client: OpenAI, messages: list[dict], model: str,
-                     temperature: Optional[float], reasoning_effort: str):
+                     temperature: Optional[float], reasoning_effort: str,
+                     schema: Optional[dict] = None):
     kwargs = dict(model=model, messages=messages, response_format={
         "type": "json_schema",
-        "json_schema": {"name": "dimension_scores_v2", "strict": True, "schema": RESPONSE_SCHEMA},
+        "json_schema": {"name": "dimension_scores_v2", "strict": True,
+                        "schema": RESPONSE_SCHEMA if schema is None else schema},
     })
     active_kwargs = dict(kwargs, temperature=temperature, reasoning_effort=reasoning_effort)
     temperature_honored = True
@@ -369,13 +454,24 @@ def score_packet(
     model: str = MODEL,
     temperature: float = TEMPERATURE,
     reasoning_effort: str = REASONING_EFFORT,
+    allow_insufficient_evidence: bool = False,
 ) -> ScorerResult:
     """S1-2's interface: score_packet(packet, rubric, model_cfg) -> ScorerResult.
     No file I/O -- the caller decides what to persist and how. This is the piece
     scorer_variance_test_v2.py's run_once() doesn't have: that function scores AND
     writes its own raw JSON AND appends to a specific CSV shape, so it can't be reused
     anywhere the output needs a different destination (e.g. serving, or this sprint's
-    own S1-4/S1-7 scripts) without copy-pasting the whole function."""
+    own S1-4/S1-7 scripts) without copy-pasting the whole function.
+
+    `allow_insufficient_evidence` must be `permits_insufficient_evidence(anchors)` for the
+    anchors `rubric_text` was built from. A mismatch -- a prompt offering the skip with a
+    schema that forbids it, or the reverse -- is refused BEFORE any API call is paid for."""
+    if (INSUFFICIENT_MARKER in rubric_text) != allow_insufficient_evidence:
+        raise ValueError(
+            "rubric_text and allow_insufficient_evidence disagree: pass "
+            "allow_insufficient_evidence=permits_insufficient_evidence(anchors) for the "
+            "anchors the rubric text was built from."
+        )
     instruction = (
         "Score the evidence packet against the rubric on these six dimensions: "
         + ", ".join(DIMENSIONS) + ". For each dimension, choose a score from exactly "
@@ -385,21 +481,44 @@ def score_packet(
         "text provided. Do not use any outside knowledge, web search, or tools, even "
         "if you recognise the company from the evidence."
     )
+    if allow_insufficient_evidence:
+        instruction += (
+            " If the packet genuinely cannot characterise the company on a dimension, you "
+            "may instead record insufficient evidence for it: score null and confidence null."
+        )
     messages = [{"role": "user", "content": f"RUBRIC:\n{rubric_text}\n\nEVIDENCE PACKET:\n{packet_text}\n\n{instruction}"}]
-    response, temperature_honored = call_with_retry(client, messages, model, temperature, reasoning_effort)
+    response, temperature_honored = call_with_retry(
+        client, messages, model, temperature, reasoning_effort,
+        schema=response_schema(allow_insufficient_evidence))
     parsed = json.loads(response.choices[0].message.content)
 
     return ScorerResult(
         packet_id=packet_id, model=model, rubric_version=rubric_version,
         packet_version=packet_version, temperature_honored=temperature_honored,
         reasoning_effort=reasoning_effort, timestamp=datetime.now(timezone.utc).isoformat(),
-        dimensions=[
-            DimensionScore(dimension=dim, score=float(parsed[dim]["score"]),
-                            confidence=float(parsed[dim]["confidence"]),
-                            evidence_quotes=list(parsed[dim]["evidence_quotes"]))
-            for dim in DIMENSIONS
-        ],
+        dimensions=[_dimension_from(dim, parsed[dim], allow_insufficient_evidence)
+                    for dim in DIMENSIONS],
     )
+
+
+def _dimension_from(dim: str, row: dict, allow_insufficient_evidence: bool) -> DimensionScore:
+    score = row["score"]
+    if score is None:
+        if not allow_insufficient_evidence:
+            raise ValueError(f"{dim}: null score from a call whose rubric offers no skip")
+        # Null score means null confidence. Strict schema cannot tie the two together, so a
+        # confidence the model attached to an abstention is dropped here rather than kept
+        # as a number that describes no score.
+        return DimensionScore(dimension=dim, score=None, confidence=None,
+                              evidence_quotes=list(row["evidence_quotes"]))
+    if row["confidence"] is None:
+        # The reverse is not recoverable: a score with no confidence is not a row this
+        # project stores. Fail loudly rather than invent one. (A score with zero quotes IS
+        # kept -- the citation verifier reports it as unsupported, which is the honest record.)
+        raise ValueError(f"{dim}: score {score} returned with a null confidence")
+    return DimensionScore(dimension=dim, score=float(score),
+                          confidence=float(row["confidence"]),
+                          evidence_quotes=list(row["evidence_quotes"]))
 
 
 # ---------------------------------------------------------------------------

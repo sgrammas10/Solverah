@@ -50,6 +50,12 @@ successful fit is visible rather than a matter of decimal places:
 They are nearly swapped. If the fit recovers them, the posterior has to move a
 long way against a confident prior, and `explain_user` should reorder those two
 dimensions for a user whose autonomy and pace gaps are comparable.
+
+`--planted-scale S` plants a DIFFERENT truth, for measuring the global-scale
+reparameterization (run_fit --global-scale): every dimension weight is the
+expert's mean times S, with no swap -- her relative ordering kept exactly, so
+the only thing to recover is the one scale. Intercept, confounders and
+cutpoints stay as above. Without the flag nothing about the cohort changes.
 """
 
 from __future__ import annotations
@@ -208,20 +214,29 @@ def _env_answers(env_by_dim, situation_items, targets, rng):
 # ---------------------------------------------------------------------------
 # The truth
 # ---------------------------------------------------------------------------
-def true_weights(cfg, pri):
+def true_weights(cfg, pri, planted_scale=None):
     """The live priors' means, with PLANTED_MAG substituted. Point weights (plain
-    floats), the shape `outcome_logit` wants."""
+    floats), the shape `outcome_logit` wants.
+
+    With `planted_scale`, instead: every DIMENSION weight is the prior mean
+    times that scale, and PLANTED_MAG is NOT applied -- the global-scale truth
+    (deltas zero). Intercept and confounders are the prior means either way.
+    """
     import match_core
 
     weights = match_core.point_weights(match_core.weights_from_priors(cfg, pri))
+    if planted_scale is not None:
+        from global_scale import scale_dimension_weights
+        return scale_dimension_weights(weights, cfg, float(planted_scale))
     for dim, mag in PLANTED_MAG.items():
         weights["dimensions"][dim]["mag"] = mag
     return weights
 
 
-def _truth_record(cfg, pri, *, n, seed, aligned_rate, comp_unsure_rate, database):
-    weights = true_weights(cfg, pri)
-    return {
+def _truth_record(cfg, pri, *, n, seed, aligned_rate, comp_unsure_rate, database,
+                  planted_scale=None):
+    weights = true_weights(cfg, pri, planted_scale=planted_scale)
+    record = {
         "n": int(n),
         "seed": int(seed),
         "database": database.rsplit("/", 1)[-1],
@@ -240,6 +255,11 @@ def _truth_record(cfg, pri, *, n, seed, aligned_rate, comp_unsure_rate, database
             "industry": "never supplied by the instrument -- fully masked, no truth",
         },
     }
+    # Only when planted, so a default cohort's truth file is unchanged.
+    if planted_scale is not None:
+        record["planted_scale"] = float(planted_scale)
+        record["planted"] = {"global_scale": float(planted_scale)}
+    return record
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +409,8 @@ class SyntheticCohort:
     """
 
     def __init__(self, *, aligned_rate=DEFAULT_ALIGNED_RATE,
-                 comp_unsure_rate=DEFAULT_COMP_UNSURE_RATE, cfg=None, pri=None):
+                 comp_unsure_rate=DEFAULT_COMP_UNSURE_RATE, cfg=None, pri=None,
+                 planted_scale=None):
         import assessment_form
         import match_core
         from work_pulse import situation, situation_items
@@ -402,7 +423,8 @@ class SyntheticCohort:
         if cfg is None or pri is None:
             cfg, pri = match_core.load()
         self.cfg, self.pri = cfg, pri
-        self.weights = true_weights(cfg, pri)
+        self.planted_scale = planted_scale
+        self.weights = true_weights(cfg, pri, planted_scale=planted_scale)
         self.aligned_rate = aligned_rate
         self.comp_unsure_rate = comp_unsure_rate
 
@@ -522,14 +544,15 @@ class SyntheticCohort:
 
 
 def seed(url, *, n, seed_value, aligned_rate, comp_unsure_rate, min_level_share,
-         truth_path, batch_size=100):
+         truth_path, batch_size=100, planted_scale=None):
     os.environ["DATABASE_URL"] = url
 
     from app import app
     from model import User, db
 
     cohort = SyntheticCohort(
-        aligned_rate=aligned_rate, comp_unsure_rate=comp_unsure_rate
+        aligned_rate=aligned_rate, comp_unsure_rate=comp_unsure_rate,
+        planted_scale=planted_scale,
     )
     cfg, pri = cohort.cfg, cohort.pri
     rng = np.random.default_rng(seed_value)
@@ -580,7 +603,7 @@ def seed(url, *, n, seed_value, aligned_rate, comp_unsure_rate, min_level_share,
 
     truth = _truth_record(
         cfg, pri, n=written, seed=seed_value, aligned_rate=aligned_rate,
-        comp_unsure_rate=comp_unsure_rate, database=url,
+        comp_unsure_rate=comp_unsure_rate, database=url, planted_scale=planted_scale,
     )
     truth_path = Path(truth_path)
     truth_path.parent.mkdir(parents=True, exist_ok=True)
@@ -631,9 +654,15 @@ def main(argv=None):
     parser.add_argument("--truth-out", default=str(DEFAULT_TRUTH_PATH),
                         help="where to write the generating truth (default: outside "
                              "the repo, at %s)" % DEFAULT_TRUTH_PATH)
+    parser.add_argument("--planted-scale", type=float, default=None,
+                        help="plant the global-scale truth instead: every dimension "
+                             "weight = prior mean * this, no swap (for run_fit "
+                             "--global-scale recovery)")
     parser.add_argument("--reset", action="store_true",
                         help="delete every synthetic user's rows, then exit")
     args = parser.parse_args(argv)
+    if args.planted_scale is not None and not args.planted_scale > 0:
+        parser.error("--planted-scale must be positive (s is a LogNormal)")
 
     url = require_database_url(args.database_url)
 
@@ -653,6 +682,7 @@ def main(argv=None):
         comp_unsure_rate=args.comp_unsure_rate,
         min_level_share=args.min_level_share,
         truth_path=args.truth_out,
+        planted_scale=args.planted_scale,
     )
 
 

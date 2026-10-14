@@ -22,9 +22,12 @@ nothing on a miss.
 **Not every instrument moves, and the split is on what the scoring actually
 does.**  ``assessment_service.AssessmentKind.scored_by`` already records it:
 
-* ``work_pulse``, ``wpll``, ``manager_match`` are ``llm``.  Each makes a
-  blocking OpenAI call of seconds-to-tens-of-seconds, and each is why the
-  timeout is 120.  These move.
+* ``wpll`` and ``manager_match`` are ``llm``.  Each makes a blocking OpenAI
+  call of seconds-to-tens-of-seconds, and each is why the timeout is 120.
+  These move.  ``work_pulse`` was the third until it was retired on
+  2026-10-02; it is ``llm`` in the registry still, but it has no job endpoint
+  any more -- both of its job routes answer 410 -- and a job of that kind
+  queued before the retirement fails without a provider call.
 * ``core`` and ``focus_type`` are ``rules``.  They score in-process from
   deterministic tables -- no socket is opened -- and the contract capture
   measures them at 211 ms and 40 ms including the database writes and the HTTP
@@ -60,7 +63,7 @@ from __future__ import annotations
 import datetime
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import sqlalchemy as sa
 
@@ -101,12 +104,13 @@ PATH_SUGGESTIONS = "path_suggestions"
 
 #: The instruments that score off the request path.
 #:
-#: Exactly the ``scored_by == "llm"`` three.  Kept as a literal rather than
+#: Exactly the ``scored_by == "llm"`` instruments that are not retired.  Kept
+#: as a literal rather than
 #: derived from ``ASSESSMENT_KINDS`` so that adding a sixth instrument is a
 #: deliberate decision here about whether it blocks on a provider, not an
 #: automatic consequence of a field somebody set for the catalogue's benefit.
 #: ``tests/test_scoring_jobs.py`` asserts the two stay consistent.
-JOB_ELIGIBLE_KINDS = ("work_pulse", "wpll", "manager_match")
+JOB_ELIGIBLE_KINDS = ("wpll", "manager_match")
 
 #: How long a job may sit in a non-terminal state before the sweep fails it.
 #:
@@ -155,6 +159,7 @@ def _create(
     user_id: Optional[int],
     kind: Optional[str],
     payload: Dict[str, Any],
+    detach_before_run: bool = False,
 ) -> ScoringJob:
     """Insert the row, commit it, then ask a worker for it.
 
@@ -162,6 +167,15 @@ def _create(
     both use: a worker that receives the message before the row is visible finds
     nothing, and the answer to "what if the enqueue fails" has to be a row a
     sweep can find rather than a message that was never sent.
+
+    *detach_before_run* keeps the returned row as it was just committed. With
+    eager Celery the job runs inline in THIS session; the path-suggestion scoring
+    ends its read transaction before every network call (DB ledger Package I),
+    and that rollback expires the route's row, which would then reload after the
+    run and answer the 202 with the terminal status instead of "queued" -- an
+    extra SELECT and a changed body. Assessments do NOT pass it: their recorded
+    eager-mode 202 has always said the terminal status (contract baseline), and
+    the Package I ruling on this function keeps that as it is.
     """
     job = ScoringJob(
         user_id=user_id,
@@ -172,11 +186,14 @@ def _create(
     )
     db.session.add(job)
     db.session.commit()
+    job_id = job.id  # the post-commit refresh; loads every column
+    if detach_before_run:
+        db.session.expunge(job)
 
     from solverah.infra.queue import enqueue
     from solverah.tasks.scoring_tasks import run_scoring_job
 
-    enqueue(run_scoring_job, job.id)
+    enqueue(run_scoring_job, job_id)
     return job
 
 
@@ -200,7 +217,13 @@ def create_assessment(
 
 def create_path_suggestions(user: User) -> ScoringJob:
     """Queue one path-suggestion scoring for *user*."""
-    return _create(job_type=PATH_SUGGESTIONS, user_id=user.id, kind=None, payload={})
+    return _create(
+        job_type=PATH_SUGGESTIONS,
+        user_id=user.id,
+        kind=None,
+        payload={},
+        detach_before_run=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -303,27 +326,51 @@ def _score_assessment(
 
 def _score_path_suggestions(
     claimed: Dict[str, Any]
-) -> Tuple[str, Optional[Dict], Optional[str]]:
+) -> Tuple[str, Optional[Dict], Optional[str], Optional[Callable[[], Dict]]]:
     """Run one path-suggestion scoring; the service call warms the cache.
 
     ``intelligence_service.path_suggestions`` populates ``path_cache`` as it
     returns, and since 3c that cache is the *only* thing ``GET
     /me/path-suggestions`` serves -- this job is what stands between a miss
     there and an empty screen.
+
+    The fourth value (W-16) is the narration phase still to run, or None when
+    every sentence was already stored. :func:`run` starts it after the scored
+    result is written.
     """
     from solverah.repositories import user_repository
     from solverah.services import intelligence_service
 
     user = user_repository.find_by_id(claimed["user_id"])
     if user is None:
-        return FAILED, None, GENERIC_FAILURE
+        return FAILED, None, GENERIC_FAILURE, None
 
     outcome = intelligence_service.path_suggestions(user, logger)
     if outcome.status == 200:
-        return SUCCEEDED, outcome.body, None
+        return SUCCEEDED, outcome.body, None, outcome.narration
 
     message = outcome.body.get("error") if isinstance(outcome.body, dict) else None
-    return FAILED, None, message if isinstance(message, str) else GENERIC_FAILURE
+    return FAILED, None, message if isinstance(message, str) else GENERIC_FAILURE, None
+
+
+def _record_narration(job_id: int, result: Dict[str, Any]) -> None:
+    """Replace a succeeded job's scored result with its narrated one (W-16).
+
+    Since W-17 also with each PARTIAL result -- the page's first three filled in
+    as they land, `narration_pending` still true -- so the poll shows them
+    before the rest are written.
+
+    Conditional on the row still being ``succeeded``: a job the purge deleted,
+    or a row that is somehow no longer the success it was a second ago, is left
+    alone rather than resurrected. Its own transaction, like :func:`_finish` --
+    it runs on the narration thread, not inside anybody's request.
+    """
+    with db.engine.begin() as connection:
+        connection.execute(
+            sa.update(_table)
+            .where(_table.c.id == job_id, _table.c.status == SUCCEEDED)
+            .values(result=result)
+        )
 
 
 def run(job_id: int) -> str:
@@ -341,11 +388,12 @@ def run(job_id: int) -> str:
         )
         return "skipped"
 
+    narration = None
     try:
         if claimed["job_type"] == ASSESSMENT:
             status, result, error = _score_assessment(claimed)
         else:
-            status, result, error = _score_path_suggestions(claimed)
+            status, result, error, narration = _score_path_suggestions(claimed)
     except Exception as exc:  # noqa: BLE001 -- the job row is the error channel
         db.session.rollback()
         logger.exception(
@@ -371,6 +419,35 @@ def run(job_id: int) -> str:
             "status": status,
         },
     )
+
+    # W-16. Cards first, sentences after. The scored result is committed above,
+    # so the poll can render the cards from this moment; the narration runs
+    # after, off this thread, and replaces the result with the narrated one when
+    # it lands. In that order and no other: started before `_finish`, a fast
+    # narration could write its result first and then be overwritten by the
+    # scored one, leaving a job that says "pending" about sentences that exist.
+    #
+    # If this process dies mid-narration the row is still `succeeded` -- the
+    # reaper never sees it, because it only fails `queued`/`running` rows -- and
+    # `intelligence_service.resolve_stale_narration` is what ends the wait: every
+    # read past NARRATION_DEADLINE serves the fallback sentences instead.
+    if narration is not None and status == SUCCEEDED:
+        from solverah.services import intelligence_service
+
+        try:
+            # W-17: the same write for a partial result as for the final one.
+            # Both run on the narration thread, partials first, so the final
+            # payload is always the last thing written.
+            intelligence_service.start_narration(
+                narration,
+                lambda final: _record_narration(job_id, final),
+                on_partial=lambda partial: _record_narration(job_id, partial),
+            )
+        except Exception:  # noqa: BLE001 -- the deadline read covers the job
+            logger.exception(
+                "path_narration_not_started",
+                extra={"event": "path_narration_not_started", "job_id": job_id},
+            )
     return status
 
 
@@ -451,7 +528,15 @@ def status_for(job: ScoringJob) -> Dict[str, Any]:
         "error": job.error,
     }
     if job.status == SUCCEEDED and job.result is not None:
-        body["result"] = job.result
+        result = job.result
+        if job.job_type == PATH_SUGGESTIONS:
+            # W-16. A result still saying `narration_pending` past the deadline
+            # belongs to a narration whose worker died; read it with the
+            # fallback sentences filled in so the page stops waiting.
+            from solverah.services import intelligence_service
+
+            result = intelligence_service.resolve_stale_narration(result)
+        body["result"] = result
     return body
 
 

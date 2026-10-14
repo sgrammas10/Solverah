@@ -14,6 +14,8 @@
  *   /career-quizzes/*         Authenticated quiz routes
  *   /quiz-insights            Authenticated quiz insights
  *   /environment-report       Environment-side instrument (job-seeker)
+ *   /environment-report/past  The same instrument, about the job before
+ *                             (job-seeker; one per user)
  *   /situation-report         Situation Report (job-seeker)
  *   /pulse, /pulse/trend      Pulse check-in + trend (job-seeker; /pulse is
  *                             the Pulse prompt email's deep-link target)
@@ -85,9 +87,6 @@ import ForgotPasswordVerify from "../features/auth/components/ForgotPasswordVeri
 // ── Lazy: quiz components ───────────────────────────────────────────────────
 const CareerQuizzes = lazy(() => import("../features/intelligence/components/CareerQuizzes"));
 const NextChapterYourWayQuiz = lazy(() => import("../features/intelligence/components/NextChapterYourWayQuiz"));
-const SolverahYourFutureYourWayQuiz = lazy(
-  () => import("../features/intelligence/components/SolverahYourFutureYourWayQuiz"),
-);
 
 // ── Lazy: public pages behind an in-app navigation ──────────────────────────
 const GuestQuizPreview = lazy(() => import("../features/intelligence/components/GuestQuizPreview"));
@@ -273,7 +272,6 @@ function App() {
                 <Route path="/career-quizzes/mid-career" element={<CareerQuizzes quizKey="midCareer" />} />
                 <Route path="/career-quizzes/teen-focused" element={<CareerQuizzes quizKey="teenFocused" />} />
                 <Route path="/career-job-search" element={<NextChapterYourWayQuiz />} />
-                <Route path="/future-your-way" element={<SolverahYourFutureYourWayQuiz />} />
                 <Route path="/quiz-insights" element={<QuizInsights />} />
 
                 {/* Legacy alias. The person-side assessment ships as Work Pulse at /work-pulse;
@@ -302,6 +300,13 @@ function App() {
                     instrument and its payoff surface, the same
                     instrument/report pairing the Manager Decoder above has. */}
                 <Route path="/environment-report" element={<EnvironmentReportPage />} />
+                {/* The past-job report (PRODUCT_DECISIONS §2, 2026-10-01). Keyed so
+                    moving between the two forms remounts rather than carrying
+                    one form's step state into the other. */}
+                <Route
+                  path="/environment-report/past"
+                  element={<EnvironmentReportPage key="past" subject="past" />}
+                />
                 <Route path="/situation-report" element={<SituationReportPage />} />
 
                 {/* Pulse routes (BUILD_PLAN B-3). /pulse is B-2's email

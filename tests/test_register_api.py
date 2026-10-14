@@ -117,3 +117,67 @@ def test_register_records_acceptance_metadata(client, monkeypatch):
         assert record["terms_version"] == "v0.9-draft-2026-08-20"
         assert record["accepted_at"]
         assert record["age_16_plus_attested"] is True
+
+
+# ── G8: the verify-email error strings are the wire contract the SPA keys on ──
+
+
+def _register_unconfirmed(client, monkeypatch, email):
+    monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
+    monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
+    res = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": email,
+            "password": "Strongpass1!",
+            "name": "Pending User",
+            "role": "job-seeker",
+            "terms_accepted": True,
+        },
+    )
+    assert res.status_code == 201
+
+
+def test_verify_email_error_strings_are_the_stable_codes(client, monkeypatch):
+    """The SPA maps ``invalid code`` / ``code expired`` to friendly copy (G8).
+
+    The legacy ``{"error": ...}`` body has no separate ``code`` field, and the
+    contract baseline records ``{"error":"invalid code"}`` byte-for-byte, so
+    these strings *are* the codes.  This pins them: a reword on the server
+    would silently put raw text back on the verify screen, and an added field
+    would move the baseline.  The body is asserted whole for the same reason.
+    """
+    import datetime
+
+    from app import app
+    from model import User, db
+    from solverah.domain import auth as auth_domain
+    from solverah.services import auth_service
+
+    email = "g8-codes@example.com"
+    _register_unconfirmed(client, monkeypatch, email)
+
+    wrong = client.post(
+        "/api/v1/auth/email/verify", json={"email": email, "code": "000000"}
+    )
+    assert wrong.status_code == 400
+    assert wrong.get_json() == {"error": auth_service.CONFIRM_INVALID_CODE}
+    assert auth_service.CONFIRM_INVALID_CODE == "invalid code"
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        code = user.confirmation_token
+        user.confirmation_sent_at = auth_domain.utcnow() - datetime.timedelta(
+            minutes=auth_domain.code_expiry_minutes() + 1
+        )
+        db.session.commit()
+
+    expired = client.post(
+        "/api/v1/auth/email/verify", json={"email": email, "code": code}
+    )
+    assert expired.status_code == 400
+    assert expired.get_json() == {"error": auth_service.CONFIRM_CODE_EXPIRED}
+    assert auth_service.CONFIRM_CODE_EXPIRED == "code expired"
+
+    # The reset screen's one string, pinned next to its siblings.
+    assert auth_service.RESET_INVALID_OR_EXPIRED == "invalid_or_expired_code"

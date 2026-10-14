@@ -15,6 +15,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
+import { ApiError } from "../../shared/api/apiError";
+import { experimentKeys } from "./useExperiments";
 
 /** `work_pulse.pulse_items.DIMENSIONS`, client side. */
 export type PulseDimension =
@@ -133,7 +135,10 @@ export function usePulseHistory(options: { limit?: number } = {}) {
  * `POST /me/pulse/checkins`. Invalidates every Pulse read on success: a
  * completed check-in changes the next round-robin sequence (`nextCheckin`)
  * and adds a row (`history`), the same "write invalidates, never hand-writes
- * the cache" call `useSubmitEnvironmentReport` makes.
+ * the cache" call `useSubmitEnvironmentReport` makes. The experiments list
+ * is invalidated too: a check-in is a data point in a running experiment's
+ * readout, so the Situation Report's cached verdict is stale the moment one
+ * lands.
  */
 export function useSubmitPulseCheckin() {
   const { fetchWithAuth } = useAuth();
@@ -146,8 +151,18 @@ export function useSubmitPulseCheckin() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: pulseKeys.all });
+      queryClient.invalidateQueries({ queryKey: experimentKeys.all });
     },
   });
+}
+
+/** True when `error` is the 422 `useSubmitPulseCheckin` gets because the
+ *  submitted dimensions no longer match the server's next check-in -- the
+ *  form was rendered from a `next-checkin` that has since moved on (a
+ *  check-in completed in another tab, say). The fix is a refetch of
+ *  `next-checkin`, not a retry. Branch on this, never on the message text. */
+export function isInvalidCheckin(error: unknown): boolean {
+  return error instanceof ApiError && error.errorFor("item_scores")?.code === "invalid_checkin";
 }
 
 export interface PulseEventSubmission {

@@ -1,0 +1,622 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5  -- session-configured model identifier. The runtime may
+                   substitute a fallback model mid-session and that substitution is not
+                   observable from inside the session, so this string is the CONFIGURED
+                   identifier, not a confirmed serving-model string. OPERATOR TO VERIFY.
+  built          : 2026-09-28  (run opened 2026-09-23; see note below)
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+  RUN NOTE: this build was opened by the scheduled run of 2026-09-23 12:20 UTC. The session
+  lost its connection to the build machine before any evidence was collected and resumed
+  2026-09-28. On resume the output folder still held nothing but this run's own status file,
+  both work lists were unchanged, and P-13 was still the topmost line, so the run continued
+  rather than aborting. No evidence was collected before the interruption, so no prior-packet
+  or prior-company context entered this build.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+
+The employee reviews in this packet come from truck drivers and driver-adjacent shop and
+terminal staff — company drivers, recent CDL trainees, intermodal and tanker drivers, diesel
+and trailer technicians, a driver leader and one customer service representative. Other parts
+of this company — the corporate office, sales, information technology, engineering, finance,
+legal and marketing organisations — are almost entirely absent from the review evidence, even
+though the company is actively hiring into all of them. Company-authored sources (the careers
+and values pages, and the annual-report human capital disclosure) describe the whole
+organisation.
+
+NOTE TO RATER — TRUNCATION. Six of the sixteen employee reviews below were cut off by the
+review site itself and could not be expanded without an account. The cut is marked [...] at the
+point the visible text ends. The reviews that were cut are systematically the longer and more
+detailed ones; the short reviews survive intact. Read the section knowing that the most
+detailed accounts are present only as opening paragraphs.
+
+NOTE TO RATER — TWO REVIEW PROFILES. The review site holds this employer under more than one
+profile page. The reviews below are merged from the two profiles that are confirmed to be this
+company, taken strictly newest-first across the merged set. A rater should not read the mix of
+profiles as a mix of companies.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Safe, courteous, hustling associates delivering superior experiences that excite our customers."  — [careers site, company-authored] — Schneider, stated as the company mission — https://schneiderjobs.com/ — accessed 2026-09-28
+
+   • "Schneider associates enjoy a strong work culture, award-winning benefits and endless career opportunities.  Wherever you want to take your career, Schneider will provide you with the options —and the resources—to help you get there."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
+
+   • "Schneider was built on four core values that remain in place today: Excellence, integrity, safety, respect. Our core values not only matter—they deliver."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
+
+   • "Schneider is so much more than orange trucks. We're a team of dynamic individuals working together to make a difference in an essential industry that impacts the world."  — [careers site, company-authored] — Schneider — https://schneiderjobs.com/company-culture — accessed 2026-09-28
+
+   • "At Schneider, we're committed to doing the right thing, the right way, and we're purposeful in our approach."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about/our-values — accessed 2026-09-28
+
+   • "Through training, technology and enterprise-wide processes, we foster a safety culture focused on reducing risk and promoting awareness—helping to support the well-being of our drivers, customers, and the communities we serve."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about/our-values — accessed 2026-09-28
+
+   • "At Schneider, we're a diverse, innovative and energetic community. This is where you can be yourself, and be appreciated for what you do — whether on the road, in the office, at the warehouse or in maintenance."  — [corporate site, company-authored] — Schneider — https://schneider.com/company/about — accessed 2026-09-28
+
+   • "When you join Schneider, you become part of a company culture that encourages career exploration, leadership involvement and individual development. Take control of your career path with endless opportunities to advance in your field or explore different jobs within the organization."  — [careers site, company-authored] — Schneider, office careers page — https://schneiderjobs.com/office-careers — accessed 2026-09-28
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+Sampled company-wide, newest-first, across the two confirmed employer profiles on the review
+site. Sixteen reviews are included rather than fifteen because two reviews share the date at
+the cut-off point and dropping one of them would have meant choosing between them on content.
+Source typos are reproduced as written.
+
+   • "Dedicated route- pickup loaded or empty trailer deliver to warehouse 800-450 miles a day give or take and come back to terminal. It's a no brainer job drop and hook, I enjoy it no stree do your job and go home. Someone is always available to help you throughout your day. Maintenance is awesome Schneider" [...]  — [employee review] — "CDL Class A Driver", Savannah Georgia; review headline "Good and fair company"; "no stree" [sic] — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-25
+
+   • "I've had a good experience with Schneider overall. The biggest things I appreciate are the consistent freight, newer equipment, benefits, and having terminals and operating centers all over the country. As an OTR driver, having access to showers, laundry, parking and maintenance while you're out makes" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Decent" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-23
+
+   • "Good place to start out pay could be better but overall decent place to get some miles under your belt." [...]  — [employee review] — "Truck Driver Class A", Conway, AR; review headline "Decent starter" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-20
+
+   • "Company is very modern and inclusive. So much culture depends on which operating center you work for. The people communicate and mesh well when problem solving. Lots of extra activities within divisions, ie potluck and after work/weekend shenanigans." [...]  — [employee review] — "Driver Leader", West Memphis, AR; review headline "Great company, retirement job" — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-09-20
+
+   • "Thank you for your outstanding review! We aim to ensure our associates are supported and find fulfillment in their work. Thanks for being an important part of our team."  — [employer response] — Schneider, replying beneath the 2026-09-20 "Driver Leader" review; response dated separately from the review — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — response 2026-09-25
+
+   • "Great people to work with, and felt like a family in some aspects. Had good times with the company and wouldn't mind still working there if not for the schedule."  — [employee review] — "Diesel Technician", location not stated; review headline "Good place you can call home" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-12
+
+   • "Safety constantly on your butt for bs, pay not holding up to work done, equipment long overdue for replacement you name it they do it. Dispatch could care less about you over the freight"  — [employee review] — "Regional", location not stated; review headline "Awful pay horrid safety" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-08
+
+   • "Good starter company. Stay for good befits. Managers are non drivers and at time seem to not understand the limitations of driving. Maintance is good at certain locations depends on what needed. Services have been cut at many locations. They think drivers only work 7-4, then put more on others to help."  — [employee review] — "Driver", location not stated; review headline "Decent place"; "befits" and "Maintance" [sic] — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-06
+
+   • "My time during orientation was great, All the instructors at the operating center were great teachers and were very patient. They were always kind and respectful and understood that we were inexperienced and were willing to help guide us whenever we needed it. After I had completed the first part of" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Started off great then went downhill extremely fast." — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-09-06
+
+   • "All tanker jobs pay more, even other local. Long hours every single day, but the pay doesn't reflect that. You will be on the brink of running over your clock everyday doing wild unload appointments. You will definitely run over your clock if you dont stand your ground."  — [employee review] — "Local Bulk Intermodal", Gary, IN; review headline "Horrible Pay, Terribly Unorganized" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-09-03
+
+   • "Dispatch was always available to take care of any issues immediately. Work/ home balance was tough, but that's a truckers life. All around good company to work for if you're just starting."  — [employee review] — title: not stated ("Anonymous"), location field reads "Jet set"; review headline "Good Job" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-28
+
+   • "Too much going on but nothing really going. I work for DG account, its decent but the pay isn't worth it to me. Unorganized. The work is easy though, you really learn how to back and drive in tight areas. Its more of a learning experience to me until able to spread my wings and find something better"  — [employee review] — "Driver", South Boston, VA; review headline "Its Ok for start up" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-27
+
+   • "Great entry level driving job let down by poor management of certain accounts and very hit-or-miss maintenance. Some shops treat drivers like they know nothing and blow off even safety-critical maintenance/repairs."  — [employee review] — "Driver", location not stated; review headline "Good entry level job with poor management" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-25
+
+   • "The most enjoyable part of the job ! I do well paking and shipping . En hard work discipline responsibility respect for all the people end grateful job" [...]  — [employee review] — job-title field reads "Shipping end parking", location field reads "112 versaillais"; review headline "Shipping"; "paking", "En", "end" [sic]. The job-title and location fields on this entry do not resolve to any location or role this employer is known to operate; it is retained because nothing external confirmed it describes a different company, and it is flagged here so a rater does not read it as a confirmed account of this workplace — https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — 2026-08-23
+
+   • "As a regional driver I had some down time and also made a decent paycheck. They didn't really call unless something was going on and they let you run how you want. Pay was okay for me but could've been better. Some people were rude within the company but it was never the main dispatch."  — [employee review] — "Truck Driver Class A", Birmingham, AL; review headline "Didn't micro manage and pretty laid back" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-22
+
+   • "Inconsistent pay and horrible trucks. The trucks are raggedy and disgusting and on top of that you will not have consistent miles so do not plan on having a budget"  — [employee review] — "Driver", London, KY; review headline "No miles" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-20
+
+   • "They want you to log off duty while getting unloaded but can't return to the cab! Home time sucks. I don't see how getting home at 6/7 pm is decent trying to raise a family"  — [employee review] — "Driver", location not stated; review headline "No home time" — https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — 2026-08-20
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings, four different functions. Each was opened individually on
+2026-09-28 and carried a live application control with no removal notice. Postings are
+identified by function only.
+
+   • "Work independently on complex work and projects."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
+
+   • "Act as a subject matter expert in one or more specialties."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
+
+   • "Perform complex tasks relating to the design and development of solutions requiring design patterns, performance considerations and supportability by others."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
+
+   • "Coach and lead less experienced IT associates."  — [job posting] — software engineering function, individual contributor — https://schneiderjobs.com/search-office-jobs/details/262200 — confirmed open 2026-09-28
+
+   • "Make safety-conscious decisions that ensure compliance with all policies and procedures."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
+
+   • "Provide continuous, structured and proactive performance management and coaching to drivers."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
+
+   • "Collaborate with various teams to identify and implement creative solutions to improve retention and drive business."  — [job posting] — driver-management function, manager with direct reports — https://schneiderjobs.com/search-office-jobs/details/263116 — confirmed open 2026-09-28
+
+   • "Able to take initiative."  — [job posting] — field sales function, manager without direct reports, remote work model — https://schneiderjobs.com/search-office-jobs/details/262033 — confirmed open 2026-09-28
+
+   • "Coordinate development of client solutions with solution design team, relationship managers and service offering owners."  — [job posting] — field sales function, manager without direct reports, remote work model — https://schneiderjobs.com/search-office-jobs/details/262033 — confirmed open 2026-09-28
+
+   • "Participate in discovery sessions and assist in defining business requirements. Use data to interpret user goals and priorities to substantiate campaign direction."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
+
+   • "Run tests and experiments to increase conversion rates."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
+
+   • "Monitor trends in paid digital advertising tools and applications and appropriately apply that knowledge to effectively increase ROI while experimenting with new and alternative ways to leverage paid activities."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — https://schneiderjobs.com/search-office-jobs/details/263004 — confirmed open 2026-09-28
+
+--- D. FIRST-PERSON ACCOUNT (yield: 8 passages from 2 sources · ladder fully attempted) ---
+
+Voice composition: both sources are non-executive. One is an operations director who began in
+an entry-level role; one is a senior diesel technician. No chief-executive or C-suite voice
+appears in this section. Both accounts are published by the company on its own careers blog
+and are company-selected, though the words quoted are the individuals' own as printed.
+
+Neither post carries a publication date by any retrieval method. The operations-director post
+refers to a 2025 award as having already happened, which places it in 2025 or later; the
+technician post carries no internal date evidence at all.
+
+   • "I like referring to my career path as a jungle gym, which emphasizes the flexibility and variety of paths we can take," she said. "It's inspiring to me how Schneider supports associates in leveraging our strengths to find roles that fit in our business."  — [company careers blog, first-person] — a director of operations, quoted — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "The depth of situational leadership I get to experience – you can't make some of these stories up," she said. "It can be difficult at times, but I've learned how to lead through many scenarios. We always need strong leaders who have that desire to make decisions every day."  — [company careers blog, first-person] — a director of operations, quoted — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "I like to tell them, 'Here's my perspective; take it or leave it,'" she said. "I empower them to build the solution. I give them the support they need, but I let them get to the answer."  — [company careers blog, first-person] — a director of operations, describing how she leads her team — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "The most humbling thing is taking that feedback and putting it to work. You have to own it and let it shape you."  — [company careers blog, first-person] — a director of operations — https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "The guys you work with will teach you more just by watching them," Andrew said. "Don't stay in that book all the time; use it as a reference but be ready to learn different ways to complete jobs safely."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
+
+   • "It's really based on you," Andrew said. "If you want to go and get it done you can. The sky's the limit. You can go as far as you want as fast as you want."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
+
+   • "I like helping people," Andrew said. "When I can share what I've learned to make someone else better, they make me better too."  — [company careers blog, first-person] — a senior diesel technician, on training newer technicians at his shop — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
+
+   • "It's a family here, we all know each other," Andrew said. "We all work together as a team. We work safely to go home at night, to succeed at a goal and then return home at night, happy that you know what we've done."  — [company careers blog, first-person] — a senior diesel technician — https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — no publication date on page; accessed 2026-09-28
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+All four excerpts come from independent trade reporting. Some of the speech quoted inside
+those articles originated in company announcements rather than in an interview; that is noted
+on each line by the attribution given.
+
+   • "Schneider National announced Wednesday that Jim Filter, EVP and group president of transportation and logistics, will be promoted to president and CEO on July 1."  — [trade press reporting] — Larry Avila, Trucking Dive — https://www.truckingdive.com/news/schneider-national-jim-filter-new-ceo-mark-rourke/810802/ — 2026-01-29
+
+   • "Schneider's strength has always been its ability to adapt and lead in a constantly changing environment," Rourke said.  — [trade press reporting, quoting the outgoing chief executive] — Larry Avila, Trucking Dive — https://www.truckingdive.com/news/schneider-national-jim-filter-new-ceo-mark-rourke/810802/ — 2026-01-29
+
+   • "Embracing digital transformation is key to our mission of providing solutions for our customer and drivers," Mike Kukiela, SVP of operations supply chain and distribution management at Schneider, said in the release.  — [trade press reporting, quoting a company executive from a release] — Alejandra Carranza, Trucking Dive — https://www.truckingdive.com/news/schneider-national-ai-technology-exl-streamline-logistics-workflows/804016/ — 2025-11-18
+
+   • "We don't necessarily need more demand," Filter said, explaining that capacity reductions have already created additional opportunities for Schneider. The company's immediate challenge is improving driver productivity and determining where to invest in additional capacity.  — [trade press reporting] — trucknews.com, reporting remarks made at an investor conference on 2026-09-15 — https://www.trucknews.com/business-management/schneider-sees-tighter-trucking-capacity-rising-rates-and-autonomous-opportunities-ahead/1003222237/ — 2026-09-25
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+From Item 1, Human Capital Management, of the annual report on Form 10-K for the fiscal year
+ended 2025-12-31, filed 2026-02-20. Company-authored. Headcount figures, dollar figures and
+percentages have been stripped as collected.
+
+   • "We have a highly engaged workforce deployed over a diverse set of positions across our segments, geographies, and businesses. Where consistent with our operational needs, we offer a variety of flexible working arrangements to associates, including remote and blended work configurations."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We utilize a performance management system that incorporates goals and development plans that are assessed semiannually to better position associates for future career growth."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "Succession planning is regularly performed to help identify and develop a pipeline of talent in critical roles within our organization. We further our talent development through a comprehensive learning program that offers associates classroom, virtual, and web-based training options."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We promote associate engagement across our organization by conducting annual surveys to assess satisfaction and gather ideas for improvement. Insights from these surveys guide programs that strengthen associates' connection to the Company, which we believe drives greater innovation, productivity, and profitability."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "Our non-driver pay varies by job, is market competitive, and includes short and long-term incentive programs that motivate associates and reward high performance."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We nurture an environment where associates feel safe, supported, and empowered to share their creativity, experiences, and ideas throughout our hiring processes, training and development programs, performance management, and community giving programs."  — [10-K Item 1, Human Capital Management; company-authored] — Schneider National, Inc. — https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — filed 2026-02-20, for FY ended 2025-12-31
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 16/12      C excerpts: 12/6
+       C postings: 4/3       C outside engineering: 3/1
+       B reviews within 24 months: 16/16
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       The company's own office job board rendered 88 open roles across 9 result pages on
+       2026-09-28, and the driver, diesel-technician and warehouse boards are separate from it.
+       No exemption applies and none was sought.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 8 (from 2 sources)    ladder rungs logged: 7/7
+       D voice composition: 0 executive / 2 non-executive   (all-executive case did not arise;
+                            no extra rung required on that ground. Stale non-executive material
+                            found and rejected: none — the two sources used carry no publication
+                            date at all rather than an old one.)
+       E excerpts: 4    searches logged: 4
+       F excerpts: 6    public? YES     10-K filing date: 2026-02-20 (FY ended 2025-12-31)
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: COVERED   innovation: COVERED   decision: THIN
+
+       THIN/NONE reasons:
+         decision: needed on-axis material about HOW choices get made inside the company —
+           metrics gates, A/B or experiment discipline, analytics infrastructure, or explicit
+           founder-gut / judgement-led language; searched sections A, C, D, F and the three news
+           items; optional review source checked for that specific material? NO — the optional
+           review source could not be retrieved at all this build (see 2d), so it was not
+           inspectable for any dimension; found only two postings' worth of data language
+           (one analytics role's "Use data to interpret user goals" and "Run tests and
+           experiments", one filing sentence on annual engagement surveys guiding programs) and
+           nothing from the experiential evidence, where every reference to decisions is about a
+           dispatcher or manager deciding for the reviewer rather than about what the decision
+           rested on.
+
+       Note on feedback, which came back THIN in most earlier packets and did not here: the
+       material that carried it is section D's first-person leadership passages plus the
+       filing's semiannual performance-assessment sentence and the driver-management posting's
+       "continuous, structured and proactive performance management and coaching" line. It is
+       recorded here because the pattern of where feedback evidence comes from is itself the
+       open question.
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: https://s28.q4cdn.com/901178831/files/doc_governance/2025/Feb/24/Code-of-Conduct_English-5bb73f.pdf   outcome: a current Code of Conduct exists as a PDF. The renderer exposes no text for PDFs and no HTML rendition of the same document was found, so it is recorded as FOUND BUT NOT QUOTABLY RETRIEVABLE and nothing was quoted from it. No employee handbook or "how we work" document was found.
+       D2 eng/product blog  attempted Y   URL: https://schneiderjobs.com/blog   newest post date: NOT STATED — no post on this blog carries a publication date in its text, its metadata, any <time> element or any JSON-LD block   outcome: yielded the two first-person sources used. It is a careers/recruiting blog, not an engineering or product blog; no engineering or product blog was found.
+       D3 culture microsite attempted Y   URL: https://schneiderjobs.com/company-culture   outcome: narrative text found, but it is the same careers/values material already quoted in section A, so under the double-counting rule it contributes nothing to D.
+       D4 leader interview  attempted Y   URL: https://www.cnbc.com/video/2026/09/21/watch-cnbcs-full-interview-with-schneider-national-ceo-jim-filter.html   date: 2026-09-21   outcome: a current full-length chief-executive interview exists, in video form with no transcript exposed on the page. Not quoted. Because section D was already non-executive on both sources, an executive rung was not needed to balance it.
+       D5 public repos      attempted Y   URL: https://github.com/schneider   outcome: the account is the company's (display name "Schneider National") and is NOT a name collision, but it holds only 2 public repositories, last updated 2025-01-29 and 2024-12-11. Both are past the 18-month gate as of this build, and neither carries discussions, RFCs or contribution guidelines. STALE — rejected on age.
+       D6 press profile     attempted Y   URL: https://www.trucknews.com/business-management/schneider-sees-tighter-trucking-capacity-rising-rates-and-autonomous-opportunities-ahead/1003222237/   date: 2026-09-25   outcome: current long-form trade coverage exists and was used in section E, but it is market-and-strategy reporting with no account of how the company works internally. Yields nothing for D.
+       D7 conference talk   attempted Y   URL: (Morgan Stanley Laguna Conference, 2026-09-15, reported at the trucknews.com URL above)   date: 2026-09-15   outcome: the company presents at investor conferences; the appearance found is a financial-markets presentation by the chief executive and chief financial officer, reported second-hand. No technical or recruiting conference talk was found. Yields nothing for D.
+       Rungs rejected as stale (>18 months): D5 (public repositories).
+       C fallbacks tried: reviews-site job view — not needed; the company's own board rendered
+                          ATS param found — YES (Taleo; apply.schneiderjobs.com and schneider.taleo.net)
+                          greenhouse — N/A (not this company's ATS)   lever — N/A   workday — N/A   ashby — N/A
+                          aggregator — attempted, see 2d
+       E news searches run: 4   queries used:
+          (1) Schneider National news 2026 leadership change CEO Jim Filter Mark Rourke restructuring
+          (2) Schneider National 2026 news layoffs OR "return to office" OR acquisition OR restructuring independent reporting
+          (3) Schneider National August September 2026 trucking dive OR freightwaves OR fleetowner news driver pay technology
+          (4) Schneider National CEO interview podcast 2026 how decisions get made operations technology
+
+2d. SOURCE ACCESS LOG
+
+  Method key: RENDER = JavaScript-rendering browser pane; FETCH = plain HTTP fetch layer.
+
+  https://schneiderjobs.com/why-schneider — RENDER — 404 "OOPS! We're sorry, but we can't serve your request." Guessed URL; wrong guess, not an absence. Navigation survey followed. needed JS: n/a
+  https://schneiderjobs.com/ — RENDER — OK. Mission text retrieved. The culture block is a tab set; only the "Mission" tab's content renders without interaction. needed JS: Y
+  https://schneiderjobs.com/sitemap — FETCH — OK; returned the link inventory that located the culture pages. Route-finding only; nothing quoted from it.
+  https://schneiderjobs.com/company-culture — RENDER — OK. Section A excerpts confirmed here. needed JS: Y
+  https://schneider.com/company/about — RENDER — OK. Section A excerpt confirmed here. needed JS: Y
+  https://schneider.com/company/about/our-values — RENDER — OK. Two section A excerpts confirmed here. needed JS: Y
+  https://schneiderjobs.com/office-careers — FETCH then RENDER — FETCH returned the testimonial quotes accurately but rewrote the surrounding body prose into its own sentences; RENDER confirmed the one excerpt used, character for character. needed JS: Y
+  https://www.indeed.com/cmp/Schneider — FETCH — OK. Entity metadata.
+  https://www.indeed.com/cmp/Schneider-National — FETCH — OK; resolves to the same "Schneider" profile.
+  https://www.indeed.com/companies/search?q=Schneider — FETCH — OK. Entity check; 50 profiles returned.
+  https://www.indeed.com/cmp/Schneider/job-titles — FETCH — OK. Full title index with counts.
+  https://www.indeed.com/cmp/Schneider/reviews?fcountry=US&sort=date — RENDER — OK, NOT walled. Full review stream with truncation markers intact. Three section B reviews confirmed here. needed JS: Y
+  https://www.indeed.com/cmp/Schneider-National-Carrier's/reviews?sort=date — RENDER (twice) and FETCH — RENDER OK both passes and identical both passes; FETCH also OK but see 2e. Thirteen section B reviews confirmed on the rendered copy. needed JS: Y
+  https://www.indeed.com/cmp/Schneider-Trucking-Inc./reviews?sort=date — FETCH — OK. Entity check only; not merged, see 2e.
+  https://www.glassdoor.com/Reviews/Schneider-National-Reviews-E3936.htm — FETCH — 404 (guessed employer id; wrong guess).
+  https://www.glassdoor.com/Reviews/Schneider-Reviews-E2969.htm?sort.sortType=RD — FETCH — REFUSED, "URL is disallowed by robots.txt rules". Not a sign-in wall and not an absence.
+  https://www.glassdoor.com/Reviews/Schneider-Reviews-E2969.htm — RENDER — NOT RETRIEVED. Site access was granted but the build machine's connection dropped at this step and the attempt was not completed. The optional recency cross-check therefore did NOT run on this build. See 2e.
+  https://schneiderjobs.com/search-office-jobs (and pages 2–9) — RENDER — OK. Full live board, 88 roles, captured from the board's own result pages rather than from a search engine. needed JS: Y
+  https://schneiderjobs.com/search-office-jobs/details/261354 — FETCH — returned only navigation chrome (JS-gated detail page).
+  https://schneiderjobs.com/search-office-jobs/details/261520 — RENDER — REDIRECTED to "?position-unavailable=true". Posting is CLOSED. Not used. Reached from a search-engine result, not from the live board.
+  https://schneiderjobs.com/search-office-jobs/details/262200 — RENDER — OK, open. needed JS: Y
+  https://schneiderjobs.com/search-office-jobs/details/262033 — RENDER — OK, open. needed JS: Y
+  https://schneiderjobs.com/search-office-jobs/details/263116 — RENDER — OK, open. needed JS: Y
+  https://schneiderjobs.com/search-office-jobs/details/263004 — RENDER — OK, open. needed JS: Y
+  https://schneiderjobs.com/blog — RENDER — OK. needed JS: Y
+  https://schneiderjobs.com/blog/category/culture — RENDER — OK. needed JS: Y
+  https://schneiderjobs.com/blog/katie-justman-leading-the-way-with-confidence — RENDER — OK; four passages confirmed. No date in text, metadata, <time> or JSON-LD. needed JS: Y
+  https://schneiderjobs.com/blog/andrew-mercer-career-fueled-by-pride-and-purpose — RENDER — OK; four passages confirmed. No date anywhere. needed JS: Y
+  https://github.com/schneider — FETCH — OK. 2 repos, last updated 2025-01-29 and 2024-12-11.
+  https://s28.q4cdn.com/.../Code-of-Conduct_English-5bb73f.pdf — located by search; PDF, not renderable; nothing quoted.
+  https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/0001692063-26-000013-index.htm — FETCH — OK. Primary document name resolved.
+  https://www.sec.gov/Archives/edgar/data/1692063/000169206326000013/sndr-20251231.htm — RENDER — OK; the full Item 1 Human Capital Management section retrieved and all six section F excerpts confirmed on it. needed JS: N (renderer used as the confirming route regardless)
+  https://www.truckinginfo.com/news/schneider-national-cuts-170-jobs-realigns-workforce — RENDER — OK, and REJECTED: the article is dated 2006-08-17, twenty years old. It surfaced in a 2026 search for recent news with no visible age cue. Not used.
+  https://www.truckingdive.com/news/schneider-national-jim-filter-new-ceo-mark-rourke/810802/ — RENDER — OK. 2026-01-29. needed JS: Y
+  https://www.truckingdive.com/news/schneider-national-ai-technology-exl-streamline-logistics-workflows/804016/ — RENDER — OK. 2025-11-18. needed JS: Y
+  https://www.trucknews.com/business-management/schneider-sees-tighter-trucking-capacity-rising-rates-and-autonomous-opportunities-ahead/1003222237/ — RENDER — OK. 2026-09-25. needed JS: Y
+
+2e. FIDELITY NOTE
+
+  [PARAPHRASE] markers used: NONE. Every excerpt in section 1 is verbatim from a rendered copy.
+
+  PLAIN FETCH FABRICATED QUOTATION MARKS ON THIS BUILD, exactly as the prompt warns.
+  Asked to reproduce the three newest reviews character for character, the plain-fetch layer
+  returned each review body wrapped in quotation marks. The rendered page prints review bodies
+  as unquoted plain text; there are no quotation marks anywhere around them. The same response
+  also silently straightened the curly apostrophe in "I've" (the page renders U+2019). Neither
+  error is visible to a URL-level fact-check. Separately, asked for the open postings on a jobs
+  aggregator, plain fetch returned a job-id parameter ("jk=456789abcdef0123") that has the shape
+  of a placeholder rather than a real identifier; it was not used. And on the company's own
+  office-careers page, plain fetch reproduced the three associate testimonials accurately while
+  rewriting the surrounding body paragraphs into its own sentences.
+  Every section 1 excerpt was therefore confirmed on a rendered copy before it entered the file.
+
+  ENTITY CHECK RESULT. The review site holds 50+ profiles matching "Schneider". Confirmed as
+  this company and MERGED: "Schneider" (the claimed profile — transportation and logistics,
+  founded 1935, headquarters matching) and "Schneider National Carrier's" (the subject's legal
+  operating-company name). Found, recorded, NOT merged, with the reason:
+    - "Schneider Electric" — a different company entirely (energy and utilities).
+    - "SCHNEIDER TRUCKING INC." — categorised on the site as "Car & Truck Rental". Its search-
+      listing count (522 reviews) and its own reviews page (22 reviews) disagree by a factor of
+      more than twenty. Identity as the subject company could not be established either way.
+      Its newest review is dated 2026-09-23, which falls INSIDE this packet's sampling window,
+      so merging it would have changed the sample. Not merged; recorded here so the rater can
+      see what was left out and why.
+    - "Schneider National Intermodal Yard" (5 reviews), "CR England and Schneider National"
+      (4 reviews), "Schneider Warehouse", "Schneider Finance", "DHL Schneider" — all too small
+      to move a newest-first sample and none confirmed as the subject employer.
+    - The remainder (law offices, hospitals, tire outlets, plumbing firms, a middle school) are
+      plainly unrelated businesses sharing a common surname.
+
+  THE MERGE MATTERS AND WOULD HAVE BEEN MISSED. Thirteen of the sixteen reviews used come from
+  the second profile, and that profile's newest review is more recent than the main profile's.
+  A build that had stopped at the main claimed profile would have produced a materially older
+  and thinner section B from the same company on the same day.
+
+  ONE REVIEW FLAGGED, NOT EXCLUDED. The 2026-08-23 entry carries the job-title string
+  "Shipping end parking" and the location string "112 versaillais", and its body is in
+  non-native English. Neither string resolves to any site or role this employer is known to
+  operate. An external check did not confirm it describes a different company, so under the
+  standing rule it is RETAINED and flagged rather than excluded. Suspicion alone did not
+  exclude it.
+
+  OPTIONAL-SOURCE CROSS-CHECK DID NOT RUN. The optional review site refused the plain-fetch
+  route on robots grounds and the rendered attempt was cut off by a connection failure on the
+  build machine. The recency cross-check is therefore UNRUN on this build, not failed and not
+  negative. It could not have fired materially in any case: all 16 reviews fall inside the
+  24-month gate and the newest is three days old at build time, so condition (b) of the
+  material-firing test cannot be met. No Glassdoor material appears in section 1.
+
+  POSTING STATUS. All four quoted postings were opened individually and each rendered a live
+  application control with no removal notice. One further posting (requisition 261520, reached
+  from a search-engine result rather than from the live board) redirected to a
+  "position-unavailable" page; it was discarded. Search-engine results for this employer's job
+  detail pages are stale, and the live board was used instead for every posting quoted.
+
+  A STALE NEWS ITEM WAS CAUGHT. A trade-press article headlined "Schneider National Cuts 170
+  Jobs; Realigns Workforce" surfaced in a search for recent news; on opening it, it is dated
+  2006-08-17 and names a chief executive three leaders ago. It is not in section E. This is an
+  "existed but was stale" finding, not an absence.
+
+  PRESERVED SOURCE TYPOS: "no stree", "befits", "Maintance", "paking", "En hard work",
+  "end grateful job", "Shipping end parking", "112 versaillais". All are in section B and all
+  are marked [sic] or noted on their line.
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 50+ profiles match the company name on the review site. The two
+          merged as this company:
+          - https://www.indeed.com/cmp/Schneider — count varies by element on the same page
+            (see next line) — 3.4 overall — CLAIMED (employer responses present)
+          - https://www.indeed.com/cmp/Schneider-National-Carrier's — count varies by element
+            (see next line) — 3.3 overall — no employer responses observed; claimed status not
+            displayed
+          Found and not merged, with counts: SCHNEIDER TRUCKING INC. (522 on the search listing
+          / 22 on its own page), Schneider National Intermodal Yard (5), CR England and
+          Schneider National (4), Schneider Warehouse (5), Schneider Finance (5), DHL Schneider
+          (2). Different company: Schneider Electric (6,028).
+
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Profile 1 — "5K Reviews" (navigation tab); "4,878 Reviews" (page <title>); "4,878
+            reviews" (heading above the review list); "Based on 5,045 reviews" (rating block);
+            "5,045 reviews" (company search listing).
+          Profile 2 — "137 Reviews" (page <title>); "137 reviews" (heading above the review
+            list); "Based on 138 reviews" (rating block); "138 Reviews" (navigation tab and
+            company search listing).
+
+       Conflicting counts observed on a single page: YES, on BOTH profiles, and on both the
+          <title>/heading figure versus the rating-block figure. Profile 1 disagrees with itself
+          by 167 reviews across four elements on one page; profile 2 by 1 across four elements.
+          No bare count is used anywhere in section 1.
+
+       Headline ratings BY SITE: Profile 1 — 3.4 overall; work-life balance 3.0; pay and
+          benefits 3.1; job security and advancement 3.1; management 3.0; culture 3.2.
+          Profile 2 — 3.3 overall; work-life balance 2.7; pay and benefits 2.8; job security
+          and advancement 3.1; management 3.2; culture 3.0. DIVERGENCE: profile 2 is lower on
+          work-life balance and pay and HIGHER on management. These are evaluative figures and
+          appear here as source metadata only; none is used as evidence in section 1.
+
+       Job titles sampled, each with review count and the element the count came from:
+          Not applicable — the sample is company-wide and newest-first, not title-stratified.
+          The title index was retrieved for population description and is summarised below.
+          Counts are as printed on https://www.indeed.com/cmp/Schneider/job-titles, each beside
+          its title in the index listing: Truck Driver 1,926; Driver 809; Owner Operator Driver
+          130; OTR 125; Tanker Driver 101; Professional Driver 94; Over the Road Truck Driver
+          80; Customer Service Representative 78; Forklift Operator 39; Account Manager 36;
+          Warehouse Worker 30. Against those: Software Engineer 2; Java Developer 2; Programmer
+          Analyst 2; Developer 1; Front End Developer 1; Technical Lead 1; Data Analyst 1;
+          Business Analyst 1; Financial Analyst 1; Program Manager 1; Engineering Manager 1.
+
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B.
+
+       Achievability gate run on every percentage recorded anywhere in the packet: Y —
+          and the answer is that NO percentage is recorded anywhere in this packet. Three
+          percentages were encountered and deliberately not carried: two operational figures in
+          the 2025-11-18 news item and one network-reduction figure in the 2026-09-25 item.
+          None of them states an n, so the gate cannot be run on them at all; that is the
+          reason they were left out rather than reported with a caveat.
+
+       Percentages struck for failing the gate, with title and figure: none reached the gate.
+
+       Titles present but NOT sampled, with counts: not applicable under a recency frame. The
+          function categories effectively absent from the review population are listed at 2g.
+
+       Interview write-ups excluded from review lists: NONE encountered in the sampled range.
+
+       Newest review date BY SITE: profile 1 — 2026-09-20; profile 2 — 2026-09-25. Merged
+          newest: 2026-09-25. Optional site: NOT RETRIEVED (see 2e), so the cross-check figure
+          that would normally sit here does not exist for this build.
+
+       Oldest review used: 2026-08-20.
+
+       Median age of reviews used: approximately 1.1 months at build date. Every review used
+          was posted within the 40 days before the build.
+
+       Reviews truncated at source: 6/16 = 37.5%  ** exceeds one third — NOTE TO RATER placed
+          at the head of section B, per B7 **
+          Two passes were run over the larger profile's review page and both passes returned
+          identical truncation markers, so the figure is a measurement and not a single-pass
+          artifact. A third form of cut exists on this site and is worth recording: several
+          reviews end mid-sentence with no "Show more" marker at all (for example one ending
+          "...for the first month and"). Those SILENT cuts are not counted in the 37.5%, which
+          means the true truncation rate is higher than the figure above, not lower.
+
+       Source-site duplicates retained: none observed.
+
+       Newest careers-page modification date: NOT PUBLISHED. No careers, values or culture page
+          used in section A carries a publication or modification date by any retrieval method.
+          All 8 of 8 section A excerpts are access-dated. The entire vintage of section A is
+          therefore unknown, and that is the finding.
+
+       Structural events found and their dates:
+          - Leadership transition announced 2026-01-29; effective 2026-07-01. The chief
+            executive since 2019 moved to executive chairman and a nearly-three-decade internal
+            leader became president and CEO.
+          - Acquisitions of two dedicated-fleet businesses, referenced in reporting dated
+            2025-11-24 and 2026-01-15.
+          - Brokerage carrier network sharply reduced, reported 2026-09-25.
+          - Targeted driver pay increases begun in Q2 2026, reported 2026-09-25.
+
+       Does any structural event postdate the newest review? NO. The newest review (2026-09-25)
+          is the same day as the most recent reported event and postdates the leadership change
+          by nearly three months. Every review used was written after the new chief executive
+          took office. This is an unusually clean vintage relationship and the rater should know
+          it runs in the favourable direction for once.
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide, but written in two registers — the
+                              careers-site pages address prospective associates, while the
+                              corporate values page addresses shippers and carriers as "you"
+                              rather than employees.
+       B employee reviews     population: overwhelmingly drivers. Of the 16 reviews used, 13
+                              carry driver or driver-trainee titles (CDL Class A Driver, Truck
+                              Driver Class A, Driver, Local Bulk Intermodal, Regional), 1 is a
+                              diesel technician, 1 is a driver leader (frontline supervision),
+                              and 1 is the flagged shipping entry. Three of the 16 are untitled
+                              ("Anonymous") and cannot be assigned to a function at all.
+       C job postings         population: office and corporate functions — software
+                              engineering, driver management, field sales, digital marketing
+                              analytics. This is almost exactly the population section B does
+                              NOT describe.
+       D first-person         population: one operations director and one senior diesel
+                              technician; both accounts are published and selected by the
+                              company.
+       E news                 population: company-wide, filtered through executive and
+                              investor-facing commentary.
+       F human capital        population: company-wide, explicitly split by the filing itself
+                              into drivers and non-driver associates.
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: the entire corporate and technology organisation. The company's own job
+       board carried open roles in software engineering, enterprise architecture, AI
+       architecture, mechanical engineering, legal, accounting, payroll, marketing analytics,
+       claims and corporate recruiting on the day of this build — and the review site's title
+       index records single-digit review counts for essentially every one of those functions
+       (Software Engineer 2, Data Analyst 1, Financial Analyst 1, Engineering Manager 1)
+       against 1,926 for Truck Driver. No sampling rule can repair this, because the reviews do
+       not exist. It is recorded, not corrected.
+
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES — and the gap here is about as wide as it gets. The
+       filing describes a workforce roughly seven-tenths of which is drivers and three-tenths
+       of which is everyone else; the review evidence is almost entirely the seven-tenths, and
+       the job postings are almost entirely the three-tenths.
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: approximately 19,000 associates as of 2025-12-31, stated by the company in
+  Item 1 of its annual report on Form 10-K (filed 2026-02-20). HIGH confidence — this is a
+  company-sourced figure in a legal filing, not a third-party estimate. The same filing states
+  roughly 70% are drivers and the remaining 30% are mechanics, warehouse personnel, managers
+  and corporate office associates, and that roughly 11% are based at the Green Bay headquarters.
+  The corporate site separately advertises an approximate associate count in a marketing
+  counter block; that figure did not render as a number and was not used.
+
+- Stage/size cues: PUBLIC company, NYSE-listed (ticker SNDR), CIK 1692063. Founded 1935;
+  family-founded and still carrying founder-descendant governance history. Annual operating
+  revenues stated on the corporate site as approximately $5.7 billion; approximately
+  $2.2 billion in third-party freight managed per year. Not venture-funded; mature operating
+  company in the fourth year after a freight downturn, described in its own investor
+  commentary as treating 2026 as the first year of recovery. Recent inorganic growth through
+  acquisition of two dedicated-fleet businesses. Leadership transition completed 2026-07-01.
+
+- Pay-posture EVIDENCE vs. talent-market peers — no band assigned. The evidence points in two
+  directions and the correct reference class is NOT one market:
+    * For drivers, the reference class is other large asset-based truckload carriers, not the
+      general labour market. The experiential evidence is consistently and repeatedly that pay
+      is below that reference class: "Low pay compared with other companies", "Great starter
+      company, but eventually go somewhere that pays more", "All tanker jobs pay more, even
+      other local", "you're going to make bottom of the barrel pay". This is the single most
+      repeated theme in section B. Company-side evidence: the filing states driver pay scales
+      increase by experience level and performance and that some driver packages include
+      minimum guarantees; trade reporting dated 2026-09-25 states targeted increases began in
+      Q2 2026 concentrated on retaining the most productive drivers.
+    * For office and corporate roles, the reference class is the Green Bay / upper-Midwest
+      professional market plus, for the remote sales and technology roles, a national one. The
+      filing states non-driver pay "varies by job, is market competitive" with short and
+      long-term incentive programs, and that the company "routinely" benchmarks against peers.
+      No independent evidence on this population was obtainable, because the review population
+      for corporate functions does not exist.
+    * Note for whoever bands this: the driver evidence and the corporate evidence are about
+      different labour markets inside one legal entity, and a single band would average two
+      populations that do not compete for the same workers.
+
+- Industry: TRANSPORTATION AND LOGISTICS (maps to "other" under a tech/finance/healthcare/
+  retail scheme). Justification: asset-based truckload, intermodal and dedicated trucking plus
+  a brokerage and supply-chain-management arm; the site's own industry label on both review
+  profiles is "Transportation & Logistics".
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES IN SECTION 1
+  "Schneider" appears in the scope declaration, in every section A excerpt attribution, inside
+  the text of four section A excerpts, inside the text of the section B reviews dated
+  2026-09-25 and 2026-09-23 and inside the employer response dated 2026-09-25, inside three section C excerpt attributions, inside
+  section D quotations, in every section E excerpt, and in the section F attributions. It also
+  appears inside every source URL.
+
+PRODUCT, BRAND AND PROGRAMME NAMES (all in section 1 or its attributions)
+  "Omaha Orange" and "orange trucks" — the fleet colour is a hard fingerprint for this company
+    and appears inside a section A excerpt ("Schneider is so much more than orange trucks").
+  "Slice of Orange" / "The Schneider Guy" — the careers blog and its house byline, in section D
+    attributions.
+  "FreightPower", "BidSmart", "OnGuard" — named products on the values page. None entered
+    section 1, but they sit on a page section A quotes from and will re-identify it.
+  "Extended Basic Training", "CAT Program", "BRGs", "Accelerated Development Program",
+    "Schneider's Women's Network", "Driver Ambassadors" — named internal programmes. Of these
+    only BRG-adjacent language reached section 1 (in the F excerpt on inclusive culture, which
+    does not name a programme). REWRITE THE PROPER NOUN, KEEP THE CLAUSE for any that are
+    restored.
+  "Driver Leader", "Driver Manager", "operating center", "Team Leader - Operations" — internal
+    role and facility vocabulary that is distinctive to this employer in combination, and
+    "operating center" appears inside two section B review bodies.
+
+EXECUTIVE AND AUTHOR NAMES IN SECTION 1
+  Jim Filter (president and CEO), Mark Rourke (executive chairman) — both named and both quoted
+    in section E. Mike Kukiela (SVP) — named and quoted in section E.
+  Larry Avila, Alejandra Carranza — bylined reporters, in section E attributions.
+  Katie Justman, Andrew Mercer — named associates whose words are quoted in section D. These
+    are living non-public individuals and their names are in the source URLs as well as the
+    attributions. NOTE: the section D attributions in this packet already use role labels
+    rather than names in the attribution field, but the names remain inside the URLs and inside
+    one quoted passage's framing ("Andrew said"). Both must be handled.
+
+NAMED CLIENTS APPEARING INSIDE REVIEW TEXT
+  "DG account" (2026-08-27 review) and, in the wider review stream, references to named retail
+  and automotive customers on dedicated accounts. "DG account" is in section 1 and identifies a
+  named customer relationship.
+
+OFFICE AND REVIEW LOCATIONS — REPLACE WITH GENERIC TOKENS, DO NOT DELETE
+  Section B locations, which the dispersion field depends on: Savannah GA, Conway AR, West
+  Memphis AR, Gary IN, South Boston VA, Birmingham AL, London KY, and the non-resolving string
+  "112 versaillais". Section C locations were not quoted; the postings' work models (On-Site,
+  Hybrid, Remote) were reported instead and carry no location. Green Bay, Wisconsin appears in
+  section 3 only, and in two section B review bodies in the wider stream that were not used.
+
+VERBATIM SELF-DESCRIPTIONS — SEARCHABLE EVEN AFTER THE NAME IS REMOVED
+  "Safe, courteous, hustling associates delivering superior experiences that excite our
+    customers." — the mission statement; an exact-phrase search returns this company alone.
+  "Excellence, integrity, safety, respect" as an ordered four-value list.
+  "Schneider is so much more than orange trucks. We're a team of dynamic individuals working
+    together to make a difference in an essential industry that impacts the world."
+  "doing the right thing, the right way"
+  The 10-K sentence about four company drivers remaining union members under a commitment made
+    in the 1980s — not quoted in section 1, but it is a unique identifier if restored.
+
+PRESERVED SOURCE TYPOS — UNIQUE-STRING IDENTIFIERS
+  "no stree", "befits", "Maintance", "paking", "En hard work", "end grateful job", and the
+  field strings "Shipping end parking" and "112 versaillais". Each is an exact-match search
+  string that will return the original review. The "112 versaillais" string is the most
+  distinctive text in the entire packet.
+
+DISTINCTIVE PHRASES AND FACTS
+  Founding in 1935 by a man who sold the family car to buy one truck; "one man and one truck";
+  "over 90 years of experience"; a named 20,000-square-foot innovation building on the main
+  campus; a stated nationwide network of 19 training academies; the 70/30 driver-to-non-driver
+  workforce split; the brokerage carrier network reduction from 60,000 to 14,000; autonomous
+  partnerships with two named developers. Of these, only the workforce split and the autonomous
+  and brokerage material sit near section 1 content; the rest are in sections 2 and 3.
+
+########## END OF PACKET ##########

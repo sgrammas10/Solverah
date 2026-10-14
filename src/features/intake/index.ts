@@ -8,7 +8,6 @@
  * `{ IntakeForm }` etc. from this barrel.
  */
 export { useIntakeForm } from "./useIntakeForm";
-export { useEarlyAccess } from "./useEarlyAccess";
 export { default as IntakeForm } from "./components/IntakeForm";
 export { default as AccountModal } from "./components/AccountModal";
 export { default as IntakePromptModal } from "./components/IntakePromptModal";

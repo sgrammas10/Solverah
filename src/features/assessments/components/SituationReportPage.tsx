@@ -41,6 +41,21 @@
  *                                 about the set of them, written once at A-7"
  *                                 (`situation_content.aligned_note_for`).
  *
+ * LAYOUT (2026-09-29 pass): the first screen answers "what's going on with me
+ * and this job" and nothing else -- the title, one lead line naming the most
+ * strained dimension, and every dimension as one compact row
+ * (`situation/DimensionCard`) in ONE list, in exactly the order the API sent.
+ * No grouping by bucket: a grouped rendering re-sorts the moment the server's
+ * tiers and the client's groups disagree. Depth is on demand -- a row opens
+ * to its diagnosis and its registers as tabs (`situation/RegisterTabs`), one
+ * route at a time. The disclosure only hides; every piece of guidance stays
+ * in the DOM and a printed report shows all of it.
+ *
+ * SAID ONCE. The privacy / fit-not-fault point is the server's
+ * `guidance_notice`, rendered once in the footer; "not advice to leave or
+ * stay" and the pin are one short line each beside it. Nothing else on the
+ * page restates them.
+ *
  * THE PIN (⚑5) IS SURFACED, not hidden. The report reads the person side
  * through one named core sitting and stays there; a retake does not move it.
  * That guarantee is worth nothing to a user who cannot see it, and the
@@ -48,6 +63,7 @@
  * and the button next to it is the only thing that moves the pin.
  * `recalibrated: false` is a success meaning "already current", not an error.
  */
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -57,65 +73,35 @@ import {
   useSituationReport,
 } from "../useSituationReport";
 import type {
-  AlignedDimensionEntry,
   SituationComplete,
   SituationDimensionEntry,
   SituationManagerSection,
   SituationReportEventSinceReport,
-  StrainDimensionEntry,
 } from "../useSituationReport";
 import { usePulseHistory } from "../usePulse";
 import type { PulseEventType } from "../usePulse";
-import {
-  isExperimentAlreadyActive,
-  useAbandonExperiment,
-  useExperiments,
-  useStartExperiment,
-} from "../useExperiments";
-import type { Experiment } from "../useExperiments";
+import { useExperiments } from "../useExperiments";
 import PulseSparkline from "./PulseSparkline";
-
-const DIMENSION_LABELS: Record<string, string> = {
-  autonomy: "Autonomy",
-  pace: "Pace",
-  collaboration: "Collaboration",
-  feedback: "Feedback",
-  innovation: "Innovation",
-  decision: "Decision-making",
-};
-
-/** Magnitude, as words. Never a number, never a bar. */
-const BUCKET_LABELS: Record<string, string> = {
-  straining: "Straining",
-  notable: "Notable",
-  aligned: "Aligned",
-};
-
-/** Direction, as a phrase. Past tense where the role is behind the reader. */
-function directionLabel(direction: "under" | "over", past: boolean): string {
-  if (direction === "under") return past ? "Less than you needed" : "Less than you need";
-  return past ? "More than you needed" : "More than you need";
-}
-
-function dimensionLabel(dimension: string): string {
-  return DIMENSION_LABELS[dimension] ?? dimension;
-}
-
-/** A calendar date, never a raw ISO string -- `started_at`/`ends_at` render
- *  as dates, per the page's own "dates render as dates" rule (digits are
- *  fine here; it is score-shaped digits -- decimals, percentages -- the
- *  no-digits guard actually forbids). */
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric", month: "short", day: "numeric",
-  });
-}
+import { LEAD, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
+import DimensionCard from "./situation/DimensionCard";
+import { ExperimentsSection, type ExperimentsStatus } from "./situation/Experiments";
+import {
+  BODY_MUTED,
+  PANEL,
+  QUIET_BUTTON,
+  REPORT_H2,
+  TEXT_LINK,
+  dimensionLabel,
+  splitFirstSentence,
+} from "./situation/format";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-cream-base print:bg-white">
-      <div className="mx-auto max-w-2xl px-6 pt-12 pb-20 space-y-8">{children}</div>
-    </div>
+    <main className="min-h-screen bg-cream-base font-body text-ink-primary antialiased print:bg-white">
+      <div className="mx-auto w-full max-w-3xl space-y-10 px-4 pb-24 pt-8 sm:px-6 md:pt-14 print:max-w-none print:px-0 print:pt-0">
+        {children}
+      </div>
+    </main>
   );
 }
 
@@ -125,54 +111,39 @@ function BackLink() {
     <button
       type="button"
       onClick={() => navigate("/intelligence")}
-      className="flex items-center gap-1.5 text-sm font-semibold text-forest-dark hover:underline print:hidden"
+      className="text-[0.9rem] font-medium text-ink-secondary transition-colors hover:text-forest-mid print:hidden"
     >
       <span aria-hidden>←</span> Intelligence Hub
     </button>
   );
 }
 
-function SectionHeading({ children }: { children: React.ReactNode }) {
+function TrustLink() {
   return (
-    <h4 className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-      {children}
-    </h4>
+    <p className="text-[0.9rem]">
+      <Link to="/trust" className={TEXT_LINK}>
+        How this works, and what we hold back
+      </Link>
+    </p>
   );
 }
 
-// ---------------------------------------------------------------------------
-// The at-a-glance strip (BUILD_PLAN A-7b). Words only -- see the header's
-// D-15 note. Mirrors ManagerPlaybookPage's `priority` chip strip in shape,
-// not in content: no ordinal prefix, no count, nothing beyond the dimension
-// name and its bucket word. Renders exactly the dimensions the server sent,
-// in the order it sent them -- that order IS the ranking (document order),
-// so this never re-sorts, re-slices, or backfills a dropped row.
-// ---------------------------------------------------------------------------
-
-const CHIP_BUCKET_CLASSES: Record<string, string> = {
-  straining: "border-amber-300 bg-amber-50 text-amber-800",
-  notable: "border-cream-muted bg-white text-ink-secondary",
-  aligned: "border-forest-light bg-forest-pale text-forest-dark",
-};
-
-function FocusStrip({ dimensions }: { dimensions: SituationDimensionEntry[] }) {
+/** Title block shared by the gate states: one heading, short copy, one action. */
+function Gate({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="space-y-2">
-      <SectionHeading>At a glance</SectionHeading>
-      <ol className="flex flex-wrap gap-2">
-        {dimensions.map((entry) => (
-          <li
-            key={entry.dimension}
-            className={[
-              "rounded-full border px-3 py-1 text-sm font-semibold",
-              CHIP_BUCKET_CLASSES[entry.bucket],
-            ].join(" ")}
-          >
-            {dimensionLabel(entry.dimension)} — {BUCKET_LABELS[entry.bucket]}
-          </li>
-        ))}
-      </ol>
-    </section>
+    <Shell>
+      <BackLink />
+      <article className="max-w-[60ch] space-y-5">
+        <h1 className={PAGE_H1}>{title}</h1>
+        {children}
+      </article>
+    </Shell>
   );
 }
 
@@ -199,15 +170,37 @@ function ResubmissionBanner({ events }: { events: SituationReportEventSinceRepor
   const lead = RESUBMISSION_LEAD[events[0].type] ?? RESUBMISSION_LEAD.other;
 
   return (
-    <section className="rounded-xl border border-forest-light bg-forest-pale px-5 py-4 space-y-2">
-      <p className="text-sm text-forest-dark leading-relaxed">
+    <section className="flex flex-col gap-3 rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      <p className="text-[0.98rem] leading-[1.55] text-forest-dark">
         {lead} — does your Situation Report still describe this job?
       </p>
-      <Link
-        to="/environment-report"
-        className="inline-block text-sm font-semibold text-forest-dark hover:underline"
-      >
-        Describe it again →
+      <Link to="/environment-report" className={`${SECONDARY} shrink-0 bg-white`}>
+        Describe it again
+      </Link>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Career-status prompt (audit 2026-10-02, F1). The report renders from the
+// career status it was filed under; when the live status now reads in the
+// other tense (left the job, or started a new one) the server sets
+// `career_status_changed`. Banner only -- the old report is not re-rendered
+// forward-facing (or back) on the client. Describing the job again is what
+// clears it, the same as the resubmission banner above.
+// ---------------------------------------------------------------------------
+
+function CareerStatusChangedBanner({ changed, past }: { changed: boolean; past: boolean }) {
+  if (!changed) return null;
+  return (
+    <section className="flex flex-col gap-3 rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-5 py-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
+      <p className="text-[0.98rem] leading-[1.55] text-forest-dark">
+        {past
+          ? "Your career status says you're in a job now, but this report is about the one you left. Describe where you are now and the report will be about this job."
+          : "Your career status says you've moved on from this job since this report. Describe it again and the report will turn to what to look for next."}
+      </p>
+      <Link to="/environment-report" className={`${SECONDARY} shrink-0 bg-white`}>
+        {past ? "Describe your job" : "Describe it again"}
       </Link>
     </section>
   );
@@ -221,20 +214,46 @@ function ResubmissionBanner({ events }: { events: SituationReportEventSinceRepor
 // check-ins but a one-line invitation, a single dot at one, the line from two.
 // ---------------------------------------------------------------------------
 
+/** A small titled panel for the two side-by-side follow-ons under the list. */
+const SIDE_PANEL = `${PANEL} space-y-2.5 px-5 py-4 print:break-inside-avoid`;
+const SIDE_H2 = "font-headline text-[1.05rem] font-bold leading-snug text-ink-primary";
+
 function ExperiencedTrendSection() {
-  const { data, isLoading } = usePulseHistory();
+  const { data, isLoading, isError, isFetching, refetch } = usePulseHistory();
 
   if (isLoading) return null;
+
+  // A failed fetch is not "no check-ins": telling someone who has checked in
+  // that they haven't would be false (audit 2026-10-02, F5).
+  if (isError) {
+    return (
+      <section className={`${SIDE_PANEL} print:hidden`}>
+        <h2 className={SIDE_H2}>How work's been working for you</h2>
+        <p className={BODY_MUTED} role="alert">
+          We couldn't load your Pulse check-ins just now.{" "}
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={TEXT_LINK}
+          >
+            {isFetching ? "Trying again…" : "Try again"}
+          </button>
+        </p>
+      </section>
+    );
+  }
 
   const checkins = data?.checkins ?? [];
 
   if (checkins.length === 0) {
     return (
-      <section className="rounded-xl border border-cream-muted bg-white px-5 py-4">
-        <p className="text-sm text-ink-secondary leading-relaxed">
+      <section className={`${SIDE_PANEL} print:hidden`}>
+        <h2 className={SIDE_H2}>How work's been working for you</h2>
+        <p className={BODY_MUTED}>
           You haven't checked in on Pulse yet.{" "}
-          <Link to="/pulse" className="font-semibold text-forest-dark hover:underline">
-            Check in →
+          <Link to="/pulse" className={TEXT_LINK}>
+            Check in
           </Link>
         </p>
       </section>
@@ -245,476 +264,40 @@ function ExperiencedTrendSection() {
   const points = [...checkins].reverse().map((c) => ({ date: c.taken_at ?? "", value: c.experienced }));
 
   return (
-    <section className="rounded-xl border border-cream-muted bg-white px-5 py-4 space-y-2">
-      <SectionHeading>How work's been working for you</SectionHeading>
+    <section className={SIDE_PANEL}>
+      <h2 className={SIDE_H2}>How work's been working for you</h2>
       <PulseSparkline ariaLabel="How work's working for you, over time" points={points} compact />
       {points.length === 1 && (
-        <p className="text-xs text-ink-tertiary">
+        <p className="text-[0.85rem] text-ink-secondary">
           One check-in so far — the line fills in as you add more.
         </p>
       )}
-      <Link to="/pulse/trend" className="inline-block text-xs font-semibold text-forest-dark hover:underline">
-        See your full trend →
+      <Link to="/pulse/trend" className={`${TEXT_LINK} text-[0.9rem] print:hidden`}>
+        See your full trend
       </Link>
     </section>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Condition experiments (BUILD_PLAN B-5). An offer, never a nag -- the same
-// house rule B-2's anti-nag copy follows: "moved / didn't", never "worked",
-// because a two-week, single-user, unblinded before/after comparison cannot
-// support a causal claim. Verdicts are words; the two counts are the only
-// numbers, and they are plain check-in counts, never a delta or a percentage.
-// ---------------------------------------------------------------------------
-
-const READOUT_COPY: Record<string, string> = {
-  not_enough_data: "There weren't enough check-ins on one side of this to say anything yet.",
-  moved_up: "Your numbers moved up over those two weeks.",
-  moved_down: "Your numbers moved down over those two weeks.",
-  about_the_same: "Your numbers didn't move much over those two weeks.",
-};
-
-function readoutCountsProse(before: number, after: number): string {
-  const beforeText = `${before} check-in${before === 1 ? "" : "s"} before`;
-  const afterText = `${after} after`;
-  return `That's based on ${beforeText}, ${afterText}.`;
-}
-
-/** `useExperiments()` boiled down to what a cell needs to decide whether it
- *  may offer its start button -- a failed or in-flight fetch must never look
- *  like "definitely nothing running", which is what an empty `experiments`
- *  array would otherwise say. */
-type ExperimentsStatus = "loading" | "error" | "ready";
-
-/** The one cell-level control for a `change_in_place` register: a button
- *  that starts a two-week experiment, a running state once it exists, and
- *  the readout in words once it has ended. Not shown in the needs-forward
- *  rendering -- the server never sends `experiment_name` there, and there is
- *  no live job to run an experiment against. */
-function ExperimentControl({
-  dimension,
-  direction,
-  experiments,
-  hasActiveElsewhere,
-  status,
-}: {
-  dimension: string;
-  direction: "under" | "over";
-  experiments: Experiment[];
-  hasActiveElsewhere: boolean;
-  status: ExperimentsStatus;
-}) {
-  const start = useStartExperiment();
-  const abandon = useAbandonExperiment();
-
-  // Newest first off the wire, and an abandoned attempt on this cell is
-  // treated as if it never happened -- abandoning is "let me try something
-  // else, or the same thing again," not a state this cell keeps showing.
-  const current = experiments.find(
-    (experiment) =>
-      experiment.dimension === dimension &&
-      experiment.direction === direction &&
-      experiment.phase !== "abandoned",
-  );
-
-  if (current?.phase === "running") {
-    return (
-      <div className="rounded-lg border border-forest-light bg-white/70 px-4 py-3 space-y-2">
-        <p className="text-sm text-ink-primary leading-relaxed">
-          Running since {formatDate(current.started_at)}, through {formatDate(current.ends_at)}.
-        </p>
-        <button
-          type="button"
-          onClick={() => abandon.mutate(current.id)}
-          disabled={abandon.isPending}
-          className="text-sm font-semibold text-ink-tertiary hover:underline disabled:opacity-50 disabled:no-underline"
-        >
-          Abandon
-        </button>
-      </div>
-    );
-  }
-
-  if (current?.phase === "ended") {
-    return (
-      <div className="rounded-lg border border-cream-muted bg-white/70 px-4 py-3 space-y-1">
-        <p className="text-sm text-ink-primary leading-relaxed">
-          {READOUT_COPY[current.readout.verdict]}
-        </p>
-        <p className="text-xs text-ink-tertiary">
-          {readoutCountsProse(current.readout.before_count, current.readout.after_count)}
-        </p>
-      </div>
-    );
-  }
-
-  // A failed or in-flight `experiments` fetch is not "nothing running" --
-  // offering the button on that reading would let a click land on a running
-  // experiment the page just doesn't know about yet, and hit the server's 409.
-  if (status === "loading") {
-    return <p className="text-xs text-ink-tertiary">Loading…</p>;
-  }
-  if (status === "error") {
-    return null;
-  }
-
-  return (
-    <div className="space-y-1">
-      <button
-        type="button"
-        onClick={() => start.mutate({ dimension: dimension as never, direction })}
-        disabled={start.isPending || hasActiveElsewhere}
-        className="text-sm font-semibold text-forest-dark hover:underline disabled:opacity-50 disabled:no-underline disabled:text-ink-tertiary"
-      >
-        Try this for two weeks →
-      </button>
-      {hasActiveElsewhere && (
-        <p className="text-xs text-ink-tertiary">
-          Only one experiment can run at a time — finish or abandon the other one first.
-        </p>
-      )}
-      {start.isError && !isExperimentAlreadyActive(start.error) && (
-        <p className="text-xs text-red-700" role="alert">
-          We couldn't start that just now. Please try again in a moment.
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Dimension cards
-// ---------------------------------------------------------------------------
-
-function AlignedCard({ entry }: { entry: AlignedDimensionEntry }) {
-  return (
-    <article className="rounded-xl border border-forest-light bg-forest-pale/60 px-6 py-5 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-display text-base font-semibold text-ink-primary">
-          {dimensionLabel(entry.dimension)}
-        </h3>
-        <span className="rounded-full border border-forest-light bg-white px-2.5 py-0.5 text-xs font-semibold text-forest-mid">
-          {BUCKET_LABELS.aligned}
-        </span>
-      </div>
-      <p className="text-sm text-ink-primary leading-relaxed">{entry.aligned_note}</p>
-    </article>
-  );
-}
-
-function StrainCard({
-  entry,
-  past,
-  manager,
-  experiments,
-  hasActiveElsewhere,
-  experimentsStatus,
-}: {
-  entry: StrainDimensionEntry;
-  past: boolean;
-  manager: SituationManagerSection;
-  experiments: Experiment[];
-  hasActiveElsewhere: boolean;
-  experimentsStatus: ExperimentsStatus;
-}) {
-  const { registers } = entry;
-  const isStraining = entry.bucket === "straining";
-  const managerHref = manager.has_profile ? "/manager-profile/playbook" : "/manager-profile";
-  const managerCta = manager.has_profile ? "Open your playbook →" : "Profile your manager →";
-
-  return (
-    <article
-      className={[
-        "rounded-xl px-6 py-6 space-y-5 border",
-        isStraining ? "border-amber-300 bg-amber-50/70" : "border-cream-muted bg-white",
-      ].join(" ")}
-    >
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-display text-lg font-semibold text-ink-primary">
-            {dimensionLabel(entry.dimension)}
-          </h3>
-          <span
-            className={[
-              "rounded-full border bg-white px-2.5 py-0.5 text-xs font-semibold",
-              isStraining
-                ? "border-amber-300 text-amber-700"
-                : "border-cream-muted text-ink-secondary",
-            ].join(" ")}
-          >
-            {BUCKET_LABELS[entry.bucket]}
-          </span>
-          <span className="text-xs text-ink-tertiary">
-            {directionLabel(entry.direction, past)}
-          </span>
-        </div>
-        <p className="font-display text-base font-semibold text-ink-primary">
-          {entry.diagnosis.headline}
-        </p>
-        <p className="text-sm text-ink-primary leading-relaxed">{entry.diagnosis.text}</p>
-      </header>
-
-      {registers.change_in_place && (
-        <section className="space-y-2 border-t border-black/5 pt-4">
-          <SectionHeading>Change it in place</SectionHeading>
-          {registers.change_in_place.experiment_name && (
-            <p className="text-sm font-semibold text-ink-primary">
-              {registers.change_in_place.experiment_name}
-            </p>
-          )}
-          {registers.change_in_place.experiment && (
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.change_in_place.experiment}
-            </p>
-          )}
-          {registers.change_in_place.steps && registers.change_in_place.steps.length > 0 && (
-            <ul className="space-y-1.5 pt-1">
-              {registers.change_in_place.steps.map((stepText) => (
-                <li
-                  key={stepText.slice(0, 48)}
-                  className="flex gap-2 text-sm text-ink-primary leading-relaxed"
-                >
-                  <span className="text-forest-mid shrink-0 font-bold" aria-hidden>
-                    ›
-                  </span>
-                  {stepText}
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="pt-1">
-            <SectionHeading>
-              {past ? "What to watch for next time" : "How you'll know it worked"}
-            </SectionHeading>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.change_in_place.signal}
-            </p>
-          </div>
-          {/* Not shown in the needs-forward rendering: there is no live job
-              to run a two-week change against, and the server never sends
-              `experiment_name` for that slice. */}
-          {!past && registers.change_in_place.experiment_name && (
-            <div className="pt-1">
-              <ExperimentControl
-                dimension={entry.dimension}
-                direction={entry.direction}
-                experiments={experiments}
-                hasActiveElsewhere={hasActiveElsewhere}
-                status={experimentsStatus}
-              />
-            </div>
-          )}
-        </section>
-      )}
-
-      {registers.negotiate && (
-        <section className="space-y-3 border-t border-black/5 pt-4">
-          <SectionHeading>Negotiate it</SectionHeading>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">Who, and where</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.negotiate.who_and_where}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">How to open</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.negotiate.opening}
-            </p>
-          </div>
-          {registers.negotiate.scripts.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-ink-secondary">What to say</p>
-              <ul className="space-y-1.5">
-                {registers.negotiate.scripts.map((script) => (
-                  <li
-                    key={script.slice(0, 48)}
-                    className="text-sm text-ink-primary leading-relaxed italic border-l-2 border-forest-light/40 pl-3"
-                  >
-                    “{script}”
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">If the answer is no</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.negotiate.if_no}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {registers.rarely_moves && (
-        <section className="space-y-3 border-t border-black/5 pt-4">
-          <SectionHeading>This one rarely moves</SectionHeading>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">Why it's usually fixed</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.rarely_moves.why_fixed}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">What staying costs</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.rarely_moves.cost_of_staying}
-            </p>
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-ink-secondary">What that means</p>
-            <p className="text-sm text-ink-primary leading-relaxed">
-              {registers.rarely_moves.what_it_implies}
-            </p>
-          </div>
-        </section>
-      )}
-
-      {/* The Decoder hand-off. `defers_to_decoder` is the whole-dimension
-          deferral (feedback); `decoder_crossref` is the softer "some of this
-          may be one person" paragraph (autonomy). A dimension can carry
-          either, and neither duplicates protocol that lives in C-2. */}
-      {entry.defers_to_decoder && (
-        <section className="rounded-lg border border-cream-muted bg-white/80 px-4 py-3 space-y-2">
-          <p className="text-sm text-ink-secondary leading-relaxed">
-            How feedback actually reaches you is enacted by one person rather than by
-            the company, so the protocol for it lives in the Manager Decoder rather
-            than here.
-          </p>
-          <Link
-            to={managerHref}
-            className="inline-block text-sm font-semibold text-forest-dark hover:underline"
-          >
-            {managerCta}
-          </Link>
-        </section>
-      )}
-
-      {entry.decoder_crossref && (
-        <section className="rounded-lg border border-cream-muted bg-white/80 px-4 py-3 space-y-2">
-          <p className="text-sm text-ink-secondary leading-relaxed">
-            {entry.decoder_crossref}
-          </p>
-          <Link
-            to={managerHref}
-            className="inline-block text-sm font-semibold text-forest-dark hover:underline"
-          >
-            {managerCta}
-          </Link>
-        </section>
-      )}
-    </article>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// The shared tail: manager section, guidance notice, honest footer, the pin
+// The shared tail: manager section, the footer, the pin
 // ---------------------------------------------------------------------------
 
 function ManagerSection({ manager }: { manager: SituationManagerSection }) {
   return (
-    <section className="rounded-xl border border-cream-muted bg-white px-6 py-5 space-y-3">
-      <h2 className="font-display text-lg font-semibold text-ink-primary">
-        The half one person enacts
-      </h2>
-      <p className="text-sm text-ink-secondary leading-relaxed">
+    <section className={SIDE_PANEL}>
+      <h2 className={SIDE_H2}>The job, or your manager?</h2>
+      <p className={BODY_MUTED}>
         {manager.has_profile
-          ? "Some of what this report calls the environment is really your manager. You have already profiled them, so that half has its own playbook — read the two together where they touch the same dimension."
-          : "Some of what this report calls the environment is really one person, and from the inside the two look identical. The Manager Decoder separates them: profile the manager you actually have, and it returns the protocol for that half."}
+          ? "Some of what feels like the job may be your manager. Read your manager playbook alongside this."
+          : "Some of what feels like the job may be your manager, and from the inside the two look the same. The Manager Decoder tells them apart."}
       </p>
       <Link
         to={manager.has_profile ? "/manager-profile/playbook" : "/manager-profile"}
-        className="inline-block text-sm font-semibold text-forest-dark hover:underline"
+        className={`${TEXT_LINK} text-[0.93rem]`}
       >
-        {manager.has_profile ? "Open your playbook →" : "Profile your manager →"}
+        {manager.has_profile ? "Open your playbook" : "Profile your manager"}
       </Link>
-    </section>
-  );
-}
-
-function GuidanceNotice({ notice }: { notice: string }) {
-  return (
-    <section className="rounded-lg border border-cream-muted bg-white px-5 py-4">
-      <p className="text-sm text-ink-secondary leading-relaxed">{notice}</p>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// "Your experiments" (BUILD_PLAN B-5). Under the guidance section, short --
-// this is a record of past attempts, not a second payoff surface. Nothing
-// here renders when nobody has ever started one.
-// ---------------------------------------------------------------------------
-
-const EXPERIMENT_PHASE_LABELS: Record<string, string> = {
-  running: "Running",
-  ended: "Ended",
-  abandoned: "Abandoned",
-};
-
-function ExperimentsSection({
-  experiments,
-  status,
-  onRetry,
-}: {
-  experiments: Experiment[];
-  status: ExperimentsStatus;
-  onRetry: () => void;
-}) {
-  // Shown even with an empty list -- a failed fetch is not the same fact as
-  // "you have never started one," and the two must not render identically.
-  if (status === "error") {
-    return (
-      <section className="space-y-3 border-t border-cream-muted pt-6">
-        <SectionHeading>Your experiments</SectionHeading>
-        <div className="rounded-lg border border-cream-muted bg-white px-4 py-3">
-          <p className="text-sm text-ink-secondary leading-relaxed mb-2">
-            We couldn't load your experiments right now.
-          </p>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="text-xs font-semibold text-forest-dark hover:underline"
-          >
-            Try again
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  if (experiments.length === 0) return null;
-
-  return (
-    <section className="space-y-3 border-t border-cream-muted pt-6">
-      <SectionHeading>Your experiments</SectionHeading>
-      <ul className="space-y-3">
-        {experiments.map((experiment) => (
-          <li
-            key={experiment.id}
-            className="rounded-lg border border-cream-muted bg-white px-4 py-3 space-y-1"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-semibold text-ink-primary">
-                {dimensionLabel(experiment.dimension)} — {experiment.experiment_name}
-              </p>
-              <span className="text-xs font-semibold text-ink-tertiary">
-                {EXPERIMENT_PHASE_LABELS[experiment.phase]}
-              </span>
-            </div>
-            <p className="text-xs text-ink-tertiary">
-              {formatDate(experiment.started_at)} – {formatDate(experiment.ends_at)}
-            </p>
-            {experiment.phase === "ended" && (
-              <p className="text-sm text-ink-primary leading-relaxed">
-                {READOUT_COPY[experiment.readout.verdict]}{" "}
-                {readoutCountsProse(experiment.readout.before_count, experiment.readout.after_count)}
-              </p>
-            )}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -733,21 +316,21 @@ function PinFooter() {
         type="button"
         onClick={() => recalibrate.mutate()}
         disabled={recalibrate.isPending}
-        className="text-sm font-semibold text-forest-dark hover:underline disabled:opacity-50 disabled:no-underline"
+        className={QUIET_BUTTON}
       >
         {recalibrate.isPending
           ? "Re-reading…"
           : "Re-read this against my latest Work Pulse"}
       </button>
       {recalibrate.isSuccess && (
-        <p className="text-xs text-ink-tertiary" role="status">
+        <p className="text-[0.85rem] text-ink-secondary" role="status">
           {moved
             ? "Re-pinned. This report now reads your most recent Work Pulse sitting."
             : "Already reading your most recent Work Pulse sitting — nothing moved."}
         </p>
       )}
       {recalibrate.isError && (
-        <p className="text-xs text-red-700" role="alert">
+        <p className="text-[0.85rem] text-red-700" role="alert">
           {isNoCoreSittingRefusal(recalibrate.error)
             ? "There is no Work Pulse sitting to pin to yet."
             : "We couldn't re-read it just now. Please try again in a moment."}
@@ -757,43 +340,66 @@ function PinFooter() {
   );
 }
 
-function HonestFooter() {
+/** Everything the report needs to say about itself, once each: the server's
+ *  notice (general, not a judgement of the employer, private), not advice to
+ *  leave or stay, and the pin with the control that moves it.
+ *
+ *  `canDescribePastJob` adds one quiet line offering the one past-job
+ *  environment report (PRODUCT_DECISIONS §2, 2026-10-01): shown until it is
+ *  filed. There is no `first_job` check here: `report.career_status` is the
+ *  snapshot of a current report, and the server never files one for
+ *  `first_job`, so that check could never fire. A user whose LIVE status has
+ *  since become `first_job` is refused by the server and gated by the past
+ *  form itself (`NoRoleToDescribe`). It sits here rather than inside a
+ *  dimension card, since it is not part of the diagnosis. */
+function AboutFooter({
+  notice,
+  canDescribePastJob,
+}: {
+  notice: string;
+  canDescribePastJob: boolean;
+}) {
+  const p = "text-[0.92rem] leading-[1.65] text-ink-secondary";
   return (
-    <section className="border-t border-cream-muted pt-6 space-y-3">
-      <h2 className="font-display text-lg font-semibold text-ink-primary">
-        What this is, and what it isn't
-      </h2>
-      <p className="text-sm text-ink-secondary leading-relaxed">
-        It is the distance between two things you told us: how you work, from Work
-        Pulse, and what your job offers, from your own description of it. Nothing in it
-        came from your employer, your colleagues or anyone else, and nothing in it is a
-        judgement about the place you work.
-      </p>
-      <p className="text-sm text-ink-secondary leading-relaxed">
-        It is not a score, and there is deliberately not a single number in it. You get
-        one of three words for magnitude and a direction, and no finer reading than
-        that — a finer one would be a dial, and an instrument you can optimise against
-        stops measuring the thing it was built to measure.
-      </p>
-      <p className="text-sm text-ink-secondary leading-relaxed">
-        It is not advice to leave, and not advice to stay. Every suggestion in it was
-        written before we knew anything about you and chosen by a lookup, and the
-        judgement about what to do with it is yours — you can see things about your
-        situation that this report cannot.
-      </p>
-      <p className="text-sm text-ink-secondary leading-relaxed">
-        It is pinned. The report reads your Work Pulse from one named sitting and stays
-        there, so retaking Work Pulse does not quietly move this page underneath you.
-        It moves when you ask it to and not before.
-      </p>
+    <footer className="space-y-4 border-t border-cream-muted pt-8">
+      <h2 className={REPORT_H2}>About this report</h2>
+      <div className="max-w-[64ch] space-y-3">
+        <p className={p}>{notice}</p>
+        <p className={p}>
+          It isn't advice to leave or to stay. You can see things about your situation
+          that it can't, so what to do with it is your call.
+        </p>
+        <p className={p}>
+          It reads one Work Pulse sitting and stays there, so retaking Work Pulse won't
+          change it until you ask.
+        </p>
+      </div>
       <PinFooter />
-      <p className="text-xs text-ink-tertiary leading-relaxed pt-2">
-        <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
-          How this works, and what we hold back →
-        </Link>
-      </p>
-    </section>
+      {canDescribePastJob && (
+        <p className="print:hidden">
+          <Link to="/environment-report/past" className="text-sm font-semibold text-forest-dark hover:underline">
+            Tell us about the job before this one →
+          </Link>
+        </p>
+      )}
+      <TrustLink />
+    </footer>
   );
+}
+
+/** The one line under the title: which dimension leads, derived from the
+ *  first non-aligned row (document order IS the ranking). No count, no digit. */
+function leadLine(dimensions: SituationDimensionEntry[], past: boolean): string {
+  const lead = dimensions.find((entry) => !isAlignedEntry(entry));
+  if (!lead) {
+    return past
+      ? "Nothing about that role was straining."
+      : "Nothing is straining: on every dimension we measure, you and this job are set much the same way.";
+  }
+  const name = dimensionLabel(lead.dimension);
+  return past
+    ? `${name} was where you and that role sat furthest apart. What comes first is what to look hardest at in the next one.`
+    : `${name} is where you and this job sit furthest apart. The rest follow in order, most strain first.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -806,23 +412,23 @@ export default function SituationReportPage() {
 
   if (query.isLoading) {
     return (
-      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
-        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
-        <p className="text-sm text-ink-secondary">Loading your Situation Report…</p>
+      <div className="min-h-screen bg-cream-base font-body flex flex-col items-center justify-center gap-4">
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin motion-reduce:animate-none" />
+        <p className="text-[0.95rem] text-ink-secondary">Loading your Situation Report…</p>
       </div>
     );
   }
 
   if (query.isError) {
     return (
-      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div className="max-w-sm w-full rounded-lg border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <p className="font-medium mb-1">We couldn't load your Situation Report right now.</p>
-          <p className="text-xs">Please try again in a moment.</p>
+      <div className="min-h-screen bg-cream-base font-body flex items-center justify-center px-6">
+        <div className="max-w-sm w-full rounded-[6px] border border-red-200 bg-red-50 px-5 py-4 text-[0.95rem] text-red-800">
+          <p className="font-semibold mb-1">We couldn't load your Situation Report right now.</p>
+          <p className="text-[0.88rem]">Please try again in a moment.</p>
           <button
             type="button"
             onClick={() => query.refetch()}
-            className="mt-3 text-xs font-semibold text-red-700 underline"
+            className="mt-3 text-[0.88rem] font-semibold text-red-800 underline underline-offset-4"
           >
             Try again
           </button>
@@ -837,35 +443,45 @@ export default function SituationReportPage() {
   // ── needs_core ────────────────────────────────────────────────────────────
   if (report.state === "needs_core") {
     const hasEnvironment = report.environment !== null;
-    return (
-      <Shell>
-        <BackLink />
-        <article className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            Situation Report
+    if (report.core_unreadable) {
+      // A sitting exists, but not one this report can read (audit 2026-10-02,
+      // F2) -- so "you haven't finished it" would be false.
+      return (
+        <Gate title="We couldn't read your side">
+          <p className={LEAD}>
+            The Situation Report compares how you work with what your job asks of you,
+            and we couldn't read the Work Pulse sitting it's built on.
           </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            This one needs your side first
-          </h1>
-          <p className="text-sm text-ink-secondary leading-relaxed">
-            The Situation Report is the distance between two things: how you work, and
-            what your job actually asks of you. Work Pulse is the first of those, and
-            it isn't finished yet.
-          </p>
-          <p className="text-sm text-ink-secondary leading-relaxed">
+          <p className={LEAD}>
             {hasEnvironment
-              ? "Your description of the job is saved and waiting — that half is done. Work Pulse takes about eight minutes and completes the picture."
-              : "Work Pulse is 24 either-or questions about the conditions you do your best work in — about eight minutes."}
+              ? "Your description of the job is saved. Taking Work Pulse again — about eight minutes — brings the report back."
+              : "Taking Work Pulse again — about eight minutes — brings the report back."}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate("/work-pulse")}
-            className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-          >
-            Start Work Pulse →
+          <div className="pt-2">
+            <button type="button" onClick={() => navigate("/work-pulse")} className={PRIMARY}>
+              Take Work Pulse again
+            </button>
+          </div>
+        </Gate>
+      );
+    }
+    return (
+      <Gate title="This one needs your side first">
+        <p className={LEAD}>
+          The Situation Report compares how you work with what your job asks of you.
+          Work Pulse is your half, and it isn't finished yet.
+        </p>
+        <p className={LEAD}>
+          {hasEnvironment
+            ? "Your description of the job is saved — that half is done. Work Pulse takes about eight minutes."
+            : "Work Pulse is 24 either-or questions and takes about eight minutes."}
+        </p>
+        <div className="pt-2">
+          <button type="button" onClick={() => navigate("/work-pulse")} className={PRIMARY}>
+            Start Work Pulse
           </button>
-        </article>
-      </Shell>
+        </div>
+      </Gate>
     );
   }
 
@@ -879,85 +495,47 @@ export default function SituationReportPage() {
       // assembled out of a job the reader has never held would be fiction in
       // the report's own voice.
       return (
-        <Shell>
-          <BackLink />
-          <article className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-              Situation Report
-            </p>
-            <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-              Your report starts when the job does
-            </h1>
-            <p className="text-sm text-ink-secondary leading-relaxed">
-              This report is the distance between how you work and what a role actually
-              asks of you. You have given us the first half — Work Pulse is done, and it
-              holds. The second half is a job to measure against, and you haven't started
-              one yet.
-            </p>
-            <p className="text-sm text-ink-secondary leading-relaxed">
-              So there is nothing to report, and we would rather say that than assemble
-              something out of a role you have never held. The moment you are in one,
-              describe it in fifteen questions and the report comes back the same day.
-            </p>
-            <p className="text-sm text-ink-secondary leading-relaxed">
-              What is worth doing now is the half that needs no employer. FocusType maps
-              how you concentrate, and ManagerMatch tells you which management styles
-              bring out your best — which is a useful thing to know while you are
-              choosing between offers rather than after.
-            </p>
-            <div className="flex flex-wrap gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => navigate("/focus-type")}
-                className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-              >
-                Start FocusType →
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/manager-match")}
-                className="inline-flex items-center border border-forest-dark text-forest-dark text-sm font-semibold px-6 py-3 rounded hover:bg-forest-pale transition-colors"
-              >
-                Start ManagerMatch →
-              </button>
-            </div>
-            <p className="text-xs text-ink-tertiary leading-relaxed pt-2">
-              <Link to="/trust" className="font-semibold text-forest-dark hover:underline">
-                How this works, and what we hold back →
-              </Link>
-            </p>
-          </article>
-        </Shell>
+        <Gate title="Your report starts when the job does">
+          <p className={LEAD}>
+            Work Pulse is done, and it holds. The other half is a job to measure it
+            against, and you haven't started one yet — so there is nothing to report,
+            and we won't invent one. Once you're in a role, sixteen questions about it
+            bring the report back the same day.
+          </p>
+          <p className={LEAD}>
+            Until then, FocusType and ManagerMatch need no employer, and they're most
+            useful while you're choosing between offers.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button type="button" onClick={() => navigate("/focus-type")} className={PRIMARY}>
+              Start FocusType
+            </button>
+            <button type="button" onClick={() => navigate("/manager-match")} className={SECONDARY}>
+              Start ManagerMatch
+            </button>
+          </div>
+          <div className="pt-4">
+            <TrustLink />
+          </div>
+        </Gate>
       );
     }
 
     return (
-      <Shell>
-        <BackLink />
-        <article className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            Situation Report
-          </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            One half to go
-          </h1>
-          <p className="text-sm text-ink-secondary leading-relaxed">
-            Work Pulse told us how you work. Now fifteen questions about your job —
-            what the role actually offers, in your words rather than the job
-            description's. About five minutes, and the report comes back straight away.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/environment-report")}
-            className="inline-flex items-center bg-forest-dark text-white text-sm font-semibold px-6 py-3 rounded hover:bg-forest-mid transition-colors"
-          >
-            Describe your job →
+      <Gate title="One half to go">
+        <p className={LEAD}>
+          Work Pulse told us how you work. Now sixteen questions about your job, in your
+          own words. About five minutes, and the report comes back straight away.
+        </p>
+        <div className="pt-2">
+          <button type="button" onClick={() => navigate("/environment-report")} className={PRIMARY}>
+            Describe your job
           </button>
-          <div className="pt-4">
-            <ManagerSection manager={report.manager} />
-          </div>
-        </article>
-      </Shell>
+        </div>
+        <div className="pt-8">
+          <ManagerSection manager={report.manager} />
+        </div>
+      </Gate>
     );
   }
 
@@ -988,80 +566,97 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         ? "error"
         : "ready";
 
+  // Presentation only: which rows are open. The rows themselves are
+  // `report.dimensions` as sent -- document order IS the ranking, never re-sorted.
+  const dimensions = report.dimensions;
+  const expandable = dimensions
+    .filter((entry) => !isAlignedEntry(entry) || splitFirstSentence(entry.aligned_note)[1] !== "")
+    .map((entry) => entry.dimension);
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const allOpen = expandable.length > 0 && expandable.every((dimension) => open.has(dimension));
+  const toggle = (dimension: string) =>
+    setOpen((current) => {
+      const next = new Set(current);
+      if (next.has(dimension)) next.delete(dimension);
+      else next.add(dimension);
+      return next;
+    });
+  const toggleAll = () => setOpen(allOpen ? new Set() : new Set(expandable));
+
   return (
     <Shell>
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex items-center justify-between gap-4 print:hidden">
         <BackLink />
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="text-xs font-semibold text-ink-tertiary hover:underline"
-        >
+        <button type="button" onClick={() => window.print()} className={QUIET_BUTTON}>
           Print this report
         </button>
       </div>
 
-      <article className="space-y-8">
-        <header className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            Situation Report
-          </p>
-          <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-            {past ? "What to look for next" : "You, and this job"}
-          </h1>
-          <p className="text-sm text-ink-secondary leading-relaxed">
-            {past
-              ? "Ranked by how far apart you and that role sat. What comes first is what to look hardest at in the next one."
-              : "Ranked by how far apart you and the role sit. What is under most strain comes first."}
-          </p>
-          {past && (
-            <p className="text-sm text-ink-secondary leading-relaxed">
-              If you and that role fitted on some dimension, it is not listed below — the
-              fit was real, but this report can see that the job ended and not why, and a
-              past match turned forward would be a guess wearing the report's voice.
+      <article className="space-y-10">
+        <header className="max-w-[62ch] space-y-3">
+          <h1 className={PAGE_H1}>{past ? "What to look for next" : "You, and this job"}</h1>
+          {dimensions.length > 0 && <p className={LEAD}>{leadLine(dimensions, past)}</p>}
+          {past && dimensions.length > 0 && (
+            <p className="text-[0.95rem] leading-[1.6] text-ink-secondary">
+              If you and that role fitted on some dimension, it is not listed below: the
+              report can see that the job ended, not why.
             </p>
           )}
         </header>
 
         <ResubmissionBanner events={report.events_since_report} />
+        <CareerStatusChangedBanner changed={report.career_status_changed === true} past={past} />
 
-        {report.dimensions.length > 0 && <FocusStrip dimensions={report.dimensions} />}
-
-        <ExperiencedTrendSection />
-
-        {report.dimensions.length === 0 ? (
-          <section className="rounded-xl border border-forest-light bg-forest-pale px-6 py-5">
-            <p className="text-sm text-forest-dark font-medium leading-relaxed">
+        {dimensions.length === 0 ? (
+          <section className="rounded-[6px] border border-forest-light/50 bg-forest-pale/60 px-6 py-5">
+            <p className="text-[1rem] leading-[1.6] text-forest-dark">
               {past
                 ? "Nothing came back to carry forward: on every dimension we measure, you and that role were set much the same way. That is worth knowing about the kind of role to look for, even though the report will not turn it into an instruction."
                 : "Nothing is straining. On every dimension we measure, you and this job are set much the same way — which is uncommon enough to be worth noticing rather than assuming."}
             </p>
           </section>
         ) : (
-          /* Document order IS the ranking. There is no rank number on screen,
-             and there must not be one. */
-          <section className="space-y-4">
-            {report.dimensions.map((entry) =>
-              isAlignedEntry(entry) ? (
-                <AlignedCard key={entry.dimension} entry={entry} />
-              ) : (
-                <StrainCard
-                  key={entry.dimension}
-                  entry={entry}
-                  past={past}
-                  manager={report.manager}
-                  experiments={experiments}
-                  hasActiveElsewhere={hasActiveExperiment}
-                  experimentsStatus={experimentsStatus}
-                />
-              ),
-            )}
+          <section aria-labelledby="situation-dimensions" className="space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="situation-dimensions" className={REPORT_H2}>
+                Dimension by dimension
+              </h2>
+              {expandable.length > 1 && (
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="text-[0.9rem] font-semibold text-forest-dark underline decoration-forest-light/50 underline-offset-4 hover:decoration-forest-dark print:hidden"
+                >
+                  {allOpen ? "Close all" : "Open all"}
+                </button>
+              )}
+            </div>
+            {/* ONE list, in the order the API sent it. Document order IS the
+                ranking; there is no rank number on screen, and there must not
+                be one. */}
+            <ol className="space-y-3">
+              {dimensions.map((entry) => (
+                <li key={entry.dimension}>
+                  <DimensionCard
+                    entry={entry}
+                    past={past}
+                    manager={report.manager}
+                    experiments={experiments}
+                    hasActiveElsewhere={hasActiveExperiment}
+                    experimentsStatus={experimentsStatus}
+                    open={open.has(entry.dimension)}
+                    onToggle={() => toggle(entry.dimension)}
+                  />
+                </li>
+              ))}
+            </ol>
           </section>
         )}
 
-        <ManagerSection manager={report.manager} />
-
-        <GuidanceNotice notice={report.guidance_notice} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ExperiencedTrendSection />
+          <ManagerSection manager={report.manager} />
+        </div>
 
         {!past && (
           <ExperimentsSection
@@ -1072,7 +667,10 @@ function CompleteReport({ report }: { report: SituationComplete }) {
         )}
       </article>
 
-      <HonestFooter />
+      <AboutFooter
+        notice={report.guidance_notice}
+        canDescribePastJob={!report.past_job_report_filed}
+      />
     </Shell>
   );
 }

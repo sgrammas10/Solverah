@@ -191,7 +191,9 @@ def test_expert_divergence_is_silent_when_the_blind_raters_disagree(tmp_path, an
 def test_unknown_rater_letter_is_refused(tmp_path, anchors):
     """A rater silently defaulting to 'blind' would put the rubric's author into the flag."""
     bands = load_band_values(anchors)
-    paths = [_write(tmp_path, "P-01", "D", {"autonomy": 0.5})]
+    # "E", not "D": D became a real, deliberately-added rater in round 2 (Sebastian, the
+    # reference -- PREREG_ROUND2 addendum A1). The rule under test is unchanged.
+    paths = [_write(tmp_path, "P-01", "E", {"autonomy": 0.5})]
     with pytest.raises(AgreementError, match="no entry in RATER_ROLES"):
         load_readings(paths, bands)
 

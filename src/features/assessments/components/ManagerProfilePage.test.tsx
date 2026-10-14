@@ -397,3 +397,39 @@ describe("ManagerProfilePage - retake flow", () => {
     expect(screen.getByRole("button", { name: /^Start$/i })).toBeInTheDocument();
   });
 });
+
+// ── resume prompt ─────────────────────────────────────────────────────────────
+
+describe("ManagerProfilePage - resume prompt for a saved draft", () => {
+  function draftOf(n: number) {
+    return MP_QUESTIONS.slice(0, n).map((q) => ({ questionId: q.id, choice: "a" as const }));
+  }
+  const total = MP_QUESTIONS.length;
+
+  it("asks before resuming rather than jumping silently into the questions", async () => {
+    mocks.mpAnswers = draftOf(3);
+    serve("no_manager_profile");
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Pick up where you left off" })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(`Question 4 of ${total}`))).toBeNull();
+  });
+
+  it("'Pick up where you left off' lands on the first unanswered question", async () => {
+    mocks.mpAnswers = draftOf(3);
+    serve("no_manager_profile");
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Pick up where you left off" }));
+    expect(screen.getByText(new RegExp(`Question 4 of ${total}`))).toBeInTheDocument();
+  });
+
+  it("'Start over' clears the draft and lands on question 1", async () => {
+    mocks.mpAnswers = draftOf(3);
+    serve("no_manager_profile");
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Start over" }));
+    expect(mocks.reset).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(new RegExp(`Question 1 of ${total}`))).toBeInTheDocument();
+  });
+});

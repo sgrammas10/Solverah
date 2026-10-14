@@ -144,6 +144,38 @@ def test_invalid_choice_raises() -> None:
         score_manager_match(bad)
 
 
+def test_unknown_question_id_raises_value_error_not_key_error() -> None:
+    """Regression (audit 2026-10-02, F4): an unknown id was a bare KeyError
+    out of the score lookup, which no caller turns into a 400."""
+    bad = [{"question_id": f"mm-q{i + 1}", "choice": "a"} for i in range(15)]
+    bad[7]["question_id"] = "mm-q99"
+    with pytest.raises(ValueError, match="Unknown question_id 'mm-q99'"):
+        score_manager_match(bad)
+
+
+def test_missing_question_id_raises_value_error() -> None:
+    bad = [{"question_id": f"mm-q{i + 1}", "choice": "a"} for i in range(15)]
+    del bad[0]["question_id"]
+    with pytest.raises(ValueError, match="Unknown question_id"):
+        score_manager_match(bad)
+
+
+def test_duplicate_question_id_raises_value_error_not_key_error() -> None:
+    """Regression (F4): fifteen answers with one id twice leave another
+    question unanswered; that was a KeyError in the dimension means."""
+    bad = [{"question_id": f"mm-q{i + 1}", "choice": "a"} for i in range(15)]
+    bad[14]["question_id"] = "mm-q1"
+    with pytest.raises(ValueError, match="Duplicate answer for question 'mm-q1'"):
+        score_manager_match(bad)
+
+
+def test_non_mapping_answer_raises_value_error() -> None:
+    bad: list = [{"question_id": f"mm-q{i + 1}", "choice": "a"} for i in range(15)]
+    bad[4] = "mm-q5:a"
+    with pytest.raises(ValueError, match="object"):
+        score_manager_match(bad)
+
+
 # ---------------------------------------------------------------------------
 # Dimension score bounds
 # ---------------------------------------------------------------------------

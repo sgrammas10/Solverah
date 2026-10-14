@@ -29,8 +29,8 @@ from solverah.api.v1.auth import start_session
 from solverah.extensions import bcrypt, limiter
 from solverah.openapi import document
 from solverah.repositories import user_repository
-from solverah.schemas import LegacyError, OkResponse
-from solverah.schemas.intelligence import QuizInsightsRequest
+from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError, OkResponse
+from solverah.schemas.intelligence import LlmErrorResponse, QuizInsightsRequest
 from solverah.schemas.intake import (
     CLAIM_LIMITS,
     CLAIM_REQUESTS,
@@ -317,7 +317,7 @@ def intake_claim():
     "Generate AI career insights for an unauthenticated preview",
     tags=["intake"],
     request=QuizInsightsRequest,
-    responses={200: QuizPreviewInsightsResponse, 400: LegacyError, 500: LegacyError},
+    responses={200: QuizPreviewInsightsResponse, 400: LegacyError, 422: PROBLEM_RESPONSE_MODEL, 500: LlmErrorResponse},
     security=[],
     enforce=True,
     description=(

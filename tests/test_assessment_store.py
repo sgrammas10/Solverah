@@ -74,3 +74,75 @@ def test_stale_key_submission_does_not_count(client, seed_user):
         persist_submission(db, 3, _fake_submission("v1-superseded+mean_pole"))
         db.session.commit()
         assert has_completed_assessment(3) is False
+
+
+def test_a_sitting_the_current_item_file_cannot_score_reads_as_absent(client, seed_user):
+    """Situation-report F2 hand-off (2026-10-02).
+
+    The default pin (first_completed_core_submission_id) is not keyed to the scoring-key
+    version, so after an item-bank change it can name a sitting whose item ids the current
+    file no longer holds. Re-scoring that sitting used to raise AssessmentError, which the
+    Situation Report surfaced as a 500. It must read as an absence instead.
+
+    _fake_submission's item ids are shaped, not real, so the current file cannot score them --
+    which is exactly the post-change case.
+    """
+    from app import app
+    from model import db
+    from assessment_store import dimension_scores_for_submission, persist_submission
+
+    seed_user(4)
+
+    with app.app_context():
+        submission_id = persist_submission(db, 4, _fake_submission("v1-superseded+mean_pole"))
+        db.session.commit()
+        assert dimension_scores_for_submission(submission_id) is None
+
+
+def test_an_unknown_sitting_reads_as_absent(client):
+    from app import app
+    from assessment_store import dimension_scores_for_submission
+
+    with app.app_context():
+        assert dimension_scores_for_submission("0" * 32) is None
+
+
+def test_completed_core_sittings_lists_every_sitting_oldest_first_unfiltered_by_version(
+    client, seed_user
+):
+    """The candidate list behind the Situation Report's default pin (2026-10-05).
+
+    Oldest first, ids as the `.hex` handle every other doorway hands out, the two ends
+    agreeing with first_/latest_completed_core_submission_id -- and NOT filtered by the
+    scoring-key version: a superseded sitting is still a point in time the pin rule has to
+    place, and whether it can be scored is dimension_scores_for_submission's question.
+    """
+    from app import app
+    from model import db
+    from assessment_form import scoring_key_version
+    from assessment_store import (
+        completed_core_sittings,
+        first_completed_core_submission_id,
+        latest_completed_core_submission_id,
+        persist_submission,
+    )
+
+    seed_user(5)
+
+    with app.app_context():
+        assert completed_core_sittings(5) == []
+
+        # Separate transactions, so each sitting's completed_at (now()) is distinct.
+        old = persist_submission(db, 5, _fake_submission("v1-superseded+mean_pole"))
+        db.session.commit()
+        new = persist_submission(db, 5, _fake_submission(scoring_key_version()))
+        db.session.commit()
+
+        sittings = completed_core_sittings(5)
+        assert [sid for sid, _ in sittings] == [old, new]
+        assert sittings[0][0] == first_completed_core_submission_id(5)
+        assert sittings[-1][0] == latest_completed_core_submission_id(5)
+        assert sittings[0][1] <= sittings[1][1]
+        assert sittings[0][1].tzinfo is not None
+        # Per-user.
+        assert completed_core_sittings(6) == []

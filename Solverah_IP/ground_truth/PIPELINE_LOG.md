@@ -31,6 +31,206 @@ packet it has been run against so far.
 
 ---
 
+## 2026-10-03 harvest
+
+RESEARCH   P-16 Smartsheet — 44 excerpts (A 8 · B 15 · C 10 from 4 postings · D 7 from 2 sources · E 3 independent +1 company-authored, tagged, uncounted · F 0, N/A PRIVATE since Jan 2025), collector v4.11 — moved to packets/P-16_smartsheet/. Run report status COMPLETE (2026-10-02 12:25–16:55 UTC; report mtime 16:54 UTC, under 24h). Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it). Builder's blank-line parse check: 44 of 44 excerpts parse.
+           Flagged by the research run, not decided by the harvest: 6 structural build defects — S1 hard rule 8 vs B6 disagree on per-review star ratings (all 15 removed from Section 1 on the stricter reading); S2 B7 truncation detection assumes a "Show more" marker the renderer does not print (truncation measured by length clustering: 5 of 15 reviews cut at ~300 chars, NOTE TO RATER carried); S3 Section F has no state for a recently-public/taken-private company; S4 the `accessed` rule guarantees its own 8-of-8 finding with no vintage fallback; S5 D0 is silent on voice concentration (5 of 7 D passages from one article about one country's team); S6 brief-level: to_be_researched.txt's comment block carries cross-run findings the research session reads before it starts (no packet opened, no collection decision influenced; fix is to move the commentary out of the queue file). Plus 6 cosmetic, 2 environment notes. D26 confirmed again (4 plain-fetch alterations, including a quote-mark substitution); nothing in Section 1 rests on plain fetch.
+           Packet notes: B has 10 of 15 reviews inside the 24-month gate (median age 22.0 months); a second NOTE TO RATER records a September 2026 structural event after the newest review. Not retrievable: no handbook, no independent conference talk, no current 10-K (ceased reporting Jan 2025); stale: developer blog (2020), builtin.com profile (2018); careers interview-step panels withheld (plain fetch only, not renderer-confirmed). Cloud container had no web egress (403 on CONNECT); all renderer work ran in the browser pane over the device bridge, grants answered automatically.
+SCRUB      P-15 Hudson River Trading — complete (all four files present); ANON promoted to anonymization/P-15_packet_ANON.txt, content_defects to packets/P-15_hudson_river_trading/, run record at _scrub_env_runs/P-15_run1/ (diff kept there only). Scrub report: 13/13 self-checks PASS, 31 raw / 31 out (A 8 · B 5 · C 10 · D 4 · E 4 · F 0). Flagged by the scrub, not decided: D author tenure "approx. 13 years" and B note's "119 reviews"/"one day old" left as written (R6/A1 stretch); reviewer-level re-identification OPEN item applies; pre-flag block under-flagged (short form "Hudson River", surname "Dunning", "AI & Machine Learning at HRT", publication names in E, "New York" in scope paragraph). Content defects CD-1.. recorded (B header says 12-15, holds 5).
+LISTS      to_be_researched: 3 remaining (next: P-17 HCA Healthcare, then P-18 Fifth Third Bank, P-19 Centene) · to_be_scrubbed: 1 waiting (P-16). P-15's line struck after promotion; research had already updated both lists for P-16.
+STAGED     P-16 copied to _scrub_env/packets_raw/ for tonight; ANONYMIZATION_RULES_DRAFT.md refreshed in _scrub_env/ (byte-identical to canonical).
+REFUSED    nothing. No destination collisions, no partial scrub set, no failed structural check. Deletion needed a session permission grant, which was approved.
+OPERATOR TO EYE: the P-15 and P-16 packets are both thin or structurally flagged (P-15 B has 5 of the 12 minimum; see the 2026-10-02 operator note for the replace-or-rate decision, still open). S6 above: queue-file commentary is read by research before it knows its company.
+VERIFIED 2026-10-02 (operator note above) — P-15 Hudson River Trading, verify_scrub.py PASSED (31 compared, 0 undeclared, 0 identifiers). The pipeline did not re-run the verifier.
+NOT YET VERIFIED — P-16 is a raw packet awaiting tonight's scrub; run verify_scrub.py after it is scrubbed.
+
+## 2026-10-02 operator note — not a harvest entry
+
+Written by hand on the afternoon of 2026-10-02, after the harvest entry below.
+
+**The entry below says research and scrub did not run. Both ran, after it.** It was written
+at 21:02 on 10-01. The scrub produced P-15's four files at 00:16 on 10-02, and research
+built P-16 Smartsheet between 12:25 and 16:55 UTC on 10-02 (run report `COMPLETE`).
+
+**P-14 Crawford & Company is VERIFIED.** It was promoted on the harvest before this one with a
+`NOT YET VERIFIED` line. `Scripts/verify_scrub.py` PASSED on 2026-10-02:
+
+```
+python Scripts/verify_scrub.py P-14 --company "Crawford & Company" --company "Crawford"
+
+1. PARSE           50 raw -> 50 scrubbed, A8 B15 C10 D7 E4 F6
+3. QUOTE FIDELITY  50 compared - 15 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in either form - 0 lookup-key tokens
+BUILD NOTES        section E header says yield 3, the harness parses 4
+```
+
+**P-15 Hudson River Trading is VERIFIED.** It is in `_scrub_env/packets_out/`, so tonight's
+harvest promotes it. **That harvest must NOT write a `NOT YET VERIFIED` line for P-15**; write
+`VERIFIED 2026-10-02 (operator note above)` in its place. Every other step applies unchanged.
+
+```
+python Scripts/verify_scrub.py P-15 --company "Hudson River Trading" --company "Hudson River" --company "HRT"
+
+1. PARSE           31 raw -> 31 scrubbed, A8 B5 C10 D4 E4 (F legitimately empty: private)
+3. QUOTE FIDELITY  31 compared - 13 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in any form - 0 lookup-key tokens
+BUILD NOTES        section B holds 5 against a required minimum of 12
+```
+
+The job-board tokens the research run flagged as the sharpest identifiers in P-15 are gone.
+
+**The verifier was fixed first.** P-15 originally FAILED on section F: "declared non-empty and
+the harness parses ZERO". But F's header says `yield: 0`. The company is private, so there is no
+human-capital disclosure to quote. The check failed any section that parsed zero, without
+looking at what the header declared. A declared-0 section that parses 0 now counts as a match;
+a section declared non-empty that parses empty still fails. Regression tests are in
+`causal_graph/test_verify_scrub.py`. P-07 to P-15 all PASS under the fixed script. P-01 to
+P-06 fail exactly as they did under the original script (round 1 is frozen, never re-scrubbed),
+minus the declared-empty false positives, which also hit P-03, P-04 and P-05. One more false
+alarm to know about: the name check matches substrings, so `--company RGA` on P-04 hits
+"organisation". Use whole names, or read the hit before believing it.
+
+**Two decisions for Sebastian, flagged rather than decided:**
+- **P-15 is thin:** 31 excerpts against ~50 for the others. B has 5 reviews against a minimum
+  of 12: the required source has 2 worldwide, and the optional one sign-in-walled after 3.
+  F is empty (private), D is one voice, 3 of the 4 E excerpts come from one article, and all
+  of A is access-dated. Rate it as-is (the packet carries a NOTE TO RATER) or replace the
+  company.
+- **P-14 acrostic:** the scrub flagged that the initials of the seven stripped value names
+  still spell the company's acronym. No string check can catch that; it needs a reorder or a
+  reword ruling.
+
+## 2026-10-02 harvest
+
+RESEARCH   Research never started: no RUN_REPORT.md and no packet in _build_env/packets/ (empty). P-16 Smartsheet is still the top line of to_be_researched.txt. This is "did not run", not "empty queue" -- 4 companies are still waiting.
+SCRUB      Scrub did not produce output: _scrub_env/packets_out/ is empty (no ANON, diff, content_defects or run_report). The P-15 Hudson River Trading packet staged on 2026-10-01 is still sitting unconsumed in _scrub_env/packets_raw/ (byte-identical to packets/P-15_hudson_river_trading/P-15_packet.txt). Nothing promoted, no run folder created, no failed-run folder created (there was no partial set to preserve).
+LISTS      to_be_researched: 4 remaining (P-16 Smartsheet, P-17 HCA Healthcare, P-18 Fifth Third Bank, P-19 Centene) · to_be_scrubbed: 1 waiting (P-15). No lines changed.
+STAGED     Nothing new. packets_raw/ already holds exactly one packet (P-15), so step 4 was skipped. ANONYMIZATION_RULES_DRAFT.md in _scrub_env/ is byte-identical to anonymization/ -- no refresh needed.
+REFUSED    nothing
+NOT YET VERIFIED -- nothing promoted this harvest. (P-14 from the 2026-10-01 harvest is still unverified unless noted elsewhere: python Scripts/verify_scrub.py P-14 --company "Crawford & Company")
+
+## 2026-10-01 harvest
+
+RESEARCH   P-15 Hudson River Trading — 31 excerpts (A 8 · B 5 · C 10 · D 4 from 1 source · E 4 from 2 sources · F 0, private), collector v4.11 — moved to packets/P-15_hudson_river_trading/. Run report status was COMPLETE (2026-09-30 12:24–17:35 UTC; report mtime 17:33 UTC, so >24h old but not waiting on anyone). Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
+           Flagged by the research run, not decided by the harvest: B FAILS its 12-review minimum (5 delivered, 0 inside the 24-month gate) — the required review source holds only 2 reviews worldwide (2022-10-13, 2017-12-13) and the optional source shows 3 of 119 anonymously, then a bot-detection sign-in wall; no sign-in used. Packet carries a NOTE TO RATER on this. D is one voice only. E is 3 of 4 excerpts from one article. A has no source dates (all 8 access-dated). Freeze status NOT triggered; 5 structural defects in collector v4.11: S1 B minimum unreachable with no rule for it, S2 B1a-REMEDY cap of 5 assumes the optional site yields 5, S3 no citation form for Section C bodies living in a third-party ATS iframe, S4 D0 trigger undecidable when author titles are unpublished, S5 staleness gate defined per rung, not per item. 8 cosmetic (C1–C8).
+           Identifier risk: all 10 Section C excerpts cite the ATS embed URL (board slug and four numeric job tokens) — the sharpest identifiers in the file; flagged in Section 4 for the scrub.
+           Not retrievable / stale: 2026-09-10 founder profile (paywall), 2025-10-31 podcast transcript (registration), pages 2–40 of optional review source; two on-axis blog posts from 2022 rejected on age; no handbook, no conference talk, no repo contribution guidelines; private, so no human-capital disclosure.
+           Environment notes: browser needed a fresh one-use site grant for nearly every page load (about double the calls); MCP bridge dropped and reconnected ~20 times with no loss. D26 confirmed twice: plain fetch invented a pay figure and altered quoted passages that the rendered page did not carry.
+           OPERATOR TO VERIFY: BUILD RECORD model string (`claude-opus-5`) is the session-configured identifier, not a confirmed serving model.
+SCRUB      P-14 Crawford & Company — complete (all four files present); ANON promoted to anonymization/, content_defects to packets/P-14_crawford_and_company/, run record at _scrub_env_runs/P-14_run1/ (diff kept there only). Scrub report: 13/13 self-checks PASS, 50 raw / 50 output excerpts; edits: 12 company-name substitutions, 4 named humans, 4 branded names, 1 place, 50 attribution lines rewritten, 15 review ids, 4 posting ids, 6 site tokens. Flagged rather than decided: initials of the seven F1 value names still spell the stripped acronym; reviewer titles/headlines untouched ("Client LIAISON Manager", "Quite Satisfying Case Management Employment" near-unique, T2 exposure); no recurrence notes added (A3/A9), operator may overrule. Content defects CD-1..CD-5 recorded: review ordering, scope-note role mismatch, pre-flag misses/miscounts.
+LISTS      to_be_researched: 4 remaining (P-16 Smartsheet, P-17 HCA Healthcare, P-18 Fifth Third Bank, P-19 Centene) · to_be_scrubbed: 1 waiting (P-15). P-14's line struck. Research noted last night that to_be_scrubbed still held P-14's line while packets/ was empty — consistent with the prior harvest not striking it until its scrub was promoted tonight.
+STAGED     P-15 copied to _scrub_env/packets_raw/ for tonight; ANONYMIZATION_RULES_DRAFT.md refreshed in _scrub_env/.
+REFUSED    nothing. (Deletion needed a session permission grant, which was approved.)
+NOT YET VERIFIED — run: python Scripts/verify_scrub.py P-14 --company "Crawford & Company"
+
+## 2026-09-30 harvest
+
+RESEARCH   P-14 Crawford & Company — 50 excerpts (A 8 · B 15 reviews · C 10 from 4 postings · D 7 from 5 sources · E 4 · F 6), collector v4.11 — moved to packets/P-14_crawford_and_company/. Run report status was COMPLETE (2026-09-29 12:31–13:15 UTC). Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
+           Flagged by the research run, not decided by the harvest: 9 build defects, 4 STRUCTURAL — (1) no B0 rule for a subject-company review sitting on a third party's pooled profile (a 2026-08-19 "Property Adjuster — Remote" review excluded); (2) no test for whether a subsidiary brand's review profile is an entity of the company — 7 of 15 reviews come from the reading taken, a narrower reading gives a different, older section B; (3) D0's two voice categories cannot classify what the D ladder yielded; (4) Section A's core value framework is published as an image, recoverable only via the 10-K. 5 cosmetic (inert Indeed fcountry filter, browse-edgar robots refusal, renderer element search truncates at ~100 chars, E company-quote-in-reporting rule, one more in the packet's Step 5 list).
+           Not retrievable / stale: no handbook, no long-form press profile, no conference talk, no layoff/RTO event in 12 months; GitHub org stale (one repo, last touched 2017); code of conduct is PDF-only (nothing quoted); a 10-K/A (accession 0001193125-26-116011) exists and was not opened. Review-site truncation: 7 of 15 reviews cut off. Reviews are mostly claims-facing roles; the packet carries a SCOPE note.
+           OPERATOR TO VERIFY: BUILD RECORD model string (`claude-opus-5`) is the session-configured identifier, not a confirmed serving model.
+           OPERATOR TO EYE: the comment block in to_be_researched.txt still says "P-13/P-14 above"; research left it untouched.
+SCRUB      P-13 Schneider National — promoted to anonymization/P-13_packet_ANON.txt; content_defects to packets/P-13_schneider_national/; all four files at _scrub_env_runs/P-13_run1/ (diff stays in the run record only). Scrub run report: all 13 self-checks PASS; 55 excerpts in, 55 out; B 17 (max 15) and C 12 (max 10) over cap, correctly untouched (CD-4). Flagged, not decided: fleet-colour self-description left as the strongest remaining fingerprint (no rule covers colours); ruleset change history mentions a "named-clients rule" with no text (a customer abbreviation handled under A5); "operating center" vocabulary left; reviewer-level re-identification left per the OPEN item.
+LISTS      to_be_researched: 5 remaining (next: P-15 Hudson River Trading) · to_be_scrubbed: 1 waiting (P-14). Harvest struck the P-13 line from to_be_scrubbed.txt after promotion; research had already updated both lists for P-14.
+STAGED     P-14 copied to _scrub_env/packets_raw/ for tonight. Ruleset refreshed (was already byte-identical).
+CLEANUP    File deletion is disabled and nobody was awake to approve it, so consumed files were moved to _to_delete/ rather than deleted: P-13_scrubout_* (packet_ANON, scrub_diff, run_report copies from packets_out — the diff copy must not be left where a rater could read it; delete it by hand) and the raw P-13 scratch packet from packets_raw, plus P-14's RUN_REPORT.md. Delete when convenient.
+REFUSED    nothing
+VERIFIED 2026-09-29 (operator note above) — P-13 Schneider National, verify_scrub.py PASSED (55 compared, 0 undeclared, 0 identifiers).
+NOT YET VERIFIED — nothing new promoted except P-13 (verified above). P-14 is a raw packet awaiting tonight's scrub; run verify_scrub.py after it is scrubbed.
+
+---
+
+## 2026-09-29 operator note — not a harvest entry
+
+Written by hand on the morning of 2026-09-29, after the harvest entry below.
+
+**P-13 Schneider National is scrubbed and VERIFIED.** The scrub ran at 00:16 on 09-29, after
+the harvest below, and left all four files in `_scrub_env/packets_out/`.
+`Scripts/verify_scrub.py` PASSED against `packets_out/P-13_packet_ANON.txt`:
+
+```
+python Scripts/verify_scrub.py P-13 --company "Schneider National" --company "Schneider"
+
+1. PARSE           55 raw -> 55 scrubbed, A8 B17 C12 D8 E4 F6 on both sides
+3. QUOTE FIDELITY  55 compared - 18 changed WITH a declared edit - 0 undeclared - 0 not compared
+4. IDENTIFIERS     0 URLs - 0 company name in either form - 0 lookup-key tokens
+BUILD NOTES        B 17 against max 15, C 12 against max 10 -- over cap, correctly untouched
+```
+
+**So tonight's harvest must NOT write a `NOT YET VERIFIED` line for P-13.** Promote it as
+normal and write `VERIFIED 2026-09-29 (operator note above)` in its place. Every other step
+applies unchanged.
+
+**The verifier was fixed the same morning.** Check 3 used to compare a quote only when a dash
+directly followed it. That silently skipped truncated reviews (`"..." [...]  --`) and press
+quotes with their attribution after them (`"...," Name said.  --`). P-13 first "passed" with
+only 50 of 55 quotes compared, and two of the five skipped quotes carried name
+substitutions. Those shapes are now compared, and any bullet that still can't be paired is
+listed under `not compared` rather than dropped. Regression tests are in
+`causal_graph/test_verify_scrub.py`. P-07 through P-12 were re-run under the fixed script:
+all still PASS, with 0 bullets uncompared.
+
+**Open ruleset decisions the P-13 scrub flagged but could not decide (Sebastian):**
+- A section A excerpt describes the company by its fleet colour. The scrub calls it the
+  strongest identifying detail left in the packet; no rule covers colours, so it was kept.
+- The ruleset's change history mentions a "named-clients rule", but no such rule text exists.
+  A customer abbreviation was handled under A5 instead.
+
+## 2026-09-29 harvest
+
+RESEARCH   P-13 Schneider National — 55 excerpts (A 8 · B 16 reviews · C 12 from 4 postings · D 8 from 2 sources · E 4 · F 6), collector v4.11 — moved to packets/P-13_schneider_national/. Run report status was COMPLETE; the run opened 2026-09-23 and sat on an unanswered approval until Sebastian accepted it 09-28, built 09-28/29. Structural checks passed: SECTION 1 present, `prompt version : v4.11`, sections A–F present, END OF PACKET marker present (v4.11 owes it).
+           Flagged by the research run, not decided by the harvest: 9 build defects listed in its handback, 4 classed STRUCTURAL (retrieval-environment disconnections x4; search-stale job detail pages; a split review entity whose omission would have changed Section B; an undated first-party blog the staleness gate cannot apply to) — freeze did NOT trigger. Not retrievable: no handbook / eng blog / conference talk exist; GitHub org stale (2 repos, past 18-month gate); a 2006 "cuts 170 jobs" article caught and excluded; review-site optional source blocked by robots.txt then cut off by disconnect; Code of Conduct is an unreadable PDF (nothing quoted); CEO interview is video-only.
+           OPERATOR TO VERIFY: the BUILD RECORD model string (`claude-opus-5`) is the session-configured identifier, not a confirmed serving model.
+           CORRECTION: the research run's report says the harvest "did not fire" 09-23 → 09-28. It did (09-24, 09-25, 09-26, 09-28 entries), each time correctly deferring an IN PROGRESS report. See the 09-28 operator note.
+SCRUB      nothing to route — _scrub_env/packets_out/ and packets_raw/ were both empty at start (no scrub ran last night; P-12 was promoted 09-21).
+LISTS      to_be_researched: 6 remaining (next: P-14 Crawford & Company) · to_be_scrubbed: 1 waiting (P-13). No list edits by the harvest; research had already updated both.
+STAGED     P-13 copied to _scrub_env/packets_raw/ for tonight. Ruleset refreshed (was already byte-identical to anonymization/ copy).
+CLEANUP    RUN_REPORT.md and stray _RUN_REPORT_backup_fragment.txt moved out of _build_env/packets/ into _to_delete/ (file deletion is disabled, no one awake to approve it) — delete that pair by hand when convenient.
+REFUSED    nothing
+NOT YET VERIFIED — nothing promoted to anonymization/ this run. P-13 is a raw packet awaiting tonight's scrub; run verify_scrub.py after it is scrubbed.
+
+---
+
+## 2026-09-28 operator note — not a harvest entry
+
+Written by hand at ~19:35 EDT, after the harvest entry below.
+
+**The P-13 Schneider National run was never dead. It was waiting on Sebastian's approval.**
+It opened its `RUN_REPORT.md` at 2026-09-23 12:22 UTC, then sat on an unanswered approval
+prompt in Claude Desktop for five days. Every harvest from 09-24 on read that correctly as
+`IN PROGRESS` and deferred; the escalating "crashed session" wording was a misreading. On
+2026-09-28 at ~19:30 EDT Sebastian moved the old report to
+`_to_delete/P-13_RUN_REPORT_ABORTED_2026-09-23.md` and accepted the prompt. The session
+resumed at 23:32 UTC and **is building P-13 now**, under v4.11. The `ABORTED` in that filename
+is wrong — the run was not aborted — but the file is kept as the only record of 09-23's start.
+
+**The resumed session's report says the harvest "does not appear to have fired" 09-23 → 09-28.
+It did** — 09-24, 09-25, 09-26 and 09-28 entries below, each correctly leaving the report
+alone. The research session cannot see this log, so it read an untouched report as a missed
+harvest.
+
+**Nothing was lost.** No evidence was collected before the wait, so resuming does not break
+Rule Zero. Both lists are unchanged, with P-13 still on top of `to_be_researched.txt` and
+`to_be_scrubbed.txt` empty.
+
+**Brief changes, made the same evening, per Sebastian: "if one has been running for that long
+it's just waiting for approval on a site; no more run until that one is done."**
+- `HARVEST_BRIEF.md` step 3: an `IN PROGRESS` report has **no age limit** and is never moved
+  for being old. Past 24h, the entry's first line is an `ACTION` line telling Sebastian to open
+  the Company Research task and answer its prompt, repeated every harvest until the report
+  changes.
+- `HARVEST_BRIEF.md` step 3: **a report with no status line is now treated as `IN PROGRESS`.**
+  The resumed P-13 report has none — it begins at an `INTERRUPTION` heading — and the old rule
+  (no status line + no packet → ABORTED, fold and delete) would have removed it mid-build.
+- `BUILD_BRIEF.md`: another session's `RUN_REPORT.md` in `packets/` means a live run waiting
+  on approval — stop, don't start a second company, don't touch the report. And the two status
+  lines stay first in the file always, including after an interruption.
+
+**Expect the next harvest to defer P-13** if the build is still running, with a flag for the
+missing status line. That is correct. If the finished session never writes a status line, the
+harvest will keep deferring. In that case a human checks the packet is there and adds
+`status  : COMPLETE` as the report's first line.
+
 ## 2026-09-28 harvest
 
 RESEARCH   deferred -- `_build_env/packets/RUN_REPORT.md` status line still reads `IN

@@ -12,6 +12,7 @@ is in ``solverah/services/agent_service.py``.
 
 from __future__ import annotations
 
+import hashlib
 import json
 
 from flask import (
@@ -22,7 +23,8 @@ from flask import (
     request,
     stream_with_context,
 )
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_limiter.util import get_remote_address
 
 from security import (
     GUEST_INSIGHTS_GLOBAL_LIMIT,
@@ -34,10 +36,11 @@ from solverah.extensions import limiter
 from solverah.infra import llm
 from solverah.openapi import document
 from solverah.repositories import user_repository
-from solverah.schemas import LegacyError
+from solverah.schemas import PROBLEM_RESPONSE_MODEL, LegacyError
 from solverah.schemas.intelligence import (
     AgentChatRequest,
     AgentMessagesRequest,
+    LlmErrorResponse,
     PathPreferencesDocument,
     PathPreferencesPutRequest,
     PathPreferencesRequest,
@@ -83,9 +86,21 @@ _SCOPE_PATH_FIT = "intelligence:path-fit"
 _SCOPE_PATH_FEEDBACK = "intelligence:path-feedback"
 _SCOPE_PATH_WANTS = "intelligence:path-wants"
 
-#: See ``solverah/api/v1/assessments.py`` for why a poll does not run on the
-#: global defaults, and why the day cap is restated rather than dropped.
-POLL_LIMIT = "60 per minute;2000 per day"
+#: The path-suggestion poll's limit. See ``solverah/api/v1/assessments.py`` for
+#: why a poll does not run on the global defaults, and why the day cap is
+#: restated rather than dropped.
+#:
+#: W-18 raised it from ``POLL_LIMIT``'s "60 per minute;2000 per day" (the value
+#: the assessment and resume-parse polls keep, per IP) and keyed it PER
+#: SIGNED-IN USER with :func:`_signed_in_user_key`. The SPA now polls every
+#: 0.5 s while the narrator's sentences land, for at most ~60 s: 120 a minute
+#: from one tab, 240 from two. 60 a minute was half of one tab, and a 429 is a
+#: poll error the page answers by stopping -- the limit would have ended
+#: narration on screen. 300 a minute covers two tabs with headroom; 10,000 a day
+#: is ~80 worst-case 60-second loads. Per user, so an office NAT cannot pool its
+#: people into one budget. This was this module's only poll, so the old
+#: constant went with it; the other two modules' ``POLL_LIMIT`` are untouched.
+PATH_SUGGESTION_POLL_LIMIT = "300 per minute;10000 per day"
 _SCOPE_GUEST_INSIGHTS = "intake:quiz-preview-insights"
 _SCOPE_GUEST_INSIGHTS_GLOBAL = "intake:quiz-preview-insights:global"
 
@@ -100,9 +115,37 @@ _CONNECTION_MARKERS = (
     "apiconnection",
 )
 
+#: What the client reads when the agent's provider or model is unavailable.
+#: Deliberately names neither (audit #14): the log line carries both.
+_AGENT_UNAVAILABLE_MESSAGE = (
+    "The assistant is unavailable right now. Please try again in a few minutes."
+)
+
 
 def _current_user():
     return user_repository.find_by_email(get_jwt_identity())
+
+
+def _signed_in_user_key() -> str:
+    """Rate-limit key: the signed-in user, or the remote address without one (W-18).
+
+    Flask-Limiter evaluates a route's limits BEFORE the view's
+    ``@jwt_required()`` runs, so the identity is read here with
+    ``verify_jwt_in_request(optional=True)`` -- the decorator's own cookie
+    lookup and signature check. A missing, expired or forged token falls back
+    to the address; ``@jwt_required()`` then answers 401 as it always has.
+
+    The identity is hashed so the limiter's storage (Redis in production)
+    never holds an email address in a key.
+    """
+    try:
+        verify_jwt_in_request(optional=True)
+        identity = get_jwt_identity()
+    except Exception:  # noqa: BLE001 -- any token failure is "not signed in" here
+        identity = None
+    if not identity:
+        return get_remote_address()
+    return "user:" + hashlib.sha256(str(identity).encode("utf-8")).hexdigest()[:32]
 
 
 def _respond(result):
@@ -136,25 +179,56 @@ def _do_agent_stream():
     if not messages or not isinstance(messages, list) or len(messages) == 0:
         return jsonify({"error": "messages must be a non-empty list"}), 400
 
-    model = (data.get("model") or llm.default_agent_model()).strip()
-    resume_text = agent_service.resume_text_for(user)
-    system_prompt = agent_service.build_agent_context(user, resume_text=resume_text)
-    full_messages = [{"role": "system", "content": system_prompt}] + messages
+    # The server picks the model; a client-sent `model` is ignored (audit #5).
+    model = llm.default_agent_model()
+    # Only `role` and `content` reach the provider, whatever else the client
+    # put on a message, and the history is trimmed to the context budget.
+    history = agent_service.bounded_history(messages)
+    system_prompt = agent_service.system_prompt_for(user)
+    # DB ledger I. Every read this turn needs is done. End the transaction the
+    # user lookup opened before the provider call and the stream -- otherwise
+    # the connection sits idle in transaction until the last token, and a
+    # stream has no overall bound. Nothing was written, so this discards nothing.
+    intelligence_service.end_read_transaction()
+    full_messages = [{"role": "system", "content": system_prompt}] + history
+
+    # gpt-oss reasons before its first token; "low" keeps that wait short for
+    # chat. Other Groq models reject the parameter, so it is scoped by name.
+    extra = {"reasoning_effort": "low"} if model.startswith("openai/gpt-oss") else {}
 
     try:
         client = llm.get_agent_client()
         stream = client.chat.completions.create(
-            model=model, messages=full_messages, stream=True
+            model=model,
+            messages=full_messages,
+            stream=True,
+            max_completion_tokens=llm.AGENT_MAX_COMPLETION_TOKENS,
+            **extra,
         )
     except Exception as exc:  # noqa: BLE001 -- mapped onto statuses below
-        current_app.logger.error("agent_chat error: %s: %s", type(exc).__name__, exc)
+        # The provider's name, the model id, and the exception text stay in
+        # the log; the client gets a stable code and generic text (audit #4).
+        current_app.logger.error(
+            "agent_chat error (model=%s): %s: %s", model, type(exc).__name__, exc
+        )
         exc_type = type(exc).__name__.lower()
         exc_str = str(exc).lower()
         if "not found" in exc_str or "notfounderror" in exc_type:
-            return jsonify({"error": "Model '%s' not found on Groq." % model}), 422
+            # 503, not the 422 this was: the model is the server's choice now,
+            # so a missing one is our outage, not the caller's mistake.
+            return jsonify({
+                "error": _AGENT_UNAVAILABLE_MESSAGE,
+                "code": "agent_model_unavailable",
+            }), 503
         if any(kw in exc_str or kw in exc_type for kw in _CONNECTION_MARKERS):
-            return jsonify({"error": "AI service unavailable — Groq"}), 503
-        return jsonify({"error": "Failed to generate response"}), 500
+            return jsonify({
+                "error": _AGENT_UNAVAILABLE_MESSAGE,
+                "code": "agent_unavailable",
+            }), 503
+        return jsonify({
+            "error": "Something went wrong generating a reply. Please try again.",
+            "code": "agent_failed",
+        }), 500
 
     def generate():
         try:
@@ -165,9 +239,12 @@ def _do_agent_stream():
             yield "data: %s\n\n" % json.dumps({"done": True, "model": model})
         except Exception as exc:  # noqa: BLE001 -- the status line is already sent
             current_app.logger.error(
-                "agent_chat stream error: %s: %s", type(exc).__name__, exc
+                "agent_chat stream error (model=%s): %s: %s", model, type(exc).__name__, exc
             )
-            yield "data: %s\n\n" % json.dumps({"error": "Stream interrupted"})
+            yield "data: %s\n\n" % json.dumps({
+                "error": "The reply was interrupted. Please try again.",
+                "code": "agent_stream_interrupted",
+            })
 
     return Response(
         stream_with_context(generate()),
@@ -226,12 +303,13 @@ def put_path_preferences():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    saved = intelligence_service.save_path_preferences(
-        user, request.get_json(silent=True) or {}
+    # The service answers with the stored document itself (DB ledger I), so
+    # there is no read-back after the write.
+    return _respond(
+        intelligence_service.save_path_preferences(
+            user, request.get_json(silent=True) or {}
+        )
     )
-    if not saved.ok:
-        return _respond(saved)
-    return _respond(intelligence_service.read_path_preferences(user))
 
 
 @document(
@@ -284,7 +362,7 @@ def get_path_suggestions():
     "Generate and persist AI career insights",
     tags=["me"],
     request=QuizInsightsRequest,
-    responses={200: QuizInsightsResponse, 400: LegacyError, 404: LegacyError, 500: LegacyError},
+    responses={200: QuizInsightsResponse, 400: LegacyError, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL, 500: LlmErrorResponse},
     security=_AUTHENTICATED_WRITE,
     enforce=True,
 )
@@ -351,14 +429,20 @@ def refresh_my_recommendations():
     "Stream a chat turn from the AI agent",
     tags=["agent"],
     request=AgentMessagesRequest,
-    responses={400: LegacyError, 422: LegacyError, 500: LegacyError, 503: LegacyError},
+    responses={400: LegacyError, 422: PROBLEM_RESPONSE_MODEL, 500: LlmErrorResponse, 503: LlmErrorResponse},
     security=_AUTHENTICATED_WRITE,
     enforce=True,
     description=(
         "Responds with `text/event-stream`, not JSON: one `data: {\"chunk\": ...}` "
         "frame per token, then `data: {\"done\": true, \"model\": ...}`. A failure "
-        "that happens mid-stream is delivered as a `data: {\"error\": ...}` frame "
-        "on a 200, because the status line has already been sent."
+        "that happens mid-stream is delivered as a `data: {\"error\": ..., "
+        "\"code\": \"agent_stream_interrupted\"}` frame on a 200, because the "
+        "status line has already been sent. A stream that ends without `done` "
+        "was cut off and its partial reply should be discarded.\n\n"
+        "The server picks the model; a `model` in the body is ignored. Roles are "
+        "`user` and `assistant` only, the history is capped at 40 messages of "
+        "4,000 characters each, and the server may drop the oldest turns to fit "
+        "its context budget."
     ),
 )
 @intelligence_bp.route("/agent/messages", methods=["POST"])
@@ -455,7 +539,7 @@ def post_my_path_suggestion_job():
     enforce=True,
 )
 @intelligence_bp.route("/me/path-suggestion-jobs/<job_id>", methods=["GET"])
-@limiter.limit(POLL_LIMIT)
+@limiter.limit(PATH_SUGGESTION_POLL_LIMIT, key_func=_signed_in_user_key)
 @jwt_required()
 def get_my_path_suggestion_job(job_id: str):
     """GET /me/path-suggestion-jobs/{job_id} - poll a queued scoring.

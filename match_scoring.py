@@ -162,9 +162,11 @@ def record_fitted_run(db, cfg, weights, *, n_rows, notes=None):
     one JSON line) and in the fit report, where they are a diagnostic rather than
     an input.
 
-    A fully-masked confounder's weights come back AT THEIR PRIOR -- `industry` is
-    never supplied by the environment instrument, so its five level weights are
-    exported exactly as they went in. They are written unchanged rather than
+    A fully-masked confounder's weights come back AT THEIR PRIOR. Until 2026-10-01
+    the environment instrument never asked `industry`, so on any fit over only
+    those rows, or over rows where every respondent chose "not sure / prefer not
+    to say", its five level weights are exported exactly as they went in. Since
+    2026-10-01 a row that names its industry is unmasked and moves its own level. They are written unchanged rather than
     dropped: the row set is a contract, and a reader needs `notes` (not a missing
     row) to learn that the data said nothing about them.
     """

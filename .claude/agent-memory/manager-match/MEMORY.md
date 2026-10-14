@@ -1,0 +1,1 @@
+- [Audit 2026-10-02 findings](audit-2026-10-02-open-findings.md) — only F1 archetype fallthrough (77% "Operator") open; F2-F6/F8 fixed in fix wave; precheck 400 handed to core-assessments

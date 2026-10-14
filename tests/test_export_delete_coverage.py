@@ -165,6 +165,20 @@ COVERED: dict[str, str] = {
         "ever grows a free-text field -- a 'why' box on the panel -- which would make it "
         "pulse_events and would owe an export."
     ),
+    "path_narratives": (
+        "BUILD_PLAN W-16's own D-7 wiring, wired the day the table was created. deletion: "
+        "account_repository.delete_personal_rows destroys it (via "
+        "path_narrative_repository.delete_for_user) -- why_text is model-written prose ABOUT "
+        "the person ('uses your Python and SQL') and profile_dimensions are tags built from "
+        "their skills and archetype, so the row is free text about a person, and free text "
+        "is never retained de-identified (D-7b ruling, 2026-09-11): the path_fits answer, not "
+        "the pulse_checkins one. A narration still in flight at deletion stores nothing "
+        "(intelligence_service._account_deleted). Not exported, on path_fits' reasoning: a "
+        "stored sentence is a derived cache of a narrator run, recomputable from the profile, "
+        "and every input it was written from (skills, path_preferences, the assessment "
+        "results) already reaches export through the profile document; the sentences "
+        "themselves are on the page the user reads them on."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "

@@ -1,0 +1,19 @@
+P-16 CONTENT DEFECTS (second-reader findings; recorded, not fixed)
+
+PRE-FLAG BLOCK (Section 4) vs. my own sweep — build defects, direction noted:
+CD-1  [block OVER-counts] Section B: block says "six of the fifteen reviews name the company in their body text". Actual: five reviews (the six quoted phrases include two from the same review, the Senior LMS Manager one).
+CD-2  [block WRONG on E] Section E: block says "all three independent excerpts name the company; two also name the headquarters city and state". Actual: two of the three independent excerpts name the company (the "Posts on LinkedIn..." excerpt does not), and only one names the city/state. The block also misses that the tagged company-authored E excerpt carries the company name in its quote body.
+CD-3  [block MISSED, quote body] Block lists "Varun" under names "in page context but not quoted". Varun is named inside the section D quote body ("Varun's a standout technically..."). A scrubber trusting the block would have shipped a first name in a rater-facing quote. Scrubbed here as R3.
+CD-4  [block MISSED] Section A FAQ attribution descriptor ("What is the culture like at <company>?") carries the company name outside both quote body and URL; not in the block. Scrubbed.
+CD-5  [block MISSED] Section E attributions name the publication (GeekWire) in the byline and in the company-statement descriptor; the block covers bylines by person only. Reduced to "trade press".
+CD-6  [block MISSED] Section C ATS posting ids appear in URLs only here, but the block treats them as "re-identifying detail" without telling the scrubber to tokenise (A8 now covers it). Handled per A8.
+CD-7  [block MISSED] "85% of the Fortune 500" is flagged only as a searchable self-description, not as a figure under R6/A1. See judgment call JC-A in the run report.
+CD-8  [block does not reach] Section E "Bellevue, Wash." and the section A "Bengaluru" / "Chicago" place names are pre-flagged, but no site tokens are defined anywhere; five tokens were minted.
+
+PACKET CONTENT (Section 1):
+CD-9  Section D header says "Every passage below was published by the company on its own site, so the speakers are named employees". The last passage is attributed to an anonymous colleague, so not all speakers are named. Minor internal contradiction; header reproduced verbatim.
+CD-10 Section D header voice-composition line counts "six individual-contributor or peer voices and one engineering-leadership voice" = 7. The seventh listed passage (colleague describing a co-worker) is an unnamed third party, and the passage about an award (design lead) is a peer voice; the composition line does not mention the unnamed third-party voice. Minor.
+CD-11 Raw packet has no literal "build vX.Y" string: the BUILD RECORD says "prompt version : v4.11". The ANON header carries "build v4.11" derived from it (not invented).
+CD-12 Section 1 preamble and section B NOTE TO RATER describe a September 2026 leadership change as "public reporting". The only source in the packet's own research log is the company's newsroom; the NOTE states a fact no excerpt supports. Left as-is.
+CD-13 Section A first excerpt: "For more than 20 years" vs. Section F text "taken private in January 2025" and other dated facts are consistent; no date contradictions found. (Recorded to show the check was run.)
+Review count/header checks: section B declares 15 reviews and the NOTE says five are cut at "[…]"; five bullets carry "[…]" - match. A: 8 / header 5-8 match. B: 15 / 12-15 match. C: 10 / 6-10 match. D: 7 / 7 match. E: 4 (3 independent + 1 tagged) match. F: 0 / 0 match.

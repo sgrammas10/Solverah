@@ -72,13 +72,24 @@ services:
   # contract: retention/purge work (delivered outbox rows hold email addresses
   # and one-time codes — the PII-retention hole in the 2026-09 audit, gap 1).
   # 04:30 UTC is arbitrary off-peak; any daily time works.
+  #
+  # `flask retention cleanup` is chained on (2026-10-01): retention_cleanup.py's
+  # three rules -- abandoned intakes + their R2 resumes, audit-log IP/UA after
+  # 365 days, and R2 objects no row references. It still runs after the 03:30
+  # backup. `&&` means a crashed `retention run` skips it; the cron fails either
+  # way. Unlike `retention run` it needs the app's R2 variables -- S3_BUCKET_NAME,
+  # S3_ENDPOINT_URL, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY (S3_REGION optional,
+  # default "auto"). The solverah-prod group below carries them; the DASHBOARD
+  # cron must have them added by hand, and until it does cleanup exits non-zero
+  # by design (docs/RUNBOOK_SCENARIO_A_CRON.md, "Retention cleanup"). Change the
+  # dashboard command only after the runbook's dry run and the variables.
   - type: cron
     name: solverah-retention
     runtime: python
     branch: main
     schedule: "30 4 * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: flask retention run
+    startCommand: flask retention run && flask retention cleanup
     envVars:
       - fromGroup: solverah-prod
       - key: DATABASE_URL

@@ -1,0 +1,207 @@
+P-16 SCRUB DIFF — raw (-) above scrubbed (+), changed lines only. Line numbers refer to the raw packet.
+This file carries the removed strings; it is for the operator and must not go to raters.
+
+@@ raw line 23
+-    • "Systems don't innovate, people do. For more than 20 years, we've built a platform trusted by 85% of the Fortune 500 by putting brilliant people together and giving them room to run. Here, you'll own real decisions, push past what's expected, and make an impact felt across the industries that rely on this platform every day."  — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Systems don't innovate, people do. For more than 20 years, we've built a platform trusted by a large majority of the Fortune 500 by putting brilliant people together and giving them room to run. Here, you'll own real decisions, push past what's expected, and make an impact felt across the industries that rely on this platform every day."  — [careers page] — company voice — accessed 2026-10-02 — [identifying figure in quote body replaced with magnitude language; clause otherwise verbatim]
+
+@@ raw line 25
+-    • "Innovation doesn't have a time zone. From Bellevue to Bengaluru, our offices sit in the same places as the ideas shaping modern work — global tech hubs where the speed and scale that enterprises demand gets built every day." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Innovation doesn't have a time zone. From [Site A] to [Site D], our offices sit in the same places as the ideas shaping modern work — global tech hubs where the speed and scale that enterprises demand gets built every day." — [careers page] — company voice — accessed 2026-10-02 — [place name in quote body replaced with a site token; clause otherwise verbatim]
+
+@@ raw line 27
+-    • "Location, leveraged. Regardless of your region, our approach is built on flexibility. Depending on your role and team requirements, you’ll work where you’re most effective and that could be remote, in-office, or a hybrid of both." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Location, leveraged. Regardless of your region, our approach is built on flexibility. Depending on your role and team requirements, you’ll work where you’re most effective and that could be remote, in-office, or a hybrid of both." — [careers page] — company voice — accessed 2026-10-02
+
+@@ raw line 29
+-    • "Our Talent Development team provides targeted resources that fit into your workflow, ensuring you have the right skills exactly when you need them. Whether you’re looking to expand your expertise or take on new challenges, we provide the framework for you to build your future and carve your own path." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Our Talent Development team provides targeted resources that fit into your workflow, ensuring you have the right skills exactly when you need them. Whether you’re looking to expand your expertise or take on new challenges, we provide the framework for you to build your future and carve your own path." — [careers page] — company voice — accessed 2026-10-02
+
+@@ raw line 31
+-    • "Community is built from the inside out. Our eight Employee Resource Groups (ERGs) are open to all employees and provide community, mentorship, and support, while our Hub Champion and Volunteer Champion programs foster in-person connection in areas where our employees live." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Community is built from the inside out. Our eight Employee Resource Groups (ERGs) are open to all employees and provide community, mentorship, and support, while our [programme name stripped] and [programme name stripped] programs foster in-person connection in areas where our employees live." — [careers page] — company voice — accessed 2026-10-02 — [branded internal programme names in quote body replaced; clause otherwise verbatim]
+
+@@ raw line 33
+-    • "Smartsheet is built on the belief that great work happens when ambitious people have a shared mission to drive real change. Our collaborative culture brings together sharp, curious people who are genuinely motivated by solving complex problems without losing the joy of the journey. Smartsheet is where we work smarter, celebrate every win, and stay invested in individual and collective success." — [careers page, FAQ answer "What is the culture like at Smartsheet?"] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "[The company] is built on the belief that great work happens when ambitious people have a shared mission to drive real change. Our collaborative culture brings together sharp, curious people who are genuinely motivated by solving complex problems without losing the joy of the journey. [The company] is where we work smarter, celebrate every win, and stay invested in individual and collective success." — [careers page, FAQ answer "What is the culture like at [the company]?"] — company voice — accessed 2026-10-02 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; company name in attribution replaced with "[the company]"]
+
+@@ raw line 35
+-    • "Getting to help plan and show up in person for the Chicago hub confirmed what I’ve always suspected: the relationships you build across the organization are the ones that remind you why you showed up in the first place. Spending evenings with people from teams I hadn't worked with directly was proof that community is something you build on purpose." — [careers page, employee testimonial published by the company] — Courtney Crowley, named as Hub Champion — https://www.smartsheet.com/careers — accessed 2026-10-02
++    • "Getting to help plan and show up in person for the [Site E] hub confirmed what I’ve always suspected: the relationships you build across the organization are the ones that remind you why you showed up in the first place. Spending evenings with people from teams I hadn't worked with directly was proof that community is something you build on purpose." — [careers page, employee testimonial published by the company] — an employee, named as a [programme role stripped] — accessed 2026-10-02 — [place name in quote body replaced with a site token; clause otherwise verbatim; named human/publication in attribution replaced with role or class]
+
+@@ raw line 37
+-    • "We help employees reach their full potential by nurturing a supportive, respectful culture that cares about well-being — both in and outside of the workplace." — [about page] — Smartsheet, company voice — https://www.smartsheet.com/about — accessed 2026-10-02
++    • "We help employees reach their full potential by nurturing a supportive, respectful culture that cares about well-being — both in and outside of the workplace." — [about page] — company voice — accessed 2026-10-02
+
+@@ raw line 51
+-    • "Case work is the only thing they cared about, Management was burnt out and it showed. When it came to any sort of development for anyone in the department it never really came to fruition." — [employee review] — Tier 1 Technical Support, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/great-coworkers-bad-management?id=f71e35118fa4948d — 2026-08-27
++    • "Case work is the only thing they cared about, Management was burnt out and it showed. When it came to any sort of development for anyone in the department it never really came to fruition." — [employee review] — Tier 1 Technical Support, [Site A] — rev-01 — 2026-08-27 — [place in attribution replaced with a site token]
+
+@@ raw line 53
+-    • "Never enough training, large changes given without any forewarning, micro management, quantity over quality, laid off with no warning due to "business decision"" — [employee review] — Technical Support Representative, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/very-technical?id=dc6447acbd6050ed — 2026-04-01
++    • "Never enough training, large changes given without any forewarning, micro management, quantity over quality, laid off with no warning due to "business decision"" — [employee review] — Technical Support Representative, location not stated — rev-02 — 2026-04-01
+
+@@ raw line 55
+-    • "Great workplace. Quota is attainable and work life balance is very easy to manage. Remote work, nobody is on top of you or micromanaging you. Great place to work" — [employee review] — Sales Development Representative, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/great-workplace?id=fdf051e936b6c8cd — 2025-08-01
++    • "Great workplace. Quota is attainable and work life balance is very easy to manage. Remote work, nobody is on top of you or micromanaging you. Great place to work" — [employee review] — Sales Development Representative, location not stated — rev-03 — 2025-08-01
+
+@@ raw line 57
+-    • "I enjoyed working here, my job duties, my manager was good, and I made great relationships with my coworkers. Overtime, the changes the company made to their products, made it difficult for the sales department to it quota. It also made me question trying to promote to an AE." [sic — "to it quota"] — [employee review] — Business Development Representative, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/overall-good-experience-until-the-layoffs?id=021ed5b52fe71d61 — 2025-07-02
++    • "I enjoyed working here, my job duties, my manager was good, and I made great relationships with my coworkers. Overtime, the changes the company made to their products, made it difficult for the sales department to it quota. It also made me question trying to promote to an AE." [sic — "to it quota"] — [employee review] — Business Development Representative, Remote — rev-04 — 2025-07-02
+
+@@ raw line 59
+-    • "Great company to work for, but it is not doing well now with the private equity takeover. The assets of the company are its people and the autonomy to build impactful products." — [employee review] — Product Manager, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/great-company?id=67cab94c8f72d87c — 2025-06-16
++    • "Great company to work for, but it is not doing well now with the private equity takeover. The assets of the company are its people and the autonomy to build impactful products." — [employee review] — Product Manager, location not stated — rev-05 — 2025-06-16
+
+@@ raw line 61
+-    • "Above the line management doesn't listen to boots on the ground, quota way too high, sales tools are somewhat antiquated and it's difficult to be efficient, lots of change happening at all times, less than 20% hitting quota, average org attainment under 50%.Culture amongst teams is really great and […]" — [employee review] — Account Executive, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/decent-place-to-work-usually-recently-poor?id=eb340e9258f23e84 — 2024-12-10
++    • "Above the line management doesn't listen to boots on the ground, quota way too high, sales tools are somewhat antiquated and it's difficult to be efficient, lots of change happening at all times, less than 20% hitting quota, average org attainment under 50%.Culture amongst teams is really great and […]" — [employee review] — Account Executive, Remote — rev-06 — 2024-12-10
+
+@@ raw line 63
+-    • "Changes happening as company evolves.  Appreciate the effort being put into change management.  Pretty good alignment across major leadership group.  Some uncertainly coming with the acquisition at the end of the fiscal." [sic — "uncertainly"] — [employee review] — Sr. Manager, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/exciting-growth?id=dc6825dfdaeb8592 — 2024-12-03
++    • "Changes happening as company evolves.  Appreciate the effort being put into change management.  Pretty good alignment across major leadership group.  Some uncertainly coming with the acquisition at the end of the fiscal." [sic — "uncertainly"] — [employee review] — Sr. Manager, Remote — rev-07 — 2024-12-03
+
+@@ raw line 65
+-    • "The benefits at Smartsheet are incredible. Allowing employees to be fully remote also helps morale and work-life-balance. Unfortunately, management is constantly moving around and expectations are changing or unclear. Started being overworked toward the end of my time there." — [employee review] — Software Engineer, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/great-benefits-subpar-management?id=25e61043ce1a6c38 — 2024-12-02
++    • "The benefits at [the company] are incredible. Allowing employees to be fully remote also helps morale and work-life-balance. Unfortunately, management is constantly moving around and expectations are changing or unclear. Started being overworked toward the end of my time there." — [employee review] — Software Engineer, [Site A] — rev-08 — 2024-12-02 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; place in attribution replaced with a site token]
+
+@@ raw line 67
+-    • "Depending on the market category you're working, leads are decent. Nice people, not much training. Pay is on par with industry. Never seen the office as was all remote work which was nice." — [employee review] — Account Executive, Seattle, WA — https://www.indeed.com/cmp/Smartsheet/reviews/nice-people-decent-product?id=d62f57ca12d1bdff — 2024-10-22
++    • "Depending on the market category you're working, leads are decent. Nice people, not much training. Pay is on par with industry. Never seen the office as was all remote work which was nice." — [employee review] — Account Executive, [Site B] — rev-09 — 2024-10-22 — [place in attribution replaced with a site token]
+
+@@ raw line 69
+-    • "* **Management:** Our management team is supportive and fosters a collaborative environment. * **Workplace culture:** Smartsheet prioritizes innovation, teamwork, and work-life balance.* **Challenges:** Balancing feature development with technical debt and ensuring code quality can be demanding.* […]" [the asterisk and double-asterisk characters are in the source review text] — [employee review] — Senior Software Engineer, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/productive-and-fun-team?id=3acb8e2e78c0ad8a — 2024-10-02
++    • "* **Management:** Our management team is supportive and fosters a collaborative environment. * **Workplace culture:** [The company] prioritizes innovation, teamwork, and work-life balance.* **Challenges:** Balancing feature development with technical debt and ensuring code quality can be demanding.* […]" [the asterisk and double-asterisk characters are in the source review text] — [employee review] — Senior Software Engineer, Remote — rev-10 — 2024-10-02 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim]
+
+@@ raw line 71
+-    • "I feel I learn a lot in my role, and I truly enjoy my team (which has kept me here). I also love and believe in the core product. This year has been pretty volatile with changes in the leadership team, company-wide reorg, and layoffs. Now entering into an acquisition, which also carries uncertainty. […]" — [employee review] — Marketing Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/recent-shifts-in-leaders-and-culture?id=3f8ac643a79a8e9a — 2024-09-25
++    • "I feel I learn a lot in my role, and I truly enjoy my team (which has kept me here). I also love and believe in the core product. This year has been pretty volatile with changes in the leadership team, company-wide reorg, and layoffs. Now entering into an acquisition, which also carries uncertainty. […]" — [employee review] — Marketing Manager, [Site A] — rev-11 — 2024-09-25 — [place in attribution replaced with a site token]
+
+@@ raw line 73
+-    • "I worked at Smartsheet for 2 years, and my experience was a mix of positives and challenges.While Smartsheet offers competitive pay and flexibility in PTO, the heavy reliance on Outreach, challenging sales quotas, frequent price hikes on customers, and lack of knowledgeable managerial support were […]" — [employee review] — Client Development Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/good-pay-and-pto-but-challenges-with-sales-strategy-management-and-customer-pricing?id=076800e08266f4dc — 2024-08-27
++    • "I worked at [the company] for 2 years, and my experience was a mix of positives and challenges.While [the company] offers competitive pay and flexibility in PTO, the heavy reliance on Outreach, challenging sales quotas, frequent price hikes on customers, and lack of knowledgeable managerial support were […]" — [employee review] — Client Development Manager, [Site A] — rev-12 — 2024-08-27 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; place in attribution replaced with a site token]
+
+@@ raw line 75
+-    • "Smartsheet used to have a great culture. Unfortunately that culture has changed through various acquisitions and it has become extremely toxic in certain engineering orgs.  Pay is very good, but stress, burnout, and turnover is high. " — [employee review] — Engineering Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/toxic-workplace?id=70a26670cb5df1d1 — 2024-08-22
++    • "[The company] used to have a great culture. Unfortunately that culture has changed through various acquisitions and it has become extremely toxic in certain engineering orgs.  Pay is very good, but stress, burnout, and turnover is high. " — [employee review] — Engineering Manager, [Site A] — rev-13 — 2024-08-22 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; place in attribution replaced with a site token]
+
+@@ raw line 77
+-    • "Buen ambiente laboral en general exceptuando que el líder de equipo con el que trabajé era necio, controlador y muy cuadrado, al punto de que su forma de manejar a los empleados iba en contra de la cultura de la empresa y en sus consideraciones para con sus empleados. Normalmente nadie está encima de […]" [review written in Spanish; reproduced as posted, untranslated] — [employee review] — Technical Support Specialist, Heredia, Provincia de Heredia — https://www.indeed.com/cmp/Smartsheet/reviews/buen-ambiente-y-cultura-laboral-en-general-pero-con-cierto-personal-indeseable?id=62c18ba9972a7e8b — 2024-07-14
++    • "Buen ambiente laboral en general exceptuando que el líder de equipo con el que trabajé era necio, controlador y muy cuadrado, al punto de que su forma de manejar a los empleados iba en contra de la cultura de la empresa y en sus consideraciones para con sus empleados. Normalmente nadie está encima de […]" [review written in Spanish; reproduced as posted, untranslated] — [employee review] — Technical Support Specialist, [Site C] — rev-14 — 2024-07-14 — [place in attribution replaced with a site token]
+
+@@ raw line 79
+-    • "My experience working at Smartsheet has been immensely rewarding, both professionally and personally. Smartsheet, known for its collaborative work management platform, fosters a dynamic and inclusive work environment that promotes growth, innovation, and teamwork." — [employee review] — Senior LMS Manager, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/productive-environment-to-learn-leadership?id=5aa28e244e5be4fa — 2024-06-27
++    • "My experience working at [the company] has been immensely rewarding, both professionally and personally. [The company], known for its collaborative work management platform, fosters a dynamic and inclusive work environment that promotes growth, innovation, and teamwork." — [employee review] — Senior LMS Manager, Remote — rev-15 — 2024-06-27 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim]
+
+@@ raw line 83
+-    • "Own and continuously evolve onboarding as a living program, using data (onboarding survey results, time-to-productivity, and other signals) to identify what's working and iterate accordingly." — [job posting, talent-development function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8214194/talent-development-partner — confirmed open, accessed 2026-10-02
++    • "Own and continuously evolve onboarding as a living program, using data (onboarding survey results, time-to-productivity, and other signals) to identify what's working and iterate accordingly." — [job posting, talent-development function] — company voice — [posting 1] — confirmed open, accessed 2026-10-02
+
+@@ raw line 85
+-    • "This team practices mob programming for the majority of the workday. We operate through collective code ownership, meaning you'll be collaborating in real-time with teammates most of the time—not working solo on isolated tasks." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
++    • "This team practices mob programming for the majority of the workday. We operate through collective code ownership, meaning you'll be collaborating in real-time with teammates most of the time—not working solo on isolated tasks." — [job posting, software-engineering function] — company voice — [posting 2] — confirmed open, accessed 2026-10-02
+
+@@ raw line 87
+-    • "Collaborate via Mob Programming: Work closely with the team every day in a real-time development environment. Actively participate as both a driver and a navigator, asking questions, sharing ideas, and contributing directly to the team's collective code ownership." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
++    • "Collaborate via Mob Programming: Work closely with the team every day in a real-time development environment. Actively participate as both a driver and a navigator, asking questions, sharing ideas, and contributing directly to the team's collective code ownership." — [job posting, software-engineering function] — company voice — [posting 2] — confirmed open, accessed 2026-10-02
+
+@@ raw line 89
+-    • "Practice High-Quality Engineering: Use Test-Driven Development (TDD) to ensure our foundational systems are resilient before they ever touch production. Beyond the code, you will be an active participant in our team book clubs and psychologically safe retrospectives to help continuously elevate how we work." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
++    • "Practice High-Quality Engineering: Use Test-Driven Development (TDD) to ensure our foundational systems are resilient before they ever touch production. Beyond the code, you will be an active participant in our team book clubs and psychologically safe retrospectives to help continuously elevate how we work." — [job posting, software-engineering function] — company voice — [posting 2] — confirmed open, accessed 2026-10-02
+
+@@ raw line 91
+-    • "Participate in On-Call Rotations: Share responsibility for operational health of our systems as part of a supportive on-call rotation. You'll be ramped in gradually with experienced teammates available to help." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
++    • "Participate in On-Call Rotations: Share responsibility for operational health of our systems as part of a supportive on-call rotation. You'll be ramped in gradually with experienced teammates available to help." — [job posting, software-engineering function] — company voice — [posting 2] — confirmed open, accessed 2026-10-02
+
+@@ raw line 93
+-    • "Use AI tools: Actively use AI tools to improve personal and team efficiency across coding, testing, design, and troubleshooting, exploring AI integration opportunities within team processes and features, and coaching others on effective AI use" — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
++    • "Use AI tools: Actively use AI tools to improve personal and team efficiency across coding, testing, design, and troubleshooting, exploring AI integration opportunities within team processes and features, and coaching others on effective AI use" — [job posting, software-engineering function] — company voice — [posting 2] — confirmed open, accessed 2026-10-02
+
+@@ raw line 95
+-    • "You will be a proactive and curious member of the commercial sales team, identifying growth opportunities for clients before they identify a need or gap for themselves." — [job posting, commercial-sales function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8247017/account-executive-commercial-named-east — confirmed open, accessed 2026-10-02
++    • "You will be a proactive and curious member of the commercial sales team, identifying growth opportunities for clients before they identify a need or gap for themselves." — [job posting, commercial-sales function] — company voice — [posting 3] — confirmed open, accessed 2026-10-02
+
+@@ raw line 97
+-    • "Maintain accurate and up-to-date records in Salesforce leveraging MEDDICC qualification guidelines to accurately forecast" — [job posting, commercial-sales function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8247017/account-executive-commercial-named-east — confirmed open, accessed 2026-10-02
++    • "Maintain accurate and up-to-date records in Salesforce leveraging MEDDICC qualification guidelines to accurately forecast" — [job posting, commercial-sales function] — company voice — [posting 3] — confirmed open, accessed 2026-10-02
+
+@@ raw line 99
+-    • "Ensure product strategies and roadmaps are grounded in measurable customer and business outcomes, with clear success metrics and mechanisms for evaluating product health and value" — [job posting, product-management function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8233818/group-product-manager-corporate-systems — confirmed open, accessed 2026-10-02
++    • "Ensure product strategies and roadmaps are grounded in measurable customer and business outcomes, with clear success metrics and mechanisms for evaluating product health and value" — [job posting, product-management function] — company voice — [posting 4] — confirmed open, accessed 2026-10-02
+
+@@ raw line 101
+-    • "Create clarity across ambiguous or highly cross-functional initiatives where ownership, requirements, system boundaries, or desired outcomes are not immediately clear" — [job posting, product-management function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8233818/group-product-manager-corporate-systems — confirmed open, accessed 2026-10-02
++    • "Create clarity across ambiguous or highly cross-functional initiatives where ownership, requirements, system boundaries, or desired outcomes are not immediately clear" — [job posting, product-management function] — company voice — [posting 4] — confirmed open, accessed 2026-10-02
+
+@@ raw line 109
+-    • "Usually in many big companies, things move very slowly. Here, if you write a great piece of code on Tuesday, it can be working for users by Thursday. I didn’t expect a large company to operate with this kind of speed and energy." — [company blog, employee first person] — Kaloyan Gangov, Software Engineer II — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
++    • "Usually in many big companies, things move very slowly. Here, if you write a great piece of code on Tuesday, it can be working for users by Thursday. I didn’t expect a large company to operate with this kind of speed and energy." — [company blog, employee first person] — a Software Engineer II — 2026-03-30 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 111
+-    • "I expected it to be sprint after sprint, just shipping features. But, there’s genuine room to step back, question an approach, propose a better solution, and have that conversation taken seriously. Nobody is just executing tickets. [sic — the source opens this quotation and never closes it; no closing quotation mark appears before the attribution] — [company blog, employee first person] — Dimitar Gradev, Senior Software Engineer I — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
++    • "I expected it to be sprint after sprint, just shipping features. But, there’s genuine room to step back, question an approach, propose a better solution, and have that conversation taken seriously. Nobody is just executing tickets. [sic — the source opens this quotation and never closes it; no closing quotation mark appears before the attribution] — [company blog, employee first person] — a Senior Software Engineer I — 2026-03-30 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 113
+-    • "I expected more gates and approvals — instead, people are trusted to make real decisions and drive things forward. You can go from a doc to a decision to a shipped feature faster than most places would even finish the review process." — [company blog, engineering-leadership first person] — Kalin Kanev, Senior Director, Engineering — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
++    • "I expected more gates and approvals — instead, people are trusted to make real decisions and drive things forward. You can go from a doc to a decision to a shipped feature faster than most places would even finish the review process." — [company blog, engineering-leadership first person] — a Senior Director, Engineering — 2026-03-30 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 115
+-    • "As a software engineer here, you cover everything — cloud infrastructure, operations, security, development, observability, client escalations, helping customers get the most from our product. That breadth is exactly why I joined Smartsheet, and it’s the first company I’ve worked at where that wide range of expertise is not just welcomed but used daily." — [company blog, employee first person] — Georg-Nikola Pavlov, Senior Software Engineer I — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
++    • "As a software engineer here, you cover everything — cloud infrastructure, operations, security, development, observability, client escalations, helping customers get the most from our product. That breadth is exactly why I joined [the company], and it’s the first company I’ve worked at where that wide range of expertise is not just welcomed but used daily." — [company blog, employee first person] — a Senior Software Engineer I — 2026-03-30 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; named human/publication in attribution replaced with role or class]
+
+@@ raw line 117
+-    • "When we were deploying changes to production, we found that we had some issues with one of the features I was working on. I was stressed, but the team handled it really well — no blame, no egos, just a bunch of people trying to solve a problem as quickly as possible." — [company blog, employee first person] — Vasil Vasilev, Software Engineer II — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
++    • "When we were deploying changes to production, we found that we had some issues with one of the features I was working on. I was stressed, but the team handled it really well — no blame, no egos, just a bunch of people trying to solve a problem as quickly as possible." — [company blog, employee first person] — a Software Engineer II — 2026-03-30 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 119
+-    • "It was honestly a complete surprise, and I was really excited when I found out. To me, pushing past limits is about being willing to step into uncertainty, question the obvious answer, and keep exploring what might be possible. I’m also really grateful to my teammates, their support, trust, and willingness to challenge ideas and figure things out together are a big thing that makes this work possible." — [company blog, employee first person] — Manxue, named as principal design lead — https://www.smartsheet.com/content-center/get-to-know-our-magic-maker-award-winners — 2026-08-27
++    • "It was honestly a complete surprise, and I was really excited when I found out. To me, pushing past limits is about being willing to step into uncertainty, question the obvious answer, and keep exploring what might be possible. I’m also really grateful to my teammates, their support, trust, and willingness to challenge ideas and figure things out together are a big thing that makes this work possible." — [company blog, employee first person] — named as a principal design lead — 2026-08-27 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 121
+-    • "Varun’s a standout technically, but what really sets him apart is his approachability and willingness to think beyond the playbook. He prioritizes solving problems over following processes, and his sense of ownership is truly exceptional." — [company blog, unnamed colleague describing a co-worker] — anonymous colleague quoted by the company — https://www.smartsheet.com/content-center/get-to-know-our-magic-maker-award-winners — 2026-08-27
++    • "[The colleague]’s a standout technically, but what really sets him apart is his approachability and willingness to think beyond the playbook. He prioritizes solving problems over following processes, and his sense of ownership is truly exceptional." — [company blog, unnamed colleague describing a co-worker] — anonymous colleague quoted by the company — 2026-08-27 — [named human in quote body replaced with role placeholder; clause otherwise verbatim]
+
+@@ raw line 125
+-    • "Smartsheet is conducting more layoffs." — [press reporting] — Kurt Schlosser, GeekWire — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
++    • "[The company] is conducting more layoffs." — [press reporting] — trade press — 2026-02-04 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; named human/publication in attribution replaced with role or class]
+
+@@ raw line 127
+-    • "Posts on LinkedIn from affected workers and others at the company shed light on the cuts. Impacted employees include engineers, marketing managers, project managers, and others." — [press reporting] — Kurt Schlosser, GeekWire — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
++    • "Posts on LinkedIn from affected workers and others at the company shed light on the cuts. Impacted employees include engineers, marketing managers, project managers, and others." — [press reporting] — trade press — 2026-02-04 — [named human/publication in attribution replaced with role or class]
+
+@@ raw line 129
+-    • "Enterprise software giant Smartsheet on Thursday announced four C-suite changes — two hires and two promotions. The Bellevue, Wash., company, which is best known for helping businesses organize and track work, has undergone two rounds of layoffs in the past six months and appointed Rajeev Singh as CEO in October." — [press reporting] — Lisa Stiffler, GeekWire — https://www.geekwire.com/2026/tech-moves-smartsheet-adds-to-c-suite-armoire-gets-ml-lead-past-microsoft-director-launches-startup/ — 2026-03-27
++    • "Enterprise software giant [the company] on Thursday announced four C-suite changes — two hires and two promotions. The [Site A], company, which is best known for helping businesses organize and track work, has undergone two rounds of layoffs in the past six months and appointed [the chief executive] as CEO in October." — [press reporting] — trade press — 2026-03-27 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; place name in quote body replaced with a site token; clause otherwise verbatim; named human in quote body replaced with role placeholder; clause otherwise verbatim; named human/publication in attribution replaced with role or class]
+
+@@ raw line 131
+-    • [company-authored] "Smartsheet recently made organizational changes to better align our resources with our long-term business priorities," — Smartsheet company statement given to GeekWire and quoted inside its reporting — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
++    • [company-authored] "[The company] recently made organizational changes to better align our resources with our long-term business priorities," — company statement given to trade press and quoted inside its reporting — 2026-02-04 — [company name in quote body replaced with "[the company]"; clause otherwise verbatim; named human/publication in attribution replaced with role or class]
+
+MAPPING OF MINTED / ASSIGNED TOKENS (A6(a): lives here only)
+  [Site A] = Bellevue (also "Bellevue, WA", "Bellevue, Wash.")
+  [Site B] = Seattle, WA
+  [Site C] = Heredia, Provincia de Heredia
+  [Site D] = Bengaluru
+  [Site E] = Chicago
+  rev-01 = https://www.indeed.com/cmp/Smartsheet/reviews/great-coworkers-bad-management?id=f71e35118fa4948d
+  rev-02 = https://www.indeed.com/cmp/Smartsheet/reviews/very-technical?id=dc6447acbd6050ed
+  rev-03 = https://www.indeed.com/cmp/Smartsheet/reviews/great-workplace?id=fdf051e936b6c8cd
+  rev-04 = https://www.indeed.com/cmp/Smartsheet/reviews/overall-good-experience-until-the-layoffs?id=021ed5b52fe71d61
+  rev-05 = https://www.indeed.com/cmp/Smartsheet/reviews/great-company?id=67cab94c8f72d87c
+  rev-06 = https://www.indeed.com/cmp/Smartsheet/reviews/decent-place-to-work-usually-recently-poor?id=eb340e9258f23e84
+  rev-07 = https://www.indeed.com/cmp/Smartsheet/reviews/exciting-growth?id=dc6825dfdaeb8592
+  rev-08 = https://www.indeed.com/cmp/Smartsheet/reviews/great-benefits-subpar-management?id=25e61043ce1a6c38
+  rev-09 = https://www.indeed.com/cmp/Smartsheet/reviews/nice-people-decent-product?id=d62f57ca12d1bdff
+  rev-10 = https://www.indeed.com/cmp/Smartsheet/reviews/productive-and-fun-team?id=3acb8e2e78c0ad8a
+  rev-11 = https://www.indeed.com/cmp/Smartsheet/reviews/recent-shifts-in-leaders-and-culture?id=3f8ac643a79a8e9a
+  rev-12 = https://www.indeed.com/cmp/Smartsheet/reviews/good-pay-and-pto-but-challenges-with-sales-strategy-management-and-customer-pricing?id=076800e08266f4dc
+  rev-13 = https://www.indeed.com/cmp/Smartsheet/reviews/toxic-workplace?id=70a26670cb5df1d1
+  rev-14 = https://www.indeed.com/cmp/Smartsheet/reviews/buen-ambiente-y-cultura-laboral-en-general-pero-con-cierto-personal-indeseable?id=62c18ba9972a7e8b
+  rev-15 = https://www.indeed.com/cmp/Smartsheet/reviews/productive-environment-to-learn-leadership?id=5aa28e244e5be4fa
+  [posting 1] = ATS posting id 8214194
+  [posting 2] = ATS posting id 8239800
+  [posting 3] = ATS posting id 8247017
+  [posting 4] = ATS posting id 8233818
+
+SECTIONS 2-5 of the raw packet (lines 139-815) are not carried into the output; not diffed line by line.
+Header block (new) added above the SECTION 1 marker; raw BUILD RECORD (lines 1-9) replaced by it.

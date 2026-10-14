@@ -32,6 +32,9 @@ import hashlib
 import json
 from typing import Any, Dict, List, Optional
 
+import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 from model import PathFit, db
 
 __all__ = [
@@ -39,6 +42,7 @@ __all__ = [
     "delete_for_user",
     "fingerprint",
     "invalidate",
+    "purge_older_than",
     "read",
     "store",
 ]
@@ -121,26 +125,35 @@ def store(
     """Write the fit for this pair, replacing any earlier one.
 
     Does not commit -- the service owns the transaction boundary (see this
-    package's docstring).  Updates in place rather than deleting and inserting,
-    so the unique constraint is never momentarily violated by a concurrent
-    writer and the row's ``id`` is stable.
+    package's docstring).  One ``INSERT ... ON CONFLICT (user_id, onet_code) DO
+    UPDATE`` with no read first, so :func:`read`'s SELECT is the only one on the
+    miss path, and two first-time fits of one card converge on one row instead
+    of the second failing on the unique constraint after its four provider
+    calls.  An update keeps the row's ``id``.
+
+    The row comes back through ``RETURNING`` with ``populate_existing``, so a
+    copy :func:`read` already loaded into this session is refreshed rather than
+    left holding the fit this call replaced.
     """
-    row = PathFit.query.filter_by(user_id=user_id, onet_code=onet_code).first()
     now = datetime.datetime.now(datetime.timezone.utc)
-    if row is None:
-        db.session.add(
-            PathFit(
-                user_id=user_id,
-                onet_code=onet_code,
-                payload=payload,
-                profile_fingerprint=profile_fingerprint,
-                computed_at=now,
-            )
-        )
-        return
-    row.payload = payload
-    row.profile_fingerprint = profile_fingerprint
-    row.computed_at = now
+    statement = pg_insert(PathFit).values(
+        user_id=user_id,
+        onet_code=onet_code,
+        payload=payload,
+        profile_fingerprint=profile_fingerprint,
+        computed_at=now,
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=["user_id", "onet_code"],
+        set_={
+            "payload": statement.excluded.payload,
+            "profile_fingerprint": statement.excluded.profile_fingerprint,
+            "computed_at": statement.excluded.computed_at,
+        },
+    )
+    db.session.scalars(
+        statement.returning(PathFit), execution_options={"populate_existing": True}
+    ).one()
 
 
 def invalidate(user_id: int) -> None:
@@ -165,6 +178,22 @@ def delete_for_user(user_id: int) -> None:
     skill names, and free text is never retained de-identified.
     """
     PathFit.query.filter_by(user_id=user_id).delete()
+
+
+def purge_older_than(max_age: datetime.timedelta = MAX_AGE) -> int:
+    """Delete fits computed more than *max_age* ago, for every user.  Returns the count.
+
+    The other half of :func:`read`'s age rule: a row past :data:`MAX_AGE` is
+    never served, only overwritten if its user comes back to that card, so one
+    whose user never does is retention with no reader -- and
+    ``payload.matched_skills`` is the user's own typed skill names.  Run from
+    ``flask retention run`` (W-19).  Does not commit -- the command owns the
+    transaction.
+    """
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - max_age
+    table = PathFit.__table__
+    result = db.session.execute(sa.delete(table).where(table.c.computed_at < cutoff))
+    return result.rowcount or 0
 
 
 def list_for_user(user_id: int) -> List[PathFit]:

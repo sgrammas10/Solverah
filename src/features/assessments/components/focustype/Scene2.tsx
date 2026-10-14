@@ -3,14 +3,17 @@ import {
   DndContext,
   DragOverlay,
   rectIntersection,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDroppable,
   useDraggable,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import {
+  DRAGGABLE_TOUCH_STYLE,
+  containerKeyboardCoordinates,
+  useSceneSensors,
+} from "./dragSensors";
 
 // ---------------------------------------------------------------------------
 // Card data — IDs must match focus_type/score.py Scene 2 card sets
@@ -37,6 +40,36 @@ const CARDS: CardDef[] = [
 ];
 
 type ContainerId = "unassigned" | "now" | "later" | "ignore";
+
+/** Keyboard order: an arrow key moves a card one step along this list. */
+const CONTAINER_ORDER: readonly ContainerId[] = ["unassigned", "now", "later", "ignore"];
+const keyboardCoordinates = containerKeyboardCoordinates(CONTAINER_ORDER);
+
+const CONTAINER_NAMES: Record<ContainerId, string> = {
+  unassigned: "the unsorted pile",
+  now: "NOW",
+  later: "LATER",
+  ignore: "IGNORE",
+};
+
+function containerName(id: unknown): string {
+  return CONTAINER_NAMES[id as ContainerId] ?? "no bucket";
+}
+
+function cardName(id: unknown): string {
+  return CARDS.find((c) => c.id === id)?.label ?? "card";
+}
+
+const announcements: Announcements = {
+  onDragStart: ({ active }) => `Picked up ${cardName(active.id)}.`,
+  onDragOver: ({ active, over }) =>
+    `${cardName(active.id)} is over ${containerName(over?.id)}.`,
+  onDragEnd: ({ active, over }) =>
+    over
+      ? `${cardName(active.id)} dropped in ${containerName(over.id)}.`
+      : `${cardName(active.id)} put back.`,
+  onDragCancel: ({ active }) => `Cancelled. ${cardName(active.id)} put back.`,
+};
 
 interface Containers {
   unassigned: string[];
@@ -76,6 +109,7 @@ function DraggableCard({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      style={DRAGGABLE_TOUCH_STYLE}
       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border bg-white cursor-grab active:cursor-grabbing select-none transition-all ${
         isDragging
           ? "opacity-25 border-forest-light"
@@ -161,6 +195,7 @@ function DroppableBucket({
   return (
     <div
       ref={setNodeRef}
+      data-testid={`bucket-${id}`}
       className={`rounded-xl border-2 p-3 flex flex-col gap-2 min-h-[100px] transition-all duration-150 ${
         isOver
           ? "border-forest-dark bg-forest-pale/40 scale-[1.01]"
@@ -192,6 +227,7 @@ function UnassignedPile({ cards }: { cards: string[] }) {
   return (
     <div
       ref={setNodeRef}
+      data-testid="bucket-unassigned"
       className={`flex flex-col gap-2 min-h-[48px] rounded-xl p-1 transition-all duration-150 ${
         isOver ? "bg-cream-muted/60" : ""
       }`}
@@ -225,9 +261,7 @@ export default function Scene2({ onComplete }: Scene2Props) {
   });
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSceneSensors(keyboardCoordinates);
 
   const allPlaced = containers.unassigned.length === 0;
 
@@ -266,13 +300,19 @@ export default function Scene2({ onComplete }: Scene2Props) {
           <strong className="text-ink-primary">LATER</strong>, or{" "}
           <strong className="text-ink-primary">IGNORE</strong>.
         </p>
+        <p className="text-xs text-ink-tertiary">
+          On a touchscreen, press and hold a card to pick it up. With a keyboard,
+          Space picks a card up, the arrow keys move it, and Space puts it down.
+        </p>
       </div>
 
       <DndContext
         sensors={sensors}
         collisionDetection={rectIntersection}
+        accessibility={{ announcements }}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragCancel={() => setActiveId(null)}
       >
         <div className="flex flex-col sm:flex-row gap-5">
           {/* Unassigned pile */}

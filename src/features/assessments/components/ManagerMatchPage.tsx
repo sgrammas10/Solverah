@@ -7,12 +7,22 @@
  * a request open across the OpenAI call (A19). The succeeded job's `result` is
  * the same body the synchronous submit returned, so it is handed to
  * `setCachedResult` and the navigation is unchanged.
+ *
+ * A complete draft found on mount (a reload while the job ran, or a scoring
+ * that failed) is no longer re-enqueued blindly. That used to re-score a
+ * finished sitting on every later visit, spending an LLM call and replacing
+ * the stored narrative. The server is asked first: a stored result means the
+ * user goes to it and the draft is dropped; only the result route's 404 ("no
+ * result yet") lets the draft be scored. Any other answer goes to the results
+ * page, which owns its own error and retry, rather than risking a re-score.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMM } from "../useMM";
 import type { MMAnswer, MMResult } from "../useMM";
+import { isNoManagerMatchResult, useManagerMatchResult } from "../useManagerMatchResult";
+import { managerPlaybookKeys } from "../useManagerPlaybook";
 import { profileKeys } from "../../profile";
 import {
   isKnownScoringPhase,
@@ -22,6 +32,8 @@ import {
 } from "../useScoringJob";
 import { MM_QUESTIONS } from "../data/mmQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
+import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 
 /**
  * Only the two genuinely local UI phases remain. "Submitting" and "error" are
@@ -71,8 +83,20 @@ export default function ManagerMatchPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isRetake = (location.state as { retake?: boolean } | null)?.retake === true;
-  const { state, setAnswer, setCachedResult, reset } = useMM();
+  const { state, setAnswer, setCachedResult, clearAnswers, reset } = useMM();
   const queryClient = useQueryClient();
+
+  // Decided once, from what was on hand at mount: a complete draft with no
+  // result in memory. Only then is the server asked whether a result exists.
+  // Answering the 15th question later in this mount must not trigger it.
+  const [checkForStoredResult] = useState(
+    () =>
+      !isRetake &&
+      state.answers.length >= MM_QUESTIONS.length &&
+      !state.cachedResult
+  );
+  const storedResult = useManagerMatchResult({ enabled: checkForStoredResult });
+  const storedResultSettledRef = useRef(false);
 
   const startScoring = useStartScoringJob("manager_match");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -97,16 +121,13 @@ export default function ManagerMatchPage() {
   // which would carry prompt fragments and therefore the respondent's answers.
   const scoringError = jobFailed ? (job.data?.error ?? null) : null;
 
-  const [phase, setPhase] = useState<Phase>(() => {
-    if (isRetake) return 'intro';
-    if (state.answers.length > 0 && state.answers.length < 15) return 'questions';
-    return 'intro';
-  });
-
-  const [questionIndex, setQuestionIndex] = useState(() => {
-    if (isRetake) return 0;
-    return state.answers.length < 15 ? state.answers.length : 0;
-  });
+  // A part-finished draft used to resume silently. It now asks first: the
+  // shared resume prompt stands in for the intro until the user chooses.
+  const { showResumePrompt, dismissResumePrompt } = useResumePrompt(
+    () => !isRetake && state.answers.length > 0 && state.answers.length < MM_QUESTIONS.length
+  );
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const hasFiredRef = useRef(false);
   // Local accumulator — source of truth for the final submission payload.
@@ -118,16 +139,47 @@ export default function ManagerMatchPage() {
     if (isRetake) {
       reset();
       answersRef.current = [];
-    } else if (state.answers.length >= 15) {
-      if (state.cachedResult) {
-        navigate('/manager-match/results', { replace: true });
-      } else {
-        // Answers complete but no result (e.g. page reload, DB reset) — re-submit.
-        pendingAnswersRef.current = state.answers;
-        submitAnswers(state.answers);
-      }
+    } else if (state.answers.length >= MM_QUESTIONS.length && state.cachedResult) {
+      // The sitting is already scored; its draft has nothing left to resume.
+      clearAnswers();
+      navigate('/manager-match/results', { replace: true });
     }
+    // A complete draft without a result in memory is handled by the effect
+    // below, once the server has said whether one is stored.
   }, []); // intentionally runs once on mount
+
+  useEffect(() => {
+    if (!checkForStoredResult || storedResultSettledRef.current) return;
+    // An error left in the cache by an earlier visit survives the refetch this
+    // mount starts; wait for the fresh answer rather than act on the old one.
+    if (storedResult.isFetching) return;
+    if (storedResult.data) {
+      // Already scored: never enqueue another job over a stored result.
+      storedResultSettledRef.current = true;
+      clearAnswers();
+      navigate('/manager-match/results', { replace: true });
+    } else if (isNoManagerMatchResult(storedResult.error)) {
+      // Nothing stored (the reload landed before the job finished, or it
+      // failed): the draft is the only copy of these answers, so score it.
+      storedResultSettledRef.current = true;
+      pendingAnswersRef.current = state.answers;
+      submitAnswers(state.answers);
+    } else if (storedResult.error) {
+      // Unknown. Not a licence to re-score: the results page shows its own
+      // error with a retry, and its 404 sends the user back here.
+      storedResultSettledRef.current = true;
+      navigate('/manager-match/results', { replace: true });
+    }
+  // `clearAnswers`, `submitAnswers` and `state.answers` are read once, at the
+  // moment the check settles; the ref keeps this from acting twice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    checkForStoredResult,
+    storedResult.isFetching,
+    storedResult.data,
+    storedResult.error,
+    navigate,
+  ]);
 
   const submitAnswers = useCallback((answers: MMAnswer[]) => {
     if (hasFiredRef.current) return;
@@ -158,16 +210,24 @@ export default function ManagerMatchPage() {
     if (!data || data.status !== 'succeeded' || !data.result) return;
 
     setCachedResult(asMMResult(data.result));
+    // Scored: the draft has nothing left to resume, and left in storage it is
+    // what a later visit would find and (before the stored-result check)
+    // silently re-score.
+    clearAnswers();
     // The server has written this into the profile document, which is where
     // ManagerMatchResultsPage looks first (`profile.manager_match_result`).
     // Without this the results page reads a pre-completion copy for up to the
     // 60 s staleTime and falls through to a server fetch it did not need.
     queryClient.invalidateQueries({ queryKey: profileKeys.document() });
+    // The playbook is diffed against these needs, so a retake changes it. A
+    // cached copy would otherwise show the pre-retake playbook for up to the
+    // same 60 s staleTime.
+    queryClient.invalidateQueries({ queryKey: managerPlaybookKeys.all });
     // Detach from the finished job so re-renders before the navigation lands
     // early-return instead of repeating these side effects.
     setJobId(null);
     navigate('/manager-match/results');
-  }, [job.data, navigate, setCachedResult, queryClient]);
+  }, [job.data, navigate, setCachedResult, clearAnswers, queryClient]);
 
   function handleAnswer(choice: 'a' | 'b') {
     const question = MM_QUESTIONS[questionIndex];
@@ -183,6 +243,21 @@ export default function ManagerMatchPage() {
       pendingAnswersRef.current = answersRef.current;
       submitAnswers(answersRef.current);
     }
+  }
+
+  function handleResume() {
+    const answered = new Set(answersRef.current.map((a) => a.questionId));
+    setQuestionIndex(firstUnansweredIndex(MM_QUESTIONS, (q) => answered.has(q.id)));
+    setPhase('questions');
+    dismissResumePrompt();
+  }
+
+  function handleStartOver() {
+    reset();
+    answersRef.current = [];
+    setQuestionIndex(0);
+    setPhase('questions');
+    dismissResumePrompt();
   }
 
   function handleRetry() {
@@ -232,14 +307,48 @@ export default function ManagerMatchPage() {
     );
   }
 
+  // ── A complete draft: asking the server whether it is already scored ──
+  // Held here (not the intro) until the check settles: it either navigates
+  // away or starts the scoring, and either way the intro would only flash.
+  if (checkForStoredResult) {
+    return (
+      <div
+        className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4"
+        aria-live="polite"
+      >
+        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
+        <p className="text-sm text-ink-secondary">Checking for your results…</p>
+      </div>
+    );
+  }
+
+  // ── A saved draft: ask before resuming ──
+  if (showResumePrompt) {
+    return (
+      <div className="min-h-screen bg-cream-base">
+        <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
+          <ResumePrompt
+            title="ManagerMatch™"
+            answeredCount={state.answers.length}
+            total={MM_QUESTIONS.length}
+            onResume={handleResume}
+            onStartOver={handleStartOver}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── Intro ──
   if (phase === 'intro') {
     return (
       <div className="min-h-screen bg-cream-base">
         <div className="mx-auto max-w-lg px-6 pt-16 pb-20">
           <div className="space-y-8">
+            {/* Was "WorkPulse Pro": ManagerMatch is free and live, and Pro is
+                not purchasable yet, so the eyebrow no longer names a tier. */}
             <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-              WorkPulse Pro
+              Manager fit
             </p>
 
             <div className="space-y-4">

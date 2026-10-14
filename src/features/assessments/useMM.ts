@@ -5,8 +5,21 @@
  *
  * `answers` — sessionStorage, the source of truth for in-progress answers.
  * They have never been to the server, so no query can restore them; storage is
- * what carries them across the ManagerMatchPage → results navigation and a
- * mid-quiz reload.
+ * what carries them across a mid-quiz reload, and across a reload while the
+ * scoring job is still running.
+ *
+ * The draft is keyed by the signed-in user's id (`mm_answers:<id>`). It used
+ * to be one tab-wide `mm_answers` key, so a second account signing in on the
+ * same tab inherited the first account's draft, and ManagerMatchPage's
+ * resume-on-mount would then score those answers as the second user's. A
+ * pre-scoping `mm_answers` key is removed on sight rather than adopted: it has
+ * no owner to adopt it for. Without a user there is no key at all and the
+ * draft lives in memory only (the route sits behind `RequireAuth`, so that is
+ * a transient state, not a mode).
+ *
+ * The draft is cleared when a scoring succeeds (`clearAnswers`). A finished
+ * sitting has nothing left to resume, and leaving it behind is what let a
+ * later visit to `/manager-match` silently re-score it.
  *
  * `cachedResult` — the TanStack Query cache, under
  * `managerMatchResultKeys.result()`. This used to be a module-level singleton
@@ -20,6 +33,7 @@
 import { useState } from "react";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAuth } from "../auth";
 import { managerMatchResultKeys } from "./useManagerMatchResult";
 
 export interface MMAnswer {
@@ -41,11 +55,33 @@ export interface MMState {
   cachedResult: MMResult | null;
 }
 
-const STORAGE_KEY = "mm_answers";
+/**
+ * Prefix of every per-user draft key. Exported so a sign-out sweep can find
+ * the drafts without knowing which user wrote them.
+ */
+export const MM_DRAFT_KEY_PREFIX = "mm_answers:";
 
-function readAnswers(): MMAnswer[] {
+/** The unscoped key every draft used before it was keyed by user. */
+const LEGACY_STORAGE_KEY = "mm_answers";
+
+/** The draft key for `userId`, or null when nobody is signed in. */
+export function mmDraftKey(userId: string | null | undefined): string | null {
+  return userId ? `${MM_DRAFT_KEY_PREFIX}${userId}` : null;
+}
+
+function safeRemove(key: string) {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    sessionStorage.removeItem(key);
+  } catch {
+    // Storage unavailable: nothing persisted, so nothing to remove.
+  }
+}
+
+function readAnswers(key: string | null): MMAnswer[] {
+  safeRemove(LEGACY_STORAGE_KEY);
+  if (!key) return [];
+  try {
+    const raw = sessionStorage.getItem(key);
     return raw ? (JSON.parse(raw) as MMAnswer[]) : [];
   } catch {
     return [];
@@ -54,7 +90,19 @@ function readAnswers(): MMAnswer[] {
 
 export function useMM() {
   const queryClient = useQueryClient();
-  const [answers, setAnswers] = useState<MMAnswer[]>(readAnswers);
+  const { user } = useAuth();
+  const storageKey = mmDraftKey(user?.id);
+
+  const [answers, setAnswers] = useState<MMAnswer[]>(() => readAnswers(storageKey));
+  // A different user on the same mount (sign-out then sign-in without a
+  // remount) must not keep the previous user's in-memory answers. Adjusting
+  // state during render, not in an effect, so no render ever pairs one user's
+  // key with another user's answers.
+  const [loadedKey, setLoadedKey] = useState(storageKey);
+  if (loadedKey !== storageKey) {
+    setLoadedKey(storageKey);
+    setAnswers(readAnswers(storageKey));
+  }
 
   // Observer only — see the header. Data appears when a scoring job's result
   // is written here or when `useManagerMatchResult` fetches the stored copy.
@@ -71,7 +119,13 @@ export function useMM() {
       // Written through here rather than from an effect, so `reset()` removing
       // the key stays removed instead of being re-written as `[]`. Idempotent,
       // so Strict Mode re-running the updater is harmless.
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (storageKey) {
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify(next));
+        } catch {
+          // Storage full or blocked: the draft stays in memory for this mount.
+        }
+      }
       return next;
     });
   }
@@ -80,13 +134,19 @@ export function useMM() {
     queryClient.setQueryData(managerMatchResultKeys.result(), result);
   }
 
-  function reset() {
+  /** Drop the draft and keep any result. What a succeeded scoring calls. */
+  function clearAnswers() {
     setAnswers([]);
-    sessionStorage.removeItem(STORAGE_KEY);
+    if (storageKey) safeRemove(storageKey);
+  }
+
+  /** Drop the draft and the cached result. What a retake or "Start over" calls. */
+  function reset() {
+    clearAnswers();
     queryClient.removeQueries({ queryKey: managerMatchResultKeys.result() });
   }
 
   const state: MMState = { answers, cachedResult };
 
-  return { state, setAnswer, setCachedResult, reset };
+  return { state, setAnswer, setCachedResult, clearAnswers, reset };
 }

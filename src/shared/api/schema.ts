@@ -15,7 +15,9 @@ export interface paths {
         put?: never;
         /**
          * Stream a chat turn from the AI agent
-         * @description Responds with `text/event-stream`, not JSON: one `data: {"chunk": ...}` frame per token, then `data: {"done": true, "model": ...}`. A failure that happens mid-stream is delivered as a `data: {"error": ...}` frame on a 200, because the status line has already been sent.
+         * @description Responds with `text/event-stream`, not JSON: one `data: {"chunk": ...}` frame per token, then `data: {"done": true, "model": ...}`. A failure that happens mid-stream is delivered as a `data: {"error": ..., "code": "agent_stream_interrupted"}` frame on a 200, because the status line has already been sent. A stream that ends without `done` was cut off and its partial reply should be discarded.
+         *
+         *     The server picks the model; a `model` in the body is ignored. Roles are `user` and `assistant` only, the history is capped at 40 messages of 4,000 characters each, and the server may drop the oldest turns to fit its context budget.
          */
         post: operations["post_intelligence_agent_messages"];
         delete?: never;
@@ -111,7 +113,7 @@ export interface paths {
          * Queue an assessment scoring and return a job handle
          * @description The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          *
-         *     Only the three provider-scored instruments have this operation: `work_pulse`, `wpll`, `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them.
+         *     Only the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.
          *
          *     **This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.
          */
@@ -133,7 +135,7 @@ export interface paths {
          * Report the state of a queued assessment scoring
          * @description `{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).
          *
-         *     `wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. The other two scope the handle to the authenticated user.
+         *     `wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.
          */
         get: operations["get_assessments_assessment_kind_scoring_job_status"];
         put?: never;
@@ -157,7 +159,9 @@ export interface paths {
          * Submit a completed assessment
          * @description Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.
          *
-         *     The three provider-scored kinds -- `work_pulse`, `wpll`, `manager_match` -- answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it.
+         *     `core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.
+         *
+         *     The two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.
          */
         post: operations["post_assessments_assessment_kind_submit"];
         delete?: never;
@@ -597,7 +601,7 @@ export interface paths {
         };
         /**
          * Retrieve a stored assessment result
-         * @description `{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.
+         * @description `{kind}` selects the response shape, as on the submit route. Only `work_pulse`, `focus_type`, and `manager_match` store a re-readable result. `work_pulse` is the retired original instrument: its stored narrative stays readable here, read-only, and a sitting without one is a `404` like no sitting at all. `core` is absent by design rather than pending -- its scores are withheld from the submit response for a documented reason, and a read endpoint would be the same disclosure through another door.
          */
         get: operations["get_assessments_assessment_kind_result"];
         put?: never;
@@ -640,10 +644,11 @@ export interface paths {
         };
         /**
          * Summary statistics for the job-seeker dashboard
-         * @description GET /me/dashboard - profile completion, match count, application count.
+         * @description GET /me/dashboard - profile completion, counts, activity, next steps.
          *
-         *     recentActivity and recommendations are static placeholders until those
-         *     features exist; the three counts are live.
+         *     recentActivity is the caller's real events (newest first, ISO timestamps)
+         *     and recommendations their next unfinished steps; see
+         *     solverah.services.dashboard_feed. The three counts are live.
          */
         get: operations["get_me_get_my_dashboard"];
         put?: never;
@@ -665,7 +670,7 @@ export interface paths {
         put?: never;
         /**
          * Submit the environment-side instrument for the Situation Report
-         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10).
+         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.
          */
         post: operations["post_me_post_my_environment_report"];
         delete?: never;
@@ -769,7 +774,7 @@ export interface paths {
          * Rank companies by fit for the authenticated user
          * @description Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.
          *
-         *     Still an O(all-companies) in-process scan that can commit a backfill on the read path (P0-2). The cursor is what lets Phase 2 fix that behind an unchanged contract; it is not itself the fix.
+         *     Writes nothing. Still an O(all-companies) in-process scan (P0-2), of each company's id and eight culture columns only; names, slugs and industries are read afterwards for the returned page alone. The cursor is what lets that scan be replaced behind an unchanged contract; it is not itself the fix.
          */
         get: operations["get_companies_my_matches"];
         put?: never;
@@ -1018,9 +1023,10 @@ export interface paths {
          *     diffed against the stored parser snapshot to record ResumeParseCorrection
          *     rows for anything the user changed after a resume upload.
          *
-         *     Still a read-modify-write of a whole JSON column (P0-1), and still without a
-         *     version to check. Phase 2 is what fixes that; the envelope this returns is
-         *     where the version will go.
+         *     Two concurrent saves no longer lose one (P0-1, fixed in Phase 2a): the merge
+         *     runs under a server-side compare-and-swap on the profile's version and is
+         *     re-applied to a fresh read when another writer got there first. The version
+         *     is not exposed; the envelope this returns is where it would go.
          */
         patch: operations["patch_me_patch_my_profile"];
         trace?: never;
@@ -1036,7 +1042,7 @@ export interface paths {
         put?: never;
         /**
          * Submit a Pulse check-in
-         * @description The server derives both the sequence (`pulse_checkin_count`) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.
+         * @description The server derives both the sequence (`claim_checkin_sequence`, which counts the user's check-ins under a per-user lock held until the commit) and the three dimensions it must answer (`dimensions_for_checkin`) -- the client never chooses either. Posting a different dimension set, or a score outside 1..5, is refused `422` in problem+json rather than accepted or 500ing.
          */
         post: operations["post_me_post_my_pulse_checkin"];
         delete?: never;
@@ -1305,7 +1311,7 @@ export interface paths {
         };
         /**
          * Read the Situation Report
-         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads.
+         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
          */
         get: operations["get_me_get_my_situation_report"];
         put?: never;
@@ -1513,10 +1519,9 @@ export interface components {
             /**
              * Role
              * @description "user" or "assistant".
+             * @enum {string}
              */
-            role: string;
-        } & {
-            [key: string]: unknown;
+            role: "user" | "assistant";
         };
         /**
          * AgentMessagesRequest
@@ -1530,15 +1535,9 @@ export interface components {
         AgentMessagesRequest: {
             /**
              * Messages
-             * @description Full conversation history; must be non-empty.
+             * @description Conversation history, oldest first; must be non-empty. The server may drop the oldest turns to fit its context budget.
              */
             messages: components["schemas"]["AgentChatMessage"][];
-            /**
-             * Model
-             * @description Groq model. Defaults to "llama-3.1-8b-instant".
-             * @default null
-             */
-            model: string | null;
         };
         /**
          * AssessmentCatalogueEntry
@@ -1608,14 +1607,14 @@ export interface components {
         };
         /**
          * AssessmentScoringJobStatus
-         * @description Documentation-only union of the three poll responses.
+         * @description Documentation-only union of the two poll responses.
          *
          *     Which member comes back is determined by ``{kind}`` in the path, not by
          *     anything in the body -- the same reason ``AssessmentSubmissionResponse``
          *     cannot be an OpenAPI discriminated union.  Do not validate against this;
          *     validate against :data:`SCORING_JOB_RESPONSES`.
          */
-        AssessmentScoringJobStatus: components["schemas"]["WorkPulseScoringJobStatus"] | components["schemas"]["WpllScoringJobStatus"] | components["schemas"]["ManagerMatchScoringJobStatus"];
+        AssessmentScoringJobStatus: components["schemas"]["WpllScoringJobStatus"] | components["schemas"]["ManagerMatchScoringJobStatus"];
         /**
          * AssessmentSubmissionRequest
          * @description Documentation-only union of the five submission bodies.
@@ -1625,7 +1624,7 @@ export interface components {
          *     that fits -- which is precisely why the route enforces
          *     :data:`SUBMISSION_REQUESTS` per kind rather than this.
          */
-        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["WorkPulseSubmitRequest"] | components["schemas"]["WpllSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
+        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["WpllSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
         /**
          * AssessmentSubmissionResponse
          * @description Documentation-only union of the five submission results.
@@ -1836,10 +1835,14 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
-        /** DashboardActivity */
+        /**
+         * DashboardActivity
+         * @description One real event: the newest of its source (see ``dashboard_repository``).
+         */
         DashboardActivity: {
             /**
              * Icon
+             * @description A lucide icon name the dashboard maps.
              * @default null
              */
             icon: string | null;
@@ -1850,18 +1853,23 @@ export interface components {
             text: string | null;
             /**
              * Time
+             * @description ISO-8601 UTC timestamp of the event. The client humanizes it.
              * @default null
              */
             time: string | null;
             /**
              * Type
+             * @description "assessment", "pulse" or "profile".
              * @default null
              */
             type: string | null;
         } & {
             [key: string]: unknown;
         };
-        /** DashboardRecommendation */
+        /**
+         * DashboardRecommendation
+         * @description One unfinished next step, most important first.
+         */
         DashboardRecommendation: {
             /**
              * Action
@@ -1875,11 +1883,19 @@ export interface components {
             description: string | null;
             /**
              * Href
+             * @description An SPA route.
              * @default null
              */
             href: string | null;
             /**
+             * Id
+             * @description Stable rule name, e.g. "career_status", "work_pulse", "pulse".
+             * @default null
+             */
+            id: string | null;
+            /**
              * Priority
+             * @description "urgent" or "normal".
              * @default null
              */
             priority: string | null;
@@ -1895,8 +1911,10 @@ export interface components {
          * DashboardResponse
          * @description Job-seeker dashboard summary.
          *
-         *     ``recentActivity`` and ``recommendations`` are static placeholders in the
-         *     current implementation; the three counts are live.
+         *     ``recentActivity`` (at most five, newest first) and ``recommendations`` (every
+         *     step that applies, most important first; the dashboard shows three after
+         *     dropping those its other cards already link to) are derived from the
+         *     caller's own rows; the counts are live.
          */
         DashboardResponse: {
             /** Applications */
@@ -1975,10 +1993,23 @@ export interface components {
              */
             experienced: number;
             /**
+             * Industry
+             * @description The organization's industry, one of the causal model's `industry` levels, or null (or absent) for 'not sure / prefer not to say'.
+             * @default null
+             */
+            industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
+            /**
              * Stage Size
              * @description 1 (seed) .. 5 (enterprise).
              */
             stage_size: number;
+            /**
+             * Subject
+             * @description Which job this report describes: 'current' (the default -- the current or most recent job) or 'past' (the one job before that). A past report is accepted once per user, only after a current report exists, and never for first_job; it never changes the Situation Report.
+             * @default current
+             * @enum {string}
+             */
+            subject: "current" | "past";
         };
         /**
          * EnvironmentReportSubmitResponse
@@ -2000,8 +2031,18 @@ export interface components {
             };
             /** Experienced */
             experienced: number;
+            /**
+             * Industry
+             * @default null
+             */
+            industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
             /** Stage Size */
             stage_size: number;
+            /**
+             * Subject
+             * @enum {string}
+             */
+            subject: "current" | "past";
             /** Version */
             version: string;
         };
@@ -2038,7 +2079,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2106,7 +2147,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2156,7 +2197,7 @@ export interface components {
             started_at: string;
             /**
              * Status
-             * @description 'active' or 'abandoned' -- the stored fact.
+             * @description 'active', 'completed' or 'abandoned' -- the stored fact. 'completed' is written once ends_at has passed, so an ended experiment never blocks the next start.
              */
             status: string;
         };
@@ -2197,7 +2238,10 @@ export interface components {
          *     rather than a second, export-specific shape.
          */
         ExportedEnvironmentReport: {
-            /** Career Status */
+            /**
+             * Career Status
+             * @description The user's career status when they filed -- on a 'past' report, not the past job's.
+             */
             career_status: string;
             /**
              * Comp
@@ -2217,12 +2261,24 @@ export interface components {
             experienced_outcome: number;
             /** Id */
             id: number;
+            /**
+             * Industry
+             * @description Industry level key, or null: 'not sure' or, before env-v2, never asked.
+             * @default null
+             */
+            industry: string | null;
             /** Raw Answers */
             raw_answers?: {
                 [key: string]: unknown;
             };
             /** Stage Size */
             stage_size: number;
+            /**
+             * Subject
+             * @description Which job the report describes: 'current' (the current or most recent job) or 'past' (the one before it).
+             * @enum {string}
+             */
+            subject: "current" | "past";
             /**
              * Submitted At
              * @description ISO 8601 timestamp.
@@ -2936,6 +2992,26 @@ export interface components {
              */
             error: string;
         };
+        /**
+         * LlmErrorResponse
+         * @description A failure from an LLM-backed route.
+         *
+         *     ``error`` is generic, user-facing text; ``code`` is stable and
+         *     machine-readable. The provider's own exception text, its name, and the model
+         *     id are logged server-side and never sent (2026-10-02 audit #4).
+         */
+        LlmErrorResponse: {
+            /**
+             * Code
+             * @description "insight_generation_failed", "insight_malformed", "agent_unavailable", "agent_model_unavailable", or "agent_failed".
+             */
+            code: string;
+            /**
+             * Error
+             * @description Human-readable failure message.
+             */
+            error: string;
+        };
         /** LoginRequest */
         LoginRequest: {
             /** Email */
@@ -3308,6 +3384,12 @@ export interface components {
              * @description ISO 8601 UTC, second precision.
              */
             generated_at: string;
+            /**
+             * Narration Pending
+             * @description W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` "" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.
+             * @default false
+             */
+            narration_pending: boolean;
             /** Suggestions */
             suggestions?: components["schemas"]["PathSuggestion"][];
         } & {
@@ -3372,7 +3454,7 @@ export interface components {
             narrative: string | null;
             /**
              * Onet Calls
-             * @description O*NET requests this fit cost. Four unless a call failed.
+             * @description O*NET requests this fit cost. Zero when the fit sidecar has the occupation (the normal case since W-9); otherwise four, unless a call failed.
              */
             onet_calls: number;
             /** Onet Code */
@@ -3391,7 +3473,7 @@ export interface components {
             tasks?: string[];
             /**
              * Tech Stack
-             * @description Hot technologies, most in-demand first.
+             * @description Hot technologies, most in-demand first, leaving out any already listed in matched_skills or gap_skills. A name O*NET spells out in full before its acronym shows as the acronym alone (for example 'HTML').
              */
             tech_stack?: string[];
             /** Title */
@@ -3524,6 +3606,11 @@ export interface components {
              */
             onet_code: string | null;
             /**
+             * Overlapping Skills
+             * @description W-16, additive. The user's own skills this occupation uses, as the scorer found them -- the same list the narrator is handed and the fallback sentence is built from. Carried on the card because the fallback can now be written after the card (when a narration fails or never lands). Not rendered by the SPA.
+             */
+            overlapping_skills?: string[];
+            /**
              * Profile Dimensions
              * @description Which parts of the profile drove the match.
              * @default null
@@ -3535,13 +3622,19 @@ export interface components {
              */
             reasons?: string[];
             /**
+             * Summary
+             * @description W-18, additive. O*NET's own description of this occupation, first sentence only, capped at about 200 characters on a clause boundary. Static per occupation and filled at scoring time, so it is present on the first poll that carries cards, before any `why_text`. Empty when the server has no summaries sidecar; the SPA then shows no summary line.
+             * @default
+             */
+            summary: string;
+            /**
              * Title
              * @default null
              */
             title: string | null;
             /**
              * Why Text
-             * @description LLM-generated rationale for this path.
+             * @description LLM-generated rationale for this path. Empty while the response's `narration_pending` is true and this card's sentence has not landed.
              * @default null
              */
             why_text: string | null;
@@ -3599,7 +3692,7 @@ export interface components {
             result: components["schemas"]["PathSuggestionsResponse"] | null;
             /**
              * Status
-             * @description queued, running, succeeded or failed. The last two are terminal.
+             * @description queued, running, succeeded or failed. The last two are terminal for the job. W-16: `succeeded` now arrives as soon as the list is scored; while `result.narration_pending` is true the result is still being updated in place with the cards' sentences, so a client keeps polling until it is false.
              */
             status: string;
         } & {
@@ -3631,6 +3724,12 @@ export interface components {
              * @description ISO 8601 UTC, second precision.
              */
             generated_at: string;
+            /**
+             * Narration Pending
+             * @description W-16, additive. True while at least one card's `why_text` is still being written: the list is scored and shown first, and the narrator's sentences land a few seconds later. A card waiting on one has `why_text` "" and `profile_dimensions` []; the client shows a placeholder line for it and keeps polling. It becomes false when the narration lands (sentences filled in place, order unchanged), when it fails (the fallback sentence instead), or -- if the worker running it died -- on the first read more than 60 s after `generated_at`, which serves the fallback sentences. False on every payload written before W-16.
+             * @default false
+             */
+            narration_pending: boolean;
             /** Suggestions */
             suggestions?: components["schemas"]["PathSuggestion"][];
         };
@@ -4130,7 +4229,9 @@ export interface components {
          * @description Quizzes to generate insights for.
          *
          *     A quiz with no key, no title, or no answered items is discarded before the
-         *     model is called; if that leaves nothing, the request is a 400.
+         *     model is called; if that leaves nothing, the request is a 400. Counts and
+         *     lengths are capped (a 422 past them) on the signed-in and the anonymous
+         *     endpoint alike, since both pay for the same completion.
          */
         QuizInsightsRequest: {
             /** Quizgroup */
@@ -4564,6 +4665,11 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * Past Job Report Filed
+             * @description Whether the user has filed their one past-job environment report (subject 'past'). Present in every state; a past report never changes anything else in this response.
+             */
+            past_job_report_filed: boolean;
+            /**
              * State
              * @description One of 'needs_core', 'needs_environment_report', 'complete'.
              */
@@ -4651,11 +4757,13 @@ export interface components {
         };
         /**
          * WorkPulseResult
-         * @description Work Pulse narrative result.
+         * @description The retired original Work Pulse's narrative result.
          *
          *     Persisted to ``assessment_submissions.result`` since Phase 2d --
          *     ``user_intake.wpl_result`` before it -- and returned verbatim by
-         *     ``GET /me/assessments/work_pulse/result``.
+         *     ``GET /me/assessments/work_pulse/result``. Read-only since the instrument
+         *     was retired on 2026-10-02: nothing writes a new one, and its submit body
+         *     and job-status models are deleted with the write doors.
          */
         WorkPulseResult: {
             /** Archetype */
@@ -4671,40 +4779,6 @@ export interface components {
             narrative: string;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * WorkPulseScoringJobStatus
-         * @description ``GET /assessments/work_pulse/scoring-jobs/{job_id}``.
-         */
-        WorkPulseScoringJobStatus: {
-            /**
-             * Error
-             * @description Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.
-             * @default null
-             */
-            error: string | null;
-            /** Job Id */
-            job_id: string;
-            /**
-             * @description Present only on 'succeeded'.
-             * @default null
-             */
-            result: components["schemas"]["WorkPulseResult"] | null;
-            /**
-             * Status
-             * @description queued, running, succeeded or failed. The last two are terminal.
-             */
-            status: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /** WorkPulseSubmitRequest */
-        WorkPulseSubmitRequest: {
-            /**
-             * Answers
-             * @description Exactly 12 answers.
-             */
-            answers: components["schemas"]["WorkPulseAnswer"][];
         };
         /** WpllAnswer */
         WpllAnswer: {
@@ -4818,7 +4892,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Internal server error */
@@ -4827,7 +4901,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Service unavailable */
@@ -4836,7 +4910,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -5030,6 +5104,15 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Unexpected error (RFC 9457 problem document) */
             default: {
                 headers: {
@@ -5069,6 +5152,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -5122,6 +5214,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Gone */
@@ -5793,13 +5894,22 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -6059,15 +6169,6 @@ export interface operations {
             };
             /** @description Not found */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Validation failed */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7448,13 +7549,22 @@ export interface operations {
                     "application/json": components["schemas"]["LegacyError"];
                 };
             };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
             /** @description Internal server error */
             500: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["LlmErrorResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */

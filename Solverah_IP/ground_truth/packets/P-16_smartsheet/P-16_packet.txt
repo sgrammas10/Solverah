@@ -1,0 +1,815 @@
+BUILD RECORD
+  prompt version : v4.11
+  model          : claude-opus-5   (configured model ID for this session; the session also
+                   declares fallbacks claude-opus-5-5[1m] and claude-opus-4-8[1m], so the
+                   serving model for a given turn is not independently verifiable from inside
+                   the session. No marketing alias is given.)
+  built          : 2026-10-02
+  environment    : clean session, one company, no prior packet context
+  assisted       : NO
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+   The employee reviews in this packet come from technical support, sales (sales development,
+   business development, account executive and client development), software engineering at
+   individual-contributor and manager level, product management, marketing and
+   learning-and-development roles. Other parts of this company — professional services and
+   consulting, customer success, finance and accounting, legal, security, IT, workplace
+   services and user experience — are not represented in them. Company-authored sources
+   describe the whole organisation.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Systems don't innovate, people do. For more than 20 years, we've built a platform trusted by 85% of the Fortune 500 by putting brilliant people together and giving them room to run. Here, you'll own real decisions, push past what's expected, and make an impact felt across the industries that rely on this platform every day."  — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Innovation doesn't have a time zone. From Bellevue to Bengaluru, our offices sit in the same places as the ideas shaping modern work — global tech hubs where the speed and scale that enterprises demand gets built every day." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Location, leveraged. Regardless of your region, our approach is built on flexibility. Depending on your role and team requirements, you’ll work where you’re most effective and that could be remote, in-office, or a hybrid of both." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Our Talent Development team provides targeted resources that fit into your workflow, ensuring you have the right skills exactly when you need them. Whether you’re looking to expand your expertise or take on new challenges, we provide the framework for you to build your future and carve your own path." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Community is built from the inside out. Our eight Employee Resource Groups (ERGs) are open to all employees and provide community, mentorship, and support, while our Hub Champion and Volunteer Champion programs foster in-person connection in areas where our employees live." — [careers page] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Smartsheet is built on the belief that great work happens when ambitious people have a shared mission to drive real change. Our collaborative culture brings together sharp, curious people who are genuinely motivated by solving complex problems without losing the joy of the journey. Smartsheet is where we work smarter, celebrate every win, and stay invested in individual and collective success." — [careers page, FAQ answer "What is the culture like at Smartsheet?"] — Smartsheet, company voice — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "Getting to help plan and show up in person for the Chicago hub confirmed what I’ve always suspected: the relationships you build across the organization are the ones that remind you why you showed up in the first place. Spending evenings with people from teams I hadn't worked with directly was proof that community is something you build on purpose." — [careers page, employee testimonial published by the company] — Courtney Crowley, named as Hub Champion — https://www.smartsheet.com/careers — accessed 2026-10-02
+
+   • "We help employees reach their full potential by nurturing a supportive, respectful culture that cares about well-being — both in and outside of the workplace." — [about page] — Smartsheet, company voice — https://www.smartsheet.com/about — accessed 2026-10-02
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+   NOTE TO RATER: Five of the fifteen reviews below (one in three) were cut off by the review
+   site itself at roughly 300 characters and are shown here only up to that cut, marked […].
+   The cut falls on the longest reviews, so the most detailed accounts in this section are the
+   ones you are reading only the opening of, and the short reviews are the ones that survive
+   whole.
+
+   NOTE TO RATER: The newest review below is dated 2026-08-27. Public reporting places a
+   further change in regional leadership at this company in September 2026, after that date, so
+   no review here describes the organisation as it stands after that change.
+
+   • "Case work is the only thing they cared about, Management was burnt out and it showed. When it came to any sort of development for anyone in the department it never really came to fruition." — [employee review] — Tier 1 Technical Support, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/great-coworkers-bad-management?id=f71e35118fa4948d — 2026-08-27
+
+   • "Never enough training, large changes given without any forewarning, micro management, quantity over quality, laid off with no warning due to "business decision"" — [employee review] — Technical Support Representative, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/very-technical?id=dc6447acbd6050ed — 2026-04-01
+
+   • "Great workplace. Quota is attainable and work life balance is very easy to manage. Remote work, nobody is on top of you or micromanaging you. Great place to work" — [employee review] — Sales Development Representative, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/great-workplace?id=fdf051e936b6c8cd — 2025-08-01
+
+   • "I enjoyed working here, my job duties, my manager was good, and I made great relationships with my coworkers. Overtime, the changes the company made to their products, made it difficult for the sales department to it quota. It also made me question trying to promote to an AE." [sic — "to it quota"] — [employee review] — Business Development Representative, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/overall-good-experience-until-the-layoffs?id=021ed5b52fe71d61 — 2025-07-02
+
+   • "Great company to work for, but it is not doing well now with the private equity takeover. The assets of the company are its people and the autonomy to build impactful products." — [employee review] — Product Manager, location not stated — https://www.indeed.com/cmp/Smartsheet/reviews/great-company?id=67cab94c8f72d87c — 2025-06-16
+
+   • "Above the line management doesn't listen to boots on the ground, quota way too high, sales tools are somewhat antiquated and it's difficult to be efficient, lots of change happening at all times, less than 20% hitting quota, average org attainment under 50%.Culture amongst teams is really great and […]" — [employee review] — Account Executive, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/decent-place-to-work-usually-recently-poor?id=eb340e9258f23e84 — 2024-12-10
+
+   • "Changes happening as company evolves.  Appreciate the effort being put into change management.  Pretty good alignment across major leadership group.  Some uncertainly coming with the acquisition at the end of the fiscal." [sic — "uncertainly"] — [employee review] — Sr. Manager, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/exciting-growth?id=dc6825dfdaeb8592 — 2024-12-03
+
+   • "The benefits at Smartsheet are incredible. Allowing employees to be fully remote also helps morale and work-life-balance. Unfortunately, management is constantly moving around and expectations are changing or unclear. Started being overworked toward the end of my time there." — [employee review] — Software Engineer, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/great-benefits-subpar-management?id=25e61043ce1a6c38 — 2024-12-02
+
+   • "Depending on the market category you're working, leads are decent. Nice people, not much training. Pay is on par with industry. Never seen the office as was all remote work which was nice." — [employee review] — Account Executive, Seattle, WA — https://www.indeed.com/cmp/Smartsheet/reviews/nice-people-decent-product?id=d62f57ca12d1bdff — 2024-10-22
+
+   • "* **Management:** Our management team is supportive and fosters a collaborative environment. * **Workplace culture:** Smartsheet prioritizes innovation, teamwork, and work-life balance.* **Challenges:** Balancing feature development with technical debt and ensuring code quality can be demanding.* […]" [the asterisk and double-asterisk characters are in the source review text] — [employee review] — Senior Software Engineer, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/productive-and-fun-team?id=3acb8e2e78c0ad8a — 2024-10-02
+
+   • "I feel I learn a lot in my role, and I truly enjoy my team (which has kept me here). I also love and believe in the core product. This year has been pretty volatile with changes in the leadership team, company-wide reorg, and layoffs. Now entering into an acquisition, which also carries uncertainty. […]" — [employee review] — Marketing Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/recent-shifts-in-leaders-and-culture?id=3f8ac643a79a8e9a — 2024-09-25
+
+   • "I worked at Smartsheet for 2 years, and my experience was a mix of positives and challenges.While Smartsheet offers competitive pay and flexibility in PTO, the heavy reliance on Outreach, challenging sales quotas, frequent price hikes on customers, and lack of knowledgeable managerial support were […]" — [employee review] — Client Development Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/good-pay-and-pto-but-challenges-with-sales-strategy-management-and-customer-pricing?id=076800e08266f4dc — 2024-08-27
+
+   • "Smartsheet used to have a great culture. Unfortunately that culture has changed through various acquisitions and it has become extremely toxic in certain engineering orgs.  Pay is very good, but stress, burnout, and turnover is high. " — [employee review] — Engineering Manager, Bellevue, WA — https://www.indeed.com/cmp/Smartsheet/reviews/toxic-workplace?id=70a26670cb5df1d1 — 2024-08-22
+
+   • "Buen ambiente laboral en general exceptuando que el líder de equipo con el que trabajé era necio, controlador y muy cuadrado, al punto de que su forma de manejar a los empleados iba en contra de la cultura de la empresa y en sus consideraciones para con sus empleados. Normalmente nadie está encima de […]" [review written in Spanish; reproduced as posted, untranslated] — [employee review] — Technical Support Specialist, Heredia, Provincia de Heredia — https://www.indeed.com/cmp/Smartsheet/reviews/buen-ambiente-y-cultura-laboral-en-general-pero-con-cierto-personal-indeseable?id=62c18ba9972a7e8b — 2024-07-14
+
+   • "My experience working at Smartsheet has been immensely rewarding, both professionally and personally. Smartsheet, known for its collaborative work management platform, fosters a dynamic and inclusive work environment that promotes growth, innovation, and teamwork." — [employee review] — Senior LMS Manager, Remote — https://www.indeed.com/cmp/Smartsheet/reviews/productive-environment-to-learn-leadership?id=5aa28e244e5be4fa — 2024-06-27
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+   • "Own and continuously evolve onboarding as a living program, using data (onboarding survey results, time-to-productivity, and other signals) to identify what's working and iterate accordingly." — [job posting, talent-development function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8214194/talent-development-partner — confirmed open, accessed 2026-10-02
+
+   • "This team practices mob programming for the majority of the workday. We operate through collective code ownership, meaning you'll be collaborating in real-time with teammates most of the time—not working solo on isolated tasks." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
+
+   • "Collaborate via Mob Programming: Work closely with the team every day in a real-time development environment. Actively participate as both a driver and a navigator, asking questions, sharing ideas, and contributing directly to the team's collective code ownership." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
+
+   • "Practice High-Quality Engineering: Use Test-Driven Development (TDD) to ensure our foundational systems are resilient before they ever touch production. Beyond the code, you will be an active participant in our team book clubs and psychologically safe retrospectives to help continuously elevate how we work." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
+
+   • "Participate in On-Call Rotations: Share responsibility for operational health of our systems as part of a supportive on-call rotation. You'll be ramped in gradually with experienced teammates available to help." — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
+
+   • "Use AI tools: Actively use AI tools to improve personal and team efficiency across coding, testing, design, and troubleshooting, exploring AI integration opportunities within team processes and features, and coaching others on effective AI use" — [job posting, software-engineering function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible — confirmed open, accessed 2026-10-02
+
+   • "You will be a proactive and curious member of the commercial sales team, identifying growth opportunities for clients before they identify a need or gap for themselves." — [job posting, commercial-sales function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8247017/account-executive-commercial-named-east — confirmed open, accessed 2026-10-02
+
+   • "Maintain accurate and up-to-date records in Salesforce leveraging MEDDICC qualification guidelines to accurately forecast" — [job posting, commercial-sales function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8247017/account-executive-commercial-named-east — confirmed open, accessed 2026-10-02
+
+   • "Ensure product strategies and roadmaps are grounded in measurable customer and business outcomes, with clear success metrics and mechanisms for evaluating product health and value" — [job posting, product-management function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8233818/group-product-manager-corporate-systems — confirmed open, accessed 2026-10-02
+
+   • "Create clarity across ambiguous or highly cross-functional initiatives where ownership, requirements, system boundaries, or desired outcomes are not immediately clear" — [job posting, product-management function] — Smartsheet, company voice — https://www.smartsheet.com/careers/position/8233818/group-product-manager-corporate-systems — confirmed open, accessed 2026-10-02
+
+--- D. FIRST-PERSON ACCOUNT (yield: 7 passages from 2 sources · ladder fully attempted) ---
+
+   Voice composition of this section: six individual-contributor or peer voices and one
+   engineering-leadership voice. Every passage below was published by the company on its own
+   site, so the speakers are named employees but the selection and framing are the company's.
+
+   • "Usually in many big companies, things move very slowly. Here, if you write a great piece of code on Tuesday, it can be working for users by Thursday. I didn’t expect a large company to operate with this kind of speed and energy." — [company blog, employee first person] — Kaloyan Gangov, Software Engineer II — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
+
+   • "I expected it to be sprint after sprint, just shipping features. But, there’s genuine room to step back, question an approach, propose a better solution, and have that conversation taken seriously. Nobody is just executing tickets. [sic — the source opens this quotation and never closes it; no closing quotation mark appears before the attribution] — [company blog, employee first person] — Dimitar Gradev, Senior Software Engineer I — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
+
+   • "I expected more gates and approvals — instead, people are trusted to make real decisions and drive things forward. You can go from a doc to a decision to a shipped feature faster than most places would even finish the review process." — [company blog, engineering-leadership first person] — Kalin Kanev, Senior Director, Engineering — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
+
+   • "As a software engineer here, you cover everything — cloud infrastructure, operations, security, development, observability, client escalations, helping customers get the most from our product. That breadth is exactly why I joined Smartsheet, and it’s the first company I’ve worked at where that wide range of expertise is not just welcomed but used daily." — [company blog, employee first person] — Georg-Nikola Pavlov, Senior Software Engineer I — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
+
+   • "When we were deploying changes to production, we found that we had some issues with one of the features I was working on. I was stressed, but the team handled it really well — no blame, no egos, just a bunch of people trying to solve a problem as quickly as possible." — [company blog, employee first person] — Vasil Vasilev, Software Engineer II — https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet — 2026-03-30
+
+   • "It was honestly a complete surprise, and I was really excited when I found out. To me, pushing past limits is about being willing to step into uncertainty, question the obvious answer, and keep exploring what might be possible. I’m also really grateful to my teammates, their support, trust, and willingness to challenge ideas and figure things out together are a big thing that makes this work possible." — [company blog, employee first person] — Manxue, named as principal design lead — https://www.smartsheet.com/content-center/get-to-know-our-magic-maker-award-winners — 2026-08-27
+
+   • "Varun’s a standout technically, but what really sets him apart is his approachability and willingness to think beyond the playbook. He prioritizes solving problems over following processes, and his sense of ownership is truly exceptional." — [company blog, unnamed colleague describing a co-worker] — anonymous colleague quoted by the company — https://www.smartsheet.com/content-center/get-to-know-our-magic-maker-award-winners — 2026-08-27
+
+--- E. RECENT NEWS (yield: 3 independent excerpts · 1 company-authored excerpt tagged and not counted · searches logged) ---
+
+   • "Smartsheet is conducting more layoffs." — [press reporting] — Kurt Schlosser, GeekWire — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
+
+   • "Posts on LinkedIn from affected workers and others at the company shed light on the cuts. Impacted employees include engineers, marketing managers, project managers, and others." — [press reporting] — Kurt Schlosser, GeekWire — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
+
+   • "Enterprise software giant Smartsheet on Thursday announced four C-suite changes — two hires and two promotions. The Bellevue, Wash., company, which is best known for helping businesses organize and track work, has undergone two rounds of layoffs in the past six months and appointed Rajeev Singh as CEO in October." — [press reporting] — Lisa Stiffler, GeekWire — https://www.geekwire.com/2026/tech-moves-smartsheet-adds-to-c-suite-armoire-gets-ml-lead-past-microsoft-director-launches-startup/ — 2026-03-27
+
+   • [company-authored] "Smartsheet recently made organizational changes to better align our resources with our long-term business priorities," — Smartsheet company statement given to GeekWire and quoted inside its reporting — https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ — 2026-02-04
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 0 · public/private: PRIVATE) ---
+
+   N/A — PRIVATE. This company was taken private in January 2025 and is no longer an SEC
+   reporting company, so no current annual report with an Item 1 Human Capital section exists.
+   No substitute was quoted in its place.
+
+########## SECTION 2 — RESEARCHER QA (REMOVE BEFORE PACKET) ##########
+
+2a. YIELD AUDIT
+
+    REQUIRED TO YIELD — a shortfall here means go back and collect more:
+       A excerpts: 8/5       B reviews: 15/12      C excerpts: 10/6
+       C postings: 4/3       C outside engineering: 3/1
+       B reviews within 24 months: 10/15
+
+    C EXEMPTION CLAIMED (company not hiring)?  NO
+       Not applicable — 95 roles returned by the Greenhouse list API and a fully populated
+       first-party board. No absence to prove.
+
+    REQUIRED TO ATTEMPT — record the yield, do not gate on it:
+       D passages: 7 (from 2 sources)    ladder rungs logged: 7/7
+       D voice composition: 1 executive / 6 non-executive   (not all-executive, so the extra
+                            rung in D0 was not triggered; stale non-executive material found
+                            and rejected: YES — see D2 and D6 below)
+       E excerpts: 3 independent (+1 company-authored, tagged, not counted)
+                                         searches logged: 5
+       F excerpts: 0     public? NO — PRIVATE since January 2025     10-K filing date: none in
+                         scope; the company ceased to be an SEC reporting company before its
+                         fiscal year ending 2025-01-31 closed.
+
+2b. EVIDENCE COVERAGE
+
+       autonomy: COVERED   pace: COVERED   collaboration: COVERED
+       feedback: COVERED   innovation: COVERED   decision: COVERED
+
+       THIN/NONE reasons: none — no dimension came back THIN or NONE.
+       Recorded caveat on feedback, since it is the dimension the instrument most often loses:
+       the squarely on-axis material (psychologically safe retrospectives, book clubs, "no
+       blame, no egos", peer-nominated recognition, "question an approach ... taken seriously")
+       all sits in company-authored sources — a job posting and two company blog posts. The
+       non-company-authored half of the section carries feedback-adjacent material about
+       clarity and training rather than about how critique is delivered ("expectations are
+       changing or unclear", "Never enough training", "large changes given without any
+       forewarning", "lack of knowledgeable managerial support"). Nothing in any source
+       describes a performance-review cadence. COVERED is the honest label for the volume of
+       on-axis material; the asymmetry in who authored it is the thing to weigh.
+
+2c. LADDER CHECKLIST
+
+       D1 handbook          attempted Y   URL: site navigation and footer survey of
+                            smartsheet.com (both main nav and footer enumerated) plus web
+                            search for a public handbook / "how we work" documentation
+                            outcome: NOT FOUND — no public handbook or employee manual exists.
+       D2 eng/product blog  attempted Y   URL: https://developers.smartsheet.com/blog/ ·
+                            newest post date: 2020-02-27 · outcome: FOUND BUT STALE, rejected
+                            on age (>18 months). The company's current technical publishing is
+                            at https://www.smartsheet.com/content-center/managing-work/it-management/
+                            (newest items 2026-09-08, in date) but every item is a
+                            customer-facing API how-to; publication found, current, yields
+                            nothing on the company's own working practice.
+       D3 culture microsite attempted Y   URL: https://www.smartsheet.com/content-center/inside-smartsheet
+                            outcome: YIELDED — narrative articles, not a bullet list, and not
+                            the same text as section A, so no double-counting. Both section D
+                            sources came from this index.
+       D4 leader interview  attempted Y   URL: https://www.geekwire.com/2025/raj-singh-sets-his-vision-for-smartsheet-in-the-ai-era-its-time-to-step-out-of-the-shadows/
+                            date: 2025-11-05 · outcome: FOUND, in date, CEO interview with
+                            direct quotes. Not quoted — the target was already met from
+                            non-executive material, and quoting it would have moved this
+                            section toward the all-executive composition D0 exists to prevent.
+                            Also logged: a CEO podcast appearance (DeepTech Insights) promoted
+                            by the company on X; not opened, no transcript located.
+       D5 public repos      attempted Y   URL: https://github.com/smartsheet (verified
+                            organisation, controls smartsheet.com — no name collision) and
+                            https://github.com/smartsheet/smartsheet-python-sdk/blob/master/CONTRIBUTING.md
+                            outcome: FOUND and current (SDK repos updated 2026-07). The
+                            CONTRIBUTING file describes how OUTSIDE contributors file issues
+                            and get a PR reviewed, not how the company's own teams work. Not
+                            quoted for a second reason: it could only be retrieved by plain
+                            fetch, and a plain-fetch-only passage may not be promoted into
+                            Section 1.
+       D6 press profile     attempted Y   URL: https://builtin.com/articles/smartsheet-engineering-team
+                            date: 2018-05-04 · outcome: FOUND BUT STALE, rejected on age.
+                            This is the "right content, wrong vintage" case: a long-form
+                            employer profile with a named engineering leader describing how
+                            the team works, eight years old.
+       D7 conference talk   attempted Y   URL: https://www.smartsheet.com/engage and
+                            https://www.smartsheet.com/engage/agenda · date: event Nov 2026
+                            outcome: NOT FOUND for this rung's purpose. The only conference
+                            programming located is the company's own customer and partner
+                            conference, which is company-run marketing programming rather than
+                            an independent technical venue. No third-party technical-conference
+                            talk by company engineers surfaced.
+       Rungs rejected as stale (>18 months): 2 (D2 developer blog, 2020-02-27; D6 press
+                            profile, 2018-05-04)
+       C fallbacks tried: reviews-site job view — not needed (first-party postings rendered
+                          fully) · ATS param found YES (company-issued "Apply Now" links on
+                          every first-party posting resolve to
+                          job-boards.greenhouse.io/smartsheet/jobs/<id>, which confirms the
+                          Greenhouse slug is the company's LIVE board rather than a decoy) ·
+                          greenhouse list API YES (95 roles returned) · lever not applicable ·
+                          workday not applicable · ashby not applicable · aggregator not
+                          needed (Indeed's own jobs tab showed 86 roles, consistent with the
+                          board)
+       E news searches run: 5
+         queries used: (1) "Smartsheet layoffs restructuring return to office 2026";
+         (2) "Smartsheet acquisition Blackstone Vista Equity completed take-private 2025
+         delisted NYSE"; (3) "Smartsheet CEO Rajeev Singh interview 2026 how decisions get made
+         leadership podcast"; (4) ""Smartsheet" new APAC Japan leaders appointed September
+         2026"; (5) "Smartsheet employee handbook "how we work" public "The Smartsheet Way"
+         values" (run for D1, also surfaced news items).
+
+2d. SOURCE ACCESS LOG
+
+    Two retrieval methods were available and both were used throughout:
+      PLAIN FETCH   = the session's URL-fetch layer, which returns a processed rendition.
+      RENDERER      = a JavaScript-rendering browser pane, used as the authority on wording.
+    A third method, a headless browser inside the session's own cloud container, was
+    attempted first and is unavailable: the container's egress gateway answered 403 to CONNECT
+    for every host tried, including a control host. Recorded and routed around, not retried.
+
+      https://www.smartsheet.com/careers — PLAIN FETCH: full text returned. RENDERER: full
+         text returned. needed JS: N for retrieval, Y for confirmation. The two renditions
+         DISAGREE — see 2e.
+      https://www.smartsheet.com/about — RENDERER: full text. needed JS: N/Y.
+      https://www.smartsheet.com/careers-list — RENDERER: full board rendered, departments and
+         locations enumerated. needed JS: Y (the board is a JS-driven list).
+      https://www.smartsheet.com/careers/position/8214194/talent-development-partner — RENDERER:
+         full posting body, Apply Now present, no removal notice. needed JS: Y.
+      https://www.smartsheet.com/careers/position/8239800/senior-software-engineer-ii-solution-lifecycle-remote-eligible
+         — RENDERER: full posting body, Apply Now present, no removal notice. needed JS: Y.
+      https://www.smartsheet.com/careers/position/8247017/account-executive-commercial-named-east
+         — RENDERER: full posting body, Apply Now present, no removal notice. needed JS: Y.
+      https://www.smartsheet.com/careers/position/8233818/group-product-manager-corporate-systems
+         — RENDERER: full posting body, Apply Now present, no removal notice. needed JS: Y.
+      https://www.smartsheet.com/content-center/inside-smartsheet — RENDERER: index rendered
+         with dates. needed JS: Y.
+      https://www.smartsheet.com/content-center/inside-smartsheet/company-news/why-engineers-bulgaria-are-choosing-smartsheet
+         — RENDERER: full article. needed JS: Y.
+      https://www.smartsheet.com/content-center/get-to-know-our-magic-maker-award-winners —
+         RENDERER: full article. needed JS: Y.
+      https://www.indeed.com/cmp/Smartsheet/reviews?fcountry=ALL&sort=date — PLAIN FETCH:
+         20 reviews, newest first, with "...Show more" truncation markers. RENDERER: NOT
+         walled; same 20 reviews, exact wording, but WITHOUT any "Show more" marker. Both
+         methods used; two separate renderer passes taken. needed JS: Y (confirming route).
+      https://www.indeed.com/cmp/Smartsheet/job-titles — RENDERER: full title index with
+         counts and per-title star ratings. needed JS: Y.
+      https://www.indeed.com/companies/search?q=Smartsheet — PLAIN FETCH: one profile.
+      https://www.indeed.com/companies/search?q=Smartsheet+Inc — PLAIN FETCH: same one profile.
+      https://www.glassdoor.com/Reviews/Smartsheet-Reviews-E438753.htm?sort.sortType=RD&sort.ascending=false
+         — PLAIN FETCH: page returned, 3 reviews, newest 2026-07-23, count element "1,307
+         total reviews". RENDERER: NOT walled; same page, newest review 2026-10-01, count
+         element "(1,327 total reviews)". The two methods disagree materially — see 2e.
+      https://github.com/smartsheet — PLAIN FETCH: organisation confirmed verified.
+      https://github.com/smartsheet/smartsheet-python-sdk/blob/master/CONTRIBUTING.md — PLAIN
+         FETCH only. Not promoted to Section 1 for that reason.
+      https://developers.smartsheet.com/blog/ — PLAIN FETCH: blog exists, newest post
+         2020-02-27.
+      https://builtin.com/articles/smartsheet-engineering-team — PLAIN FETCH: date 2018-05-04.
+      https://www.geekwire.com/2026/smartsheet-layoffs-enterprise-software-giant-cuts-staff/ —
+         RENDERER: full article, exact wording and quotation marks confirmed. needed JS: Y.
+      https://www.geekwire.com/2026/tech-moves-smartsheet-adds-to-c-suite-armoire-gets-ml-lead-past-microsoft-director-launches-startup/
+         — RENDERER: full article. needed JS: Y.
+      https://www.geekwire.com/2025/raj-singh-sets-his-vision-for-smartsheet-in-the-ai-era-its-time-to-step-out-of-the-shadows/
+         — PLAIN FETCH: date confirmed 2025-11-05. Nothing quoted from it.
+      https://boards-api.greenhouse.io/v1/boards/smartsheet/jobs — PLAIN FETCH: 95 roles,
+         metadata only as documented.
+      https://www.sec.gov/cgi-bin/browse-edgar?... — PLAIN FETCH: refused, disallowed by the
+         target's robots rules. Consistent with browse-edgar being a dead route. Not retried,
+         and not needed: the company is private.
+
+2e. FIDELITY NOTE
+
+    [PARAPHRASE] markers used: NONE. Every Section 1 excerpt is verbatim and every one was
+    confirmed character for character, quotation marks included, on a rendered copy of its
+    source page.
+
+    THE PLAIN-FETCH LAYER WAS CAUGHT ALTERING TEXT ON THIS BUILD, THREE TIMES. D26 is
+    confirmed present in this retrieval environment, not assumed.
+      1. Careers page, "Bulgaria" location paragraph. Plain fetch returned "power some of
+         Smartsheet's most critical product work". The rendered page says "power some of our
+         most critical product work". Plain fetch substituted the company name for the
+         first-person possessive.
+      2. Careers page, "San José" location paragraph. Plain fetch returned "host Smartsheet's
+         first shared services center"; the rendered page says "host our first shared services
+         center". Same substitution. Plain fetch also returned the team-section heading as
+         "Join the world-class teams at Smartsheet" where the rendered page has the singular
+         "Join the world-class team at Smartsheet".
+      3. Employee review dated 2026-04-01. Plain fetch returned the reviewer's phrase as
+         'business decision' in SINGLE quotation marks. The rendered review uses DOUBLE
+         quotation marks: "business decision". This is the quotation-mark class of the defect
+         on a quoted fragment inside a quoted excerpt.
+      4. Employee review dated 2024-10-02. Plain fetch returned clean prose. The rendered
+         review contains literal markdown characters the reviewer typed — "* **Management:**"
+         — which plain fetch silently stripped. The source's own characters are preserved in
+         Section 1.
+      Every Section 1 excerpt was taken from the renderer on the strength of these four
+      findings. Nothing in Section 1 rests on plain fetch.
+
+    MATERIAL ONE-METHOD-ONLY FINDING, OPPOSITE IN DIRECTION TO THE PROMPT'S PRIOR. The prior
+    says the renderer gets walled on review and job aggregators and plain fetch gets through.
+    On this build the renderer was NOT walled on either aggregator, and on the optional review
+    source it returned materially FRESHER content than plain fetch: plain fetch's newest
+    Glassdoor review was 2026-07-23 and the renderer's was 2026-10-01, a ten-week difference
+    from the same URL in the same session. Had only plain fetch been used, the recency
+    cross-check would have been computed against a stale rendition. Both methods were run on
+    every source that mattered.
+
+    TRUNCATION, MEASURED TWICE, AND THE MARKER IS METHOD-DEPENDENT. Plain fetch prints a
+    literal "...Show more" marker; the renderer prints no marker at all and simply ends the
+    text at the same character position. Truncation was therefore measured by character length
+    on two independent renderer passes, which agreed exactly: the review site cuts bodies at
+    295–310 characters. Nine of the 20 reviews on page one are cut; five of the 15 used in
+    Section 1 are cut. A builder who had used only the renderer and looked for a marker would
+    have reported no truncation on this company.
+
+    PRESERVED SOURCE TYPOS AND SOURCE ODDITIES IN SECTION 1 — all are unique strings:
+      · "made it difficult for the sales department to it quota" (review, 2025-07-02) — marked
+        [sic].
+      · "Some uncertainly coming with the acquisition" (review, 2024-12-03) — marked [sic].
+      · The company blog opens Dimitar Gradev's quotation and never closes it; no closing
+        quotation mark appears before the attribution. Marked [sic] in place. This is exactly
+        the kind of punctuation the renderer-confirmation rule exists to protect, in reverse —
+        the honest reproduction is the unclosed quotation.
+      · The literal "* **Management:**" / "* **Workplace culture:**" markdown characters in the
+        review dated 2024-10-02.
+      · One review is written in Spanish and is reproduced untranslated.
+
+    POSTINGS WHOSE OPEN/CLOSED STATUS COULD NOT BE CONFIRMED: none. All four quoted postings
+    were opened individually; each rendered an active "Apply Now" control resolving to the
+    company's live Greenhouse board, and none carried a removal notice. Each also appears on
+    the first-party board list rendered the same day.
+
+    ENTITY-CHECK RESULT (B0). ONE employer entity on the required review source. Searched the
+    review site's company directory for "Smartsheet" and for "Smartsheet Inc"; both return a
+    single profile, https://www.indeed.com/cmp/Smartsheet, 60 reviews, 3.6 stars, claimed
+    (it carries a "Why Join Us" tab and company-written description, which an unclaimed profile
+    does not). No split across profiles and no second entity to merge.
+      IMPLAUSIBLE COUNT — STATED EXPLICITLY AS REQUIRED. 60 reviews is implausibly low for an
+      employer the company itself describes as "Over 3,000 employees" and which press reporting
+      puts above 4,000. The optional review source holds 1,327 for the same company — more than
+      twenty times as many. The required source's population for this company is small and its
+      title index confirms it: the largest single job-title bucket holds six reviews. This was
+      tested rather than assumed, and the single-entity finding is not the explanation for the
+      low count.
+      POOLED-HOMONYM CHECK (the inverse failure). Every one of the 15 reviews used is
+      reconcilable with this company — the roles, the products named, the remote-work pattern,
+      the acquisition and layoff references and the Bellevue / Seattle / Remote / Costa Rica
+      locations all fit a company with offices in exactly those places. The Costa Rica review
+      was checked specifically, since it is the geographic outlier, and the company's own
+      careers page lists a San José, Costa Rica shared-services location. No review was
+      excluded and none is flagged as suspect.
+
+    INTERVIEW WRITE-UPS EXCLUDED: none encountered in the 20 rendered reviews. Two entries
+    (2024-03-14 and 2024-02-13, both outside the sample) are the review site's own structured
+    question-and-answer format about working there, not interview experiences; both fall
+    outside the 15 used in any case.
+
+    EMPLOYER RESPONSES: none present on the required source's page-one reviews. The optional
+    source carries them ("Smartsheet Response", seen within three days of several recent
+    reviews). None was quoted, because the optional source's bodies are barred from Section 1.
+
+    EVALUATIVE FIGURES SEEN AND DELIBERATELY KEPT OUT OF SECTION 1 (hard rule 8): the review
+    sites' overall star ratings, their category ratings, the "Work wellbeing score is 67"
+    element, "39% would recommend to a friend", "30% approve of CEO" and "26% positive business
+    outlook". They are recorded as source metadata in 2f and nowhere else.
+
+2f. VINTAGE BLOCK
+
+       Review entities found: 1
+          https://www.indeed.com/cmp/Smartsheet — 60 reviews — 3.6 overall — claimed
+          (Optional cross-check source, not an additional entity for sampling:
+          https://www.glassdoor.com/Reviews/Smartsheet-Reviews-E438753.htm — 1,327 — 3.2 —
+          marked "Engaged Employer")
+       Review counts BY SITE, each with the ELEMENT it came from:
+          Required source: "60 reviews" (data-testid="review-count" element) · "Based on 60
+          reviews" (rating-breakdown element) · "60" above the word "Reviews" (nav tab) ·
+          "Working at Smartsheet: 60 Reviews | Indeed.com" (document title). All four agree at
+          60.
+          Optional source: "(1,327 total reviews)" (ratings block, renderer) · "Smartsheet
+          Reviews (1,327)" (document title, renderer) · "1,327 company reviews" (body text,
+          renderer) · "(1,307 total reviews)" (same ratings block as returned by PLAIN FETCH) ·
+          "Smartsheet Reviews (1,326)" (search-engine result title for the same URL).
+       Conflicting counts observed on a single page: NONE on the required source — all four
+          elements agree, which is itself worth recording given how often they do not. On the
+          optional source the three renderer elements agree with each other at 1,327 and
+          conflict with the plain-fetch rendition of the same element at 1,307; the conflict is
+          between retrieval methods rather than between elements.
+       Headline ratings BY SITE: required source 3.6 overall, 3.6 work-life balance (also 3.9
+          pay and benefits, 3.1 job security and advancement, 3.0 management, 3.4 culture).
+          Optional source 3.2 overall. Divergence recorded, not reconciled: 0.4 of a star on
+          the overall figure, against twenty-two times the sample size on the lower one.
+       Job titles sampled, each with review count and the element the count came from: NOT
+          APPLICABLE — the frame is recency, company-wide, and title is per-review metadata.
+          Titles recorded per review in Section 1. The title index at
+          https://www.indeed.com/cmp/Smartsheet/job-titles was collected to characterise the
+          population: largest buckets Account Executive 6, Software Engineer 5, Client Manager
+          3 (each count from that title's own "N reviews" element beside its star rating).
+       Per-title subratings: NOT COLLECTED — removed in v4.5, see section B
+       Achievability gate run on every percentage recorded anywhere in the packet: Y
+          · "85% of the Fortune 500" (Section A) — n=500, steps of 0.2 points — ACHIEVABLE,
+            retained.
+          · "39% would recommend", "30% approve of CEO", "26% positive business outlook"
+            (optional source, n=1,327, steps of 0.075 points) — all achievable; barred from
+            Section 1 anyway by hard rule 8 and recorded here only as source metadata.
+          · "41% would recommend to a friend (1,307 total reviews)" as returned by plain fetch
+            — achievable at that n, but the figure and its n both differ from the renderer's
+            and the plain-fetch rendition is not treated as authoritative.
+          · "less than 20% hitting quota, average org attainment under 50%" inside the review
+            dated 2024-12-10 — NOT TESTABLE: the reviewer prints no denominator. Retained as
+            part of a verbatim review, not used anywhere as a figure.
+       Percentages struck for failing the gate, with title and figure: NONE.
+       Titles present but NOT sampled, with counts: the recency frame does not exclude titles,
+          so this line records what the index shows is thin rather than what sampling skipped.
+          Every function category on the index is in single digits: Sales 12 across six titles,
+          Software Development 11 across five, Management 5, IT Operations & Helpdesk 5 across
+          five titles, Administrative Assistance 4, Accounting 4, Marketing 3, Retail 2,
+          Community & Social Service 2, and one review each for Human Resources, Industrial
+          Engineering, Customer Service, Project Management, Legal and Banking & Finance.
+          The index also OMITS titles that the review stream itself displays — "Tier 1
+          Technical Support", "Sales Development Representative", "Business Development
+          Representative", "Mid-Market Account Executive", "Client Development Manager",
+          "Senior LMS Manager" and "Sr. Executive Assistant, Engineering" all carry reviews and
+          none appears on the index. The index is not authoritative for this company.
+          Its category labels are also not function labels: "Retail" holds "Retail Solutions
+          Consultant" (an enterprise software role) and "Industrial Engineering" holds
+          "Engineering Manager".
+       Interview write-ups excluded from review lists: 0
+       Newest review date BY SITE: required source 2026-08-27 · optional source 2026-10-01
+          (renderer) / 2026-07-23 (plain fetch). The required source is NEWER than the
+          plain-fetch reading of the optional source and about ten weeks older than the
+          renderer reading. The recency cross-check therefore does not fire materially: the
+          optional source's newest review is not more than 12 months newer than the required
+          source's, and 10 of the 15 reviews used fall inside the 24-month gate, which is
+          comfortably more than half of the section's minimum of 12. No B1a-REMEDY fragments
+          were admitted and none were needed.
+       Oldest review used: 2024-06-27
+       Per-review star ratings attached by the site to the 15 reviews used, newest
+          first (recorded here and deliberately NOT in Section 1, per hard rule 8 — an
+          evaluative figure is not evidence for a descriptive dimension):
+          2.0, 3.0, 5.0, 3.0, 3.0, 4.0, 5.0, 3.0, 3.0, 5.0, 3.0, 3.0, 1.0, 5.0, 5.0.
+          Note for the rater's benefit only, as a source observation: the 5.0 at
+          position 14 sits on the Spanish-language review whose text is critical of a
+          team lead, and the 4.0 at position 6 sits on the most critical sales review in
+          the set — the numbers and the prose disagree within single reviews on this
+          source.
+       Median age of reviews used: 22.0 months
+       Reviews truncated at source: 5/15 = 33.3%  (page one as a whole: 9/20 = 45.0%) — a NOTE
+          TO RATER is at the head of section B.
+       Source-site duplicates retained: 0 — no two entries carried identical text and date.
+       Newest careers-page modification date: NOT PUBLISHED. The page carries no publication or
+          modification date by either retrieval method; its document.lastModified reports only
+          the time of this access. Every section A excerpt is therefore access-dated: 8 of 8.
+          This section's vintage is unknown, and that is the finding.
+       Structural events found and their dates:
+          2025-01 — taken private by Blackstone and Vista Equity Partners, $8.4bn.
+          2025-08 — retirement of the longtime CEO announced.
+          2025 (summer) — a co-founder of another company served briefly as acting CEO.
+          2025-10 — Rajeev "Raj" Singh appointed CEO.
+          2025-10 — layoffs affecting more than 120 employees.
+          2026-02 — a further round of layoffs, size not disclosed by the company.
+          2026-03 — four C-suite changes announced (two hires, two promotions).
+          2026-09 — new regional leaders named across APAC and Japan. Recorded from the
+             company's own newsroom index linking trade coverage; the trade items located are
+             reprints of the company's release, so this event is logged as company-sourced and
+             nothing was quoted from it in section E.
+       Does any structural event postdate the newest review?  YES — the September 2026 regional
+          leadership changes postdate the newest review (2026-08-27) by about two weeks. The
+          head of section B carries a NOTE TO RATER saying so in plain language. Everything
+          else above — the ownership change, the CEO transition and both layoff rounds — is
+          described from inside the review set by reviewers who lived through it.
+
+2g. SCOPE BLOCK
+
+       A careers / values     population: company-wide, marketing voice
+       B employee reviews     population: technical support (3 of 15), sales — sales
+                              development, business development, account executive, client
+                              development (5 of 15), software engineering IC and manager
+                              (3 of 15), product management (1), marketing (1),
+                              learning and development (1), one unspecified "Sr. Manager" (1).
+                              All 15 carry a self-written job title; no untitled or
+                              "Anonymous" review appeared in the sample, so none is
+                              unassignable to a function. Locations as attached by the site:
+                              Bellevue 5, Remote 5, Seattle 1, Costa Rica 1, not stated 3.
+       C job postings         population: the functions currently posted for — talent
+                              development, software engineering, commercial sales, product
+                              management (the live board additionally lists consulting,
+                              customer success, security, IT, accounting, marketing,
+                              professional services, UX and workplace services)
+       D first-person         population: one engineering organisation in one country, plus
+                              four quarterly award winners drawn from product, recruiting,
+                              design, enterprise systems and sales
+       E news                 population: company-wide
+       F human capital        population: N/A — private company, no disclosure
+
+       Working environments known to exist in this company but ABSENT from the review
+       population: professional services and consulting, customer success, security, user
+       experience and design, workplace services, people and culture outside the single
+       learning-and-development review, and finance beyond single-review buckets. The review
+       population is thin everywhere rather than concentrated in one dominant function, which
+       is the opposite of the large-retailer shape this block was written for: with 60 reviews
+       across a company of several thousand, no function is well represented, and the three
+       largest buckets are single-digit.
+       Does the company-authored evidence (A, F) describe a wider population than the
+       experiential evidence (B)?  YES for A. F does not exist for this company, so the
+       company-authored half of this packet is section A, the job postings in section C and
+       every passage in section D — which is a larger share of company-authored material than
+       a packet with a 10-K would carry, and the section that would have supplied a legally
+       accountable company voice is the one that is missing.
+
+########## SECTION 3 — ROSTER / CONFOUNDER BLOCK (NEVER IN THE PACKET) ##########
+
+- Approx. headcount: "Over 3,000 employees" — company-sourced, https://www.smartsheet.com/about,
+  accessed 2026-10-02. A third-party figure sits higher: "more than 4,000 people worldwide,
+  according to LinkedIn" — GeekWire, 2026-02-04. CONFIDENCE: moderate and conflicting. The
+  company's own figure is the lower of the two and is undated on the page, while the higher
+  figure is a journalist reading a social-network profile count, which inflates by counting
+  anyone who lists the employer. Two rounds of layoffs fall between the probable vintage of
+  either figure and today, and the company declined to size the more recent round. Treat
+  3,000–4,000 as the band and do not treat either endpoint as measured.
+- Stage/size cues: PRIVATE, private-equity owned. IPO on NYSE in 2018 under SMAR; taken private
+  in January 2025 by Blackstone and Vista Equity Partners in a deal reported at $8.4 billion;
+  no longer an SEC reporting company. Revenue "more than $1 billion in annual revenue" and
+  "16.7 million active users" — GeekWire, 2026-02-04. Founded 2005
+  (https://www.smartsheet.com/about). Headquarters in Bellevue, Washington, with offices in six
+  further countries. Two post-acquisition layoff rounds (2025-10, 2026-02) and a full CEO
+  transition (2025-10).
+- Pay-posture EVIDENCE vs. talent-market peers — no band assigned. Correct reference class:
+  US enterprise SaaS, Seattle-area technology labour market. Evidence pointing up: a software
+  engineering review calls out "Extremely competitive salary, RSU package, benefits, and annual
+  bonus structure"; an engineering manager who rated the company 1.0 of 5 nonetheless wrote
+  "Pay is very good"; a client development review cites "competitive pay and flexibility in
+  PTO"; a mid-market sales review cites "stock options and rsus". Evidence pointing level or
+  down: an account executive wrote "Pay is on par with industry"; the optional review source's
+  newest reviews include one titled "Incredible team, but low pay was a dealbreaker" from a
+  solutions engineer. The required source's "Pay and benefits" category rating of 3.9 is its
+  highest of five categories, against 3.0 for management — evaluative, and recorded here only.
+  The company publishes US base ranges on its own postings; the talent-development posting
+  quoted in section C prints "$95,000—$115,000 USD" for a Bellevue-based programme-ownership
+  role reporting to a director. That figure is deliberately absent from Section 1.
+- Industry: TECH. Enterprise SaaS work-management and collaboration software; competes with
+  Microsoft, Google, Salesforce, Asana, Monday.com, Airtable and ClickUp per GeekWire
+  2026-02-04. Not finance, healthcare or retail by any reading.
+
+########## SECTION 4 — ANONYMIZATION PRE-FLAGS ##########
+
+COMPANY NAME OCCURRENCES IN SECTION 1 — the name appears in the running text of excerpts, not
+only in attributions, and cannot be removed by editing URLs alone:
+  · Section A: one excerpt of the eight names the company twice in its own body text —
+    "Smartsheet is built on the belief that great work happens when ambitious people have a
+    shared mission..." and "Smartsheet is where we work smarter, celebrate every win...". The
+    other seven do not name it, so the name there is carried by the attribution and URL alone.
+  · Section B: six of the fifteen reviews name the company in their body text — "The benefits
+    at Smartsheet are incredible"; "Smartsheet used to have a great culture"; "I worked at
+    Smartsheet for 2 years"; "Smartsheet prioritizes innovation, teamwork, and work-life
+    balance"; "My experience working at Smartsheet has been immensely rewarding"; "Smartsheet,
+    known for its collaborative work management platform".
+  · Section C: "Ensure product strategies..." is clean, but the mob-programming and TDD
+    excerpts are clean too; the Salesforce/MEDDICC excerpt names a third-party product.
+  · Section D: "That breadth is exactly why I joined Smartsheet".
+  · Section E: all three independent excerpts name the company; two also name the headquarters
+    city and state.
+  · Every URL in every attribution contains the company name or its employer ID.
+
+PRODUCT AND BRAND NAMES: Smartsheet (the product is named identically to the company, so the
+ordinary product/company split does not help here); Salesforce; MEDDICC; Outreach; Udemy;
+CoderPad (page context only, not quoted); AWS, Golang, MySQL, Terraform, Terragrunt, Temporal,
+GitLab-CI (in the engineering posting's page context; only "AI tools" and the mob-programming
+and TDD clauses were quoted); MCP Server and Smart Assist (named internal/product programmes in
+the award article's page context — NOT quoted).
+
+EXECUTIVE AND AUTHOR NAMES APPEARING IN SECTION 1: Courtney Crowley (section A testimonial);
+Kaloyan Gangov, Dimitar Gradev, Kalin Kanev, Georg-Nikola Pavlov, Vasil Vasilev, Manxue
+(section D); Kurt Schlosser and Lisa Stiffler (section E bylines); Rajeev Singh (named inside a
+section E excerpt). Names in page context but not quoted: Raj Singh as CEO on the careers page
+video, Mark Mader, Sunny Gupta, Kate Rosamond, Vysakh Chandra Babu, Graham Stroman, Justin
+Dobson, Sinduja, Rachael, Varun, Fernanda, Dobri Kostadinov, Raycho Kostadinov, Valentin
+Varbanov, Takeshi Osawa, Jarrod Kinchington, Scott Torrey.
+
+NAMED CLIENTS: none quoted. "85% of the Fortune 500" is a customer-base claim, not a named
+client, and it is a searchable self-description — see below.
+
+OFFICE LOCATIONS IN SECTION 1: Bellevue and Bengaluru (section A, inside the "Innovation
+doesn't have a time zone" excerpt — removing them guts the sentence, so rewrite rather than
+drop); Chicago (section A testimonial); Bellevue WA, Seattle WA, Heredia Provincia de Heredia
+and "Remote" as review attributions (replace with generic site tokens per the review-location
+rule, preserving the distinction between them); "Bellevue, Wash." inside two section E
+excerpts.
+
+NAMED INTERNAL PROGRAMS AND TOOLS IN SECTION 1: "Employee Resource Groups (ERGs)" with the count
+"eight"; "Hub Champion" and "Volunteer Champion" programs; "Talent Development team"; "mob
+programming" and "collective code ownership" (industry terms, not internal names, but the
+combination is distinctive); "team book clubs and psychologically safe retrospectives"; "IDP
+templates" (page context only). In page context and NOT quoted, but the most identifying
+material in the sources: "The Smartsheet Way" and its five named values — "Picture the win",
+"Make it happen", "Push past limits", "Own the outcome", "Champion every success" — and the
+"Magic Maker" quarterly award, whose fiscal-quarter labelling ("FY27 Q2") is itself a
+fingerprint. The section D passage from Manxue paraphrases one of those value names in her own
+words ("pushing past limits"), which is a soft fingerprint that survives removing the company
+name.
+
+VERBATIM SELF-DESCRIPTIONS — SEARCHABLE AFTER THE NAME IS REMOVED. Flagged separately as
+required; each of these is a unique or near-unique string:
+  · "Systems don't innovate, people do."
+  · "Innovation doesn't have a time zone."
+  · "Location, leveraged." / "Balance, built-in." / "Priorities, protected." (the two-word
+    headline construction is itself a signature)
+  · "a platform trusted by 85% of the Fortune 500"
+  · "without losing the joy of the journey"
+  · "community is something you build on purpose"
+  · "This team practices mob programming for the majority of the workday."
+  · "psychologically safe retrospectives"
+  · "you'll be collaborating in real-time with teammates most of the time—not working solo on
+    isolated tasks"
+  · "if you write a great piece of code on Tuesday, it can be working for users by Thursday"
+  · "no blame, no egos"
+  · "Smartsheet is conducting more layoffs."
+  · "made organizational changes to better align our resources with our long-term business
+    priorities"
+
+PRESERVED SOURCE TYPOS AND PUNCTUATION ANOMALIES — UNIQUE-STRING IDENTIFIERS, flagged as
+required:
+  · "made it difficult for the sales department to it quota" [sic]
+  · "Some uncertainly coming with the acquisition" [sic]
+  · the unclosed opening quotation mark on the Dimitar Gradev passage
+  · the literal "* **Management:**" and "* **Workplace culture:**" markdown in the 2024-10-02
+    review
+  · "work-life-balance" hyphenated three ways across the 2024-12-02 review and the site's own
+    category label
+  · the Spanish-language review, which is the single most searchable item in section B: one
+    Spanish review inside a 15-review English sample, attributable to one site.
+
+OTHER RE-IDENTIFYING DETAIL: the review-site employer ID (E438753) and the Greenhouse board
+slug appear in URLs; the posting ID numbers in section C URLs resolve to a named company board;
+"FY27" fiscal-year labelling; "16.7 million active users" and the "$8.4 billion" deal value
+(Section 3 only, not in Section 1); the review counts 60 and 1,327 as a pair are close to unique.
+
+########## SECTION 5 — BUILDER DEFECT REPORT (NEVER IN THE PACKET) ##########
+
+Twelve points where the collector prompt was unclear, contradictory, silent on something this
+build needed, or told me to do something that did not work — plus every choice I had to make
+myself. Not fixed, not softened. Classified, with the reason for each classification.
+
+STRUCTURAL — changed what evidence reached Section 1, or how a section was scoped
+
+S1. HARD RULE 8 AND B6 DISAGREE ABOUT PER-REVIEW STAR RATINGS, AND THE PROMPT NEVER ADJUDICATES.
+    Sections: hard rule 8; B6; 2f.
+    B6 says "Preserve attribution. Keep the job title and location that the source site attaches
+    to each review" and warns against stripping at collection. The review site also attaches a
+    star rating to every review. Hard rule 8 says an evaluative metric "may never appear in
+    Section 1 as evidence" and names "star ratings" explicitly. Neither rule says whether a
+    per-review star rating sitting in an attribution line counts as appearing "as evidence" or
+    as preserved attribution. I built Section 1 with the ratings in the attribution lines, then
+    removed all fifteen and moved them to 2f on the stricter reading of rule 8. Structural
+    because the two readings produce different Section 1 content, and because the stricter
+    reading destroys information the rater would plausibly want: on this source the numbers and
+    the prose disagree inside single reviews (a 5.0 on a review criticising a team lead, a 4.0
+    on the most critical sales review in the set), and that disagreement is now visible only in
+    a section the rater never sees.
+
+S2. B7's TRUNCATION DETECTION ASSUMES A MARKER THAT THE RENDERER DOES NOT PRINT, AND v4.11 PUSHES
+    THE BUILDER TOWARD EXACTLY THE METHOD THAT HIDES IT.
+    Sections: B7; D27; D28; the retrieval-method section.
+    B7 says to mark the cut "where the visible text ends mid-review". v4.11, reasoning from
+    P-11, says the renderer returning literal "...Show more" markers "is the only reason the
+    truncation could be measured", and the renderer-confirmation rule makes the renderer the
+    authority for Section 1. On this build the relationship inverts: plain fetch printed
+    "...Show more" on nine of twenty reviews and the renderer printed no marker at all, ending
+    the text at the identical character position. Worse, one of the five truncated reviews in my
+    sample ends on a full stop, so "ends mid-review" does not detect it either. I measured
+    truncation by clustering review-body character lengths across two renderer passes (the cut
+    falls at 295–310 characters; the two passes agreed exactly) and cross-checked the result
+    against plain fetch's marker positions, where they matched one for one. The prompt describes
+    neither method. Structural, and consequential: the prompt-compliant path of
+    renderer-plus-look-for-a-marker yields 0% truncation on this company, drops the NOTE TO
+    RATER that B7 requires above one third, and ships a Section B asserting something false
+    about its own sample. P-11's D28 says one pass over a review page is not a measurement; this
+    build says one METHOD over a review page is not a measurement either.
+
+S3. SECTION F HAS NO PROVISION FOR A RECENTLY-PUBLIC COMPANY, AND THE BINARY DROPS A WHOLE
+    EVIDENCE CLASS.
+    Section: F.
+    F says "Public companies only. Mark N/A — PRIVATE and move on otherwise." This company filed
+    annual reports until it was taken private in January 2025, so a legally accountable Item 1
+    Human Capital disclosure exists, is roughly two and a half years old, and describes the
+    organisation before the ownership change, the CEO transition and two rounds of layoffs — all
+    four of which this packet documents elsewhere. The prompt offers no third state. I marked
+    N/A — PRIVATE and quoted nothing, reasoning that a 2024 disclosure would fail the spirit of
+    rule 7 and that admitting it would put this packet on a different instrument from every
+    other private-company packet. Structural because it decides whether a section exists. Worth
+    deciding deliberately rather than per-builder: a private-equity take-private is a company
+    type the roster will keep producing, and each one will hit this fork.
+
+S4. THE `accessed YYYY-MM-DD` RULE GUARANTEES ITS OWN FINDING AND OFFERS NO WAY OUT.
+    Sections: hard rule 3 (v4.11 amendment); hard rule 7; 2f.
+    v4.11 resolves the rule 3 / rule 7 conflict, and it works. But it then asks 2f to state how
+    many section A excerpts are access-dated and says "a packet whose entire section A is
+    access-dated has told the rater nothing about that section's vintage, and that is itself the
+    finding." Mine is 8 of 8, and the prompt gives no fallback for establishing an undated
+    first-party page's vintage — no archive-snapshot rung, no sitemap lastmod rung, nothing.
+    So the finding is not a property of this company; it is a property of the prompt's retrieval
+    ladder, and it will be 8 of 8 on nearly every build. A finding that fires every time carries
+    no information, and recording it as a finding invites a rater to read it as one. Called
+    structural rather than cosmetic under the when-torn rule: it is what 2f's vintage block says
+    about an entire required section.
+
+S5. D0 BOUNDS THE SEARCH ON VOICE SENIORITY AND IS SILENT ON VOICE CONCENTRATION.
+    Sections: D; D0; 2g.
+    D0 exists because section D's composition can become a function of company size, and it
+    fires on one condition: all-executive. Mine is not all-executive — six of seven passages are
+    individual contributors or peers — so no extra rung was triggered. But five of my seven
+    passages come from one article about one engineering team in one country, published by the
+    company, with the company choosing which employees to quote. That is a narrower population
+    than an all-executive section D would have been, and it trips no rule. I recorded it in the
+    section D header and in 2g and moved on, as the shipping posture directs. Structural: it
+    changed what reached Section 1, and 2g now scopes section D to a single site.
+
+S6. THE ONE FILE EVERY RUN IS REQUIRED TO OPEN CARRIES CROSS-RUN FINDINGS.
+    Section: this is a BUILD_BRIEF defect, not a collector defect, but it bears on the
+    collector's build-environment clause and RULE ZERO, so it is reported here.
+    The brief says I should have access to exactly two things and should stop if I can see
+    anything else. It then orders me to take my company from `to_be_researched.txt`. That file's
+    comment block names which dimension poles are thin, which existing packet is "the
+    weakest-scrubbed packet in the set", which companies have already been built and what leans
+    the roster expects from each queued company, and it points at STATE.md and
+    AGENT_DECISION_QUEUE.md by name. I read all of it before I knew what it contained, because
+    the brief requires reading that file first. No packet was opened and no company other than
+    the one I built influenced any collection decision — but a builder primed with "feedback is
+    THIN in eight of ten packets" and "optimize is confounded with old industry" is not the
+    clean instrument production runs. Structural under the when-torn rule, and cheap to fix:
+    move the commentary to a file the builder is not required to open, and leave the queue as
+    bare `P-## Company` lines.
+
+COSMETIC — confusing, changed nothing
+
+C1. The v4.6 defect register numbers its entries D1–D30 while the section D ladder numbers its
+    rungs D1–D7, and 2c prints the rung labels. "D2" is simultaneously the engineering-blog rung
+    and the Glassdoor keyword-segment defect; "D5" is both the public-repositories rung and the
+    missing-section-F defect. Disambiguated by context throughout. Sections: appendix; 2c.
+
+C2. Section B's rule labels are still not a clean sequence after the v4.4 renumbering fix:
+    B1a-REMEDY sits between B1 and B2, and B3a appears after B3b in the file. Ordering only.
+
+C3. Section F is three-valued in one place and two-valued in another. The output-format block
+    asks for `public/private: __` in the section header; 2a asks `public? YES / NO / N/A`. I
+    wrote "PRIVATE" in the header and "NO — PRIVATE" in the audit line. Sections: OUTPUT FORMAT;
+    2a.
+
+C4. A FINAL CHECK line is vestigial. "Did I check every Glassdoor URL for a `KO` keyword segment
+    before treating it as a job-title filter?" survives from the era when the optional source
+    supplied per-title subratings. Those were removed in v4.5, so there is no job-title filter
+    to mistake; the only optional-source URL a current build opens is the company reviews page
+    with a sort parameter. Answered anyway: no KO segment was used. Sections: FINAL CHECK; B2c.
+
+C5. B2c steps 5 and 6 still give detailed instructions for collecting the optional source's
+    per-title subratings, immediately below the block stating they are no longer collected, and
+    2f then prints "Per-title subratings: NOT COLLECTED". The retained-for-legacy framing is one
+    line long and the live-sounding instructions are six. Section: B2c.
+
+C6. The prompt forbids quoting office locations in section C and says nothing about sections A
+    and D, so the same city names I stripped from the postings sit inside quoted careers-page
+    and blog text. This is defensible by design — a self-description is the point in A and noise
+    in C — but it means the section 4 pre-flag list, not the collection rule, is doing the
+    anonymization work, and a reader of the collection rules alone would not predict it. Called
+    cosmetic because §4 handles it by design rather than by accident. Sections: C; SECTION 4.
+
+ENVIRONMENT NOTES — not prompt defects, recorded because they bear on reproducibility
+
+E1. The session's own cloud container has no general web egress: its headless-browser and
+    direct-fetch routes were refused by the egress gateway with HTTP 403 on CONNECT for every
+    host including a control host. Per the environment's own instructions that is an
+    organisation policy denial and was not routed around. The renderer used for every
+    Section 1 confirmation is a browser pane on the operator's machine, reached over the device
+    bridge.
+E2. That renderer requires an access grant per page load. On this run the grants were answered
+    automatically and immediately, so nothing stalled. A run where they are not would stall at
+    the first page, which is the 2026-09-08 failure the brief describes. The prompt requires two
+    retrieval methods and is silent on what to do when one of them is gated on an approval that
+    may never come; the brief covers it by requiring an ABORTED status line.
+
+NOTHING I HAD TO ASK THE OPERATOR. Every ambiguity above was resolved by making a choice and
+recording it. `assisted: NO` in the build record is accurate.
+
+########## END OF PACKET ##########

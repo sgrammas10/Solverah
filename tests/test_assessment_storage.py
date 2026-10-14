@@ -106,6 +106,30 @@ def _stub_llm(monkeypatch, payload=None):
     monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: client)
 
 
+def _store_legacy_work_pulse(user_id):
+    """A sitting of the retired 12-question Work Pulse, as stored before 2026-10-02.
+
+    Written through the repository because no route accepts one any more.
+    """
+    from app import app
+    from model import db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
+
+    with app.app_context():
+        row = assessment_repository.open_current(
+            user_id, "work_pulse", assessment_service.CLIENT_FORM_VERSION
+        )
+        row.answers = WP_ANSWERS
+        row.result = WP_LLM_RESPONSE
+        row.narrative = WP_LLM_RESPONSE["narrative"]
+        row.status = "scored"
+        row.completed_at = auth_domain.utcnow()
+        row.scored_at = auth_domain.utcnow()
+        db.session.commit()
+
+
 def _submit_core(client, csrf):
     """Answer the served form. Tokens are salted per respondent, so they cannot
     be hard-coded."""
@@ -129,11 +153,13 @@ def _submit_core(client, csrf):
 def test_every_instrument_lands_in_one_table(client, auth, monkeypatch):
     """The phase, in one assertion.
 
-    Since Phase 3c three of the kinds arrive by enqueueing a scoring job
-    rather than through a synchronous submit -- eager test execution runs the
-    job inline, so the row exists by the time the 202 comes back. `focus_type`
+    Since Phase 3c `manager_match` arrives by enqueueing a scoring job rather
+    than through a synchronous submit -- eager test execution runs the job
+    inline, so the row exists by the time the 202 comes back. `focus_type`
     still submits synchronously, and `core` arrives through `assessment_store`
-    behind D-01's doorway. However each one gets in, one query finds all five.
+    behind D-01's doorway. The retired `work_pulse` has no door any more
+    (2026-10-02), so its row is one stored before the retirement. However each
+    one got in, one query finds all five.
     """
     csrf, user_id = auth
     _stub_llm(monkeypatch, BOTH_LLM_RESPONSE)
@@ -145,8 +171,7 @@ def test_every_instrument_lands_in_one_table(client, auth, monkeypatch):
               "wpll_answers": WPLL_ANSWERS, "wpll_insight_text": "teaser"},
         headers=headers,
     )
-    client.post("/api/v1/assessments/work_pulse/scoring-jobs",
-                json={"answers": WP_ANSWERS}, headers=headers)
+    _store_legacy_work_pulse(user_id)
     client.post("/api/v1/assessments/focus_type/submissions",
                 json=_FOCUS_TYPE_PAYLOAD, headers=headers)
     client.post("/api/v1/assessments/manager_match/scoring-jobs",
@@ -178,8 +203,8 @@ def test_a_retake_updates_the_row_and_a_core_retake_appends(client, auth, monkey
     headers = {"X-CSRF-TOKEN": csrf}
 
     for _ in range(2):
-        assert client.post("/api/v1/assessments/work_pulse/scoring-jobs",
-                           json={"answers": WP_ANSWERS}, headers=headers).status_code == 202
+        assert client.post("/api/v1/assessments/focus_type/submissions",
+                           json=_FOCUS_TYPE_PAYLOAD, headers=headers).status_code == 200
         assert _submit_core(client, csrf).status_code == 200
 
     from app import app
@@ -187,7 +212,7 @@ def test_a_retake_updates_the_row_and_a_core_retake_appends(client, auth, monkey
 
     with app.app_context():
         rows = AssessmentSubmission.query.filter_by(user_id=user_id).all()
-        assert len([r for r in rows if r.kind == "work_pulse"]) == 1
+        assert len([r for r in rows if r.kind == "focus_type"]) == 1
         assert len([r for r in rows if r.kind == "core"]) == 2
 
 
@@ -200,8 +225,8 @@ def test_every_submission_names_a_registered_form_version(client, auth, monkeypa
     """
     csrf, _user_id = auth
     _stub_llm(monkeypatch)
-    client.post("/api/v1/assessments/work_pulse/scoring-jobs",
-                json={"answers": WP_ANSWERS}, headers={"X-CSRF-TOKEN": csrf})
+    client.post("/api/v1/assessments/focus_type/submissions",
+                json=_FOCUS_TYPE_PAYLOAD, headers={"X-CSRF-TOKEN": csrf})
     assert _submit_core(client, csrf).status_code == 200
 
     from app import app
@@ -343,54 +368,6 @@ def test_a_result_left_in_the_profile_document_is_not_read(client, auth):
     document = client.get("/api/v1/me/profile").get_json()["profile"]
     assert "manager_match_result" not in document
     assert "focus_type_result" not in document
-
-
-def test_the_work_pulse_prompt_still_gets_its_claimed_wpll_context(
-    client, auth, monkeypatch
-):
-    """The narrative prompt reads two things that moved in this phase.
-
-    `wpll_answers` came off `user_intake` and is now the WPLL submission;
-    `selected_statement_ids` stayed on `user_intake`, because statement
-    selections are intake data and not an assessment. Neither reaches the wire,
-    so the contract fixture cannot see this -- it stubs the prompt builders --
-    and without this test the Work Pulse narrative could quietly lose its context
-    with every response still byte-identical.
-
-    Since Phase 3c the way in is the scoring job, not the synchronous submit;
-    eager execution runs the job inside the POST, so the capture still happens
-    before the 202 is returned.
-    """
-    csrf, _user_id = auth
-    _stub_llm(monkeypatch)
-    headers = {"X-CSRF-TOKEN": csrf}
-
-    client.post(
-        "/api/v1/intake/claims",
-        json={"mode": "session", "selected_statement_ids": ["dir-1", "sus-2"],
-              "wpll_answers": WPLL_ANSWERS, "wpll_insight_text": "teaser"},
-        headers=headers,
-    )
-
-    seen = {}
-
-    def _capture(answers, wpll_answers=None, selected_statement_ids=None):
-        seen["answers"] = answers
-        seen["wpll_answers"] = wpll_answers
-        seen["selected_statement_ids"] = selected_statement_ids
-        return [{"role": "system", "content": "x"}]
-
-    monkeypatch.setattr(
-        "solverah.services.assessment_prompts.build_wp_narrative_prompt", _capture
-    )
-
-    assert client.post("/api/v1/assessments/work_pulse/scoring-jobs",
-                       json={"answers": WP_ANSWERS},
-                       headers=headers).status_code == 202
-
-    assert seen["answers"] == WP_ANSWERS
-    assert seen["wpll_answers"] == WPLL_ANSWERS
-    assert seen["selected_statement_ids"] == ["dir-1", "sus-2"]
 
 
 # ── D-01's doorway did not get wider ────────────────────────────────────────

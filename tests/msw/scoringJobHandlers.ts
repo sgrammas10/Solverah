@@ -16,8 +16,8 @@
  *
  * ── WHY A NON-MATCHING KIND FALLS THROUGH RATHER THAN 404-ING ───────────────
  *
- * `/assessments/{kind}/scoring-jobs` is one route for three instruments, so a
- * handler bound to that path matches all three and has to check `params.kind`
+ * `/assessments/{kind}/scoring-jobs` is one route for two instruments, so a
+ * handler bound to that path matches both and has to check `params.kind`
  * itself. When the kind is not the one the builder was made for, the resolver
  * returns `undefined`: MSW then tries the next matching handler and, if there
  * is none, `onUnhandledRequest: "error"` fails the test. Answering 404 instead

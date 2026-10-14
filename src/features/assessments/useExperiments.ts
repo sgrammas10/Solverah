@@ -33,7 +33,9 @@ export interface Experiment {
   direction: SituationDirection;
   started_at: string;
   ends_at: string;
-  status: "active" | "abandoned";
+  /** The stored fact. `completed` is written once `ends_at` has passed
+   *  (2026-10-02), so an ended experiment never blocks the next start. */
+  status: "active" | "completed" | "abandoned";
   abandoned_at: string | null;
   /** Derived server-side on every read -- never stored. */
   phase: "running" | "ended" | "abandoned";
@@ -74,6 +76,14 @@ export function useStartExperiment() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: experimentKeys.all });
+    },
+    onError: (error) => {
+      // A 409 means the server knows of a running experiment this page's
+      // list does not (started in another tab, say). Refetch so the cells
+      // show that experiment instead of a button that can only fail again.
+      if (isExperimentAlreadyActive(error)) {
+        queryClient.invalidateQueries({ queryKey: experimentKeys.all });
+      }
     },
   });
 }

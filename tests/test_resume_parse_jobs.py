@@ -413,3 +413,125 @@ def test_the_sweep_runs_jobs_whose_enqueue_was_lost(client, auth, job, parser):
 
     body = client.get("/api/v1/me/resume-parse-jobs/%s" % job["public_id"]).get_json()
     assert body["status"] == "succeeded"
+
+
+# ── A parse never wipes what the user already has (audit 2026-10-02, item 1) ─
+
+
+EXISTING = {
+    "experience": [{"id": 1, "company": "Kept Co", "position": "Analyst",
+                    "startDate": "2020-01", "endDate": "Present", "description": ""}],
+    "education": [{"id": 1, "institution": "Kept U", "degree": "BA",
+                   "startDate": "", "endDate": "", "gpa": ""}],
+    "skills": ["Excel"],
+}
+
+
+def _seed_profile(client, csrf):
+    resp = client.patch(
+        "/api/v1/me/profile", json={"profile": EXISTING}, headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+
+def _stub_parse(monkeypatch, **sections):
+    def _build(resume_key, resume_mime, resume_size_bytes, resume_name):
+        return {
+            "experience": [], "education": [], "skills": [],
+            **sections,
+            "uploadedResume": {"name": "cv.pdf", "size": resume_size_bytes,
+                               "type": resume_mime},
+            "resumeKey": resume_key,
+        }
+
+    monkeypatch.setattr(
+        "solverah.services.resume_service.build_profile_from_resume_key", _build
+    )
+
+
+def _profile(client):
+    return client.get("/api/v1/me/profile").get_json()["profile"]
+
+
+def test_a_parse_with_every_section_empty_leaves_the_profile_untouched(
+    client, auth, job, monkeypatch
+):
+    """Used to be ``{**existing, **parsed}``: three empty lists over three filled
+    sections, and the job still reported ``succeeded``."""
+    from app import app
+    from solverah.services import resume_jobs
+
+    _seed_profile(client, auth)
+    _stub_parse(monkeypatch)
+
+    with app.app_context():
+        assert resume_jobs.run(job["id"]) == resume_jobs.SUCCEEDED
+
+    profile = _profile(client)
+    assert profile["experience"][0]["company"] == "Kept Co"
+    assert profile["education"][0]["institution"] == "Kept U"
+    assert profile["skills"] == ["Excel"]
+    # The file itself is still recorded: only the empty sections are skipped.
+    assert profile["resumeKey"] == "profile/%s/abc/resume.pdf" % job["user_id"]
+
+
+def test_a_non_empty_section_still_replaces_while_an_empty_one_is_kept(
+    client, auth, job, monkeypatch
+):
+    """Replace-vs-merge for a filled section is an open decision; until it is
+    made, a filled section replaces as it always did."""
+    from app import app
+    from solverah.services import resume_jobs
+
+    _seed_profile(client, auth)
+    _stub_parse(monkeypatch, skills=["Python", "SQL"])
+
+    with app.app_context():
+        assert resume_jobs.run(job["id"]) == resume_jobs.SUCCEEDED
+
+    profile = _profile(client)
+    assert profile["skills"] == ["Python", "SQL"]
+    assert profile["experience"][0]["company"] == "Kept Co"
+    assert profile["education"][0]["institution"] == "Kept U"
+
+
+def test_a_file_with_no_readable_text_fails_with_a_message_and_changes_nothing(
+    client, auth, monkeypatch
+):
+    """A .doc is accepted for upload and never parsed. Before 2026-10-02 it came
+    back ``succeeded`` with an empty parse -- which, merged, wiped the profile."""
+    from app import app
+    from model import ResumeParseJob, User, db
+    from solverah.services import resume_jobs, resume_service
+
+    class _Body:
+        def read(self):
+            return b"\xd0\xcf\x11\xe0 legacy word binary"
+
+    class _FakeS3:
+        def get_object(self, Bucket, Key):
+            return {"Body": _Body()}
+
+    monkeypatch.setattr("solverah.services.resume_service.get_s3_client", lambda: _FakeS3())
+    monkeypatch.setenv("S3_BUCKET_NAME", "test-bucket")
+    _seed_profile(client, auth)
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        row = ResumeParseJob(user_id=user.id, object_key="profile/%s/d0c/resume.doc" % user.id,
+                             mime="application/msword", size_bytes=2048)
+        db.session.add(row)
+        db.session.commit()
+        job_id, public_id = row.id, row.public_id.hex
+
+        assert resume_jobs.run(job_id) == resume_jobs.FAILED
+
+    body = client.get("/api/v1/me/resume-parse-jobs/%s" % public_id).get_json()
+    assert body["status"] == "failed"
+    assert body["error"] == resume_service.NO_TEXT_MESSAGE
+    assert "PDF or DOCX" in body["error"]
+
+    profile = _profile(client)
+    assert profile["experience"][0]["company"] == "Kept Co"
+    assert profile["skills"] == ["Excel"]
+    assert "resumeKey" not in profile

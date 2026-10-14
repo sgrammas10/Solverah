@@ -5,6 +5,8 @@ import Login from "./Login";
 import { useAuth } from "../useAuth";
 import * as guestQuiz from "../../../shared/lib/guestQuiz";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { ApiError } from "../../../shared/api/apiError";
+import { profileKeys } from "../../profile";
 import { useApiMocks } from "../../../../tests/msw/server";
 
 vi.mock("../useAuth");
@@ -177,37 +179,118 @@ describe("Login - return-to-origin", () => {
 // ─── pending quiz save ────────────────────────────────────────────────────────
 
 describe("Login - pending quiz save", () => {
+  // What the guest quiz now stores (guestQuiz.completeGuestQuiz): real answers
+  // and a request with items. getPendingQuizSave() returns nothing else.
+  const pendingQuiz = {
+    quizGroup: "careerQuizzes",
+    quizResults: { careerQuizzes: { earlyCareer: { 1: 0 } }, careerQuizzesSubmittedAt: "t" },
+    quizPayload: {
+      quizGroup: "careerQuizzes",
+      quizzes: [{ key: "earlyCareer", title: "Early", items: [{ question: "Q", selected: "A" }] }],
+    },
+    createdAt: "2024-01-01T00:00:00.000Z",
+  };
+  const seeker = { role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false };
+
+  function renderWithClient(queryClient = createQueryClient()) {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <Login />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    return queryClient;
+  }
+
+  const patchBodies = () =>
+    mockFetchWithAuth.mock.calls
+      .filter(([path, init]) => path === "/me/profile" && init?.method === "PATCH")
+      .map(([, init]) => JSON.parse(init.body));
+
   it("saves pending quiz results and redirects to quiz-insights", async () => {
-    const pendingQuiz = {
-      quizGroup: "next-chapter",
-      quizResults: { q1: "a" },
-      quizPayload: { answers: {} },
-      createdAt: "2024-01-01T00:00:00.000Z",
-    };
     vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false });
+    mockLogin.mockResolvedValueOnce(seeker);
     mockFetchWithAuth
-      .mockResolvedValueOnce({})  // POST /profile
-      .mockResolvedValueOnce({});  // POST /quiz-insights
+      .mockResolvedValueOnce({})  // PATCH /me/profile
+      .mockResolvedValueOnce({});  // POST /me/quiz-insights
 
     renderLogin();
     await submitForm();
 
     expect(mockFetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(mockFetchWithAuth).toHaveBeenLastCalledWith("/me/quiz-insights", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify(pendingQuiz.quizPayload),
+    }));
     expect(mockNavigate).toHaveBeenCalledWith(
-      `/quiz-insights?group=${encodeURIComponent("next-chapter")}`
+      `/quiz-insights?group=${encodeURIComponent("careerQuizzes")}`
     );
   });
 
-  it("clears the pending quiz save after successfully saving", async () => {
-    const pendingQuiz = {
-      quizGroup: "next-chapter",
-      quizResults: {},
-      quizPayload: {},
-      createdAt: "2024-01-01T00:00:00.000Z",
-    };
+  it("invalidates the cached profile document before navigating to quiz-insights (G22)", async () => {
     vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false });
+    mockLogin.mockResolvedValueOnce(seeker);
+    mockFetchWithAuth.mockResolvedValue({});
+
+    // A pre-login copy of the profile with no quizResults, as the app holds it.
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(profileKeys.document(), { name: "A" });
+    let invalidatedAtNavigate: boolean | undefined;
+    mockNavigate.mockImplementationOnce(() => {
+      invalidatedAtNavigate = queryClient.getQueryState(profileKeys.document())?.isInvalidated;
+    });
+
+    renderWithClient(queryClient);
+    await submitForm();
+
+    expect(mockNavigate).toHaveBeenCalledWith(`/quiz-insights?group=${encodeURIComponent("careerQuizzes")}`);
+    expect(invalidatedAtNavigate).toBe(true);
+  });
+
+  // Audit 2026-10-02 #2: the server merges quizResults one level deep, so the
+  // guest's `careerQuizzes` map used to replace the account's whole map.
+  it("merges the guest's career quiz with the account's saved career answers", async () => {
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
+    mockLogin.mockResolvedValueOnce(seeker);
+    mockFetchWithAuth.mockResolvedValue({});
+
+    const queryClient = createQueryClient();
+    queryClient.setQueryData(profileKeys.document(), {
+      quizResults: { careerQuizzes: { midCareer: { 2: 1 } } },
+    });
+    renderWithClient(queryClient);
+    await submitForm();
+
+    expect(patchBodies()).toEqual([
+      {
+        profile: {
+          quizResults: {
+            careerQuizzes: { midCareer: { 2: 1 }, earlyCareer: { 1: 0 } },
+            careerQuizzesSubmittedAt: "t",
+          },
+        },
+      },
+    ]);
+  });
+
+  it("never PATCHes empty quizResults over existing answers", async () => {
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue({
+      ...pendingQuiz,
+      quizResults: { careerQuizzes: {} },
+    });
+    mockLogin.mockResolvedValueOnce(seeker);
+    mockFetchWithAuth.mockResolvedValue({});
+
+    renderLogin();
+    await submitForm();
+
+    expect(patchBodies()).toEqual([]);
+  });
+
+  it("clears the pending quiz save after successfully saving", async () => {
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
+    mockLogin.mockResolvedValueOnce(seeker);
     mockFetchWithAuth.mockResolvedValue({});
 
     renderLogin();
@@ -217,14 +300,8 @@ describe("Login - pending quiz save", () => {
   });
 
   it("still navigates to dashboard if pending quiz save fails", async () => {
-    const pendingQuiz = {
-      quizGroup: "next-chapter",
-      quizResults: {},
-      quizPayload: {},
-      createdAt: "2024-01-01T00:00:00.000Z",
-    };
     vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A", profileComplete: false });
+    mockLogin.mockResolvedValueOnce(seeker);
     mockFetchWithAuth.mockRejectedValue(new Error("save failed"));
 
     renderLogin();
@@ -232,6 +309,35 @@ describe("Login - pending quiz save", () => {
 
     // Falls back to the normal job-seeker redirect
     expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+  });
+
+  // Audit #2: a 4xx fails identically on every sign-in, so it must not be
+  // replayed forever.
+  it("clears the pending save when the replay is refused with a 4xx", async () => {
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
+    mockLogin.mockResolvedValueOnce(seeker);
+    mockFetchWithAuth
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new ApiError("bad", { status: 400 }));
+
+    renderLogin();
+    await submitForm();
+
+    expect(guestQuiz.clearPendingQuizSave).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+  });
+
+  it.each([429, 500, 401])("keeps the pending save for a later sign-in on a %s", async (status) => {
+    vi.spyOn(guestQuiz, "getPendingQuizSave").mockReturnValue(pendingQuiz);
+    mockLogin.mockResolvedValueOnce(seeker);
+    mockFetchWithAuth
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new ApiError("later", { status }));
+
+    renderLogin();
+    await submitForm();
+
+    expect(guestQuiz.clearPendingQuizSave).not.toHaveBeenCalled();
   });
 });
 

@@ -231,7 +231,7 @@ describe("IntelligencePage - completed without a narrative", () => {
     };
     renderIntelligencePage();
 
-    expect(screen.getByText(/fifteen questions about the role/i)).toBeInTheDocument();
+    expect(screen.getByText(/sixteen questions about the role/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
   });
@@ -268,6 +268,55 @@ describe("IntelligencePage - completed without a narrative", () => {
     expect(screen.queryByRole("button", { name: /Describe your job/ })).toBeNull();
   });
 
+  // ── The past-job report (PRODUCT_DECISIONS §2, 2026-10-01) ──
+  describe("the earlier-job card", () => {
+    const COMPLETE = {
+      state: "complete",
+      manager: { has_profile: false },
+      career_status: "employed",
+      needs_forward: false,
+      dimensions: [],
+      guidance_notice: "notice",
+      events_since_report: [],
+    };
+
+    it("offers it once the Situation Report exists and no past report is filed", () => {
+      mocks.situationQuery = { data: { ...COMPLETE, past_job_report_filed: false } };
+      renderIntelligencePage();
+
+      fireEvent.click(screen.getByRole("button", { name: /Describe your earlier job/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/environment-report/past");
+    });
+
+    it("hides it once the past report is filed", () => {
+      mocks.situationQuery = { data: { ...COMPLETE, past_job_report_filed: true } };
+      renderIntelligencePage();
+      expect(screen.queryByRole("button", { name: /Describe your earlier job/ })).toBeNull();
+      // The Situation Report link itself is unaffected.
+      expect(screen.getByRole("button", { name: /View your Situation Report/ })).toBeInTheDocument();
+    });
+
+    it("hides it before there is a Situation Report", () => {
+      mocks.situationQuery = {
+        data: {
+          state: "needs_environment_report",
+          manager: { has_profile: false },
+          can_submit_environment_report: true,
+          past_job_report_filed: false,
+        },
+      };
+      renderIntelligencePage();
+      expect(screen.queryByRole("button", { name: /Describe your earlier job/ })).toBeNull();
+    });
+
+    it("hides it for a profile that now reads first_job", () => {
+      mocks.profile = { career_status: "first_job" };
+      mocks.situationQuery = { data: { ...COMPLETE, past_job_report_filed: false } };
+      renderIntelligencePage();
+      expect(screen.queryByRole("button", { name: /Describe your earlier job/ })).toBeNull();
+    });
+  });
+
   it("shows the coming-soon CompanyLens card instead of implying matches are ready", () => {
     // Until 2026-09-08 this card read "Your company matches are ready." with a
     // button to /company-lens, which 400s for every current-instrument user:
@@ -276,9 +325,24 @@ describe("IntelligencePage - completed without a narrative", () => {
     // coming-soon regardless of wp_v2_completed.
     renderIntelligencePage();
     expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
-    expect(screen.getByText(/Coming soon/i)).toBeInTheDocument();
     expect(screen.queryByText(/matches are ready/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
+  });
+
+  it("no longer renders a disabled 'Coming soon' button on the CompanyLens card (dead UI removal)", () => {
+    // The button was disabled and did nothing when clicked -- unlike Path
+    // Intelligence's "Pro · coming soon" badge, which stays (09-28 ruling)
+    // because its button is live and navigates to /intelligence/paths.
+    renderIntelligencePage();
+    expect(screen.queryByRole("button", { name: "Coming soon" })).toBeNull();
+  });
+
+  it("labels the Pro badge as coming soon, not as a bare tier", () => {
+    // Pro is visible but not purchasable yet (product owner, 2026-09-28); a
+    // bare "Pro" badge read as a paywall on a card whose button works.
+    renderIntelligencePage();
+    expect(screen.getByText("Pro · coming soon")).toBeInTheDocument();
+    expect(screen.queryByText(/^Pro$/)).toBeNull();
   });
 
   it("links to the trust page from the hub footer", () => {

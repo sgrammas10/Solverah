@@ -607,3 +607,24 @@ def test_end_to_end_refuses_a_code_the_corpus_does_not_have(
     assert resp.status_code == 404
     assert resp.get_json()["error"] == "unknown_occupation"
     assert real_stack.get_skills_profile.call_count == 0, "a miss paid for a fetch"
+
+
+def test_the_declared_descriptions_match_what_w9_and_w12_made_true():
+    """W-19: two field descriptions outlived the behaviour they described.
+
+    `onet_calls` said "Four unless a call failed" after W-9 made it zero
+    whenever the fit sidecar has the occupation, and `tech_stack` said nothing
+    of W-12's dedup against the two sections above it. `docs/openapi.json` and
+    the generated frontend types carry these strings, so a stale one is a wrong
+    API doc.
+    """
+    from solverah.schemas.intelligence import PathFitResponse
+
+    fields = PathFitResponse.model_fields
+    onet_calls = fields["onet_calls"].description
+    tech_stack = fields["tech_stack"].description
+
+    assert "Four unless a call failed" not in onet_calls
+    assert "Zero when the fit sidecar has the occupation" in onet_calls
+    assert "matched_skills" in tech_stack and "gap_skills" in tech_stack
+    assert "acronym" in tech_stack

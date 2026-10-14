@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
-import { getPendingQuizSave, clearPendingQuizSave } from "../../../shared/lib/guestQuiz";
+import { getPendingQuizSave, clearPendingQuizSave, replayQuizResults } from "../../../shared/lib/guestQuiz";
 import { API_BASE } from "../../../shared/api/api";
 import { parseApiError } from "../../../shared/api/apiError";
+import { profileKeys } from "../../profile";
 
 const INTAKE_STORAGE_KEY = 'solverah_intake';
 
@@ -106,6 +107,7 @@ function Login() {
   const { login, fetchWithAuth } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
 
   const loginMutation = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
@@ -142,21 +144,45 @@ function Login() {
         }
       }
 
+      // getPendingQuizSave() returns only a usable save (answers + a request
+      // with items) and drops an empty one, so a failed guest attempt can no
+      // longer replay a doomed POST on every sign-in (audit 2026-10-02 #2).
       const pending = getPendingQuizSave();
       if (pending && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
         try {
-          await fetchWithAuth('/me/profile', {
-            method: 'PATCH',
-            body: JSON.stringify({ profile: { quizResults: pending.quizResults } }),
-          });
+          // Merged one level below what the server merges, against the
+          // document the login response seeded: a guest's one career quiz
+          // must not replace the account's other career-quiz answers, and an
+          // empty value is never written over saved ones.
+          const existing = queryClient.getQueryData<{ quizResults?: unknown }>(profileKeys.document());
+          const quizResults = replayQuizResults(existing?.quizResults, pending.quizResults);
+          if (quizResults) {
+            await fetchWithAuth('/me/profile', {
+              method: 'PATCH',
+              body: JSON.stringify({ profile: { quizResults } }),
+            });
+          }
           await fetchWithAuth('/me/quiz-insights', {
             method: 'POST',
             body: JSON.stringify(pending.quizPayload),
           });
+          // G22: the profile document cached before this replay has no
+          // quizResults, and /quiz-insights reads that cache first -- without
+          // this it showed an empty page until a reload. Awaited so the next
+          // page mounts on the refetched copy. ManagerMatchPage does the same.
+          await queryClient.invalidateQueries({ queryKey: profileKeys.document() });
           redirectPath = `/quiz-insights?group=${encodeURIComponent(pending.quizGroup)}`;
           clearPendingQuizSave();
         } catch (saveErr) {
           console.error('Failed to save pending quiz:', saveErr);
+          // A 4xx will fail the same way on every sign-in, so the save is
+          // dropped rather than replayed forever. 401 (session), 408 and 429
+          // (try later) and 5xx/network keep it for the next sign-in.
+          const status = (saveErr as { status?: unknown } | null)?.status;
+          if (typeof status === 'number' && status >= 400 && status < 500
+              && ![401, 408, 429].includes(status)) {
+            clearPendingQuizSave();
+          }
         }
       }
 

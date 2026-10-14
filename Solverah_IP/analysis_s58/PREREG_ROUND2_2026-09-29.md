@@ -1,0 +1,336 @@
+# Pre-registration: round 2, the LLM scorer against human judgement
+
+**Written 2026-09-29, before any round-2 scoring, rating or API call.** Nothing in this file
+may be edited after the first round-2 score exists, except by a dated addendum that says what
+changed and why. The rater question (the last section) is Sebastian's and is **open**. Sections 1-9
+hold whichever way it is answered; the last section says what each answer changes.
+
+**Instrument:** `anchors_v3_1_PROPOSED.json` (`v3.1-PROPOSED-2026-09-29`), rater-page anchors
+hash `3e270b206116`. If Julie's confirm sheet changes the wording before round 2 starts, the
+version and hash change, and this file gets an addendum naming the new ones. **No round-2 score
+may be taken under two different rubric texts.**
+
+**Round 1 is not part of this.** P-01..P-06 were scored under v1-frozen-2026-08-15 and are never
+rescored or pooled with round 2. They are a different instrument, so they are not the same
+question. That rules out the tempting shortcut of using Julie's round-1 scores as the first half
+of a test-retest pair (section 4).
+
+---
+
+## 1. What round 2 is for
+
+The goal is to decide whether the LLM scorer can stand in for human raters, so that humans
+become a spot-check. It can do that if it agrees with the human reference **at least as well
+as the reference agrees with itself or with other humans**. Beating a perfect standard is not
+required; nobody meets that, and round 1 showed two careful humans at Pearson -0.195.
+
+## 2. Units, scale and the skip
+
+- **Cell** = packet x dimension. Six dimensions per packet.
+- **Scores are integer band indices 0-4** (0.1 -> 0 ... 0.9 -> 4), compared as integers per
+  D-12(a). No float thresholds anywhere.
+- **Insufficient evidence** (a skip, human or LLM) has no band. A cell where either side of a
+  comparison skipped is excluded from that comparison's distance, and is counted.
+- **Packets:** only packets `Scripts/verify_scrub.py` has PASSED, re-run on the day each is
+  first used. Candidates are P-07..P-13 now and P-14..P-19 as the pipeline delivers. Each
+  packet's collector version (v4.6-v4.11) is recorded and reported per packet. The version is
+  not a stratification variable, since the counts are too small.
+
+## 3. The LLM side
+
+- Model and settings as `causal_graph/scorer_pipeline.py` ships them on the run date
+  (`gpt-5.5-2026-04-23`, reasoning_effort medium, temperature 1.0), with
+  `allow_insufficient_evidence=True` under v3.1.
+- **D-21: three independent draws per packet**, with per-cell dispersion reported (SD over
+  draws, and the count of cells whose band differs between draws).
+- **The LLM's cell value is the median band of its three draws.** Three draws make the median
+  exact. If two or more draws abstain, the cell is an LLM skip. If exactly one abstains, the
+  cell value is the lower band of the two scored draws. That rule is fixed now and is
+  deliberately conservative toward the floor, because the floor bias is the known failure.
+- Citations go through `verify_result`. An unverified citation is reported, and never
+  counted as evidence.
+- **Cost gate:** calls = packets x 3. The number and an estimated cost go to Sebastian before
+  the run, and nothing runs without his go-ahead.
+
+## 4. The human side, and the ceiling
+
+Per the answer to the rater question (last section), one of:
+
+- **(a) Two or more blind raters per packet.** Ceiling = the mean human-human distance
+  d(r_i, r_j) over rater pairs on each packet. D-12(b) stands: Julie, if she also rates, is
+  the expert reference and outside the blind ceiling.
+- **(b) Julie as the sole reference, plus test-retest.** Ceiling = d(Julie_t1, Julie_t2) on
+  **k repeated packets**, rated at least three weeks apart, under the **same** rubric version
+  and hash, on **byte-identical** packet files. The retest packets are chosen now, by rule:
+  the first k packets she completes, with k = 3.
+- **(c) No human reference.** No ceiling and no finish line. Section 6 still reports the
+  LLM-only statistics.
+
+## 5. The finish line: pre-registered, primary
+
+**Like-for-like, or not at all.** The LLM is compared with **one human reading at a time**,
+exactly as humans are compared with each other. It is never compared with a median, a mean or
+a consensus of humans. A median of two readings sits closer to any third value by
+construction, so "LLM vs human median" and "human vs human" are different quantities.
+**Round 1's "mean |LLM - human median| = 0.114" is therefore NOT evidence that the LLM beat the
+humans, and must not be quoted as such.**
+
+**Primary metric: mean absolute band distance** over cells where both sides scored.
+
+- (a): `D_llm` = mean over cells and over raters r of d(LLM, r). `D_ceiling` = mean over cells
+  and over rater pairs of d(r_i, r_j).
+- (b): `D_llm` = mean over cells of d(LLM, Julie_t1). `D_ceiling` = mean over the k retest
+  packets' cells of d(Julie_t1, Julie_t2). The t1 reading is used everywhere, so the LLM is
+  never compared with a reading she made after seeing her own earlier scores.
+
+**Secondary:** the exact-band agreement rate, computed the same way.
+
+**Uncertainty: cluster bootstrap over PACKETS**, 20,000 resamples, seed 20260929. Each
+resample draws packets with replacement, and every cell of a drawn packet comes with it. S-48
+showed cells within a packet are not independent, and treating them as independent inflates
+the false-positive rate to 0.35-0.49.
+
+- Under (b) the two means come from different packet sets (all packets vs the k retest
+  packets), so they are bootstrapped independently and the difference is taken per resample.
+
+**The finish line is met when BOTH hold:**
+
+1. The 95% CI for `D_llm - D_ceiling` has its upper bound **below +0.25 bands**. That is the
+   non-inferiority margin: the LLM may be at most a quarter band worse than the humans'
+   own agreement.
+2. **Coverage guard.** The share of cells the LLM scored (did not skip) is no more than **10
+   percentage points below** the reference's share. Without this, an LLM could buy agreement
+   by abstaining on exactly the hard cells.
+
+**If the CI straddles the margin, the result is INCONCLUSIVE, not a pass.** That is the
+expected outcome at this sample size (section 8). The 0.25 margin and the 10-point coverage
+guard are fixed by this document. Changing either after data exists is a new decision for a
+future round, never a retroactive one.
+
+## 6. Pre-registered secondary checks
+
+**Floor bias (the round-1 failure).**
+
+- Report the LLM's 0.1 usage over all cells and draws, alongside the reference's 0.1 usage.
+- For every cell the reference places at 0.1, report the LLM's band.
+- **Pre-set reading:**
+  - "floor bias persists": the reference uses 0.1 on at least 3 cells and the LLM uses 0.1 on
+    none of them.
+  - "floor bias reduced": the LLM uses 0.1 on at least half of the reference's 0.1 cells.
+  - Anything between those is "unresolved".
+- The extremity flag stays a review queue, never an auto-gate, whatever this shows (as
+  already pre-registered in PREREG_COMBINED_RUN_2026-09-01b).
+
+**Skip agreement.** A 2x2 of LLM skip vs reference skip over all cells, plus skip counts by
+dimension. It is descriptive only. Feedback is expected to carry the most skips, because it
+came back THIN in 8 of the first 10 packets.
+
+**Per-dimension distances**, descriptive only. There is no per-dimension pass/fail: with n
+packets, each dimension's CI is too wide to act on.
+
+**LLM draw-to-draw dispersion** (D-21), reported beside everything above.
+
+## 7. The equivalence gate: before any disagreement is called "noise"
+
+This follows the CLAUDE.md rule from 2026-09-17: a check that disagrees with an expert is first
+a claim about the check. **Before any disagreement between two readings is attributed to rater
+unreliability or model error, confirm the two readings answered the same question:**
+
+1. **Same packet bytes.** The packet file's sha256 is recorded with each reading and must match.
+2. **Same rubric.** The `anchors_hash` in the rater JSON, or the `rubric_version` on the scorer
+   run, must match.
+3. **Same construct.** For every REVIEW cell (two or more bands apart), the two readings'
+   citations are put side by side. If they cite different excerpts for different constructs,
+   the finding is **construct routing** (S-58), not noise, and is reported as such.
+4. **Test-retest only:** the retest is not re-framed. The same page, the same instructions,
+   and no reminder of her earlier scores.
+
+A disagreement that fails any of these is reported as "not comparable", never pooled into
+the finish-line statistic.
+
+## 8. Honest power line
+
+With 7 packets (P-07..P-13), or even 13 (to P-19), this is **below S-48's N≈15-19**. The
+likely result is **INCONCLUSIVE**, and that is recorded here so it cannot be read later as the
+LLM "failing". Under (b) the ceiling rests on k = 3 retest packets (18 cells), so its CI will
+be wide. Under (a) it depends on how many packets volunteers actually complete.
+
+## 9. What this does NOT license
+
+- **Fitting a calibration map.** The isotonic harness exists and will refuse to fit on fewer
+  than **15 packets with a human reference**, the lower end of S-48's range. Round 2 alone will
+  not reach that.
+- Changing band values, the D-12 rule, or the anchors in response to round-2 results within
+  round 2.
+- Rescoring P-01..P-06 under v3.1.
+
+---
+
+## Open for Sebastian: the rater question (not decided here)
+
+| option | ceiling it gives | what it costs | the catch |
+|---|---|---|---|
+| **(a) new blind raters (volunteers)** | human-human: the standard D-12 was built for | recruiting; each packet took round-1 raters hours, and two per packet is the minimum | volunteers drop out, and a packet with one rater has no ceiling. Round 1 showed blind lawyers at Pearson -0.195, so the ceiling may be low, which makes the finish line easy to meet and weak |
+| **(b) Julie alone + test-retest** | Julie vs her own earlier reading | Julie's time: one packet per sitting, async, about 10 packets plus 3 retests weeks apart | she recognised 3 of 6 companies in round 1 and wrote the anchors, so this validates the LLM against the author's reading, not a naive reader's. Memory of her own scores inflates her consistency, which makes the finish line HARDER for the LLM. D-12(b) excludes her from the ambiguity flag on authorship grounds, and using her as the validation reference is a different use you would need to confirm |
+| **(c) defer humans; LLM only on P-07..P-13** | none | 21 calls (7 packets x 3), cost quoted before running | scores without validation. Only the section-6 LLM-only statistics (floor usage, abstention rate, dispersion) are available |
+
+---
+
+## ADDENDUM A1 -- 2026-09-29: the rater question answered (option d)
+
+**Written the same day, before any round-2 rating, scoring or call.** It records Sebastian's
+answer to the rater question and what that answer changes. Sections 1-9 stand unless this
+addendum says otherwise.
+
+**Sebastian's decision:** "I should be the rater... I can put in the necessary time and effort
+to make it as accurate as possible. We can also send Julie 1-2 out of every group to make
+sure her knowledge is still being used." He then chose 2 per group.
+
+### A1.1 Who rates
+
+| letter | who | role | rates |
+|---|---|---|---|
+| **D** | Sebastian | `reference`: not blind, not the rubric's original author | every round-2 packet |
+| **A** | Julie | `expert` (as in round 1) | 2 packets per group, drawn at random (A1.3) |
+
+`rater_agreement.RATER_ROLES` gains `"D": "reference"`. D never enters the D-12 blind flag
+or `expert_divergence`. With no blind raters in round 2, the D-12 ambiguity flag has nothing
+to compute over. Round 2 is analysed by the finish line below, not by that flag.
+
+### A1.2 What the finish line now compares
+
+- **Primary:** `D_llm` = mean over cells of d(LLM, D), over all packets.
+- **Ceiling:** `D_ceiling` = mean over cells of d(D, A), over the overlap packets only. That
+  is the only human-vs-human agreement in the design.
+- **Secondary, descriptive:** d(LLM, A) on the overlap packets, a direct LLM-vs-expert
+  reading, reported beside d(D, A).
+- The margin (+0.25 band), the coverage guard (10 points), the bootstrap and the verdict rules
+  are exactly as in section 5. `D_llm` and `D_ceiling` come from different packet sets, so
+  they are bootstrapped independently, as section 5 already specifies for (b).
+- **No Sebastian test-retest.** He chose every company and would remember his own scores, so
+  a retest would mostly measure memory. It was considered and left out, deliberately.
+
+### A1.3 Julie's packets are drawn, not chosen
+
+- **Group 1 = P-07..P-13.** Drawn 2026-09-29, before any rating:
+  `sorted(random.Random(20260929).sample(["P-07","P-08","P-09","P-10","P-11","P-12","P-13"], 2))`
+  gives **P-10 and P-11**.
+- **Group 2 = P-14..P-19.** Same rule and seed, over the six packet ids, drawn on the day all
+  six have passed `Scripts/verify_scrub.py`, and recorded here as a dated line before either
+  rater opens a group-2 packet. If fewer than six ever pass, group 2 is whatever has passed by
+  the day Sebastian starts rating it, and the draw is over that list.
+- **Limitation, recorded:** Sebastian knows which packets Julie will see. If that changes how
+  carefully he rates them, D's agreement on the overlap packets is not representative of D's
+  agreement elsewhere. Nothing here can detect that; it is stated so it is not forgotten.
+
+### A1.4 What this design can and cannot show
+
+**Sebastian is not blind, in the strongest sense available.** He chooses every company by
+hand for **pole coverage** (`ground_truth/_build_env/to_be_researched.txt`), so he knows which
+company each packet is and which pole he expected it to show when he chose it. So:
+
+- A PASS means **"the LLM agrees with the project owner's careful reading of the packet at
+  least as well as the owner and the domain expert agree with each other."** It does not mean
+  "the LLM agrees with a naive reader". Round 2 cannot measure that.
+- The reading is only as good as D's independence from his own selection priors. A1.5 is
+  the check on that.
+
+### A1.5 Expectation-leak diagnostic (pre-registered, descriptive, no verdict)
+
+For every cell on the overlap packets, take the roster's **pre-scoring expected pole** for that
+company and dimension, where the roster gives one. Report, for each of D, A and the LLM, the
+share of those cells where the reading sits on the expected side of 0.5 (band index 0-1 for a
+low-pole expectation, 3-4 for a high one).
+
+- **Reading, fixed now:** if D's share exceeds A's by **20 points or more**, the result is
+  reported as **"the reference may carry selection priors"**, and every round-2 finding is
+  presented with that caveat attached, not buried under it.
+- With 12-24 cells this is weak evidence either way, and it is described that way. It needs the
+  roster's expected poles for P-07..P-19, which Sebastian supplies. **The roster must not be
+  opened by D during rating (A1.6).**
+
+### A1.6 Independence and order: equivalence gates added to section 7
+
+5. **Neither rater sees the other's scores, or any LLM output for that packet, before
+   submitting their own.**
+6. **The LLM runs on a packet only after D's submission for it exists.** The analysis checks
+   that D's `submitted_at` is earlier than the LLM run's `run_at`. A packet that fails is
+   reported as "not comparable" and kept out of the finish line.
+7. **While rating, D does not open the roster, the research queue or `PIPELINE_LOG.md`.** This
+   cannot be verified. It is a protocol commitment, recorded as one.
+8. **Recognition is answered honestly on every sitting.** D will answer "recognised" on every
+   packet, and that is expected. A's answers are data, as in round 1 (D-09).
+
+### A1.7 Power, restated
+
+2 + 2 overlap packets gives 24 cells for the ceiling, so its CI will be very wide. **The
+expected verdict is INCONCLUSIVE.** An inconclusive round 2 is not a failed LLM. It means round
+3 needs more overlap.
+
+---
+
+## ADDENDUM A2 -- 2026-10-01: rubric frozen; Julie offered every packet, in a fixed order
+
+**Written before any round-2 rating, scoring or call.** Sections 1-9 and A1 stand unless this
+addendum says otherwise.
+
+**Sebastian's decisions (2026-10-01):** freeze v3.1 now rather than wait for Julie's confirm
+sheet; and, once every round-2 packet is built, send Julie all of them, asking her to do as
+many as she has time for.
+
+### A2.1 The rubric is frozen for round 2
+
+- Round 2 is scored under **`v3.1-PROPOSED-2026-09-29`, page anchors hash `3e270b206116`**,
+  as committed in 54685cf. This satisfies section 2's "no round-2 score under two different
+  rubric texts".
+- **The confirm sheet does not change round 2.** Any "change this" Julie returns goes into a
+  v3.2 for round 3. Round-2 and round-3 distances are never pooled.
+- If she disputes an edit, every round-2 result on that dimension is reported with the
+  dispute named beside it. The data is not discarded.
+- **The confirm sheet goes to Julie last,** after she has finished whatever packets she is
+  going to rate. It highlights exactly what changed, and reading it first could steer how she
+  reads those passages while scoring.
+
+### A2.2 Julie's packets: all of them, worked in one fixed order (supersedes A1.3's group-2 draw)
+
+She is offered every round-2 packet that passes the scrub gate, and asked to work through
+them **in this order** and stop whenever she likes:
+
+    P-11, P-10, P-19, P-09, P-17, P-08, P-13, P-07, P-16, P-15, P-18, P-14, P-12
+
+- The first two are A1.3's group-1 draws, kept first so that commitment stands.
+- The other eleven are `random.Random(20261001).shuffle` over the remaining P-07..P-19 ids.
+- A packet that never passes the scrub is dropped from the order, and the rest keep their
+  places.
+- Her page files are numbered in this order (`for_julie/01_P-11_raterA.html`, ...), so her
+  folder lists them in the order she is asked to work.
+- **Why an order, not "pick any":** the overlap is the design's only human-vs-human ceiling.
+  If she chose which packets to do, the ceiling would be measured on the packets she found
+  easiest or most interesting. Stopping anywhere in a random order leaves her completed set a
+  random sample.
+- A1.3's group-2 draw rule is withdrawn. A1.1's "2 packets per group" becomes "as many as she
+  does, in this order".
+
+### A2.3 Order check (descriptive)
+
+- `round2_analysis.overlap_order_check` reports whether her completed packets form an unbroken
+  run from the start of the order. Packets that nobody read are not counted as gaps.
+- **If they do not, the ceiling is reported as "partly self-selected".** No packet is dropped
+  for it.
+
+### A2.4 Independence, restated for an open-ended overlap
+
+- Any round-2 packet may turn out to be an overlap packet, because nobody knows in advance how
+  far she will go. So A1 rule 5 now covers **every** round-2 packet: Sebastian and Julie do not
+  discuss any packet, score or reasoning until round 2 closes.
+- **Sebastian files Julie's returned JSONs into `returned/round2/` without opening them.** He
+  may receive her file for a packet before he has rated it himself.
+- A1.3's limitation is now partly relieved: Sebastian no longer knows which packets will be
+  compared with Julie's, beyond her first few.
+
+### A2.5 Power, restated
+
+- Every packet she completes adds 6 cells to the ceiling. The CI narrows roughly with the
+  square root of the number of overlap packets.
+- **With 4 or fewer, INCONCLUSIVE remains the expected verdict.** That is stated now, so a
+  short overlap is not later read as a failure.

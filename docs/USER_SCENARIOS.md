@@ -66,13 +66,13 @@ The scenarios are in dependency order and the numbering follows the product's
 precondition spine:
 
 ```
-Work Pulse (24)  →  wp_v2_completed  →  Environment Report (15)  →  Situation Report complete  →  Experiments
+Work Pulse (24)  →  wp_v2_completed  →  Environment Report (16)  →  Situation Report complete  →  Experiments
 ManagerMatch (15)  →  Manager Profile (16)  →  Playbook
 FocusType, Pulse   →  no preconditions, walk any time
 ```
 
 S1–S7 are one sitting (roughly an hour). S8–S16 are the product proper and want a
-second sitting of about two hours, because the instruments are 24 + 15 + 15 + 16
+second sitting of about two hours, because the instruments are 24 + 16 + 15 + 16
 questions and you must answer them honestly for the reports to say anything real.
 S17–S23 are short.
 
@@ -107,7 +107,10 @@ Read this list before you start or you will file five bugs that aren't.
 
 1. **Work Pulse has no results page.** Finishing the 24 questions shows a completion
    card in place and navigates nowhere. This is deliberate — returning dimension
-   scores hands a retaker a gradient to optimise against.
+   scores hands a retaker a gradient to optimise against. A retake (S8.8a) ends on the
+   same card, with nothing to compare.
+1a. **A retake does not move your Situation Report.** The report stays on the sitting
+   it was built from until you press its Re-read button (S11). Expected, not stale.
 2. **Work Pulse and Environment Report restart at question 1 after a reload.** Your
    answers are preserved and pre-selected with a ✓; only the position is lost.
    Manager Profile and ManagerMatch *do* resume at the right index. The
@@ -580,18 +583,33 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
   → "✦ Work Pulse Complete" / H1 "That's everything we need" / "Your Work Pulse now
   powers your matching. There's no score to check and nothing to optimize — it works
   quietly in the background as we line up the environments where you'd do your best
-  work." / "24 questions about you. Now 15 about your job." / "Work Pulse is half of
+  work." / "24 questions about you. Now 16 about your job." / "Work Pulse is half of
   your Situation Report. The other half is your own description of the role you're in
   — what it actually offers, not what it was advertised as — and the report is the
   distance between the two."
   → Primary CTA **"Describe your job →"** → `/environment-report`. Secondaries: "Start
   FocusType →", "Start ManagerMatch →", "Back to dashboard".
 - **S8.8** — Navigate back to `/work-pulse`.
-  → The form never mounts again; you get the completion card.
+  → You get the completion card, not the form. At the bottom of the card, below a
+  rule: "If the way you work has changed, you can take Work Pulse again. Your earlier
+  sitting stays stored." and a secondary button **"Retake Work Pulse"** (since
+  2026-10-02).
+- **S8.8a** — Press **Retake Work Pulse**.
+  → The normal 24-question stepper, with a line above it: "You're retaking Work Pulse.
+  This is a new sitting: the one you finished before stays stored, and your Situation
+  Report keeps reading it until you choose to re-read the report." and a **Not now**
+  link-button that returns to the card. Answer a few, then reload the page.
+  → The completion card again (Work Pulse is still complete; the dashboard and hub do
+  not change), now offering **"Continue your retake →"**. Press it: the usual
+  "Pick up where you left off" / "Start over" prompt. Finish the retake.
+  → The completion card. If you already have a Situation Report, its text now reads
+  "Your Situation Report still reads the sitting it was built from. To move it to this
+  one, open the report and choose “Re-read this against my latest Work Pulse”." (S11.3).
 - **S8.9** — Open `/work-pulse/results`.
   → **Silently redirects** to `/work-pulse` unless you completed the retired
-  12-question instrument. No copy, no explanation. Judge whether that's acceptable
-  for anyone who bookmarked it.
+  12-question instrument and a narrative was stored for you; then it is a read-only
+  page headed "Your original Work Pulse" saying it is the analysis from the first
+  version, with a link to the current one. Nothing on it can re-score.
 - **S8.10** — **Do this BEFORE S8.6, not after** — confirmed 2026-09-15 the hard
   way: once `wp_v2_completed` is true, the completion card renders in the form's
   place and the component never mounts the query that fetches `core/form` at all.
@@ -608,7 +626,7 @@ Draft storage: `sessionStorage["solverah_assessment_answers"]`.
 
 ### S9 · The Environment Report
 
-**Account** ACC-1 · **Route** `/environment-report` · **15 questions, ~5 minutes**
+**Account** ACC-1 · **Route** `/environment-report` · **16 questions, ~5 minutes**
 
 Draft storage: `sessionStorage["env_report_answers"]`.
 
@@ -617,12 +635,12 @@ Draft storage: `sessionStorage["env_report_answers"]`.
   → Eyebrow "Situation Report"; H1 "Now the other half — your job"; "Work Pulse asked
   how you work. These ask what your role actually offers — how much of the how is
   yours, what the tempo is, how decisions get made. Twelve questions about the work,
-  plus three about the setup. About five minutes."; "Describe the job as it actually
+  plus four about the setup. About five minutes."; "Describe the job as it actually
   is, not as it was advertised or as it ought to be…"; "This is a private working
   note. Nobody at your employer is told you filled it in, and nobody there can see
   it."
 - **S9.3** — Start. Note the order — it is load-bearing and must not change:
-  `stage_size` first, then `comp`, then the **12 dimension items** (two each for
+  `stage_size` first, then `comp`, then `industry` (optional), then the **12 dimension items** (two each for
   autonomy, pace, collaboration, feedback, innovation, decision-making), then
   `experienced` **last**. The last-place position of `experienced` is an anti-halo
   measure.
@@ -637,9 +655,9 @@ Draft storage: `sessionStorage["env_report_answers"]`.
   compares." Choosing it counts as answered.
 - **S9.6** — Question 3.
   → "How much say do you have over how your work gets done?"
-- **S9.7** — Reload mid-way. → Back to the intro, then "Question 1 of 15" with your
+- **S9.7** — Reload mid-way. → Back to the intro, then "Question 1 of 16" with your
   answers pre-selected. Same pattern as S8.4.
-- **S9.8** — Question 15.
+- **S9.8** — Question 16.
   → "Overall, how well is this role working for you?" — "It isn't working at all." /
   "It isn't working well." / "A mixed picture." / "It's working well." / "It's working
   very well."
@@ -722,8 +740,7 @@ strain card is a bug.
   → "Re-reading…", then **"Already reading your most recent Work Pulse sitting —
   nothing moved."** This is a **success**, not an error (§0.5). Nothing is written and
   nothing is logged.
-- **S11.3** — (If you can retake the core sitting on a second account.) Retake, then
-  recalibrate.
+- **S11.3** — Retake Work Pulse (S8.8a), come back here, then recalibrate.
   → "Re-pinned. This report now reads your most recent Work Pulse sitting."
 - **S11.4** — (Not reachable from ACC-1 once S8 is done, but the code path exists.)
   With no core sitting at all, the endpoint answers 409 `no_core_sitting` and the
@@ -1286,7 +1303,7 @@ invent one.
   first half — Work Pulse is done, and it holds. The second half is a job to measure
   against, and you haven't started one yet." / "So there is nothing to report, and we
   would rather say that than assemble something out of a role you have never held. The
-  moment you are in one, describe it in fifteen questions and the report comes back the
+  moment you are in one, describe it in sixteen questions and the report comes back the
   same day." / "What is worth doing now is the half that needs no employer. FocusType
   maps how you concentrate, and ManagerMatch tells you which management styles bring
   out your best — which is a useful thing to know while you are choosing between offers
@@ -1328,8 +1345,8 @@ Report turns forward-facing.
   actually offered…" and "Describe the role as it actually was…", plus an extra line:
   "Because that role is behind you, your report comes back facing forward — what to
   look for next, rather than what to change where you are."
-- **S22.3** — Walk all 15 questions and **check every prompt is past tense.** This is
-  the highest-volume copy risk in the product — 15 prompts plus all their options have
+- **S22.3** — Walk all 16 questions and **check every prompt is past tense.** This is
+  the highest-volume copy risk in the product — 16 prompts plus all their options have
   twins, and a single present-tense straggler will read as a bug to a user who just
   lost a job.
 - **S22.4** — Submit and read the report.
@@ -1464,7 +1481,7 @@ All client-side. **Nothing is drafted server-side anywhere in the product.**
 | Key | Storage | Surface | Survives reload? | Survives tab close? |
 |---|---|---|---|---|
 | `solverah_assessment_answers` | session | Work Pulse core (24) | answers yes, position no | no |
-| `env_report_answers` | session | Environment Report (15) | answers yes, position no | no |
+| `env_report_answers` | session | Environment Report (16) | answers yes, position no | no |
 | `mp_answers` | session | Manager Profile (16) | **yes, fully** | no |
 | `mm_answers` | session | ManagerMatch (15) | **yes, fully** | no |
 | `solverah_wp` | session | legacy 12-question Work Pulse | — | no |

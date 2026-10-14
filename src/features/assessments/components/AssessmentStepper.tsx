@@ -21,7 +21,14 @@ interface AssessmentStepperProps {
   onAnswer: (token: string, optionKey: string) => void;
   onComplete: () => void;
   submitting?: boolean;
+  /** Shown as given, so the caller decides the wording. WorkPulsePage passes a
+   *  fixed house message, never the server's text. */
   submitError?: string | null;
+  /** Offered beside `submitError` as "Reload the questions". */
+  onReloadQuestions?: () => void;
+  /** Where to open. The resume prompt passes the first unanswered question; a fresh
+   *  attempt opens at 0. Read once, on mount. */
+  initialIndex?: number;
 }
 
 export default function AssessmentStepper({
@@ -31,8 +38,12 @@ export default function AssessmentStepper({
   onComplete,
   submitting = false,
   submitError = null,
+  onReloadQuestions,
+  initialIndex = 0,
 }: AssessmentStepperProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() =>
+    Math.min(Math.max(initialIndex, 0), Math.max(items.length - 1, 0))
+  );
 
   const item = items[currentIndex];
   const currentAnswer = answers[item.token];
@@ -55,7 +66,7 @@ export default function AssessmentStepper({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
+      <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
         Question {currentIndex + 1} of {total}
       </p>
 
@@ -103,9 +114,19 @@ export default function AssessmentStepper({
       </div>
 
       {submitError && (
-        <p role="alert" className="text-sm text-red-700 pt-2">
-          {submitError}
-        </p>
+        <div role="alert" className="text-sm text-red-700 pt-2 space-y-2">
+          <p>{submitError}</p>
+          {onReloadQuestions && (
+            <button
+              type="button"
+              onClick={onReloadQuestions}
+              disabled={submitting}
+              className="text-xs font-semibold text-red-700 underline disabled:opacity-50"
+            >
+              Reload the questions
+            </button>
+          )}
+        </div>
       )}
 
       <div className="flex items-center justify-between pt-4">

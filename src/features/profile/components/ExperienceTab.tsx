@@ -1,5 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { ProfileFormData, SkillLevel } from "../types";
+import CareerStatusControl from "./CareerStatusControl";
 
 const fieldCls =
   "w-full border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors rounded-md";
@@ -48,6 +49,8 @@ export default function ExperienceTab({
 }: Props) {
   return (
     <div className="space-y-6">
+      <CareerStatusControl />
+
       <div className="bg-white rounded-xl shadow-sm border border-cream-muted p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-ink-primary font-display">Work Experience</h2>

@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import GuestQuizInsights from "./GuestQuizInsights";
+import { completeGuestQuiz, markGuestQuizCompleted } from "../../../shared/lib/guestQuiz";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -12,6 +13,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
 });
 
 beforeEach(() => {
+  localStorage.clear();
   vi.clearAllMocks();
 });
 
@@ -48,7 +50,7 @@ const MOCK_INSIGHT = {
 describe("GuestQuizInsights - happy path", () => {
   it("renders the page heading", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
-    expect(screen.getByText("Quiz Insights")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Your quiz insights");
   });
 
   it("shows overall summary when provided", () => {
@@ -68,6 +70,14 @@ describe("GuestQuizInsights - happy path", () => {
     expect(screen.getByText("Thrive with mentorship")).toBeInTheDocument();
   });
 
+  it("labels sections with headings in sentence case, not uppercase eyebrows", () => {
+    renderGuestQuizInsights(MOCK_INSIGHT);
+    expect(screen.getByRole("heading", { level: 3, name: "Key takeaways" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "Next steps" })).toBeInTheDocument();
+    expect(document.querySelector(".uppercase")).toBeNull();
+    expect(document.querySelector(".rounded-full")).toBeNull();
+  });
+
   it("renders next steps", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
     expect(screen.getByText("Update your resume")).toBeInTheDocument();
@@ -80,6 +90,12 @@ describe("GuestQuizInsights - empty state", () => {
   it("shows no-insights message when no state is provided", () => {
     renderGuestQuizInsights();
     expect(screen.getByText(/No insights found/i)).toBeInTheDocument();
+  });
+
+  it("offers a way to a quiz from the empty state", () => {
+    renderGuestQuizInsights();
+    fireEvent.click(screen.getByRole("button", { name: "Choose a quiz" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/quiz-preview");
   });
 
   it("shows no-insights message when insights array is empty", () => {
@@ -107,5 +123,40 @@ describe("GuestQuizInsights - navigation", () => {
     renderGuestQuizInsights(MOCK_INSIGHT);
     fireEvent.click(screen.getByRole("button", { name: /create account/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/register");
+  });
+});
+
+// ─── persistence (G20) ────────────────────────────────────────────────────────
+
+describe("GuestQuizInsights - persisted insight", () => {
+  const save = {
+    quizGroup: "careerQuizzes",
+    quizResults: { careerQuizzes: { earlyCareer: { 1: 0 } } },
+    quizPayload: {
+      quizGroup: "careerQuizzes",
+      quizzes: [{ key: "earlyCareer", title: "Early", items: [{ question: "Q", selected: "A" }] }],
+    },
+  };
+
+  it("renders the stored insight in a fresh tab with no router state", () => {
+    completeGuestQuiz(save, MOCK_INSIGHT);
+    renderGuestQuizInsights();
+    expect(screen.getByText("Career Clarity")).toBeInTheDocument();
+    expect(screen.queryByText(/No insights found/i)).toBeNull();
+  });
+
+  it("a locked-out guest with nothing stored is offered sign-in, not the locked quiz list", () => {
+    markGuestQuizCompleted();
+    renderGuestQuizInsights();
+    expect(screen.queryByRole("button", { name: "Choose a quiz" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/login");
+  });
+
+  it("does not crash on a list field that is not a list", () => {
+    renderGuestQuizInsights({
+      insights: [{ title: "Odd", summary: "x", keyTakeaways: "not a list", nextSteps: 3 }],
+    });
+    expect(screen.getByText("Odd")).toBeInTheDocument();
   });
 });

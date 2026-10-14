@@ -117,7 +117,7 @@ class QuoteProbe:
 class ExtremityFlag:
     packet_id: str
     dimension: str
-    score: float
+    score: Optional[float]       # None = the model recorded insufficient evidence
     n_verified: int
     n_matching_floor: int
     n_not_matching: int
@@ -362,7 +362,7 @@ def flag_dimension(
     *,
     packet_id: str,
     dimension: str,
-    score: float,
+    score: Optional[float],
     quotes: Sequence[str],
     verified_map: dict[str, bool],
     probe: BandProbe,
@@ -375,6 +375,16 @@ def flag_dimension(
     which is the same reasoning noncompany_support() already applies upstream.
     """
     source_map = source_map or {}
+    if score is None:
+        # The model recorded insufficient evidence (anchors v3.1+). There is no score to sit
+        # above the floor, so there is nothing to flag -- and no probe call is spent finding
+        # that out.
+        return ExtremityFlag(
+            packet_id=packet_id, dimension=dimension, score=None,
+            n_verified=0, n_matching_floor=0, n_not_matching=0, flag=None, severity=None,
+            rationale="Insufficient evidence recorded; no score, so no floor to correct.",
+            probes=[],
+        )
     verified_quotes = [q for q in quotes if verified_map.get(q)]
     results = probe.probe(verified_quotes, dimension) if verified_quotes else []
 

@@ -340,3 +340,284 @@ def test_guest_quiz_import_sequence_persists_results_and_insight(client, monkeyp
 
     assert "## Quiz Insights" in context
     assert "You are drawn to roles with visible growth trajectories." in context
+
+
+# ---------------------------------------------------------------------------
+# Audit 2026-10-02 fixes
+# ---------------------------------------------------------------------------
+
+
+def _career_quiz(key, question="What motivates you?", selected="Recognition", n=1):
+    return {
+        "key": key,
+        "title": key,
+        "items": [{"question": "%s %d" % (question, i), "selected": selected} for i in range(n)],
+    }
+
+
+def _career_response(keys, overall_summary):
+    return {
+        "overallInsight": {"summary": overall_summary, "keyTakeaways": ["t"], "nextSteps": ["s"]},
+        "insights": [{"key": k, "title": k, "summary": "About %s." % k} for k in keys],
+    }
+
+
+def test_provider_failure_body_is_generic_with_a_stable_code(client, monkeypatch):
+    """#4: the 500 body used to carry "RuntimeError: <provider text>", and the
+    modal rendered it to the user."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_generic_500@example.com")
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = RuntimeError("boom: invalid key sk-abc")
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
+
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": CAREER_QUIZZES_ITEM},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    assert resp.status_code == 500
+    assert resp.get_json()["code"] == "insight_generation_failed"
+    text = resp.get_data(as_text=True)
+    for leak in ("RuntimeError", "boom", "sk-abc"):
+        assert leak not in text
+
+
+def test_guest_provider_failure_body_is_generic(client, monkeypatch):
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = RuntimeError("OPENAI_API_KEY is not set")
+    monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
+
+    resp = client.post(
+        "/api/v1/intake/quiz-preview/insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": CAREER_QUIZZES_ITEM},
+    )
+
+    assert resp.status_code == 500
+    assert resp.get_json()["code"] == "insight_generation_failed"
+    assert "OPENAI_API_KEY" not in resp.get_data(as_text=True)
+
+
+def test_insight_call_sets_an_output_token_ceiling(client, monkeypatch):
+    from solverah.infra import llm
+
+    mock_client = _mock_openai_json(monkeypatch, SINGLE_QUIZ_MODEL_RESPONSE)
+    resp = client.post(
+        "/api/v1/intake/quiz-preview/insights",
+        json={"quizGroup": "yourFutureYourWay", "quizzes": ONE_QUIZ},
+    )
+    assert resp.status_code == 200
+    kwargs = mock_client.chat.completions.create.call_args.kwargs
+    assert kwargs["max_completion_tokens"] == llm.QUIZ_INSIGHT_MAX_COMPLETION_TOKENS
+
+
+def test_quiz_caps_apply_to_both_endpoints(client, monkeypatch):
+    """#5: the guest endpoint was an anonymous LLM proxy for any amount of text."""
+    from solverah.schemas.intelligence import (
+        QUIZ_MAX_ITEMS_PER_QUIZ,
+        QUIZ_MAX_QUIZZES,
+        QUIZ_QUESTION_MAX_CHARS,
+        QUIZ_SELECTED_MAX_CHARS,
+    )
+
+    csrf = _register_and_login(client, monkeypatch, email="qi_caps@example.com")
+    mock_client = _mock_openai_json(monkeypatch, SINGLE_QUIZ_MODEL_RESPONSE)
+
+    oversized = [
+        {"quizGroup": "careerQuizzes",
+         "quizzes": [_career_quiz("q%d" % i) for i in range(QUIZ_MAX_QUIZZES + 1)]},
+        {"quizGroup": "careerQuizzes",
+         "quizzes": [_career_quiz("earlyCareer", n=QUIZ_MAX_ITEMS_PER_QUIZ + 1)]},
+        {"quizGroup": "careerQuizzes",
+         "quizzes": [_career_quiz("earlyCareer", question="q" * QUIZ_QUESTION_MAX_CHARS)]},
+        {"quizGroup": "careerQuizzes",
+         "quizzes": [_career_quiz("earlyCareer", selected="s" * (QUIZ_SELECTED_MAX_CHARS + 1))]},
+    ]
+    for body in oversized:
+        guest = client.post("/api/v1/intake/quiz-preview/insights", json=body)
+        assert guest.status_code == 422, guest.get_data(as_text=True)
+        signed_in = client.post(
+            "/api/v1/me/quiz-insights", json=body, headers={"X-CSRF-TOKEN": csrf}
+        )
+        assert signed_in.status_code == 422, signed_in.get_data(as_text=True)
+
+    assert mock_client.chat.completions.create.call_count == 0
+
+
+def test_total_item_cap_across_quizzes_is_a_400(client, monkeypatch):
+    from solverah.schemas.intelligence import QUIZ_MAX_ITEMS_PER_QUIZ
+    from solverah.services.insight_service import MAX_TOTAL_ITEMS
+
+    mock_client = _mock_openai_json(monkeypatch, SINGLE_QUIZ_MODEL_RESPONSE)
+    quizzes = []
+    while sum(len(q["items"]) for q in quizzes) <= MAX_TOTAL_ITEMS:
+        quizzes.append(_career_quiz("q%d" % len(quizzes), n=QUIZ_MAX_ITEMS_PER_QUIZ))
+
+    resp = client.post(
+        "/api/v1/intake/quiz-preview/insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": quizzes},
+    )
+    assert resp.status_code == 400
+    assert mock_client.chat.completions.create.call_count == 0
+
+
+def test_list_fields_are_always_lists(client, monkeypatch):
+    """#14: a model answering keyTakeaways with a bare string crashed the page's `.map`."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_lists@example.com")
+    _mock_openai_json(monkeypatch, {
+        "overallInsight": {"summary": "S", "keyTakeaways": "one string", "nextSteps": None},
+        "insights": [{
+            "key": "earlyCareer", "title": "Early", "summary": "x",
+            "keyTakeaways": "just a string", "nextSteps": {"not": "a list"},
+        }],
+    })
+
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": CAREER_QUIZZES_ITEM},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["insights"][0]["keyTakeaways"] == ["just a string"]
+    assert body["insights"][0]["nextSteps"] == []
+    assert body["overallInsight"]["keyTakeaways"] == ["one string"]
+    assert body["overallInsight"]["nextSteps"] == []
+
+    stored = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]["careerQuizzes"]
+    assert stored["earlyCareer"]["keyTakeaways"] == ["just a string"]
+    assert stored["earlyCareer"]["nextSteps"] == []
+
+
+def test_partial_post_does_not_overwrite_the_combined_insight(client, monkeypatch):
+    """#6: one quiz posted into a group holding two used to replace "Across all
+    your quizzes" with a synthesis of that one quiz."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_overall@example.com")
+    both = [_career_quiz("earlyCareer"), _career_quiz("careerJobSearch")]
+
+    _mock_openai_json(monkeypatch, _career_response(["earlyCareer", "careerJobSearch"], "Both quizzes."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": both},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    _mock_openai_json(monkeypatch, _career_response(["careerJobSearch"], "Only one quiz."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": [_career_quiz("careerJobSearch")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    # The response reports the synthesis that is actually stored.
+    assert resp.get_json()["overallInsight"]["summary"] == "Both quizzes."
+
+    group = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]["careerQuizzes"]
+    assert group["_overallInsight"]["summary"] == "Both quizzes."
+    assert group["_overallKeys"] == ["careerJobSearch", "earlyCareer"]
+    # The quiz's own entry was still updated.
+    assert group["careerJobSearch"]["summary"] == "About careerJobSearch."
+
+    # A post covering everything stored replaces it.
+    three = both + [_career_quiz("midCareer")]
+    _mock_openai_json(
+        monkeypatch, _career_response(["earlyCareer", "careerJobSearch", "midCareer"], "All three.")
+    )
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": three},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    group = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]["careerQuizzes"]
+    assert group["_overallInsight"]["summary"] == "All three."
+
+
+def test_career_group_post_drops_the_legacy_flat_copy(client, monkeypatch):
+    """G16: the guest replay stored careerJobSearch as its own flat group, while
+    signed-in writes nested it under careerQuizzes. One home now."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_g16@example.com")
+
+    _mock_openai_json(monkeypatch, {
+        "overallInsight": {"summary": "Old flat."},
+        "insights": [{"key": "careerJobSearch", "title": "CJS", "summary": "Flat summary."}],
+    })
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerJobSearch", "quizzes": [_career_quiz("careerJobSearch")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    _mock_openai_json(monkeypatch, _career_response(["careerJobSearch"], "Nested."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": [_career_quiz("careerJobSearch")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    insights = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]
+    assert "careerJobSearch" not in insights
+    assert insights["careerQuizzes"]["careerJobSearch"]["summary"] == "About careerJobSearch."
+
+
+def test_flat_copy_survives_when_the_model_omits_that_quiz(client, monkeypatch):
+    """Review fix: the flat legacy copy was deleted for every POSTED key, even
+    one the model returned no insight for -- so that insight was lost."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_g16_omit@example.com")
+
+    _mock_openai_json(monkeypatch, {
+        "overallInsight": {"summary": "Old flat."},
+        "insights": [{"key": "careerJobSearch", "title": "CJS", "summary": "Flat summary."}],
+    })
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerJobSearch", "quizzes": [_career_quiz("careerJobSearch")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    # All saved quizzes posted; the model answers for two of the three.
+    _mock_openai_json(monkeypatch, _career_response(["earlyCareer", "midCareer"], "Partial answer."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": [
+            _career_quiz("earlyCareer"), _career_quiz("midCareer"), _career_quiz("careerJobSearch"),
+        ]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+
+    insights = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]
+    assert insights["careerJobSearch"]["summary"] == "Flat summary."
+    assert "careerJobSearch" not in insights["careerQuizzes"]
+
+
+def test_a_model_invented_key_is_not_stored(client, monkeypatch):
+    """Review fix: an invented key became a "stored quiz" no post ever covers,
+    so the combined insight could never be replaced again."""
+    csrf = _register_and_login(client, monkeypatch, email="qi_invented@example.com")
+
+    _mock_openai_json(monkeypatch, _career_response(["earlyCareer", "madeUpQuiz"], "First."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": [_career_quiz("earlyCareer")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    group = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]["careerQuizzes"]
+    assert "madeUpQuiz" not in group
+    assert group["earlyCareer"]["summary"] == "About earlyCareer."
+
+    # The next full post still replaces the synthesis.
+    _mock_openai_json(monkeypatch, _career_response(["earlyCareer"], "Second."))
+    resp = client.post(
+        "/api/v1/me/quiz-insights",
+        json={"quizGroup": "careerQuizzes", "quizzes": [_career_quiz("earlyCareer")]},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+    assert resp.status_code == 200
+    group = client.get("/api/v1/me/profile").get_json()["profile"]["quizInsights"]["careerQuizzes"]
+    assert group["_overallInsight"]["summary"] == "Second."

@@ -24,6 +24,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
+import { ApiError } from "../../shared/api/apiError";
 import type { MMResult } from "./useMM";
 
 /**
@@ -53,4 +54,17 @@ export function useManagerMatchResult(options: { enabled?: boolean } = {}) {
       fetchWithAuth<MMResult>("/me/assessments/manager_match/result", { method: "GET" }),
     enabled: options.enabled ?? true,
   });
+}
+
+/**
+ * True when `error` is this endpoint's "no ManagerMatch result yet" answer.
+ *
+ * Decided by the 404 status alone. It used to be a substring match on the
+ * message ("No ManagerMatch result found"), which is prose: rewording the
+ * server's sentence would have silently turned "never finished" into the
+ * generic error card. The route has exactly one 404, so the status is the
+ * whole signal.
+ */
+export function isNoManagerMatchResult(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
 }

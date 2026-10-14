@@ -132,6 +132,71 @@ def test_post_experiment_allows_a_new_one_after_the_first_is_abandoned(client, a
     assert resp.status_code == 201
 
 
+def _end_now(experiment_id, *, days_ago=1):
+    """Backdate one experiment so its two weeks are already over."""
+    from app import app
+    from model import Experiment, db
+
+    with app.app_context():
+        row = db.session.get(Experiment, experiment_id)
+        row.ends_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days_ago)
+        row.started_at = row.ends_at - datetime.timedelta(days=14)
+        db.session.commit()
+
+
+def test_post_experiment_allows_a_new_one_after_the_first_ends_naturally(client, auth):
+    """The 2026-10-02 blocker: an experiment that ran its two weeks kept
+    `status = 'active'`, so every later start 409'd forever. Now the ended row
+    is closed (`completed`) before the one-active check, and the next start
+    is a 201 -- on the same cell or another."""
+    csrf, _user_id = auth
+    first = _start(client, csrf, dimension="autonomy", direction="under").get_json()
+    _end_now(first["id"])
+
+    resp = _start(client, csrf, dimension="autonomy", direction="under")
+
+    assert resp.status_code == 201, resp.get_json()
+    assert resp.get_json()["phase"] == "running"
+
+    listed = client.get("/api/v1/me/experiments").get_json()["experiments"]
+    assert [(row["id"], row["status"], row["phase"]) for row in listed] == [
+        (resp.get_json()["id"], "active", "running"),
+        (first["id"], "completed", "ended"),
+    ]
+
+
+def test_get_experiments_closes_an_ended_row_on_read(client, auth):
+    """`status` on the wire never pairs `active` with `ended`: the list read
+    itself moves an ended row to `completed`."""
+    csrf, _user_id = auth
+    started = _start(client, csrf).get_json()
+    _end_now(started["id"])
+
+    body = client.get("/api/v1/me/experiments").get_json()["experiments"][0]
+
+    assert body["status"] == "completed"
+    assert body["phase"] == "ended"
+    ExperimentListResponse.model_validate({"experiments": [body]})
+
+
+def test_post_abandon_on_an_ended_experiment_keeps_it_completed(client, auth):
+    """Abandoning after the two weeks are up is a no-op, not a relabel: the
+    readout stays, the status reads `completed`, and the call is still a 200."""
+    csrf, _user_id = auth
+    started = _start(client, csrf).get_json()
+    _end_now(started["id"])
+
+    resp = client.post(
+        "/api/v1/me/experiments/%d/abandon" % started["id"], headers={"X-CSRF-TOKEN": csrf}
+    )
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["status"] == "completed"
+    assert body["phase"] == "ended"
+    assert body["abandoned_at"] is None
+
+
 def test_post_experiment_requires_authentication(client):
     resp = client.post(
         "/api/v1/me/experiments", json={"dimension": "autonomy", "direction": "under"}

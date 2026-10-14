@@ -3,7 +3,7 @@
  * feature slices (ARCHITECTURE.md 6.4).
  *
  * NOTE: landing is a ninth slice beyond the eight named in ARCHITECTURE.md
- * 3.1. The prelaunch/marketing/legal pages fit none of the eight (they are
+ * 3.1. The marketing/legal pages fit none of the eight (they are
  * not intake machinery — the funnel hooks and forms they render live in
  * features/intake), so they get their own slice rather than a forced home.
  *

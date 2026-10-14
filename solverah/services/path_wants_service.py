@@ -51,6 +51,8 @@ from solverah.services.intelligence_service import (
     IntelligenceResult,
     build_user_profile,
     derive_career_status,
+    end_read_transaction,
+    read_scoring_intake,
 )
 
 __all__ = [
@@ -59,6 +61,7 @@ __all__ = [
     "read_path_wants",
     "save_path_wants",
     "wants_for_scoring",
+    "wants_for_scoring_by_id",
 ]
 
 #: The four axes the panel asks about, in the order it shows them.
@@ -109,34 +112,42 @@ def _error(status: int, message: str) -> IntelligenceResult:
 # ---------------------------------------------------------------------------
 
 
-def _user_profile_for(user: User):
-    """The scorer's ``UserProfile`` for *user*, or None when it cannot be built.
+def _user_profile_for(user_id: int):
+    """The scorer's ``UserProfile`` for *user_id*, or None when it cannot be built.
 
     None means "no current job as far as retrieval is concerned", which is the
     panel's ``no_anchor`` and not an error: a first-job user has no occupation to
     ask about, and design doc §8.3 says so explicitly -- no current job, no
     panel, taps alone.
     """
-    profile = profile_repository.load_document(user.id)
+    profile = profile_repository.load_document(user_id)
     career_status = profile.get("career_status") or derive_career_status(profile)
     if not career_status:
         return None
     return build_user_profile(
-        {**profile, "career_status": career_status}, user.intake, career_status
+        {**profile, "career_status": career_status},
+        read_scoring_intake(user_id),
+        career_status,
     )
 
 
-def _resolve_anchor(user: User) -> Optional[str]:
+def _resolve_anchor(user_id: int) -> Optional[str]:
     """The O*NET code of the user's current job, or None.
 
     Raises ``CorpusUnavailable`` upward: the caller turns it into the same typed
     503 every sibling route answers, because the corpus is a build artifact
     fetched from S3 and unreachable is an outage the client retries.
+
+    Ends the session's read transaction before resolving (DB ledger I): the
+    resolution can embed the profile and, on a cold worker, fetch the corpus,
+    and a connection must not sit idle in transaction across either. Only
+    reads precede it in both callers, so the rollback discards nothing.
     """
     from backend.services.onet_client import OnetClient
     from backend.services.path_scoring import resolve_anchor_code
 
-    user_profile = _user_profile_for(user)
+    user_profile = _user_profile_for(user_id)
+    end_read_transaction()
     if user_profile is None:
         return None
     try:
@@ -187,7 +198,7 @@ def _corpus_title(corpus, code: str) -> str:
     return corpus.titles[row] if row is not None else code
 
 
-def _build_panel(user: User, anchor_code: str, corpus) -> IntelligenceResult:
+def _build_panel(user_id: int, anchor_code: str, corpus) -> IntelligenceResult:
     """The panel body for a resolved anchor, with the user's answers filled in.
 
     ``status`` reports the TASK half specifically.  The conditions are offered
@@ -198,7 +209,7 @@ def _build_panel(user: User, anchor_code: str, corpus) -> IntelligenceResult:
     """
     from backend.services import occupation_tasks
 
-    answers = path_wants_repository.answers_for_anchor(user.id, anchor_code)
+    answers = path_wants_repository.answers_for_anchor(user_id, anchor_code)
 
     conditions = [
         {
@@ -260,16 +271,18 @@ def read_path_wants(user: User, logger) -> IntelligenceResult:
     """
     from backend.services.occupation_retrieval import CorpusUnavailable, get_corpus
 
+    # The id, never the row, past the transaction `_resolve_anchor` ends.
+    user_id = user.id
     try:
-        anchor_code = _resolve_anchor(user)
+        anchor_code = _resolve_anchor(user_id)
         if anchor_code is None:
             return _no_anchor()
         corpus = get_corpus()
     except CorpusUnavailable:
-        logger.warning("Corpus unavailable for path wants, user %s", user.id)
+        logger.warning("Corpus unavailable for path wants, user %s", user_id)
         return _error(503, "corpus_unavailable")
 
-    return _build_panel(user, anchor_code, corpus)
+    return _build_panel(user_id, anchor_code, corpus)
 
 
 # ---------------------------------------------------------------------------
@@ -383,28 +396,33 @@ def save_path_wants(user: User, data: Dict[str, Any], logger) -> IntelligenceRes
     """
     from backend.services.occupation_retrieval import CorpusUnavailable, get_corpus
 
+    # The id, never the row: `_resolve_anchor` ends a transaction and the write
+    # below commits one, and either would expire it (DB ledger I).
+    user_id = user.id
     try:
-        anchor_code = _resolve_anchor(user)
+        anchor_code = _resolve_anchor(user_id)
         if anchor_code is None:
             # Nothing to key an answer to.  Not a 422: the client is not wrong
             # about the body, it is out of date about the user, and a GET says so.
             return _no_anchor()
         corpus = get_corpus()
     except CorpusUnavailable:
-        logger.warning("Corpus unavailable for path wants write, user %s", user.id)
+        logger.warning("Corpus unavailable for path wants write, user %s", user_id)
         return _error(503, "corpus_unavailable")
 
+    # The whole body is refused with a 422 here -- duplicates included -- before
+    # anything is sent, so `set_answers`' own ValueError is unreachable from a
+    # request.
     validated = _validated_answers(data, _offered_items(corpus, anchor_code))
 
-    for kind, key, verdict, item_text in validated:
-        path_wants_repository.set_answer(
-            user.id, anchor_code, kind, key, verdict, item_text
-        )
-    path_fit_repository.invalidate(user.id)  # with the Tier-1 cache below
+    # One upsert and at most one delete for the whole panel, however many
+    # items it answers (DB ledger I), where each item was a statement of its own.
+    path_wants_repository.set_answers(user_id, anchor_code, validated)
+    path_fit_repository.invalidate(user_id)  # with the Tier-1 cache below
     db.session.commit()
-    path_cache.invalidate(user.id)
+    path_cache.invalidate(user_id)
 
-    return _build_panel(user, anchor_code, corpus)
+    return _build_panel(user_id, anchor_code, corpus)
 
 
 # ---------------------------------------------------------------------------
@@ -413,6 +431,11 @@ def save_path_wants(user: User, data: Dict[str, Any], logger) -> IntelligenceRes
 
 
 def wants_for_scoring(user: User, user_profile, onet_client, openai_client):
+    """:func:`wants_for_scoring_by_id` for a ``User``."""
+    return wants_for_scoring_by_id(user.id, user_profile, onet_client, openai_client)
+
+
+def wants_for_scoring_by_id(user_id: int, user_profile, onet_client, openai_client):
     """The stored ``Wants`` for this user's CURRENT anchor, or None.
 
     Called from every site that scores paths for a signed-in user -- the cold
@@ -432,15 +455,22 @@ def wants_for_scoring(user: User, user_profile, onet_client, openai_client):
     ``CorpusUnavailable`` is the one exception worth naming, and it cannot escape
     here either -- the caller is about to call ``score_paths``, which loads the
     same corpus and answers it properly.
+
+    Takes the id (DB ledger I) because a caller past a commit holds an expired
+    row, and reading its id would reload it. When the user HAS stated wants it
+    ends the session's transaction before resolving the anchor -- an embedding
+    and, on a cold worker, a corpus fetch -- so call it with nothing unwritten;
+    both callers have only read since their last commit.
     """
     from backend.services.path_scoring import resolve_anchor_code
 
-    if not path_wants_repository.any_for_user(user.id):
+    if not path_wants_repository.any_for_user(user_id):
         return None
+    end_read_transaction()
     try:
         anchor_code = resolve_anchor_code(user_profile, onet_client, openai_client)
     except Exception:  # noqa: BLE001 -- a lost rotation is not a lost page
         return None
     if anchor_code is None:
         return None
-    return path_wants_repository.wants_for_anchor(user.id, anchor_code)
+    return path_wants_repository.wants_for_anchor(user_id, anchor_code)

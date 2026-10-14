@@ -11,3 +11,5 @@
 #
 # FORMAT: P-##<tab or spaces>Company Name<tab or spaces>researched YYYY-MM-DD (vX.Y)
 
+P-16	Smartsheet	researched 2026-10-02 (v4.11)
+P-17	HCA Healthcare	researched 2026-10-04 (v4.11)

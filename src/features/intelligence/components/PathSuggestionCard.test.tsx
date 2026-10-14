@@ -168,60 +168,18 @@ describe("PathSuggestionCard - progression line", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Disabled CTA button
+// "Set as target role" removed (Sebastian ruling 2026-10-02: no "coming soon"
+// controls on the card). Regression test: this must stay gone.
 // ---------------------------------------------------------------------------
 
-describe("PathSuggestionCard - Set as target role CTA", () => {
-  it("renders the Set as target role button", () => {
+describe("PathSuggestionCard - no 'coming soon' target-role control", () => {
+  it("renders no 'Set as target role' button or tooltip", () => {
     renderCard();
     expect(
-      screen.getByRole("button", { name: /set as target role/i })
-    ).toBeInTheDocument();
-  });
-
-  it("button is disabled", () => {
-    renderCard();
-    expect(
-      screen.getByRole("button", { name: /set as target role/i })
-    ).toBeDisabled();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Tooltip on hover
-// ---------------------------------------------------------------------------
-
-describe("PathSuggestionCard - tooltip", () => {
-  it("shows the tooltip text when hovering the CTA wrapper", () => {
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    expect(screen.getByRole("tooltip")).toHaveTextContent(
-      "Coming soon — goal tracking is on the way"
-    );
-  });
-
-  it("opens below the button, never above it, so it cannot cover the verdict row", () => {
-    // `bottom-full` opens upward and used to sit on top of the Interesting /
-    // Too similar / Not for me row above this CTA.
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    const tooltip = screen.getByRole("tooltip");
-    expect(tooltip.className).not.toMatch(/\bbottom-full\b/);
-    expect(tooltip.className).toMatch(/\btop-full\b/);
-  });
-
-  it("hides the tooltip after the mouse leaves", () => {
-    renderCard();
-    const wrapper = screen.getByRole("button", { name: /set as target role/i })
-      .parentElement!;
-    fireEvent.mouseEnter(wrapper);
-    expect(screen.getByRole("tooltip")).toBeInTheDocument();
-    fireEvent.mouseLeave(wrapper);
+      screen.queryByRole("button", { name: /set as target role/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(screen.queryByText(/coming soon/i)).not.toBeInTheDocument();
   });
 });
 
@@ -348,5 +306,206 @@ describe("PathSuggestionCard - opening the deep fit", () => {
     );
     fireEvent.click(verdictButton("interesting"));
     expect(onOpen).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W-16: the card arrives before its sentence
+// ---------------------------------------------------------------------------
+
+describe("PathSuggestionCard - a sentence still being written (W-16)", () => {
+  const PENDING: PathSuggestion = {
+    ...BASE_SUGGESTION,
+    why_text: "",
+    profile_dimensions: [],
+    sentence_pending: true,
+  };
+
+  it("holds the sentence's place with a placeholder, not a stand-in sentence", () => {
+    const { container } = render(
+      <PathSuggestionCard suggestion={PENDING} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).not.toBeNull();
+    expect(screen.getByText("Marketing Managers")).toBeInTheDocument();
+    expect(container.querySelector("p.text-sm")).toBeNull();
+  });
+
+  it("shows no pills while the sentence is pending", () => {
+    render(
+      <PathSuggestionCard
+        suggestion={{ ...PENDING, profile_dimensions: ["Builds on your Python skills"] }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+    expect(screen.queryByText("Builds on your Python skills")).toBeNull();
+  });
+
+  it("renders no empty paragraph when the sentence is empty and nothing is coming", () => {
+    const { container } = render(
+      <PathSuggestionCard
+        suggestion={{ ...PENDING, sentence_pending: false }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+      />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).toBeNull();
+    expect(container.querySelector("p.text-sm")).toBeNull();
+  });
+
+  it("replaces the placeholder in place when the sentence lands", () => {
+    const { container, rerender } = render(
+      <PathSuggestionCard suggestion={PENDING} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    rerender(
+      <PathSuggestionCard suggestion={BASE_SUGGESTION} currentTitle="Software Engineer" careerStatus="employed" />
+    );
+    expect(container.querySelector("[data-sentence-pending]")).toBeNull();
+    expect(
+      screen.getByText("Your skills align well with marketing leadership roles.")
+    ).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// W-18: an instant O*NET summary, and nothing moves when the narration lands
+// ---------------------------------------------------------------------------
+
+describe("PathSuggestionCard - the O*NET summary and the reserved slots (W-18)", () => {
+  const SUMMARY = "Plan, direct, or coordinate marketing policies and programs.";
+  const PENDING: PathSuggestion = {
+    ...BASE_SUGGESTION,
+    summary: SUMMARY,
+    why_text: "",
+    profile_dimensions: [],
+    sentence_pending: true,
+  };
+  const LANDED: PathSuggestion = { ...BASE_SUGGESTION, summary: SUMMARY };
+
+  function mount(suggestion: PathSuggestion) {
+    return render(
+      <PathSuggestionCard
+        suggestion={suggestion}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+  }
+
+  it("shows the summary under the title while the sentence is still being written", () => {
+    const { container } = mount(PENDING);
+
+    expect(screen.getByText(SUMMARY)).toBeInTheDocument();
+    expect(container.querySelector("[data-summary]")).not.toBeNull();
+    expect(container.querySelector("[data-sentence-pending]")).not.toBeNull();
+    const title = screen.getByText("Marketing Managers");
+    const summary = screen.getByText(SUMMARY);
+    expect(title.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("adds the sentence below the summary rather than swapping it in", () => {
+    const { rerender } = mount(PENDING);
+    rerender(
+      <PathSuggestionCard
+        suggestion={LANDED}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+
+    const summary = screen.getByText(SUMMARY);
+    const sentence = screen.getByText("Your skills align well with marketing leadership roles.");
+    expect(summary.compareDocumentPosition(sentence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("holds the sentence's and the tags' height before and after they land", () => {
+    // jsdom has no layout, so this pins the mechanism the browser CLS check
+    // measured: one reserved block, with the same minimum height, in both
+    // states -- the sentence and the tags arrive INSIDE it.
+    const { container, rerender } = mount(PENDING);
+    const before = container.querySelector("[data-narration-block]")?.className;
+    rerender(
+      <PathSuggestionCard
+        suggestion={LANDED}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+    const after = container.querySelector("[data-narration-block]")?.className;
+
+    expect(before).toMatch(/min-h-/);
+    expect(after).toEqual(before);
+    const block = container.querySelector("[data-narration-block]");
+    expect(block?.textContent).toContain("Your skills align well with marketing leadership roles.");
+    expect(block?.textContent).toContain("Builds on your Communication skills");
+  });
+
+  it("keeps the reserved block for a fallback sentence that has no tags", () => {
+    // A narrator failure lands the fallback ("Uses your SQL.") with no tags;
+    // the block must not give back the tags' share of the space.
+    const { container, rerender } = mount(PENDING);
+    const before = container.querySelector("[data-narration-block]")?.className;
+    rerender(
+      <PathSuggestionCard
+        suggestion={{ ...LANDED, why_text: "Uses your SQL.", profile_dimensions: [] }}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+    expect(container.querySelector("[data-narration-block]")?.className).toEqual(before);
+  });
+
+  it("puts the reasons, which are known at scoring, above the block still being written", () => {
+    const { container } = mount({ ...PENDING, reasons: ["Among the most people-facing jobs"] });
+    const reasons = container.querySelector("[data-reasons]");
+    const block = container.querySelector("[data-narration-block]");
+    expect(reasons && block).toBeTruthy();
+    expect(reasons!.compareDocumentPosition(block!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("fades the sentence and the tags in once they land", async () => {
+    const { container, rerender } = mount(PENDING);
+    rerender(
+      <PathSuggestionCard
+        suggestion={LANDED}
+        currentTitle="Software Engineer"
+        careerStatus="employed"
+        onVerdict={() => {}}
+      />
+    );
+
+    const fade = container.querySelector("[data-fade]");
+    expect(fade?.textContent).toContain("Builds on your Communication skills");
+    await vi.waitFor(() =>
+      expect(container.querySelector("[data-fade]")?.getAttribute("data-fade")).toBe("in")
+    );
+  });
+
+  it("keeps the shimmer placeholder, with or without a summary above it", () => {
+    const withSummary = mount(PENDING);
+    expect(withSummary.container.querySelector("[data-sentence-pending] .animate-pulse")).not.toBeNull();
+    withSummary.unmount();
+
+    // No sidecar: no summary line, and the card still says "being written".
+    const without = mount({ ...PENDING, summary: "" });
+    expect(without.container.querySelector("[data-summary]")).toBeNull();
+    expect(without.container.querySelector("[data-sentence-pending] .animate-pulse")).not.toBeNull();
+    expect(screen.getByText(/writing why this path could suit you/i)).toBeInTheDocument();
+  });
+
+  it("renders no summary line for a payload cached before W-18", () => {
+    const { container } = mount({ ...BASE_SUGGESTION });
+    expect(container.querySelector("[data-summary]")).toBeNull();
+    expect(container.querySelector("[data-onet-code='11-2021.00']")).not.toBeNull();
+  });
+
+  it("puts no score or percentage on screen alongside the summary", () => {
+    const { container } = mount(LANDED);
+    expect(container.textContent).not.toMatch(/\d+\s*%/);
+    expect(container.textContent).not.toMatch(/0\.82/);
   });
 });

@@ -22,8 +22,8 @@ export const MM_QUESTIONS: MMQuestion[] = [
   },
   {
     id: "mm-q3",
-    optionA: "When you're stuck, you prefer your manager to guide you step-by-step to the answer.",
-    optionB: "When you're stuck, you prefer to solve it yourself and report back with the outcome.",
+    optionA: "When you’re stuck, you prefer your manager to guide you step-by-step to the answer.",
+    optionB: "When you’re stuck, you prefer to solve it yourself and report back with the outcome.",
     dimension: "autonomy",
   },
   {
@@ -47,13 +47,13 @@ export const MM_QUESTIONS: MMQuestion[] = [
   {
     id: "mm-q7",
     optionA: "You want your manager to review your work before you consider it done.",
-    optionB: "You consider your work done when you're satisfied with it, regardless of manager review.",
+    optionB: "You consider your work done when you’re satisfied with it, regardless of manager review.",
     dimension: "feedback_style",
   },
   {
     id: "mm-q8",
     optionA: "Frequent positive reinforcement from your manager meaningfully affects your motivation.",
-    optionB: "Your own judgment of your work is what motivates you – you don't need external validation.",
+    optionB: "Your own judgment of your work is what motivates you – you don’t need external validation.",
     dimension: "feedback_style",
   },
   {
@@ -64,8 +64,8 @@ export const MM_QUESTIONS: MMQuestion[] = [
   },
   {
     id: "mm-q10",
-    optionA: "You'd rather have a manager who advocates strongly for your interests in the org.",
-    optionB: "You'd rather have a manager who holds you to high standards without softening expectations.",
+    optionA: "You’d rather have a manager who advocates strongly for your interests in the org.",
+    optionB: "You’d rather have a manager who holds you to high standards without softening expectations.",
     dimension: "relationship",
   },
   {
@@ -77,13 +77,13 @@ export const MM_QUESTIONS: MMQuestion[] = [
   {
     id: "mm-q12",
     optionA: "You want your manager to actively plan your development – setting learning goals with you.",
-    optionB: "You take full ownership of your own development and don't need your manager's direction.",
+    optionB: "You take full ownership of your own development and don’t need your manager’s direction.",
     dimension: "growth_focus",
   },
   {
     id: "mm-q13",
     optionA: "Regular career conversations with your manager make you more invested in your work.",
-    optionB: "Career conversations feel like overhead – you'd rather focus on doing excellent work.",
+    optionB: "Career conversations feel like overhead – you’d rather focus on doing excellent work.",
     dimension: "growth_focus",
   },
   {

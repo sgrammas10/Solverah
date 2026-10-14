@@ -1,5 +1,5 @@
 /**
- * useIntakeForm — State and submission logic for the pre-launch intake form.
+ * useIntakeForm — State and submission logic for the landing-page intake form.
  *
  * Two-step submission flow:
  *   1. presign  — POST /api/intake/presign to get a presigned S3 PUT URL.

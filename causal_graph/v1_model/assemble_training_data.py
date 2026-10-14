@@ -20,8 +20,11 @@ TWO SOURCES, ONE SHAPE (BUILD_PLAN E-4)
                                          was shown and an outcome came back. The
                                          env side is a company's scored dimensions.
 `assemble_environment_training_data()`   (person, OWN JOB) pairs: the user described
-                                         their own role through A-1's instrument.
-                                         The env side is `environment_reports`.
+                                         a job of their own through A-1's
+                                         instrument -- their current one, or (since
+                                         2026-10-01, `report_subject='past'`) the
+                                         one before it. The env side is
+                                         `environment_reports`.
 
 Both return the same four arguments in the same raw units, so build_model does not
 know or care which produced a row. The second is the one that has data at launch --
@@ -335,8 +338,9 @@ def assemble_training_data(
 #
 # BUILD_PLAN §5's E-4 calls the other path "the inversion paying off": the env
 # side is the USER's own description of their own job (A-1's instrument, A-2's
-# `environment_reports`), keyed to the same `user_id` their person-side rows
-# already carry, and the outcome is that same form's one evaluative item. A
+# `environment_reports`) -- the current one, or since 2026-10-01 at most one
+# PAST job (`environment_reports.subject`, see PAST-JOB ROWS below), keyed to
+# the same `user_id` their person-side rows already carry, and the outcome is that same form's one evaluative item. A
 # training pair therefore exists the moment someone fills the Situation Report
 # in -- no company scoring, no funnel, no placement required.
 #
@@ -365,16 +369,41 @@ def assemble_training_data(
 # --------------------
 # Deliberately no `outcome_type` parameter, unlike `assemble_training_data`
 # above. `appeal` means "did this recommendation look like a fit", and there is
-# no recommendation behind an environment report -- the user already holds the
-# job. The only outcome on this path is `experienced` (1..5 ordinal, the same
-# shape as `outcome_experienced.working_scale`), so there is nothing for a
+# no recommendation behind an environment report -- the user already holds (or,
+# on a past row, already held) the job. The only outcome on this path is
+# `experienced` (1..5 ordinal, the same shape as `outcome_experienced.working_scale`), so there is nothing for a
 # caller to choose and nothing that could be blended.
+
+#
+# PAST-JOB ROWS (PRODUCT_DECISIONS.md §2, 2026-10-01)
+# ---------------------------------------------------
+# A user who has filed a current report may file ONE more about the job before
+# it (`environment_reports.subject = 'past'`). Same instrument, same scoring,
+# same outcome item -- so it assembles into the same arrays, and every row says
+# which kind it is in `report_subject`. Two things about a past row are easy to
+# get wrong, and both are why analysis must filter or stratify on
+# `report_subject` rather than on anything else:
+#   * It pairs with the SAME per-user person-side pin as the user's current
+#     rows. The person side was measured around now; the job ended earlier.
+#   * `career_status` is the user's status ON THE DAY THEY FILED, not a property
+#     of the past job. 'employed' on a past row does not mean that job is still
+#     in progress.
+# The first-outcome-fit pre-registration (Amendment 1) treats past rows as
+# exploratory only; its primary sample is `current_report_ordinal == 1`.
 
 ENVIRONMENT_OUTCOME_TYPE: OutcomeType = "experienced"
 
+#: `environment_reports.subject` values, restated from `model.ENV_REPORT_SUBJECTS`
+#: (no app on sys.path here; a test asserts the two agree).
+SUBJECT_CURRENT = "current"
+SUBJECT_PAST = "past"
+ENVIRONMENT_REPORT_SUBJECTS: tuple[str, ...] = (SUBJECT_CURRENT, SUBJECT_PAST)
+
 #: `environment_reports` columns carrying a `confounders:` key from
-#: `solverah_model_config.yaml`. The instrument asks two of the three active
-#: measurable confounders; `industry` it does not ask at all.
+#: `solverah_model_config.yaml`. The instrument asks all three active
+#: measurable confounders. `industry` joined on 2026-10-01 (PRODUCT_DECISIONS.md
+#: §2). It is optional, so a NULL row (pre-2026-10-01 "never asked", or "not
+#: sure / prefer not to say" since) stays masked exactly as every row was before.
 #:
 #: This IS `work_pulse.situation_items.CONTEXT_COLUMNS` minus `experienced`
 #: (the outcome, not a confounder). Restated rather than imported so this
@@ -383,6 +412,7 @@ ENVIRONMENT_OUTCOME_TYPE: OutcomeType = "experienced"
 ENVIRONMENT_CONFOUNDER_COLUMNS: dict[str, str] = {
     "stage_size": "stage_size",
     "comp": "comp",
+    "industry": "industry",
 }
 
 #: A-1's single evaluative item, "Overall, how well is this role working for
@@ -400,8 +430,26 @@ ENVIRONMENT_OUTCOME_COLUMN = "experienced_outcome"
 #: down, and `dropped` is where it becomes visible instead of silent.
 TRAINABLE_CAREER_STATUSES: frozenset[str] = frozenset({"employed", "between_jobs"})
 
+#: Where a respondent came from. 'app' is anyone who answered through the
+#: product; 'pilot_form' is a respondent to the pre-launch pilot form
+#: (`causal_graph/v1_model/pilot_form/`, pre-registration Amendment 2), whose
+#: answers were imported through the app's own storage doorways under a user
+#: whose email ends in PILOT_FORM_EMAIL_DOMAIN. The domain IS the label: the
+#: importer is the only thing that creates such addresses (`.invalid` is
+#: reserved by RFC 2606 and can never be registered or mailed), so the label
+#: needs no new column and no migration, and an app row's provenance is
+#: untouched -- it is 'app' because its email is anything else.
+RESPONDENT_SOURCE_APP = "app"
+RESPONDENT_SOURCE_PILOT_FORM = "pilot_form"
+RESPONDENT_SOURCES: tuple[str, ...] = (RESPONDENT_SOURCE_APP, RESPONDENT_SOURCE_PILOT_FORM)
+PILOT_FORM_EMAIL_DOMAIN = "@pilotform.solverah.invalid"
+
 PIN_EXPLICIT = "explicit_override"
-PIN_FIRST_CORE = "first_core_sitting"
+#: Renamed from `PIN_FIRST_CORE = "first_core_sitting"` on 2026-10-05, when core
+#: became retakeable (6babb39) and the default stopped being the first sitting.
+#: Nothing stored carried the old value (no fit output, devfit report or
+#: pre-registration names it), so the label changed with the rule.
+PIN_DEFAULT = "default_core_sitting"
 
 CAPTURE_PATH = "self_report_environment"
 OUTCOME_SOURCE = "environment_report"
@@ -429,6 +477,9 @@ class EnvironmentTrainingRow:
     report_ordinal: int
     report_count_for_user: int
     employer_name_normalized: Optional[str]
+    report_subject: str
+    current_report_ordinal: Optional[int]
+    respondent_source: str = RESPONDENT_SOURCE_APP
     outcome_source: str = OUTCOME_SOURCE
     capture_path: str = CAPTURE_PATH
 
@@ -468,10 +519,13 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     ),
     "submitted_at": "environment_reports.submitted_at -- when the env side was described.",
     "career_status": (
-        "environment_reports.career_status, snapshotted at submit time. THE sample-"
-        "definition field: 'employed' describes a job in progress and 'between_jobs' "
-        "one just left, which are different populations answering the same outcome "
-        "item. 'first_job' cannot appear -- see TRAINABLE_CAREER_STATUSES."
+        "environment_reports.career_status, snapshotted at submit time: the USER's "
+        "status on the day they filed. On a current row it is THE sample-definition "
+        "field: 'employed' describes a job in progress and 'between_jobs' one just "
+        "left, which are different populations answering the same outcome item. On a "
+        "PAST row it describes the filer, NOT the job -- that job has ended whatever "
+        "this says -- so analysis must split on report_subject, never infer it from "
+        "here. 'first_job' cannot appear -- see TRAINABLE_CAREER_STATUSES."
     ),
     "env_form_version": (
         "environment_reports.version (situation_items.FORM_VERSION). Era separability "
@@ -493,17 +547,50 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
         "row is dropped rather than scored across two eras."
     ),
     "pin_source": (
-        "'explicit_override' (a situation_report_pins row) or 'first_core_sitting' "
-        "(⚑5's default). Carried because the two say different things about what the "
-        "person side describes -- the default is deliberately the OLDEST sitting."
+        "'explicit_override' (a situation_report_pins row) or 'default_core_sitting' "
+        "(⚑5's default: the sitting that was current when the user's FIRST current "
+        "report was filed, fallen forward past any sitting that can no longer be "
+        "scored -- see _resolve_pinned_submissions). Carried because the two say "
+        "different things about what the person side describes: the default is the "
+        "person side the report was built from; the override is one the user chose."
     ),
     "report_ordinal": (
-        "1-based position of this report among that user's reports, oldest first. "
+        "1-based position of this report among ALL that user's reports (current and "
+        "past alike), oldest first by (submitted_at, id). "
         "environment_reports is append-only, so a user contributes as many rows as they "
         "have submitted and those rows are NOT independent observations. This is what "
         "lets a fit group or weight them instead of counting one person several times."
     ),
-    "report_count_for_user": "How many reports that user has in total. See report_ordinal.",
+    "report_count_for_user": (
+        "How many reports that user has in total, both subjects. See report_ordinal."
+    ),
+    "report_subject": (
+        "environment_reports.subject: 'current' (the user's current or most recent "
+        "job -- every row filed before 2026-10-01) or 'past' (the one job before that, "
+        "at most one per user, filed after a current report). A past row pairs with the "
+        "SAME per-user person-side pin as the current rows, so its person side was "
+        "measured around now while the job it describes ended earlier; and its "
+        "career_status describes the user at filing, not that job. Pre-registration "
+        "Amendment 1: past rows are exploratory only."
+    ),
+    "current_report_ordinal": (
+        "1-based position of this report among that user's CURRENT reports only, "
+        "oldest first by (submitted_at, id); None on a past row. Past rows interleaved "
+        "in time do not shift it. 'First eligible current report' -- the "
+        "pre-registered primary sample -- is current_report_ordinal == 1."
+    ),
+    "respondent_source": (
+        "'app' or 'pilot_form'. 'pilot_form' means the respondent answered the "
+        "pre-launch pilot Google Form and the answers were imported into a LOCAL "
+        "research database through the app's own storage doorways "
+        "(causal_graph/v1_model/pilot_form/); 'app' is every other respondent. Derived "
+        "from the user's email domain, which the importer alone assigns "
+        "(PILOT_FORM_EMAIL_DOMAIN, an RFC 2606 .invalid address); the email itself never "
+        "leaves the query. Pre-registration Amendment 2: pilot current rows count toward "
+        "the primary population, and each look is ALSO called on 'app' rows alone -- a "
+        "disagreement is reported as mode-sensitive. Synthetic devfit users read 'app' "
+        "here; they are excluded by their own domain (section 0.2), not by this field."
+    ),
     "employer_name_normalized": (
         "environment_reports.employer_name_normalized (⚑6) -- optional, usually NULL, "
         "displayed nowhere. Carried, not joined: it is the future company-aggregation "
@@ -518,7 +605,8 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     "capture_path": (
         "Constant 'self_report_environment'. THE answer to 'how did this pair enter the "
         "data': it did not come through a recommendation at all -- the user already held "
-        "the job and described it. Every NULL below follows from this one value."
+        "the job (current or past, see report_subject) and described it. Every NULL "
+        "below follows from this one value."
     ),
     # --- named by the handoff, NOT suppliable from an environment report ---
     "company_id": (
@@ -558,7 +646,7 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
     "match_formed": (
         "NULL: schema.sql principle 5's collider -- 'hired + accepted', the condition "
         "outcome rows are silently selected on. These rows are NOT conditioned on it "
-        "(the user is describing a job they already have, however they came by it), "
+        "(the user is describing a job they have or had, however they came by it), "
         "which is this source's real advantage over the placement path and the reason "
         "to record the absence explicitly rather than leave the column out."
     ),
@@ -593,11 +681,12 @@ class EnvironmentAssembleResult:
     four arguments, plus what it takes to audit them.
 
     `conf_missing` is not decoration. `comp` is nullable by a signed ruling
-    ("not sure", PRODUCT_DECISIONS.md §2, 2026-09-10) and `industry` is not
-    asked at all, so a confounder column can legitimately carry no value for a
-    row that is otherwise complete. NaN carries that through a float array
-    honestly, but NaN cannot do the same job for a categorical column, and no
-    array shape distinguishes "missing" from "happened to be NaN". The mask
+    ("not sure", PRODUCT_DECISIONS.md §2, 2026-09-10) and so is `industry`
+    (asked since 2026-10-01, optional, NULL on "not sure / prefer not to say";
+    NULL on every older row, which was never asked), so a confounder column
+    can legitimately carry no value for a row that is otherwise complete. NaN
+    carries that through a float array honestly, but NaN cannot do the same
+    job for a categorical column, and no array shape distinguishes "missing" from "happened to be NaN". The mask
     does, for every kind, which is what lets the model config -- not this
     function -- decide whether to exclude the column, model the missingness, or
     impute. Imputing or dropping HERE would make that decision unrecoverable.
@@ -607,8 +696,9 @@ class EnvironmentAssembleResult:
     this loader: EXCLUDE THE TERM for a masked row, for both kinds.
     `match_core.preprocess_conf(conf, cfg, conf_missing=...)` zeroes a masked
     continuous value (a "not sure" comp) and gives a masked categorical one
-    (`industry`, which this source never asks) a `<key>__present` flag that
-    drops its per-level weight from the logit. Without the mask both still
+    (a NULL `industry`) a `<key>__present` flag that drops its per-level
+    weight from the logit, while a row that names its industry keeps
+    `__present` = 1 and indexes its own level. Without the mask both still
     fail loudly -- a NaN or a None raises, naming the confounder -- so a caller
     that forgets `conf_missing` cannot get a silently wrong fit. The
     OrderedLogistic head the 1-5 outcome needs landed 2026-09-17
@@ -651,6 +741,7 @@ def assemble_environment_rows(
     conf_kind: dict[str, Optional[str]],
     score_person: Callable[[dict], dict],
     scoring_key_version: Optional[str],
+    respondent_sources: Optional[dict] = None,
 ) -> EnvironmentAssembleResult:
     """Build the arrays from fully-resolved lookups.
 
@@ -667,6 +758,9 @@ def assemble_environment_rows(
                           (A-5's load-bearing lesson: `person_dimension_score`
                           is upserted in place, so a retake silently rewrites
                           what a pinned read would have returned).
+    respondent_sources:   {user_id: 'app' | 'pilot_form'}. A user it does not
+                          name is 'app', so a caller that predates the pilot
+                          form gets exactly the rows it always got.
 
     Every excluded report lands in `dropped` with a reason. Silently shrinking N
     is the "empty response read as absence" bug this project keeps catching
@@ -683,6 +777,14 @@ def assemble_environment_rows(
         for ids in per_user.values()
         for index, report_id in enumerate(ids)
     }
+    # The same numbering over current reports alone: a past report never takes
+    # (or shifts) a current report's place.
+    current_ordinal_of: dict = {}
+    current_seen: dict = {}
+    for report in ordered:
+        if report["subject"] == SUBJECT_CURRENT:
+            current_seen[report["user_id"]] = current_seen.get(report["user_id"], 0) + 1
+            current_ordinal_of[report["id"]] = current_seen[report["user_id"]]
 
     # One sitting is shared by every report a user has written (the pin is per
     # user, not per report), so score it once. The cache also means a sitting
@@ -716,6 +818,9 @@ def assemble_environment_rows(
             # Not merely unusual -- A-5 refuses this submission with a 409, so a
             # row here means the refusal was bypassed. See TRAINABLE_CAREER_STATUSES.
             reasons.append("career_status=%r is not trainable" % report["career_status"])
+        if report["subject"] not in ENVIRONMENT_REPORT_SUBJECTS:
+            # The column's CHECK holds this vocabulary; a row here bypassed it.
+            reasons.append("subject=%r is not a known subject" % report["subject"])
 
         e_row = {}
         for key in dims:
@@ -792,6 +897,11 @@ def assemble_environment_rows(
                 report_ordinal=ordinal,
                 report_count_for_user=count,
                 employer_name_normalized=report.get("employer_name_normalized"),
+                report_subject=report["subject"],
+                current_report_ordinal=current_ordinal_of.get(report_id),
+                respondent_source=(respondent_sources or {}).get(
+                    user_id, RESPONDENT_SOURCE_APP
+                ),
             )
         )
 
@@ -847,8 +957,8 @@ def assemble_environment_rows(
 # ---------------------------------------------------------------------------
 def _fetch_environment_reports(conn: Connection) -> list[dict]:
     sql = text(
-        "SELECT id, user_id, submitted_at, stage_size, comp, experienced_outcome, "
-        "career_status, employer_name_normalized, version "
+        "SELECT id, user_id, submitted_at, stage_size, comp, industry, experienced_outcome, "
+        "career_status, employer_name_normalized, version, subject "
         "FROM environment_reports"
     )
     return [dict(r) for r in conn.execute(sql).mappings().all()]
@@ -866,42 +976,85 @@ def _fetch_environment_dimension_scores(conn: Connection, report_ids: list[int])
     return {(r["environment_report_id"], r["dimension_key"]): r["score"] for r in rows}
 
 
-def _core_sitting_precedes(candidate: dict, incumbent: dict) -> bool:
-    """`ORDER BY completed_at ASC, id ASC` under Postgres' ASC NULLS LAST, in
-    Python. Kept explicit rather than expressed as a sort key because a tuple
-    key has to invent a value for NULL, and inventing one is how the ordering
-    quietly stops matching the SQL it is supposed to mirror."""
-    a, b = candidate["completed_at"], incumbent["completed_at"]
-    if a is None and b is None:
-        return candidate["id"] < incumbent["id"]
-    if a is None:
-        return False
-    if b is None:
-        return True
-    if a != b:
-        return a < b
-    return candidate["id"] < incumbent["id"]
+def _fetch_respondent_sources(conn: Connection, user_ids: list[int]) -> dict:
+    """{user_id: 'pilot_form'} for the pilot-form respondents among `user_ids`;
+    everyone absent is 'app'. The match runs in the database and only ids come
+    back, so no email address ever reaches the assembler."""
+    if not user_ids:
+        return {}
+    stmt = text(
+        "SELECT id FROM users WHERE id IN :uids AND LOWER(email) LIKE :pattern"
+    ).bindparams(bindparam("uids", expanding=True))
+    rows = conn.execute(
+        stmt, {"uids": user_ids, "pattern": "%" + PILOT_FORM_EMAIL_DOMAIN}
+    ).all()
+    return {r[0]: RESPONDENT_SOURCE_PILOT_FORM for r in rows}
 
 
-def _resolve_pinned_submissions(conn: Connection, user_ids: list[int]) -> dict:
+def _default_pin_start(sittings: list[dict], anchor_at) -> int:
+    """Index into `sittings` (oldest first) of the sitting that was current when
+    the user's first current Environment Report was filed -- the anchor
+    `situation_report_service._default_pin` starts from. Pure, so the rule is
+    testable without a database.
+
+    One sitting: it, whatever the anchor. No anchor (no current report yet):
+    the latest. Otherwise the last sitting completed at or before the anchor,
+    or the first one after it when every sitting is newer than the report.
+    """
+    if len(sittings) <= 1 or anchor_at is None:
+        return len(sittings) - 1
+    at_or_before = [
+        i for i, row in enumerate(sittings) if row["completed_at"] <= anchor_at
+    ]
+    return at_or_before[-1] if at_or_before else 0
+
+
+def _resolve_pinned_submissions(
+    conn: Connection,
+    user_ids: list[int],
+    score_person: Optional[Callable[[dict], dict]] = None,
+) -> dict:
     """{user_id: (submission_id, pin_source)} -- the D-15 pin, resolved the way
     `solverah.services.situation_report_service._pinned_submission_id` resolves
-    it: the explicit recalibrate override if one was ever written, else the
-    FIRST completed core sitting.
+    it (the rule since core became retakeable, 6babb39 / 2026-10-05):
 
-    The two halves of that rule are `situation_report_pin_store.explicit_pin`
-    and `assessment_store.first_completed_core_submission_id`. Restated in SQL
-    here rather than called, so the model lane needs no Flask application
-    context to assemble a training set -- a fit run is offline, and giving it a
-    hard dependency on the web app's session would be the wrong trade. The
+    1. An explicit recalibrate override (`situation_report_pins`) wins outright
+       and is never fallen forward from -- the user chose it.
+    2. Otherwise the DEFAULT: of the user's completed core sittings, oldest
+       first by (completed_at, id), the latest one completed at or before the
+       user's FIRST current Environment Report (MIN(submitted_at) over
+       subject='current'); the first sitting after that report if every sitting
+       is newer; the latest sitting if no current report exists yet.
+    3. FALL-FORWARD from that anchor: the first sitting, anchor included, whose
+       responses exist and that `score_person` scores without raising. If none
+       is readable, the anchor itself -- the row then drops downstream with
+       `person_side_unscorable`, by name.
+
+    The service's halves are `situation_report_pin_store.explicit_pin`,
+    `assessment_store.completed_core_sittings`,
+    `environment_report_store.first_environment_report_submitted_at` and
+    `assessment_store.dimension_scores_for_submission`. Restated in SQL here
+    rather than called, so the model lane needs no Flask application context
+    to assemble a training set -- a fit run is offline, and giving it a hard
+    dependency on the web app's session would be the wrong trade. The
     restatement is the risk, so a tripwire test asserts this function agrees
     with the service's own resolver on every seeded case rather than trusting
     that the two descriptions match.
 
-    Why the first sitting and not the latest: PRODUCT_DECISIONS §2 / ⚑5. The
-    person side is sealed so a retake is not a watchable gradient, which is
-    also what makes a training row's person side stable while its environment
-    side is free to vary -- exactly the variation E-4 wants to fit on.
+    Why that sitting and not simply the first or the latest: the pin protects a
+    report the user has SEEN. Every input is append-only, so the anchor never
+    moves once the first report exists -- a retake after filing, or a re-filed
+    report, leaves the training row's person side where it was until the user
+    recalibrates. A retake BEFORE the first filing is the sitting they built
+    the report on, so it is the one used; the old first-sitting rule would have
+    paired the report with a sitting the user had already replaced. Falling
+    forward past an unreadable anchor protects nothing the user saw (the report
+    renders no person side for it) and is still deterministic: the first
+    readable sitting after a fixed anchor does not change on a later retake.
+
+    score_person: {item_id: choice} -> scores, raising on a sitting the current
+    item file cannot score. Default `assessment_form.score_stored_choices`, the
+    same scorer the service's readability check uses.
     """
     if not user_ids:
         return {}
@@ -921,23 +1074,57 @@ def _resolve_pinned_submissions(conn: Connection, user_ids: list[int]) -> dict:
 
     # `public_id` is a uuid; assessment_store hands out `public_id.hex`, which
     # is the 32 characters with no dashes, and that is what the pin table and
-    # assessment_response.submission_id both hold.
+    # assessment_response.submission_id both hold. `completed_at IS NOT NULL`
+    # as in `completed_core_sittings`: a core row is always written complete,
+    # and a sitting with no completion time cannot be placed in time.
     rows = conn.execute(
         text(
             "SELECT id, user_id, completed_at, "
             "REPLACE(CAST(public_id AS VARCHAR), '-', '') AS submission_id "
-            "FROM assessment_submissions WHERE kind = 'core' AND user_id IN :uids"
+            "FROM assessment_submissions "
+            "WHERE kind = 'core' AND completed_at IS NOT NULL AND user_id IN :uids"
         ).bindparams(bindparam("uids", expanding=True)),
         {"uids": remaining},
     ).mappings().all()
+    sittings_of: dict = {}
+    for row in sorted(rows, key=lambda r: (r["completed_at"], r["id"])):
+        sittings_of.setdefault(row["user_id"], []).append(row)
+    if not sittings_of:
+        return resolved
 
-    first: dict = {}
-    for row in rows:
-        incumbent = first.get(row["user_id"])
-        if incumbent is None or _core_sitting_precedes(row, incumbent):
-            first[row["user_id"]] = row
-    for user_id, row in first.items():
-        resolved[user_id] = (row["submission_id"], PIN_FIRST_CORE)
+    anchors = conn.execute(
+        text(
+            "SELECT user_id, MIN(submitted_at) AS anchor_at FROM environment_reports "
+            "WHERE subject = :current AND user_id IN :uids GROUP BY user_id"
+        ).bindparams(bindparam("uids", expanding=True)),
+        {"uids": list(sittings_of), "current": SUBJECT_CURRENT},
+    ).mappings().all()
+    anchor_of = {r["user_id"]: r["anchor_at"] for r in anchors}
+
+    candidates_of = {
+        user_id: sittings[_default_pin_start(sittings, anchor_of.get(user_id)):]
+        for user_id, sittings in sittings_of.items()
+    }
+    choices_of, _versions = _fetch_pinned_responses(
+        conn,
+        sorted({row["submission_id"] for rows_ in candidates_of.values() for row in rows_}),
+    )
+    if score_person is None:
+        score_person = _app_assessment_form().score_stored_choices
+
+    for user_id, candidates in candidates_of.items():
+        chosen = candidates[0]["submission_id"]
+        for row in candidates:
+            choices = choices_of.get(row["submission_id"])
+            if not choices:
+                continue
+            try:
+                score_person(choices)
+            except Exception:  # noqa: BLE001 - any scoring refusal is "unreadable"
+                continue
+            chosen = row["submission_id"]
+            break
+        resolved[user_id] = (chosen, PIN_DEFAULT)
     return resolved
 
 
@@ -1010,7 +1197,9 @@ def assemble_environment_training_data(
           `assessment_form.scoring_key_version()` -- the CURRENT key, because
           that is the one the default scorer re-derives under.
 
-    ALL of a user's reports are assembled, not just the latest.
+    ALL of a user's reports are assembled, not just the latest -- current and
+    past alike; `report_subject` says which, and `current_report_ordinal == 1`
+    selects each user's first current report.
     `environment_reports` is append-only and its history is the point (A-2's
     module docstring says so, and names this function). Repeated reports from
     one person are not independent observations, so `report_ordinal` and
@@ -1021,7 +1210,8 @@ def assemble_environment_training_data(
     THE JOIN PATH, IN ONE SENTENCE: every report a user has written pairs with
     the SAME core sitting -- their pin -- because the pin is per user, which is
     precisely what makes the person side sealed while the environment side
-    varies.
+    varies. That includes a past-job report: its person side is the same pin,
+    measured around now, not at the time of the job it describes.
     """
     form = None
     if score_person is None or scoring_key_version is None:
@@ -1058,7 +1248,7 @@ def assemble_environment_training_data(
     user_ids = sorted({r["user_id"] for r in reports})
 
     env_scores = _fetch_environment_dimension_scores(conn, report_ids)
-    pins = _resolve_pinned_submissions(conn, user_ids)
+    pins = _resolve_pinned_submissions(conn, user_ids, score_person)
     pinned_choices, pinned_form_versions = _fetch_pinned_responses(
         conn, sorted({sid for sid, _ in pins.values()})
     )
@@ -1074,6 +1264,7 @@ def assemble_environment_training_data(
         conf_kind,
         score_person,
         scoring_key_version,
+        respondent_sources=_fetch_respondent_sources(conn, user_ids),
     )
 
 

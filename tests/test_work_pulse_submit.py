@@ -1,326 +1,231 @@
-"""Work Pulse scoring, driven through the job pair it moved to in Phase 3c.
+"""The original 12-question Work Pulse, retired on 2026-10-02.
 
-The synchronous ``POST /assessments/work_pulse/submissions`` is deleted: it
-answers 410 with a pointer at ``POST /assessments/work_pulse/scoring-jobs``,
-and ``test_the_synchronous_submit_is_a_410_tombstone`` is the test of that
-deletion. Everything else here drives the enqueue and the poll. Under the
-suite's eager execution the job runs inline, so the first poll after the 202
-is already terminal -- and its ``result`` is byte-identical to what the old
-route answered in its 200 body.
+Sebastian's ruling of that date retired the ``work_pulse`` kind. Nothing in the
+client could start a sitting any more, yet ``POST
+/assessments/work_pulse/scoring-jobs`` still accepted twelve answers and paid
+for an OpenAI narrative. Every write door now answers ``410`` with error code
+``kind_retired``, before auth and before the body is read, and no provider call
+is reachable. The stored result stays readable, read-only, for users who
+finished the old quiz.
+
+Until this date this file tested the scorer itself, through the job pair it
+moved to in Phase 3c. Those tests went with the scorer.
 """
 
 import json
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 
 WP_ANSWERS = [
-    {"question_id": "wp-q1",  "option_id": "wp-q1-b"},
-    {"question_id": "wp-q2",  "option_id": "wp-q2-a"},
-    {"question_id": "wp-q3",  "option_id": "wp-q3-c"},
-    {"question_id": "wp-q4",  "option_id": "wp-q4-b"},
-    {"question_id": "wp-q5",  "option_id": "wp-q5-c"},
-    {"question_id": "wp-q6",  "option_id": "wp-q6-a"},
-    {"question_id": "wp-q7",  "option_id": "wp-q7-b"},
-    {"question_id": "wp-q8",  "option_id": "wp-q8-c"},
-    {"question_id": "wp-q9",  "option_id": "wp-q9-a"},
-    {"question_id": "wp-q10", "option_id": "wp-q10-b"},
-    {"question_id": "wp-q11", "option_id": "wp-q11-a"},
-    {"question_id": "wp-q12", "option_id": "wp-q12-b"},
+    {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
 ]
 
-VALID_LLM_RESPONSE = {
-    "narrative": (
-        "You bring deep focus to your work when conditions allow it.\n\n"
-        "Recovery is a real need for you, not a luxury.\n\n"
-        "Your autonomy matters — being told exactly how to do something costs you."
-    ),
-    "emerging_signals": [
-        {"title": "Deep Focus Seeker", "description": "You show strong signs of needing uninterrupted time to reach your best work."},
-        {"title": "Autonomy Driven", "description": "You prefer to own the how, not just the what."},
-    ],
+STORED_RESULT = {
+    "narrative": "You bring deep focus to your work when conditions allow it.",
+    "emerging_signals": [{"title": "Deep Focus Seeker", "description": "Needs quiet."}],
     "archetype": "Structured Deep Thinker",
-    "archetype_description": (
-        "You build momentum through sustained, self-directed effort — your best work emerges "
-        "when you control the pace and the process. Environments with clear expectations and "
-        "minimal interruption tend to bring out your strongest output. Friction often surfaces "
-        "when direction is imposed without explanation or when context-switching is constant."
-    ),
+    "archetype_description": "You build momentum through sustained effort.",
 }
+
+EMAIL = "wp-retired@example.com"
+PASSWORD = "Strongpass1!"
 
 
 def _noop(*_args, **_kwargs):
     return None
 
 
-def _register_and_login(client, monkeypatch, email="wp@example.com", password="Strongpass1!"):
-    import app as app_module
+# `respondent_id_for_user` reads this at call time and has no default by design
+# (D-05). Set per file, never in conftest.py: test_assessment_form.py deletes it
+# to prove the no-default rule holds.
+@pytest.fixture(autouse=True)
+def _form_token_secret(monkeypatch):
+    monkeypatch.setenv("SOLVERAH_FORM_TOKEN_SECRET", "test-secret-not-a-real-one")
+
+
+@pytest.fixture()
+def csrf(client, monkeypatch):
+    """A registered, confirmed, logged-in user. Returns its CSRF token."""
     monkeypatch.setattr("solverah.infra.email.send_confirmation_email", _noop)
     monkeypatch.setattr("solverah.services.audit.log_audit_event", _noop)
-
     client.post(
         "/api/v1/auth/register",
-        json={"email": email, "password": password, "name": "WP User", "role": "job-seeker", "terms_accepted": True},
+        json={"email": EMAIL, "password": PASSWORD, "name": "WP User",
+              "role": "job-seeker", "terms_accepted": True},
     )
 
     from app import app
     from model import User, db
+
     with app.app_context():
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=EMAIL).first()
         user.email_confirmed = True
         user.confirmation_token = None
         db.session.commit()
 
-    resp = client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    resp = client.post("/api/v1/auth/login", json={"email": EMAIL, "password": PASSWORD})
     assert resp.status_code == 200
     return resp.get_json()["csrfToken"]
 
 
-def _mock_openai(monkeypatch, response_json=None, raise_exc=None):
-    import app as app_module
+@pytest.fixture()
+def provider(monkeypatch):
+    """A provider double that would answer, so a call reaching it is visible."""
     mock_client = MagicMock()
-    if raise_exc is not None:
-        mock_client.chat.completions.create.side_effect = raise_exc
-    else:
-        payload = response_json if response_json is not None else VALID_LLM_RESPONSE
-        mock_choice = MagicMock()
-        mock_choice.message.content = json.dumps(payload)
-        mock_response = MagicMock()
-        mock_response.choices = [mock_choice]
-        mock_client.chat.completions.create.return_value = mock_response
+    choice = MagicMock()
+    choice.message.content = json.dumps(STORED_RESULT)
+    response = MagicMock()
+    response.choices = [choice]
+    mock_client.chat.completions.create.return_value = response
     monkeypatch.setattr("solverah.infra.llm.get_openai_client", lambda: mock_client)
     return mock_client
 
 
-def _queue(client, body, csrf=None):
-    headers = {"X-CSRF-TOKEN": csrf} if csrf else {}
-    return client.post(
-        "/api/v1/assessments/work_pulse/scoring-jobs", json=body, headers=headers
+def _store_legacy_sitting(*, result):
+    """A sitting of the old quiz, as one stored before the retirement."""
+    from app import app
+    from model import User, db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        row = assessment_repository.open_current(
+            user.id, "work_pulse", assessment_service.CLIENT_FORM_VERSION
+        )
+        row.answers = WP_ANSWERS
+        row.completed_at = auth_domain.utcnow()
+        row.status = "scored" if result else "complete"
+        row.result = result
+        row.narrative = result["narrative"] if result else None
+        db.session.commit()
+        return user.id
+
+
+def _assert_retired(resp):
+    assert resp.status_code == 410
+    assert resp.mimetype == "application/problem+json"
+    body = resp.get_json()
+    assert body["type"] == "https://solverah.com/errors/gone"
+    assert body["errors"] == [{"field": "kind", "code": "kind_retired"}]
+    # Gone, not moved: there is no forwarding address for this operation.
+    assert "replaced_by" not in body
+
+
+# ── Every write door is a 410 ────────────────────────────────────────────────
+
+
+def test_the_scoring_job_enqueue_is_retired(client, csrf, provider):
+    resp = client.post(
+        "/api/v1/assessments/work_pulse/scoring-jobs",
+        json={"answers": WP_ANSWERS},
+        headers={"X-CSRF-TOKEN": csrf},
     )
 
-
-def _poll(client, job_id):
-    return client.get("/api/v1/assessments/work_pulse/scoring-jobs/%s" % job_id)
-
-
-def _score(client, csrf, answers):
-    """Queue a scoring and poll it once.
-
-    Eager execution has already run the job inline by the time the 202 comes
-    back, so the first poll is terminal.
-    """
-    queued = _queue(client, {"answers": answers}, csrf)
-    assert queued.status_code == 202
-    return _poll(client, queued.get_json()["job_id"])
+    _assert_retired(resp)
+    assert provider.chat.completions.create.call_count == 0
 
 
-# ── Happy path ───────────────────────────────────────────────────────────────
-
-def test_submit_returns_narrative_signals_and_archetype(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch)
-
-    poll = _score(client, csrf, WP_ANSWERS)
-
-    assert poll.status_code == 200
-    assert poll.get_json()["status"] == "succeeded"
-    result = poll.get_json()["result"]
-    assert isinstance(result["narrative"], str) and len(result["narrative"]) > 0
-    assert isinstance(result["emerging_signals"], list) and len(result["emerging_signals"]) >= 1
-    assert all("title" in s and "description" in s for s in result["emerging_signals"])
-    assert isinstance(result["archetype"], str) and len(result["archetype"]) > 0
+def test_the_enqueue_refuses_before_auth_and_before_the_body(client, provider):
+    """No JWT and no body: still the 410, never a 401 or a 400/422."""
+    _assert_retired(client.post("/api/v1/assessments/work_pulse/scoring-jobs"))
+    assert provider.chat.completions.create.call_count == 0
 
 
-def test_submit_returns_archetype_description(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch, email="desc@example.com")
-    _mock_openai(monkeypatch)
-
-    result = _score(client, csrf, WP_ANSWERS).get_json()["result"]
-
-    assert "archetype_description" in result, "archetype_description must be present in the scored result"
-    assert isinstance(result["archetype_description"], str) and len(result["archetype_description"]) > 0
-
-
-def test_submit_persists_answers_and_narrative(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch)
-
-    _score(client, csrf, WP_ANSWERS)
-
-    from app import app
-    from model import AssessmentSubmission, User
-    with app.app_context():
-        user = User.query.filter_by(email="wp@example.com").first()
-        # `assessment_submissions` since Phase 2d; `user_intake.wpl_*` before it.
-        # Both commits landed, so the row is `scored` rather than `complete` --
-        # the two-commit sequence's outcome is readable from the status now,
-        # instead of having to be inferred from a null `wpl_result`.
-        submission = AssessmentSubmission.query.filter_by(
-            user_id=user.id, kind="work_pulse"
-        ).first()
-        assert submission is not None
-        assert submission.answers == WP_ANSWERS
-        assert submission.narrative == VALID_LLM_RESPONSE["narrative"]
-        assert submission.result == VALID_LLM_RESPONSE
-        assert submission.completed_at is not None
-        assert submission.scored_at is not None
-        assert submission.status == "scored"
-
-
-# ── Validation errors ────────────────────────────────────────────────────────
-
-def test_submit_rejects_fewer_than_12_answers(client, monkeypatch):
-    """The precheck answers the 400 at the enqueue, not after a poll.
-
-    Same status and same body the synchronous route used to answer: a
-    malformed submission must stay an immediate, actionable refusal rather
-    than becoming a handle and a failed job several seconds later.
-    """
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch)
-
-    res = _queue(client, {"answers": WP_ANSWERS[:5]}, csrf)
-    assert res.status_code == 400
-    assert "12" in res.get_json()["error"]
-
-
-def test_submit_rejects_more_than_12_answers(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch)
-
-    too_many = WP_ANSWERS + [{"question_id": "wp-q1", "option_id": "wp-q1-a"}]
-    res = _queue(client, {"answers": too_many}, csrf)
-    assert res.status_code == 400
-
-
-def test_submit_rejects_missing_answers_key(client, monkeypatch):
-    """422 since Phase 1b: `answers` is a required field of the declared schema.
-
-    The precheck's own "answers must be a list of exactly 12 items" guard still
-    runs and still answers 400 -- for a body that *has* `answers` and gets the
-    count wrong. The two failures stay distinguishable on the job door exactly
-    as they were on the synchronous one.
-    """
-    csrf = _register_and_login(client, monkeypatch)
-
-    res = _queue(client, {}, csrf)
-    assert res.status_code == 422
-    assert "answers" in {error["field"] for error in res.get_json()["errors"]}
-
-
-# ── Auth ─────────────────────────────────────────────────────────────────────
-
-def test_submit_requires_auth(client):
-    res = _queue(client, {"answers": WP_ANSWERS})
-    assert res.status_code == 401
-
-
-# ── LLM failure ──────────────────────────────────────────────────────────────
-
-def test_a_provider_failure_fails_the_job_with_the_route_error(client, monkeypatch):
-    """The 500 the synchronous route answered is now a failed job, same words.
-
-    "Unable to generate Work Pulse results" is text the service authors; the
-    job's `error` carries it through, which is what keeps a failed poll as
-    actionable as the old 500 body was while keeping provider detail off the
-    endpoint. Was `test_submit_returns_500_on_llm_exception` when the provider
-    call sat on the request path.
-    """
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch, raise_exc=RuntimeError("OpenAI down"))
-
-    poll = _score(client, csrf, WP_ANSWERS)
-
-    assert poll.status_code == 200
-    body = poll.get_json()
-    assert body["status"] == "failed"
-    assert body["error"] == "Unable to generate Work Pulse results"
-    assert body.get("result") is None
-
-
-def test_submit_does_not_set_wpl_completed_at_on_llm_failure(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch, raise_exc=RuntimeError("OpenAI down"))
-
-    _score(client, csrf, WP_ANSWERS)
-
-    from app import app
-    from model import UserIntake, User
-    with app.app_context():
-        user = User.query.filter_by(email="wp@example.com").first()
-        intake = UserIntake.query.filter_by(user_id=user.id).first()
-        # Intake row may or may not exist; if it does, wpl_completed_at must be None.
-        if intake is not None:
-            assert intake.wpl_completed_at is None
-
-
-# ── Profile flag ─────────────────────────────────────────────────────────────
-
-def test_profile_shows_wpl_completed_after_submit(client, monkeypatch):
-    csrf = _register_and_login(client, monkeypatch)
-    _mock_openai(monkeypatch)
-
-    before = client.get("/api/v1/auth/session").get_json()["flags"]
-    assert before["wpl_completed"] is False
-
-    _score(client, csrf, WP_ANSWERS)
-
-    after = client.get("/api/v1/auth/session").get_json()["flags"]
-    assert after["wpl_completed"] is True
-
-
-def test_submit_creates_a_submission_when_none_exists(client, monkeypatch):
-    """Scoring WP answers creates the row when save-to-account was never called.
-
-    It used to create a ``user_intake`` row; since Phase 2d it creates a
-    ``work_pulse`` submission -- and since 3c the worker creates it, through the
-    same service the deleted route called. The second half of the test is worth
-    more than it was: WPLL is now a row in the *same* table, so "scoring Work
-    Pulse did not invent a WPLL sitting" is a row count rather than a check of
-    two columns that happened to sit next to each other.
-    """
-    csrf = _register_and_login(client, monkeypatch, email="fresh@example.com")
-    _mock_openai(monkeypatch)
-
-    from app import app
-    from model import AssessmentSubmission, User
-    with app.app_context():
-        user = User.query.filter_by(email="fresh@example.com").first()
-        assert AssessmentSubmission.query.filter_by(user_id=user.id).count() == 0, \
-            "Expected no submissions before submission"
-
-    poll = _score(client, csrf, WP_ANSWERS)
-    assert poll.get_json()["status"] == "succeeded"
-
-    with app.app_context():
-        user = User.query.filter_by(email="fresh@example.com").first()
-        rows = AssessmentSubmission.query.filter_by(user_id=user.id).all()
-        assert len(rows) == 1
-        assert rows[0].kind == "work_pulse"
-        assert rows[0].answers == WP_ANSWERS
-        assert rows[0].completed_at is not None
-
-
-# ── The deleted transport ────────────────────────────────────────────────────
-
-def test_the_synchronous_submit_is_a_410_tombstone(client):
-    """This is the test of the deletion.
-
-    A 404 would lie -- the kind exists, and the operation existed until Phase
-    3c deleted the synchronous half. A 200 would be worse: it would resurrect
-    the blocking provider call Phase 3 removed. The refusal precedes auth and
-    body validation, so it holds for any caller in any state -- this one posts
-    with no JWT at all -- and the problem document carries the forwarding
-    address.
-    """
-    res = client.post(
+def test_the_synchronous_submit_is_retired_rather_than_moved(client, provider):
+    """It used to point at the job route; that route is gone too."""
+    resp = client.post(
         "/api/v1/assessments/work_pulse/submissions", json={"answers": WP_ANSWERS}
     )
 
-    assert res.status_code == 410
-    assert res.mimetype == "application/problem+json"
-    body = res.get_json()
-    assert body["type"] == "https://solverah.com/errors/gone"
-    assert body["title"] == "Gone"
-    assert body["replaced_by"] == "/assessments/work_pulse/scoring-jobs"
-    assert body["errors"][0]["code"] == "moved_to_scoring_jobs"
+    _assert_retired(resp)
+    assert provider.chat.completions.create.call_count == 0
+
+
+def test_the_job_poll_is_retired(client, csrf):
+    _assert_retired(
+        client.get(
+            "/api/v1/assessments/work_pulse/scoring-jobs/00000000000000000000000000000000"
+        )
+    )
+
+
+def test_a_retired_enqueue_creates_no_job_and_no_submission(client, csrf, provider):
+    from app import app
+    from model import AssessmentSubmission, ScoringJob
+
+    client.post(
+        "/api/v1/assessments/work_pulse/scoring-jobs",
+        json={"answers": WP_ANSWERS},
+        headers={"X-CSRF-TOKEN": csrf},
+    )
+
+    with app.app_context():
+        assert ScoringJob.query.count() == 0
+        assert AssessmentSubmission.query.filter_by(kind="work_pulse").count() == 0
+
+
+def test_the_service_dispatch_refuses_the_retired_kind(client, csrf, provider):
+    """The seam a worker reaches, refused independently of the routes."""
+    import logging
+
+    from app import app
+    from model import User
+    from solverah.services import assessment_service
+
+    with app.app_context():
+        user = User.query.filter_by(email=EMAIL).first()
+        outcome = assessment_service.submit(
+            assessment_service.find_kind("work_pulse"),
+            user,
+            {"answers": WP_ANSWERS},
+            logging.getLogger("test"),
+        )
+
+    assert outcome.status == 410
+    assert outcome.body == {"error": assessment_service.RETIRED_WORK_PULSE_MESSAGE}
+    assert provider.chat.completions.create.call_count == 0
+
+
+def test_the_legacy_scorer_and_prompt_are_gone():
+    """Deleted, not merely unrouted -- nothing left to reach by accident."""
+    from solverah.services import assessment_prompts, assessment_service
+
+    assert not hasattr(assessment_service, "submit_work_pulse")
+    assert not hasattr(assessment_prompts, "build_wp_narrative_prompt")
+
+
+# ── The read side stays ──────────────────────────────────────────────────────
+
+
+def test_a_stored_narrative_stays_readable(client, csrf):
+    _store_legacy_sitting(result=STORED_RESULT)
+
+    resp = client.get("/api/v1/me/assessments/work_pulse/result")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == STORED_RESULT
+
+
+def test_a_sitting_without_a_narrative_is_a_404_not_a_resubmit_prompt(client, csrf):
+    """Was a 422 telling the client to resubmit; there is nothing to resubmit to."""
+    _store_legacy_sitting(result=None)
+
+    resp = client.get("/api/v1/me/assessments/work_pulse/result")
+
+    assert resp.status_code == 404
+
+
+def test_no_sitting_is_a_404(client, csrf):
+    assert client.get("/api/v1/me/assessments/work_pulse/result").status_code == 404
+
+
+def test_a_legacy_completer_keeps_the_wpl_completed_flag(client, csrf):
+    """The session flag the read-only results page gates on."""
+    _store_legacy_sitting(result=STORED_RESULT)
+
+    flags = client.get("/api/v1/auth/session").get_json()["flags"]
+
+    assert flags["wpl_completed"] is True

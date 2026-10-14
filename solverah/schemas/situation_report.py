@@ -4,16 +4,18 @@
 `ManagerPlaybook` is: the payload's shape genuinely varies by `state` (`needs_core`
 carries `environment`, `needs_environment_report` carries
 `can_submit_environment_report`, `complete` carries `dimensions`,
-`guidance_notice` and `events_since_report` -- BUILD_PLAN B-4's Pulse-event
-resubmission prompt, `{'type', 'date'}` per event, never a `note`), and a closed
+`guidance_notice`, `events_since_report` -- BUILD_PLAN B-4's Pulse-event
+resubmission prompt, `{'type', 'date'}` per event, never a `note` -- and
+`career_status_changed`, the live-vs-snapshot tense flag; `needs_core` may carry
+`core_unreadable`), and a closed
 model over the union would either flatten every field to `Any` or lie about
-which state guarantees which key. `state` and `manager` are the two keys every
-state carries, so they are the two this module declares.
+which state guarantees which key. `state`, `manager` and `past_job_report_filed`
+are the three keys every state carries, so they are the three this module declares.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -25,6 +27,14 @@ __all__ = [
     "SituationReportRecalibrateResponse",
     "SituationReportResponse",
 ]
+
+#: `work_pulse.situation_items.INDUSTRY_LEVELS`, spelled out so the OpenAPI document
+#: carries an enum (a computed Literal is invisible to type checkers). A tripwire test
+#: asserts the two agree.
+Industry = Literal["tech", "finance", "healthcare", "retail", "other"]
+
+#: `model.ENV_REPORT_SUBJECTS` (PRODUCT_DECISIONS.md §2, 2026-10-01).
+Subject = Literal["current", "past"]
 
 
 class EnvironmentReportSubmitRequest(SolverahModel):
@@ -41,12 +51,28 @@ class EnvironmentReportSubmitRequest(SolverahModel):
         le=5,
         description="1..5 market-relative pay posture, or null for 'not sure'.",
     )
+    industry: Optional[Industry] = Field(
+        default=None,
+        description=(
+            "The organization's industry, one of the causal model's `industry` levels, "
+            "or null (or absent) for 'not sure / prefer not to say'."
+        ),
+    )
     experienced: int = Field(
         ge=1, le=5, description="Overall, how well is this role working for you?"
     )
     employer_name: Optional[str] = Field(
         default=None,
         description="Optional, displayed nowhere at launch (⚑6) -- stored for a future aggregation lane.",
+    )
+    subject: Subject = Field(
+        default="current",
+        description=(
+            "Which job this report describes: 'current' (the default -- the current or "
+            "most recent job) or 'past' (the one job before that). A past report is "
+            "accepted once per user, only after a current report exists, and never for "
+            "first_job; it never changes the Situation Report."
+        ),
     )
 
 
@@ -58,9 +84,11 @@ class EnvironmentReportSubmitResponse(SolverahModel):
     dimension_scores: Dict[str, float]
     stage_size: int
     comp: Optional[int] = None
+    industry: Optional[Industry] = None
     experienced: int
     career_status: str
     version: str
+    subject: Subject
 
 
 class SituationReportResponse(SolverahModel):
@@ -73,6 +101,13 @@ class SituationReportResponse(SolverahModel):
     )
     manager: Dict[str, Any] = Field(
         description="{'has_profile': bool} -- link-or-prompt to the Manager Decoder."
+    )
+    past_job_report_filed: bool = Field(
+        description=(
+            "Whether the user has filed their one past-job environment report "
+            "(subject 'past'). Present in every state; a past report never changes "
+            "anything else in this response."
+        )
     )
 
 

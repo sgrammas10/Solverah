@@ -1,0 +1,202 @@
+PACKET P-13   ·   DE-IDENTIFIED   ·   RATER-FACING
+  scrubbed from : P-13_packet.txt (build v4.11, model claude-opus-5, built 2026-09-28)
+  ruleset       : ANONYMIZATION_RULES_DRAFT.md
+  scrubbed      : 2026-09-29
+  status        : DRAFT - the model string in the source build record is the configured
+                  identifier, not a confirmed serving model (operator to verify). Sections 2-4
+                  of the source packet (researcher QA, roster block, pre-flags) are not carried.
+
+  DO NOT SEARCH FOR ANY PHRASE IN THIS PACKET. If you recognise the company, that is
+  expected and is not a failure — record it on the recognition flag and keep scoring
+  from the evidence in front of you, not from what you know.
+
+########## SECTION 1 — EVIDENCE PACKET (the only part the raters see) ##########
+
+SCOPE DECLARATION
+
+The employee reviews in this packet come from truck drivers and driver-adjacent shop and
+terminal staff — company drivers, recent CDL trainees, intermodal and tanker drivers, diesel
+and trailer technicians, a driver leader and one customer service representative. Other parts
+of this company — the corporate office, sales, information technology, engineering, finance,
+legal and marketing organisations — are almost entirely absent from the review evidence, even
+though the company is actively hiring into all of them. Company-authored sources (the careers
+and values pages, and the annual-report human capital disclosure) describe the whole
+organisation.
+
+NOTE TO RATER — TRUNCATION. Six of the sixteen employee reviews below were cut off by the
+review site itself and could not be expanded without an account. The cut is marked [...] at the
+point the visible text ends. The reviews that were cut are systematically the longer and more
+detailed ones; the short reviews survive intact. Read the section knowing that the most
+detailed accounts are present only as opening paragraphs.
+
+NOTE TO RATER — TWO REVIEW PROFILES. The review site holds this employer under more than one
+profile page. The reviews below are merged from the two profiles that are confirmed to be this
+company, taken strictly newest-first across the merged set. A rater should not read the mix of
+profiles as a mix of companies.
+
+--- A. CAREERS / VALUES PAGE (5–8 excerpts) ---
+
+   • "Safe, courteous, hustling associates delivering superior experiences that excite our customers."  — [careers site, company-authored] — stated as the company mission — accessed 2026-09-28
+
+   • "[The company] associates enjoy a strong work culture, award-winning benefits and endless career opportunities.  Wherever you want to take your career, [the company] will provide you with the options —and the resources—to help you get there."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "[The company] was built on four core values that remain in place today: Excellence, integrity, safety, respect. Our core values not only matter—they deliver."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "[The company] is so much more than orange trucks. We're a team of dynamic individuals working together to make a difference in an essential industry that impacts the world."  — [careers site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "At [the company], we're committed to doing the right thing, the right way, and we're purposeful in our approach."  — [corporate site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "Through training, technology and enterprise-wide processes, we foster a safety culture focused on reducing risk and promoting awareness—helping to support the well-being of our drivers, customers, and the communities we serve."  — [corporate site, company-authored] — accessed 2026-09-28
+
+   • "At [the company], we're a diverse, innovative and energetic community. This is where you can be yourself, and be appreciated for what you do — whether on the road, in the office, at the warehouse or in maintenance."  — [corporate site, company-authored] — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "When you join [the company], you become part of a company culture that encourages career exploration, leadership involvement and individual development. Take control of your career path with endless opportunities to advance in your field or explore different jobs within the organization."  — [careers site, company-authored] — office careers page — accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+--- B. EMPLOYEE REVIEWS (12–15, most recent first) ---
+
+Sampled company-wide, newest-first, across the two confirmed employer profiles on the review
+site. Sixteen reviews are included rather than fifteen because two reviews share the date at
+the cut-off point and dropping one of them would have meant choosing between them on content.
+Source typos are reproduced as written.
+
+   • "Dedicated route- pickup loaded or empty trailer deliver to warehouse 800-450 miles a day give or take and come back to terminal. It's a no brainer job drop and hook, I enjoy it no stree do your job and go home. Someone is always available to help you throughout your day. Maintenance is awesome [the company]" [...]  — [employee review] — "CDL Class A Driver", [Site A]; review headline "Good and fair company"; "no stree" [sic] — rev-01 — 2026-09-25 — [company name rewritten as "[the company]"; place name in attribution replaced with a token; clause otherwise verbatim]
+
+   • "I've had a good experience with [the company] overall. The biggest things I appreciate are the consistent freight, newer equipment, benefits, and having terminals and operating centers all over the country. As an OTR driver, having access to showers, laundry, parking and maintenance while you're out makes" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Decent" — rev-02 — 2026-09-23 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "Good place to start out pay could be better but overall decent place to get some miles under your belt." [...]  — [employee review] — "Truck Driver Class A", [Site B]; review headline "Decent starter" — rev-03 — 2026-09-20 — [place name in attribution replaced with a token]
+
+   • "Company is very modern and inclusive. So much culture depends on which operating center you work for. The people communicate and mesh well when problem solving. Lots of extra activities within divisions, ie potluck and after work/weekend shenanigans." [...]  — [employee review] — "Driver Leader", [Site C]; review headline "Great company, retirement job" — rev-04 — 2026-09-20 — [place name in attribution replaced with a token]
+
+   • "Thank you for your outstanding review! We aim to ensure our associates are supported and find fulfillment in their work. Thanks for being an important part of our team."  — [employer response] — replying beneath the 2026-09-20 "Driver Leader" review; response dated separately from the review — reply to rev-04 — response 2026-09-25
+
+   • "Great people to work with, and felt like a family in some aspects. Had good times with the company and wouldn't mind still working there if not for the schedule."  — [employee review] — "Diesel Technician", location not stated; review headline "Good place you can call home" — rev-05 — 2026-09-12
+
+   • "Safety constantly on your butt for bs, pay not holding up to work done, equipment long overdue for replacement you name it they do it. Dispatch could care less about you over the freight"  — [employee review] — "Regional", location not stated; review headline "Awful pay horrid safety" — rev-06 — 2026-09-08
+
+   • "Good starter company. Stay for good befits. Managers are non drivers and at time seem to not understand the limitations of driving. Maintance is good at certain locations depends on what needed. Services have been cut at many locations. They think drivers only work 7-4, then put more on others to help."  — [employee review] — "Driver", location not stated; review headline "Decent place"; "befits" and "Maintance" [sic] — rev-07 — 2026-09-06
+
+   • "My time during orientation was great, All the instructors at the operating center were great teachers and were very patient. They were always kind and respectful and understood that we were inexperienced and were willing to help guide us whenever we needed it. After I had completed the first part of" [...]  — [employee review] — title: not stated ("Anonymous"); review headline "Started off great then went downhill extremely fast." — rev-08 — 2026-09-06
+
+   • "All tanker jobs pay more, even other local. Long hours every single day, but the pay doesn't reflect that. You will be on the brink of running over your clock everyday doing wild unload appointments. You will definitely run over your clock if you dont stand your ground."  — [employee review] — "Local Bulk Intermodal", [Site D]; review headline "Horrible Pay, Terribly Unorganized" — rev-09 — 2026-09-03 — [place name in attribution replaced with a token]
+
+   • "Dispatch was always available to take care of any issues immediately. Work/ home balance was tough, but that's a truckers life. All around good company to work for if you're just starting."  — [employee review] — title: not stated ("Anonymous"), location field reads "Jet set"; review headline "Good Job" — rev-10 — 2026-08-28
+
+   • "Too much going on but nothing really going. I work for [name stripped] account, its decent but the pay isn't worth it to me. Unorganized. The work is easy though, you really learn how to back and drive in tight areas. Its more of a learning experience to me until able to spread my wings and find something better"  — [employee review] — "Driver", [Site E]; review headline "Its Ok for start up" — rev-11 — 2026-08-27 — [branded customer name rewritten as "[name stripped]"; place name in attribution replaced with a token; clause otherwise verbatim]
+
+   • "Great entry level driving job let down by poor management of certain accounts and very hit-or-miss maintenance. Some shops treat drivers like they know nothing and blow off even safety-critical maintenance/repairs."  — [employee review] — "Driver", location not stated; review headline "Good entry level job with poor management" — rev-12 — 2026-08-25
+
+   • "The most enjoyable part of the job ! I do well paking and shipping . En hard work discipline responsibility respect for all the people end grateful job" [...]  — [employee review] — job-title field reads "Shipping end parking", location field reads [Site F]; review headline "Shipping"; "paking", "En", "end" [sic]. The job-title and location fields on this entry do not resolve to any location or role this employer is known to operate; it is retained because nothing external confirmed it describes a different company, and it is flagged here so a rater does not read it as a confirmed account of this workplace — rev-13 — 2026-08-23 — [place-like string in location field replaced with a token]
+
+   • "As a regional driver I had some down time and also made a decent paycheck. They didn't really call unless something was going on and they let you run how you want. Pay was okay for me but could've been better. Some people were rude within the company but it was never the main dispatch."  — [employee review] — "Truck Driver Class A", [Site G]; review headline "Didn't micro manage and pretty laid back" — rev-14 — 2026-08-22 — [place name in attribution replaced with a token]
+
+   • "Inconsistent pay and horrible trucks. The trucks are raggedy and disgusting and on top of that you will not have consistent miles so do not plan on having a budget"  — [employee review] — "Driver", [Site H]; review headline "No miles" — rev-15 — 2026-08-20 — [place name in attribution replaced with a token]
+
+   • "They want you to log off duty while getting unloaded but can't return to the cab! Home time sucks. I don't see how getting home at 6/7 pm is decent trying to raise a family"  — [employee review] — "Driver", location not stated; review headline "No home time" — rev-16 — 2026-08-20
+
+--- C. JOB POSTINGS (6–10 excerpts from 3+ open postings, different functions) ---
+
+Four currently-open postings, four different functions. Each was opened individually on
+2026-09-28 and carried a live application control with no removal notice. Postings are
+identified by function only.
+
+   • "Work independently on complex work and projects."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+   • "Act as a subject matter expert in one or more specialties."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+   • "Perform complex tasks relating to the design and development of solutions requiring design patterns, performance considerations and supportability by others."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+   • "Coach and lead less experienced IT associates."  — [job posting] — software engineering function, individual contributor — [posting 1] — confirmed open 2026-09-28
+
+   • "Make safety-conscious decisions that ensure compliance with all policies and procedures."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+   • "Provide continuous, structured and proactive performance management and coaching to drivers."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+   • "Collaborate with various teams to identify and implement creative solutions to improve retention and drive business."  — [job posting] — driver-management function, manager with direct reports — [posting 2] — confirmed open 2026-09-28
+
+   • "Able to take initiative."  — [job posting] — field sales function, manager without direct reports, remote work model — [posting 3] — confirmed open 2026-09-28
+
+   • "Coordinate development of client solutions with solution design team, relationship managers and service offering owners."  — [job posting] — field sales function, manager without direct reports, remote work model — [posting 3] — confirmed open 2026-09-28
+
+   • "Participate in discovery sessions and assist in defining business requirements. Use data to interpret user goals and priorities to substantiate campaign direction."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+   • "Run tests and experiments to increase conversion rates."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+   • "Monitor trends in paid digital advertising tools and applications and appropriately apply that knowledge to effectively increase ROI while experimenting with new and alternative ways to leverage paid activities."  — [job posting] — digital marketing analytics function, individual contributor, hybrid work model — [posting 4] — confirmed open 2026-09-28
+
+--- D. FIRST-PERSON ACCOUNT (yield: 8 passages from 2 sources · ladder fully attempted) ---
+
+Voice composition: both sources are non-executive. One is an operations director who began in
+an entry-level role; one is a senior diesel technician. No chief-executive or C-suite voice
+appears in this section. Both accounts are published by the company on its own careers blog
+and are company-selected, though the words quoted are the individuals' own as printed.
+
+Neither post carries a publication date by any retrieval method. The operations-director post
+refers to a 2025 award as having already happened, which places it in 2025 or later; the
+technician post carries no internal date evidence at all.
+
+   • "I like referring to my career path as a jungle gym, which emphasizes the flexibility and variety of paths we can take," she said. "It's inspiring to me how [the company] supports associates in leveraging our strengths to find roles that fit in our business."  — [company careers blog, first-person] — a director of operations, quoted — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28 — [company name rewritten as "[the company]"; clause otherwise verbatim]
+
+   • "The depth of situational leadership I get to experience – you can't make some of these stories up," she said. "It can be difficult at times, but I've learned how to lead through many scenarios. We always need strong leaders who have that desire to make decisions every day."  — [company careers blog, first-person] — a director of operations, quoted — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "I like to tell them, 'Here's my perspective; take it or leave it,'" she said. "I empower them to build the solution. I give them the support they need, but I let them get to the answer."  — [company careers blog, first-person] — a director of operations, describing how she leads her team — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "The most humbling thing is taking that feedback and putting it to work. You have to own it and let it shape you."  — [company careers blog, first-person] — a director of operations — no publication date on page; internal evidence places it 2025 or later; accessed 2026-09-28
+
+   • "The guys you work with will teach you more just by watching them," [the technician] said. "Don't stay in that book all the time; use it as a reference but be ready to learn different ways to complete jobs safely."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "It's really based on you," [the technician] said. "If you want to go and get it done you can. The sky's the limit. You can go as far as you want as fast as you want."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "I like helping people," [the technician] said. "When I can share what I've learned to make someone else better, they make me better too."  — [company careers blog, first-person] — a senior diesel technician, on training newer technicians at his shop — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "It's a family here, we all know each other," [the technician] said. "We all work together as a team. We work safely to go home at night, to succeed at a goal and then return home at night, happy that you know what we've done."  — [company careers blog, first-person] — a senior diesel technician — no publication date on page; accessed 2026-09-28 — [named individual rewritten as role in brackets; clause otherwise verbatim]
+
+--- E. RECENT NEWS (yield: 4 · searches logged) ---
+
+All four excerpts come from independent trade reporting. Some of the speech quoted inside
+those articles originated in company announcements rather than in an interview; that is noted
+on each line by the attribution given.
+
+   • "[The company] announced Wednesday that [the executive], EVP and group president of transportation and logistics, will be promoted to president and CEO on July 1."  — [trade press reporting] — trade press — 2026-01-29 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "[The company]'s strength has always been its ability to adapt and lead in a constantly changing environment," [the outgoing chief executive] said.  — [trade press reporting, quoting the outgoing chief executive] — trade press — 2026-01-29 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "Embracing digital transformation is key to our mission of providing solutions for our customer and drivers," [the executive], SVP of operations supply chain and distribution management at [the company], said in the release.  — [trade press reporting, quoting a company executive from a release] — trade press — 2025-11-18 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+   • "We don't necessarily need more demand," [the chief executive] said, explaining that capacity reductions have already created additional opportunities for [the company]. The company's immediate challenge is improving driver productivity and determining where to invest in additional capacity.  — [trade press reporting] — trade press, reporting remarks made at an investor conference on 2026-09-15 — 2026-09-25 — [company name rewritten as "[the company]"; named individual rewritten as role in brackets; clause otherwise verbatim]
+
+--- F. HUMAN CAPITAL DISCLOSURE (yield: 6 · public/private: PUBLIC) ---
+
+From Item 1, Human Capital Management, of the annual report on Form 10-K for the fiscal year
+ended 2025-12-31, filed 2026-02-20. Company-authored. Headcount figures, dollar figures and
+percentages have been stripped as collected.
+
+   • "We have a highly engaged workforce deployed over a diverse set of positions across our segments, geographies, and businesses. Where consistent with our operational needs, we offer a variety of flexible working arrangements to associates, including remote and blended work configurations."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We utilize a performance management system that incorporates goals and development plans that are assessed semiannually to better position associates for future career growth."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "Succession planning is regularly performed to help identify and develop a pipeline of talent in critical roles within our organization. We further our talent development through a comprehensive learning program that offers associates classroom, virtual, and web-based training options."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We promote associate engagement across our organization by conducting annual surveys to assess satisfaction and gather ideas for improvement. Insights from these surveys guide programs that strengthen associates' connection to the Company, which we believe drives greater innovation, productivity, and profitability."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "Our non-driver pay varies by job, is market competitive, and includes short and long-term incentive programs that motivate associates and reward high performance."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+   • "We nurture an environment where associates feel safe, supported, and empowered to share their creativity, experiences, and ideas throughout our hiring processes, training and development programs, performance management, and community giving programs."  — [10-K Item 1, Human Capital Management; company-authored] — filed 2026-02-20, for FY ended 2025-12-31
+
+########## END OF PACKET ##########
+
+
+SCRUB LOG (after the end-of-packet marker; not part of the scored text)
+  R1  attribution URLs removed: 55 (all sections); review URLs replaced by rev-01..rev-16, plus one employer response
+      keyed to the review it answers; company name removed from attributions; company named in section attributions dropped
+  A8  ATS posting ids replaced by [posting 1]..[posting 4] (12 occurrences); vendor not present in this packet
+  R2  company name inside quote bodies: 14 occurrences rewritten as [the company]
+  R3  named humans inside quote bodies: 8 occurrences rewritten as bracketed roles; bylines and publication names in section E reduced to "trade press"
+  R4/A5  branded names inside quote bodies: 1 occurrence (a named customer abbreviation rewritten as [name stripped])
+  R5/A6  place tokens minted: 8, used 8 times, all in section B attributions (none inside quote bodies)
+  R6/A1  identifying figures stripped: 0 (none found in any section)
+  R7  source typos left verbatim; review headlines left verbatim (A7)
+  Judgment calls: a fleet-colour phrase in section A was left as written (no rule covers it); internal facility vocabulary in
+  review bodies was left as written; job titles and sector language untouched; no recurrence notes were needed (no company-voice
+  claim restated across sections). The exposure from near-unique review headlines and typos is recorded, not scrubbed.
+  Reviewer-level re-identification: left alone per the ruleset's OPEN item.
+  The company was recognisable from the evidence; that is expected and no search was run.
