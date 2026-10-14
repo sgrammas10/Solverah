@@ -388,17 +388,49 @@ export interface paths {
         };
         /**
          * List companies, filtered and paginated
-         * @description GET /companies - one page of companies.
-         *
-         *     New in Phase 1b: there was no list endpoint, so a screen wanting several
-         *     companies fetched the full research document for each one by id.
-         *
-         *     Paginated with an opaque keyset cursor, never an offset (A5). Pass
-         *     next_cursor back as ?cursor= and stop when it comes back null. A cursor the
-         *     server did not mint is a 422, not a silent page one -- answering a garbled
-         *     cursor with the first page is how a paging loop becomes an infinite one.
+         * @description GET /companies - one page of companies, keyset-paginated (A5).
          */
         get: operations["get_companies_company_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Research a company by name, on demand
+         * @description Finds or creates the company and answers `202` with the run to poll. A `done` run younger than the cache window is returned as is (`cached: true`) and costs nothing; an in-flight run is returned as is. Otherwise a new run is queued. Each user may start at most five new runs a day (`429` beyond that); cached hits do not count. `503` is a problem document: `research_disabled` when on-demand research is switched off on this server (cached runs are still returned), or `provider_unavailable` when no research provider is configured. A refused request writes nothing.
+         */
+        post: operations["post_companies_research_company"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/research/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll a research run
+         * @description GET /companies/research/<run_id> - the run's status.
+         */
+        get: operations["get_companies_research_run_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -419,6 +451,26 @@ export interface paths {
          * @description GET /companies/<company_id> - Return a company's full profile.
          */
         get: operations["get_companies_company_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/companies/{company_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The full per-trait read of one company for the authenticated user
+         * @description Six trait reads: status (known / mixed / unknown), direction versus the user's preference, inside or outside their tolerance, must-have, paraphrased evidence (both sides for a mixed trait, with the scope or time explanation when there is one), interview questions for a must-have that is unknown or mixed, and the company-size confidence note. With `?posting_id=` (one of the caller's own pastes for this company) the posting's role-level read sits beside the company's, with disagreements named. Another user's posting is a 404.
+         */
+        get: operations["get_companies_company_read"];
         put?: never;
         post?: never;
         delete?: never;
@@ -635,6 +687,54 @@ export interface paths {
         patch: operations["patch_me_patch_my_career_status"];
         trace?: never;
     };
+    "/api/v1/me/company-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the user's company links
+         * @description GET /me/company-links - every link, newest start first.
+         */
+        get: operations["get_companies_list_company_links"];
+        put?: never;
+        /**
+         * Record that the user took a job at a company
+         * @description "I took this job": links later Pulse check-ins to the CompanyLens read (PRODUCT_DECISIONS.md section 2, what changes the weights, item 4).
+         */
+        post: operations["post_companies_post_company_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/company-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove one of the user's company links
+         * @description Owner-only: another user's link is a 404.
+         */
+        delete: operations["delete_companies_delete_company_link"];
+        options?: never;
+        head?: never;
+        /**
+         * "I left": close one of the user's company links
+         * @description Owner-only: another user's link is a 404. ended_on must be on or after started_on.
+         */
+        patch: operations["patch_companies_patch_company_link"];
+        trace?: never;
+    };
     "/api/v1/me/dashboard": {
         parameters: {
             query?: never;
@@ -670,7 +770,7 @@ export interface paths {
         put?: never;
         /**
          * Submit the environment-side instrument for the Situation Report
-         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.
+         * @description Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == "first_job_no_role"`) the UI turns into the skip path (PRODUCT_DECISIONS.md §2, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md §2, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`. Five optional exploratory outcomes follow `experienced` (`satisfaction`, `performance`, `engagement`, `sustainability`, `retention_intention`; PRODUCT_DECISIONS.md §2, 2026-10-13): each 1..5 or null/absent for skipped, stored raw, echoed back, and never read by the Situation Report.
          */
         post: operations["post_me_post_my_environment_report"];
         delete?: never;
@@ -743,6 +843,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/job-postings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Paste a job posting to be read at role level
+         * @description The text is the user's own paste; nothing is fetched. It is scored against the same rubric as the company evidence and its records are private to the caller -- pass the posting's id as `?posting_id=` on `GET /companies/{id}/read`. `503` is a `provider_unavailable` problem document when the scorer has no key; nothing is written. Postings are not gated by the research switch.
+         */
+        post: operations["post_companies_post_job_posting"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/job-postings/{posting_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll one of the caller's pasted postings
+         * @description Owner-only: another user's posting is a 404, not a 403.
+         */
+        get: operations["get_companies_get_job_posting"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/me/manager-playbook": {
         parameters: {
             query?: never;
@@ -771,10 +911,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Rank companies by fit for the authenticated user
-         * @description Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.
+         * Rank researched companies for the authenticated user on the six traits
+         * @description Every company with shared research records, ordered by the causal model's ranking for this user with the gate layer on top: a company with a must-have broken on a known trait is flagged and sorted last, never hidden; a company read on fewer than 3 of 6 traits is `not_enough_evidence`, has no rank and is listed after the ranked ones. No probability, score or percentage is carried: the order is the output.
          *
-         *     Writes nothing. Still an O(all-companies) in-process scan (P0-2), of each company's id and eight culture columns only; names, slugs and industries are read afterwards for the returned page alone. The cursor is what lets that scan be replaced behind an unchanged contract; it is not itself the fix.
+         *     `state` is `core_required` when the user has no current core sitting and `no_companies` when nothing has been researched yet; both are 200s.
          */
         get: operations["get_companies_my_matches"];
         put?: never;
@@ -1311,7 +1451,7 @@ export interface paths {
         };
         /**
          * Read the Situation Report
-         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
+         * @description Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (⚑5) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. `complete` also carries `tolerance_applied` (bool: whether the user's stated per-trait tolerance set the buckets), and each of its dimensions carries `must_have` (bool; must-haves order first within their bucket) and `within_tolerance` (bool: aligned only because of that tolerance). A user who never answered the tolerance step gets all three false and today's buckets and order. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.
          */
         get: operations["get_me_get_my_situation_report"];
         put?: never;
@@ -1366,6 +1506,32 @@ export interface paths {
          *     skills_proficiency_confirmed so the rating modal stops re-prompting.
          */
         put: operations["put_me_put_my_skills"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me/trait-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the user's per-trait tolerance and must-have flags
+         * @description The latest sitting of the short step that follows Work Pulse. A user who never answered, or skipped, gets `answered: false` with all six traits unanswered (steps `null`) -- matching and the Situation Report then behave exactly as they did before this step existed.
+         */
+        get: operations["get_assessments_get_trait_preferences"];
+        /**
+         * Save a new sitting of per-trait tolerance and must-have flags
+         * @description Carries all six traits. Each save is a new sitting; earlier sittings are kept and the newest is current. Answers `200` with the saved document.
+         *
+         *     `400` (`invalid_trait_preferences`) when the body breaks a rule; each `errors` entry names it: `missing_trait`, `unknown_trait`, `duplicate_trait`, `steps_out_of_range` (steps must be 0, 1 or 2), `invalid_type`, or `too_many_must_haves` (at most two). A body that does not match the request schema at all is `422`.
+         */
+        put: operations["put_assessments_put_trait_preferences"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1438,6 +1604,11 @@ export interface components {
             assessment_answers?: {
                 [key: string]: unknown;
             }[];
+            /**
+             * Company Links
+             * @description Every "I took this job" link the user made, newest start first.
+             */
+            company_links?: components["schemas"]["ExportedCompanyLink"][];
             /** Dimension Scores */
             dimension_scores?: {
                 [key: string]: unknown;
@@ -1467,6 +1638,11 @@ export interface components {
             } | null;
             /** Intake Submissions */
             intake_submissions?: components["schemas"]["ExportedIntakeSubmission"][];
+            /**
+             * Job Postings
+             * @description Every job posting the user pasted, newest first.
+             */
+            job_postings?: components["schemas"]["ExportedJobPosting"][];
             /** Job Recommendations */
             job_recommendations?: components["schemas"]["ExportedJobRecommendation"][];
             /** @default null */
@@ -1511,6 +1687,11 @@ export interface components {
              * @default null
              */
             situation_report_pin: components["schemas"]["ExportedSituationReportPin"] | null;
+            /**
+             * Trait Preferences
+             * @description Every sitting of the trait-preference form, oldest first (append-only).
+             */
+            trait_preferences?: components["schemas"]["ExportedTraitPreference"][];
         };
         /** AgentChatMessage */
         AgentChatMessage: {
@@ -1710,14 +1891,60 @@ export interface components {
              */
             slug: string | null;
         };
+        /** CompanyLinkCreateRequest */
+        CompanyLinkCreateRequest: {
+            /** Company Id */
+            company_id: number;
+            /**
+             * Started On
+             * Format: date
+             */
+            started_on: string;
+        };
+        /** CompanyLinkEndRequest */
+        CompanyLinkEndRequest: {
+            /**
+             * Ended On
+             * Format: date
+             */
+            ended_on: string;
+        };
+        /** CompanyLinkEntry */
+        CompanyLinkEntry: {
+            /** @default null */
+            company: components["schemas"]["CompanyListEntry"] | null;
+            /** Company Id */
+            company_id: number;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Ended On
+             * @default null
+             */
+            ended_on: string | null;
+            /** Id */
+            id: number;
+            /** Started On */
+            started_on: string;
+        };
+        /** CompanyLinkListResponse */
+        CompanyLinkListResponse: {
+            /** Data */
+            data?: components["schemas"]["CompanyLinkEntry"][];
+        };
+        /** CompanyLinkResponse */
+        CompanyLinkResponse: {
+            link: components["schemas"]["CompanyLinkEntry"];
+        };
         /**
          * CompanyListEntry
          * @description One company in the list.
          *
          *     Deliberately not the full profile: the list ships the fields a card renders
-         *     and ``GET /companies/{id}`` ships the rest. The endpoint this pattern
-         *     replaces had no list at all, so every screen that wanted several companies
-         *     fetched the whole research document for each.
+         *     and ``GET /companies/{id}`` ships the rest.
          */
         CompanyListEntry: {
             /** Id */
@@ -1782,6 +2009,70 @@ export interface components {
              */
             next_cursor: string | null;
         };
+        /** CompanyReadQuery */
+        CompanyReadQuery: {
+            /**
+             * Posting Id
+             * @description One of the caller's own pasted postings for this company.
+             * @default null
+             */
+            posting_id: number | null;
+        };
+        /**
+         * CompanyReadResponse
+         * @description `GET /companies/{id}/read`. `traits` is present for `ranked` and
+         *     `not_enough_evidence`; absent for `core_required` and `not_researched`.
+         */
+        CompanyReadResponse: {
+            company: components["schemas"]["CompanyRef"];
+            /** @default null */
+            coverage: components["schemas"]["CoverageCounts"] | null;
+            /** @default null */
+            flags: components["schemas"]["FlagCounts"] | null;
+            /** Missing */
+            missing?: ("autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision")[];
+            /** @default null */
+            next_step: components["schemas"]["NextStep"] | null;
+            /** @default null */
+            posting: components["schemas"]["PostingRead"] | null;
+            /** Preferences Answered */
+            preferences_answered: boolean;
+            /** @default null */
+            research: components["schemas"]["ResearchRunStatus"] | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ranked" | "not_enough_evidence" | "core_required" | "not_researched";
+            /** Traits */
+            traits?: components["schemas"]["TraitRead"][];
+        };
+        /** CompanyRef */
+        CompanyRef: {
+            /** Id */
+            id: number;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Size Band
+             * @description 1..5, the Environment Report's own size bands; null unknown.
+             * @default null
+             */
+            size_band: number | null;
+            /**
+             * Size Note
+             * @default null
+             */
+            size_note: string | null;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+        };
         /** ConfirmEmailRequest */
         ConfirmEmailRequest: {
             /**
@@ -1793,47 +2084,22 @@ export interface components {
             email: string;
         };
         /**
-         * CultureMatchEntry
-         * @description One scored company.
-         *
-         *     ``top_matching_dimensions`` and ``top_mismatching_dimensions`` are the two
-         *     highest- and two lowest-scoring dimensions, and ``fit_summary`` is the
-         *     sentence built from them.
+         * CoverageCounts
+         * @description How many of the six traits the company could be read on. Always reported;
+         *     fewer than 3 known is `not_enough_evidence`.
          */
-        CultureMatchEntry: {
+        CoverageCounts: {
+            /** Known */
+            known: number;
+            /** Mixed */
+            mixed: number;
             /**
-             * Fit Score
-             * @default null
+             * Total
+             * @description Always 6.
              */
-            fit_score: number | null;
-            /**
-             * Fit Summary
-             * @default null
-             */
-            fit_summary: string | null;
-            /** Id */
-            id: number;
-            /**
-             * Industry
-             * @default null
-             */
-            industry: string | null;
-            /**
-             * Name
-             * @default null
-             */
-            name: string | null;
-            /**
-             * Slug
-             * @default null
-             */
-            slug: string | null;
-            /** Top Matching Dimensions */
-            top_matching_dimensions?: string[];
-            /** Top Mismatching Dimensions */
-            top_mismatching_dimensions?: string[];
-        } & {
-            [key: string]: unknown;
+            total: number;
+            /** Unknown */
+            unknown: number;
         };
         /**
          * DashboardActivity
@@ -1988,6 +2254,12 @@ export interface components {
              */
             employer_name: string | null;
             /**
+             * Engagement
+             * @description Optional exploratory outcome, 1..5, stored raw: 'How energised are you by the work itself?' Null or absent means skipped.
+             * @default null
+             */
+            engagement: number | null;
+            /**
              * Experienced
              * @description Overall, how well is this role working for you?
              */
@@ -1998,6 +2270,24 @@ export interface components {
              * @default null
              */
             industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
+            /**
+             * Performance
+             * @description Optional exploratory outcome, 1..5, stored raw: 'How well do you think you are performing in this role?' Null or absent means skipped.
+             * @default null
+             */
+            performance: number | null;
+            /**
+             * Retention Intention
+             * @description Optional exploratory outcome, 1..5, stored raw: 'How likely is it that you will still be in this role a year from now?' Null or absent means skipped.
+             * @default null
+             */
+            retention_intention: number | null;
+            /**
+             * Satisfaction
+             * @description Optional exploratory outcome, 1..5, stored raw: 'All things considered, how satisfied are you with this job?' Null or absent means skipped.
+             * @default null
+             */
+            satisfaction: number | null;
             /**
              * Stage Size
              * @description 1 (seed) .. 5 (enterprise).
@@ -2010,6 +2300,12 @@ export interface components {
              * @enum {string}
              */
             subject: "current" | "past";
+            /**
+             * Sustainability
+             * @description Optional exploratory outcome, 1..5, stored raw: 'Could you keep working the way you do now for another year?' Null or absent means skipped.
+             * @default null
+             */
+            sustainability: number | null;
         };
         /**
          * EnvironmentReportSubmitResponse
@@ -2029,6 +2325,11 @@ export interface components {
             dimension_scores: {
                 [key: string]: number;
             };
+            /**
+             * Engagement
+             * @default null
+             */
+            engagement: number | null;
             /** Experienced */
             experienced: number;
             /**
@@ -2036,6 +2337,21 @@ export interface components {
              * @default null
              */
             industry: ("tech" | "finance" | "healthcare" | "retail" | "other") | null;
+            /**
+             * Performance
+             * @default null
+             */
+            performance: number | null;
+            /**
+             * Retention Intention
+             * @default null
+             */
+            retention_intention: number | null;
+            /**
+             * Satisfaction
+             * @default null
+             */
+            satisfaction: number | null;
             /** Stage Size */
             stage_size: number;
             /**
@@ -2043,8 +2359,65 @@ export interface components {
              * @enum {string}
              */
             subject: "current" | "past";
+            /**
+             * Sustainability
+             * @default null
+             */
+            sustainability: number | null;
             /** Version */
             version: string;
+        };
+        /**
+         * EvidenceItem
+         * @description One paraphrased piece of evidence. Never a verbatim quote (GAP-14), never a score.
+         */
+        EvidenceItem: {
+            /**
+             * Abstained
+             * @default false
+             */
+            abstained: boolean;
+            /** Paraphrase */
+            paraphrase: string;
+            /**
+             * Published At
+             * @description ISO date, or null.
+             * @default null
+             */
+            published_at: string | null;
+            /** Scope */
+            scope: string;
+            /**
+             * Scope Label
+             * @default null
+             */
+            scope_label: string | null;
+            /** Source Type */
+            source_type: string;
+            /**
+             * Source Url
+             * @default null
+             */
+            source_url: string | null;
+        };
+        /** EvidenceSummary */
+        EvidenceSummary: {
+            /** Abstained */
+            abstained: number;
+            /** Count */
+            count: number;
+            /**
+             * First Dated
+             * @default null
+             */
+            first_dated: string | null;
+            /**
+             * Last Dated
+             * @default null
+             */
+            last_dated: string | null;
+            /** Source Types */
+            source_types?: string[];
         };
         /**
          * ExperimentAbandonResponse
@@ -2230,6 +2603,33 @@ export interface components {
             role: string | null;
         };
         /**
+         * ExportedCompanyLink
+         * @description One "I took this job" link the user made (C6): which company, and when.
+         */
+        ExportedCompanyLink: {
+            /** Company Id */
+            company_id: number;
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Ended On
+             * @description ISO 8601 date the job ended, or null while it is current.
+             * @default null
+             */
+            ended_on: string | null;
+            /** Id */
+            id: number;
+            /**
+             * Started On
+             * @description ISO 8601 date the user said they started.
+             */
+            started_on: string;
+        };
+        /**
          * ExportedEnvironmentReport
          * @description One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).
          *
@@ -2267,6 +2667,31 @@ export interface components {
              * @default null
              */
             industry: string | null;
+            /**
+             * Outcome Engagement
+             * @default null
+             */
+            outcome_engagement: number | null;
+            /**
+             * Outcome Performance
+             * @default null
+             */
+            outcome_performance: number | null;
+            /**
+             * Outcome Retention Intention
+             * @default null
+             */
+            outcome_retention_intention: number | null;
+            /**
+             * Outcome Satisfaction
+             * @default null
+             */
+            outcome_satisfaction: number | null;
+            /**
+             * Outcome Sustainability
+             * @default null
+             */
+            outcome_sustainability: number | null;
             /** Raw Answers */
             raw_answers?: {
                 [key: string]: unknown;
@@ -2402,6 +2827,34 @@ export interface components {
              */
             status: string | null;
         };
+        /**
+         * ExportedJobPosting
+         * @description One job posting the user pasted (C3). ``posting_text`` is their own text.
+         */
+        ExportedJobPosting: {
+            /**
+             * Company Id
+             * @default null
+             */
+            company_id: number | null;
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /** Id */
+            id: number;
+            /** Posting Text */
+            posting_text: string;
+            /** Status */
+            status: string;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+        };
         /** ExportedJobRecommendation */
         ExportedJobRecommendation: {
             /**
@@ -2499,6 +2952,12 @@ export interface components {
          *     dict B-2/B-3's reads will use.
          */
         ExportedPulseCheckin: {
+            /**
+             * Company Link Id
+             * @description The id of the company link (company_links) that was active when this check-in was filed, or null when none was (C8).
+             * @default null
+             */
+            company_link_id: number | null;
             /** Experienced */
             experienced: number;
             /** Id */
@@ -2597,6 +3056,51 @@ export interface components {
             submission_id: string;
             /** User Id */
             user_id: number;
+        };
+        /**
+         * ExportedTraitPreference
+         * @description One trait's row from one sitting of the trait-preference form (C1).
+         *
+         *     A sitting is six rows sharing ``sitting_id``; every sitting is exported, oldest
+         *     first, because earlier sittings are kept rather than overwritten.
+         */
+        ExportedTraitPreference: {
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
+            /** Dimension */
+            dimension: string;
+            /** Form Version */
+            form_version: string;
+            /** Must Have */
+            must_have: boolean;
+            /** Over Steps */
+            over_steps: number;
+            /** Sitting Id */
+            sitting_id: string;
+            /** Under Steps */
+            under_steps: number;
+        };
+        /** FlagCounts */
+        FlagCounts: {
+            /**
+             * Investigate
+             * @description Unknown must-have traits.
+             */
+            investigate: number;
+            /**
+             * Must Have Breaks
+             * @description Known traits outside the user's tolerance that are must-haves. One or more sorts the company last; it is never hidden.
+             */
+            must_have_breaks: number;
+            /**
+             * Risks
+             * @description Mixed must-have traits whose worse end breaks the tolerance.
+             */
+            risks: number;
         };
         /** FocusTypeResult */
         FocusTypeResult: {
@@ -2973,6 +3477,55 @@ export interface components {
             message: string;
             user: components["schemas"]["SummaryUser"];
         };
+        /** JobPostingCreateRequest */
+        JobPostingCreateRequest: {
+            /** Company Id */
+            company_id: number;
+            /**
+             * Text
+             * @description The pasted posting.
+             */
+            text: string;
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+        };
+        /** JobPostingResponse */
+        JobPostingResponse: {
+            posting: components["schemas"]["JobPostingStatus"];
+        };
+        /** JobPostingStatus */
+        JobPostingStatus: {
+            /**
+             * Company Id
+             * @default null
+             */
+            company_id: number | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Has Read
+             * @description Whether role-level records exist for it yet.
+             */
+            has_read: boolean;
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "scored" | "failed";
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+        };
         /**
          * LegacyError
          * @description The pre-Phase-1 error body: ``{"error": "..."}``.
@@ -3232,6 +3785,51 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * MatchEntry
+         * @description One company in the ranking. `rank` is null for `not_enough_evidence`.
+         */
+        MatchEntry: {
+            coverage: components["schemas"]["CoverageCounts"];
+            flags: components["schemas"]["FlagCounts"];
+            /** Id */
+            id: number;
+            /**
+             * Missing
+             * @description Traits with no read (unknown).
+             */
+            missing?: ("autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision")[];
+            /** Must Have Reads */
+            must_have_reads?: components["schemas"]["TraitReadSummary"][];
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            next_step: components["schemas"]["NextStep"];
+            /**
+             * Rank
+             * @default null
+             */
+            rank: number | null;
+            /** @default null */
+            research: components["schemas"]["ResearchRunStatus"] | null;
+            /**
+             * Size Note
+             * @default null
+             */
+            size_note: string | null;
+            /**
+             * Slug
+             * @default null
+             */
+            slug: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ranked" | "not_enough_evidence";
+        };
+        /**
          * MatchesQuery
          * @description Query parameters for ``GET /me/matches``.
          */
@@ -3243,53 +3841,41 @@ export interface components {
              */
             cursor: string | null;
             /**
-             * Lens
-             * @description Scoring lens. Only "culture" exists today.
-             * @default null
-             */
-            lens: string | null;
-            /**
              * Limit
              * @description Rows per page. Clamped to 1-100.
              * @default null
              */
             limit: number | null;
-            /**
-             * Order
-             * @description "best" (default) ranks strongest fit first; "worst" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end.
-             * @default null
-             */
-            order: string | null;
         };
         /**
          * MatchesResponse
-         * @description A page of scored companies.
+         * @description A page of the ranking, or one of the two empty states.
          *
-         *     ``total_companies_scored`` is carried alongside the page because it is what
-         *     the UI puts in "N companies scored", and a client cannot derive it from a
-         *     page. It is also the honest measure of P0-2: it counts the rows this request
-         *     pulled into Python and scored, every time, with no index and no cache.
+         *     `core_required`: the user has no current core sitting (not a 400 -- a state the
+         *     page renders). `no_companies`: nothing has been researched yet. `ranked`: `data`
+         *     holds ranked companies first (must-have breaks last among them) and
+         *     `not_enough_evidence` companies after.
          */
         MatchesResponse: {
             /** Data */
-            data?: components["schemas"]["CultureMatchEntry"][];
-            /**
-             * Lens
-             * @description Which scoring lens produced these. Always "culture" today.
-             */
-            lens: string;
+            data?: components["schemas"]["MatchEntry"][];
             /**
              * Next Cursor
              * @default null
              */
             next_cursor: string | null;
             /**
-             * Order
-             * @description "best" or "worst".
+             * Preferences Answered
+             * @description Whether the user has answered the tolerance step. If not, every trait reads with the 0.15 floor zone and no must-haves.
              */
-            order: string;
-            /** Total Companies Scored */
-            total_companies_scored: number;
+            preferences_answered: boolean;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ranked" | "core_required" | "no_companies";
+            /** Total Companies */
+            total_companies: number;
         };
         /**
          * MessageResponse
@@ -3298,6 +3884,42 @@ export interface components {
         MessageResponse: {
             /** Message */
             message: string;
+        };
+        /** MixedEnd */
+        MixedEnd: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "more" | "less" | "even";
+            /** Evidence */
+            evidence?: components["schemas"]["EvidenceItem"][];
+            /** Within Tolerance */
+            within_tolerance: boolean;
+        };
+        /**
+         * MixedRead
+         * @description A mixed trait, both ends read separately. Never averaged.
+         */
+        MixedRead: {
+            /**
+             * Explanation
+             * @description Whether scope or time explains the split, when it does.
+             * @default null
+             */
+            explanation: string | null;
+            high_end: components["schemas"]["MixedEnd"];
+            low_end: components["schemas"]["MixedEnd"];
+        };
+        /** NextStep */
+        NextStep: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "decide" | "investigate" | "prepare" | "explore" | "act" | "dont_act_yet";
+            /** Reason */
+            reason: string;
         };
         /**
          * OkResponse
@@ -3863,6 +4485,97 @@ export interface components {
              */
             tasks?: components["schemas"]["PathWantTask"][];
         };
+        /** PostingRead */
+        PostingRead: {
+            /**
+             * Company Id
+             * @default null
+             */
+            company_id: number | null;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /** Disagreements */
+            disagreements?: ("autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision")[];
+            /**
+             * Has Read
+             * @description Whether role-level records exist for it yet.
+             */
+            has_read: boolean;
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "scored" | "failed";
+            /**
+             * Title
+             * @default null
+             */
+            title: string | null;
+            /** Traits */
+            traits?: components["schemas"]["PostingTraitRead"][];
+        };
+        /**
+         * PostingTraitRead
+         * @description The pasted posting's role-level read of one trait, beside the company's.
+         */
+        PostingTraitRead: {
+            /**
+             * Dimension
+             * @enum {string}
+             */
+            dimension: "autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision";
+            /**
+             * Direction
+             * @description Known traits only: the company offers "more" or "less" of the trait than you prefer ("even" when the two agree exactly).
+             * @default null
+             */
+            direction: ("more" | "less" | "even") | null;
+            /**
+             * Disagrees
+             * @description Both the company and the posting are known on this trait and they fall on different sides, or far apart.
+             */
+            disagrees: boolean;
+            /** @default null */
+            evidence: components["schemas"]["EvidenceSummary"] | null;
+            /**
+             * Explanation
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Flag
+             * @default null
+             */
+            flag: ("must_have_break" | "risk" | "investigate") | null;
+            /** High Pole */
+            high_pole: string;
+            /** Label */
+            label: string;
+            /** Low Pole */
+            low_pole: string;
+            /** Must Have */
+            must_have: boolean;
+            /** Paraphrases */
+            paraphrases?: components["schemas"]["EvidenceItem"][];
+            /** Questions */
+            questions?: string[];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "known" | "mixed" | "unknown";
+            /**
+             * Within Tolerance
+             * @description Known traits only: inside your flat zone.
+             * @default null
+             */
+            within_tolerance: boolean | null;
+        };
         /**
          * ProblemDetailError
          * @description One field-level entry inside a problem document's ``errors`` array.
@@ -4019,6 +4732,12 @@ export interface components {
          * @description One check-in as ``GET /me/pulse/history`` lists it.
          */
         PulseCheckinRecord: {
+            /**
+             * Company Link Id
+             * @description The user's active UserCompanyLink ('I took this job') at the moment this check-in was recorded, or null if they had none. Six-trait build, C8: lets later analysis tie repeated low 'experienced' ratings to a CompanyLens read.
+             * @default null
+             */
+            company_link_id: number | null;
             /** Experienced */
             experienced: number;
             /** Id */
@@ -4372,6 +5091,53 @@ export interface components {
             /** Message */
             message: string;
             user: components["schemas"]["SummaryUser"];
+        };
+        /** ResearchRequest */
+        ResearchRequest: {
+            /**
+             * Name
+             * @description The company's name.
+             */
+            name: string;
+        };
+        /**
+         * ResearchRunResponse
+         * @description `202` from `POST /companies/research`. `cached` is true when a fresh run already
+         *     existed and nothing new was started.
+         */
+        ResearchRunResponse: {
+            /** Cached */
+            cached: boolean;
+            run: components["schemas"]["ResearchRunStatus"];
+        };
+        /** ResearchRunStatus */
+        ResearchRunStatus: {
+            /** @default null */
+            company: components["schemas"]["CompanyListEntry"] | null;
+            /** Company Id */
+            company_id: number;
+            /**
+             * Created At
+             * @default null
+             */
+            created_at: string | null;
+            /**
+             * Error
+             * @default null
+             */
+            error: string | null;
+            /**
+             * Finished At
+             * @default null
+             */
+            finished_at: string | null;
+            /** Run Id */
+            run_id: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "failed";
         };
         /** ResendConfirmationRequest */
         ResendConfirmationRequest: {
@@ -4739,6 +5505,196 @@ export interface components {
              * @default null
              */
             role: string | null;
+        };
+        /**
+         * TraitPreferenceEntry
+         * @description One trait as stored. Unanswered: steps null, must_have false, answered false.
+         */
+        TraitPreferenceEntry: {
+            /** Answered */
+            answered: boolean;
+            /**
+             * Dimension Key
+             * @enum {string}
+             */
+            dimension_key: "autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision";
+            /** Must Have */
+            must_have: boolean;
+            /**
+             * Over Steps
+             * @description 0, 1 or 2; null when the user has not answered.
+             */
+            over_steps: number | null;
+            /**
+             * Under Steps
+             * @description 0, 1 or 2; null when the user has not answered.
+             */
+            under_steps: number | null;
+        };
+        /**
+         * TraitPreferenceInput
+         * @description One trait's answer.
+         */
+        TraitPreferenceInput: {
+            /**
+             * Dimension Key
+             * @description One of autonomy, pace, collaboration, feedback, innovation, decision.
+             */
+            dimension_key: string;
+            /**
+             * Must Have
+             * @description Non-negotiable. At most two per user.
+             */
+            must_have: boolean;
+            /**
+             * Over Steps
+             * @description How much MORE of this trait than the user prefers a job may provide without cost, in steps of 0.25: 0, 1 or 2.
+             */
+            over_steps: number;
+            /**
+             * Under Steps
+             * @description How much LESS of this trait than the user prefers a job may provide without cost, in steps of 0.25: 0, 1 or 2.
+             */
+            under_steps: number;
+        };
+        /**
+         * TraitPreferencesDocument
+         * @description The user's latest sitting, or all six traits unanswered.
+         *
+         *     `answered: false` means the user never answered or skipped; matching and the
+         *     Situation Report then behave exactly as before this step existed.
+         */
+        TraitPreferencesDocument: {
+            /** Answered */
+            answered: boolean;
+            /**
+             * Max Must Haves
+             * @description The most must-haves a user may set (2).
+             */
+            max_must_haves: number;
+            /**
+             * Traits
+             * @description All six traits, in the product's fixed order.
+             */
+            traits: components["schemas"]["TraitPreferenceEntry"][];
+        };
+        /**
+         * TraitPreferencesPutRequest
+         * @description All six traits, each exactly once. Appends a new sitting; earlier ones are kept.
+         */
+        TraitPreferencesPutRequest: {
+            /**
+             * Traits
+             * @description Exactly six entries, one per trait.
+             */
+            traits: components["schemas"]["TraitPreferenceInput"][];
+        };
+        /**
+         * TraitRead
+         * @description One trait with its evidence, as `GET /companies/{id}/read` shows it.
+         */
+        TraitRead: {
+            /**
+             * Dimension
+             * @enum {string}
+             */
+            dimension: "autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision";
+            /**
+             * Direction
+             * @description Known traits only: the company offers "more" or "less" of the trait than you prefer ("even" when the two agree exactly).
+             * @default null
+             */
+            direction: ("more" | "less" | "even") | null;
+            /** @default null */
+            evidence: components["schemas"]["EvidenceSummary"] | null;
+            /**
+             * Explanation
+             * @description Unknown and mixed traits: one plain line.
+             * @default null
+             */
+            explanation: string | null;
+            /**
+             * Flag
+             * @default null
+             */
+            flag: ("must_have_break" | "risk" | "investigate") | null;
+            /** High Pole */
+            high_pole: string;
+            /** Label */
+            label: string;
+            /** Low Pole */
+            low_pole: string;
+            /** @default null */
+            mixed: components["schemas"]["MixedRead"] | null;
+            /** Must Have */
+            must_have: boolean;
+            /**
+             * Paraphrases
+             * @description Known traits: the newest paraphrases.
+             */
+            paraphrases?: components["schemas"]["EvidenceItem"][];
+            /**
+             * Questions
+             * @description Must-have traits that are unknown or mixed: what to ask at interview.
+             */
+            questions?: string[];
+            /**
+             * Scope Note
+             * @default null
+             */
+            scope_note: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "known" | "mixed" | "unknown";
+            /**
+             * Within Tolerance
+             * @description Known traits only: inside your flat zone.
+             * @default null
+             */
+            within_tolerance: boolean | null;
+        };
+        /**
+         * TraitReadSummary
+         * @description One trait as the list shows it: labels only, no numbers.
+         */
+        TraitReadSummary: {
+            /**
+             * Dimension
+             * @enum {string}
+             */
+            dimension: "autonomy" | "pace" | "collaboration" | "feedback" | "innovation" | "decision";
+            /**
+             * Direction
+             * @description Known traits only: the company offers "more" or "less" of the trait than you prefer ("even" when the two agree exactly).
+             * @default null
+             */
+            direction: ("more" | "less" | "even") | null;
+            /**
+             * Flag
+             * @default null
+             */
+            flag: ("must_have_break" | "risk" | "investigate") | null;
+            /** High Pole */
+            high_pole: string;
+            /** Label */
+            label: string;
+            /** Low Pole */
+            low_pole: string;
+            /** Must Have */
+            must_have: boolean;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "known" | "mixed" | "unknown";
+            /**
+             * Within Tolerance
+             * @description Known traits only: inside your flat zone.
+             * @default null
+             */
+            within_tolerance: boolean | null;
         };
         /** WorkPulseAnswer */
         WorkPulseAnswer: {
@@ -5694,6 +6650,124 @@ export interface operations {
             };
         };
     };
+    post_companies_research_company: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_companies_research_run_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRunStatus"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     get_companies_company_detail: {
         parameters: {
             query?: never;
@@ -5721,6 +6795,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_companies_company_read: {
+        parameters: {
+            query?: {
+                /** @description One of the caller's own pasted postings for this company. */
+                posting_id?: number | null;
+            };
+            header?: never;
+            path: {
+                company_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyReadResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -6238,6 +7364,188 @@ export interface operations {
             };
         };
     };
+    get_companies_list_company_links: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyLinkListResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    post_companies_post_company_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyLinkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyLinkResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    delete_companies_delete_company_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    patch_companies_patch_company_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CompanyLinkEndRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyLinkResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     get_me_get_my_dashboard: {
         parameters: {
             query?: never;
@@ -6512,6 +7820,124 @@ export interface operations {
             };
         };
     };
+    post_companies_post_job_posting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobPostingCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPostingResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Validation failed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_companies_get_job_posting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                posting_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPostingResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
     get_me_get_my_manager_playbook: {
         parameters: {
             query?: never;
@@ -6566,10 +7992,6 @@ export interface operations {
                 cursor?: string | null;
                 /** @description Rows per page. Clamped to 1-100. */
                 limit?: number | null;
-                /** @description Scoring lens. Only "culture" exists today. */
-                lens?: string | null;
-                /** @description "best" (default) ranks strongest fit first; "worst" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end. */
-                order?: string | null;
             };
             header?: never;
             path?: never;
@@ -6584,15 +8006,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MatchesResponse"];
-                };
-            };
-            /** @description Bad request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
                 };
             };
             /** @description Not found */
@@ -6610,7 +8023,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["LegacyError"];
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */
@@ -7981,6 +9394,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    get_assessments_get_trait_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraitPreferencesDocument"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    put_assessments_put_trait_preferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraitPreferencesPutRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraitPreferencesDocument"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemDetailResponse"];
                 };
             };
             /** @description Not found */

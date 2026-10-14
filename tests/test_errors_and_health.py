@@ -186,6 +186,63 @@ def test_custom_api_error_subclass_is_handled(app):
     assert res.get_json()["detail"] == "subscription lapsed"
 
 
+def test_api_error_5xx_logs_an_error_without_a_traceback(app, caplog):
+    """A raised ApiError is a decision, not a crash (2026-10-14).
+
+    Until then every 5xx ``ApiError`` went through ``logger.exception``, so a
+    feature that was deliberately switched off -- `research_disabled`, the
+    default state of CompanyLens research -- wrote an ERROR line with a stack
+    pointing at its own ``raise`` on every hit. 5xx stays ERROR (Sentry's
+    default logging integration only turns ERROR into an event, so a real
+    misconfiguration must keep alerting), 4xx stays INFO, neither carries
+    ``exc_info``, and a subclass can lower its own level
+    for a state that is expected in normal operation. The catch-all 500 handler
+    for unexpected exceptions is untouched and keeps its traceback.
+    """
+    import logging
+
+    class SwitchedOff(ApiError):
+        status = 503
+        title = "Switched off"
+        code = "switched_off"
+
+    class SwitchedOffQuietly(SwitchedOff):
+        code = "switched_off_quietly"
+        log_level = logging.INFO
+
+    class NotFoundHere(ApiError):
+        status = 404
+        title = "Not found"
+        code = "not_found_here"
+
+    # Endpoint names are explicit: the shared `app` fixture already carries a
+    # `missing` endpoint from another test in this module.
+    @app.get("/log-level/off", endpoint="log_level_off")
+    def _off():
+        raise SwitchedOff("off")
+
+    @app.get("/log-level/off-quietly", endpoint="log_level_off_quietly")
+    def _off_quietly():
+        raise SwitchedOffQuietly("off")
+
+    @app.get("/log-level/missing", endpoint="log_level_missing")
+    def _missing():
+        raise NotFoundHere("missing")
+
+    client = app.test_client()
+    with caplog.at_level(logging.DEBUG, logger="solverah.errors"):
+        assert client.get("/log-level/off").status_code == 503
+        assert client.get("/log-level/off-quietly").status_code == 503
+        assert client.get("/log-level/missing").status_code == 404
+
+    records = {r.code: r for r in caplog.records if r.getMessage() == "api_error"}
+    assert set(records) == {"switched_off", "switched_off_quietly", "not_found_here"}
+    assert records["switched_off"].levelno == logging.ERROR
+    assert records["switched_off_quietly"].levelno == logging.INFO
+    assert records["not_found_here"].levelno == logging.INFO
+    assert all(r.exc_info is None for r in records.values())
+
+
 # ------------------------------------------------------------------- probes
 def _health_app(checks, info=None):
     application = Flask(__name__)

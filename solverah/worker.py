@@ -50,8 +50,9 @@ from pathlib import Path
 #:
 #: Found by running a real job through the compose worker (Phase 3b): the job
 #: was claimed, failed, and written terminal correctly -- the mechanism worked
-#: and the scorer was simply unreachable. It is not new in 3b.
-#: ``solverah.maintenance.backfill_culture_preferences`` has had it since 3a
+#: and the scorer was simply unreachable. It was not new in 3b: the since-deleted
+#: ``solverah.maintenance.backfill_culture_preferences`` (the interim matching
+#: scorer's sweep, removed with the six-trait build on 2026-10-13) had it from 3a
 #: through ``matching_service``'s lazy ``work_pulse`` import; 3b is what would
 #: have made it routine rather than occasional.
 #:

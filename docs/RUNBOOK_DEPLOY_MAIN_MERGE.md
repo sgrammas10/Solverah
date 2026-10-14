@@ -31,6 +31,163 @@ security work, and produced a "nothing is deployed" reading that was false.
 
 ---
 
+## CompanyLens six-trait (prepared 2026-10-14)
+
+**This is the current section.** It covers the next merge of `causal_bayesian_model`
+into `main`, which ships the CompanyLens six-trait build
+(`docs/superpowers/plans/2026-10-13-companylens-six-trait.md`; decisions in
+`docs/PRODUCT_DECISIONS.md` §2, "The six-trait match model" and its "Pipeline
+calls"). The same merge also carries everything committed since PR #155
+(2026-09-28), so the migration count below is larger than the six-trait build alone.
+
+### Migrations: ten, from production's head
+
+`origin/main` (`cc23475`, PR #155) ends at **`20260921_path_wants`**. That is
+production's alembic head if nothing has been applied by hand since; confirm with
+`flask db current` from a Render shell before merging. The merge then applies
+**exactly ten** revisions, in this order (read from `migrations/versions/` on
+2026-10-14, single head `20261013_pulse_company_link`):
+
+| # | Revision | Adds | Touches existing rows? |
+|---|---|---|---|
+| 1 | `20260928_path_narratives` | `path_narratives` (narrator cache) | no |
+| 2 | `20260928_ledger_indexes` | 7 indexes added, 7 dropped; `lock_timeout 10s`; refuses if `company_slug_key` is missing (prod pre-check PASSED 2026-09-29) | no |
+| 3 | `20261001_envreport_industry` | `environment_reports.industry`, nullable | no |
+| 4 | `20261002_envreport_subject` | `environment_reports.subject`, NOT NULL default `'current'` | every row gets `'current'` |
+| 5 | `20261002_experiment_completed` | `'completed'` in the experiment status CHECK | **yes**: ended `active` experiments are relabelled `completed` |
+| 6 | `20261013_trait_prefs` | `person_trait_preference` (tolerance + must-have) | no |
+| 7 | `20261013_company_evidence` | research runs, evidence items, item scores, trait records, job postings; `company.headcount*` (nullable) | no |
+| 8 | `20261013_envreport_outcomes` | five optional 1..5 outcome columns on `environment_reports` | no |
+| 9 | `20261013_user_company_link` | `user_company_link` ("I took this job") | no |
+| 10 | `20261013_pulse_company_link` | `pulse_checkins.company_link_id`, nullable, `ON DELETE SET NULL` | no |
+
+Rows 1 to 5 are the unpushed revisions from 2026-09-28 to 2026-10-02. Rows 6 to 10
+are the six-trait build. Expect the pre-deploy log to show ten `Running upgrade`
+lines from `20260921_path_wants`. Any other count means production was not where it
+was measured: stop and look.
+
+### New environment variables (set in the `solverah-prod` group)
+
+| Variable | Required? | Note |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | for research | Sebastian creates it on deploy day (`Solverah_IP/compliance/VENDOR_REGISTER.md`, Anthropic row). Unset is safe: `POST /companies/research` answers 503 before anything is written or spent. Setting it does NOT open research by itself (see the switch below). |
+| `SOLVERAH_COMPANYLENS_RESEARCH_ENABLED` | **leave unset (off)** | **The public switch** (C5c, 2026-10-14). Off: `POST /companies/research` answers 503 `research_disabled`, nothing is written, and already-researched companies stay readable. Turn it on only after the attorney review below. The CLI batch prefill needs `--allow-when-disabled` while it is off. |
+| `SOLVERAH_RESEARCH_BLOCKED_DOMAINS` | optional | Comma-separated domains the research tools must not use; the attorney's list goes here. Recorded in each run's internal card. |
+| `SOLVERAH_RESEARCH_MODEL` | optional, leave unset | default `claude-opus-5`. Another model is a cost decision, and it needs a row in `research.RESEARCH_PRICES_USD_PER_MTOK` or costs come back `None`. |
+| `SOLVERAH_SCORER_MODEL` | optional, leave unset | default `gpt-5.5-2026-04-23`, the snapshot the v3.1 anchors were validated on. |
+| `SOLVERAH_RESEARCH_SEARCH_TOOL` / `SOLVERAH_RESEARCH_FETCH_TOOL` | optional, leave unset | override the server-side tool versions. |
+
+Unchanged: `OPENAI_API_KEY` is already set and now also pays for scoring.
+`SOLVERAH_MODEL_WEIGHTS_SOURCE` stays **unset** (unset reads `priors.yaml`).
+
+### Pre-public gate: attorney review of review-site collection
+
+Decided 2026-10-13 (`PRODUCT_DECISIONS.md` §2, "Pipeline calls"): automated
+collection from review sites (Glassdoor, Indeed reviews, Blind and similar) is built
+now, and needs **attorney review before CompanyLens research is public**.
+
+*Resolved 2026-10-14 (C5c):* the gate is now the switch, not the key.
+`SOLVERAH_COMPANYLENS_RESEARCH_ENABLED` stays off in production until the attorney has
+reviewed collection; then set it, together with any `SOLVERAH_RESEARCH_BLOCKED_DOMAINS`
+the attorney names. The key can be set on deploy day without opening anything. Once
+on, any signed-in user can start research (five new runs a day each). The run claim is
+atomic, so the `solverah-companies-sweep` cron can be created on deploy day.
+
+### First live run: local, never production
+
+Before the key goes into Render, measure one batch on a laptop against a LOCAL 5433
+database. Never use the `.env` `DATABASE_URL`: it is production. Export the two keys
+by hand; do not `source .env`, which brings the production URL with it.
+
+```bash
+# a fresh local DB migrated to head (createdb lives in C:\Program Files\PostgreSQL\18\bin,
+# off PATH on Sebastian's machine)
+createdb -h localhost -p 5433 -U solverah solverah_lens_live
+export FLASK_SKIP_DOTENV=1
+export DATABASE_URL=postgresql://solverah:solverah@localhost:5433/solverah_lens_live
+flask db upgrade
+export ANTHROPIC_API_KEY=...   OPENAI_API_KEY=...
+flask companies research "Company A" "Company B" "Company C"
+```
+
+Each company prints one JSON line; the last line is the total. Read:
+
+- **`cost_usd` per company and `total_cost_usd`.** This is the per-run price that the
+  five-runs-a-day budget multiplies.
+- **`status` and `error`.** If **all three** come back `failed` with
+  `research_unverified`, citations are not attaching to the items: the prompt shape
+  needs fixing (matching-model's lane) before anything ships. One out of three is a
+  thin company; look at `candidates`, `citations` and `dropped` for that line.
+- **`items` and the six trait records.** A `done` run should carry evidence items
+  and six records.
+
+### Creating the sweep cron in Render
+
+`flask companies sweep` fails research runs stuck `running` for more than 1560 s (as
+`timed_out`, with no provider call) and re-dispatches runs stuck `queued` for more
+than 5 minutes. It prints `{"reaped": n, "requeued": n}` and exits 0. Production has
+no worker, so a run lives on the web process's thread pool. Without this cron, a
+deploy during a run leaves that company's row `running` forever, and
+`request_research` keeps returning that row, so the company can never be researched
+again.
+
+1. Dashboard: **New → Cron Job**, same repo, branch `main`, **native Python
+   runtime** (no `pg_dump`, so no Docker).
+   - Name `solverah-companies-sweep`; schedule `*/10 * * * *`.
+   - Build `pip install -r requirements.txt`; command `flask companies sweep`.
+   - Link the `solverah-prod` env group. The cron needs `DATABASE_URL` and **both
+     provider keys**: a re-dispatched run executes inside the cron's own process,
+     and that process waits for the run to finish before it exits.
+2. **Trigger Run** once by hand. Expect `{"reaped": 0, "requeued": 0}` and exit 0
+   on a quiet database. A non-zero exit means the pass crashed (config, database):
+   read the log.
+3. Mirror any difference from `render.yaml`'s `solverah-companies-sweep` entry back
+   into the file (it is doc-only until a Blueprint is adopted).
+
+**Open before creating it: a re-dispatch can run a job twice.** The web pool has two
+threads. A third research request waits in that pool's queue with its row still
+`queued`. After 5 minutes the sweep re-dispatches it into the cron, and when the web
+thread later frees up it runs the same row again: `run_research_job` claims a
+`queued` row without a lock and carries on with a `running` one. The cost is a
+second research call and duplicated evidence items under one run. Handed to
+matching-model on 2026-10-14 (an atomic claim, and skip a row that is already
+running). Until it lands, the trade is a doubled run during bursts of three or more
+concurrent requests against a company that is stuck for good after a mid-run
+deploy. Decide before deploy day.
+
+### Rollback
+
+Code and schema roll back separately. The code rollback is the usual one; the schema
+rollback costs data.
+
+**Code only (the usual case).** The previous `main` commit's migration chain ends at
+`20260921_path_wants`. It does not know any of the ten revisions above, so its
+pre-deploy `flask db upgrade` fails with "Can't locate revision" and the deploy is
+refused, while the new code keeps serving. Stamp first, from a Render shell on the
+current service, then redeploy the previous commit:
+
+```bash
+flask db stamp 20260921_path_wants
+```
+
+All ten upgrades are additive or widening, so the old code runs on the new schema.
+One known difference: once a user has filed a past-job Environment Report
+(`subject <> 'current'`), the old code's latest-report read can return it. When
+rolling forward again, stamp back to `20261013_pulse_company_link` before the
+redeploy. Otherwise its `flask db upgrade` replays `CREATE TABLE`s that already
+exist, fails, and the deploy is refused.
+
+**Schema rollback of the six-trait build only:**
+`flask db downgrade 20261002_experiment_completed`, run on the NEW code (only it has
+those downgrade scripts). This drops every CompanyLens table, the trait preferences,
+the five outcome columns and the company links, along with their data. None of those
+five downgrades refuses on a populated table. Going further back, to
+`20260921_path_wants`, passes through two downgrades that can refuse:
+`20261002_experiment_completed` and `20261002_envreport_subject`
+(`RUNBOOK_DATABASE_ROLLBACK.md` §7).
+
+---
+
 ## Deploy 2 — the launch delta (prepared 2026-09-14)
 
 **Deploy 1 happened.** PR #150 merged this branch into `main` on 2026-09-08

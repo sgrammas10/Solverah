@@ -45,27 +45,51 @@ PASSWORD = "Strongpass1!"
 FORM_TOKEN_SECRET = "test-secret-not-a-real-one"
 
 
-#: A complete preference vector, matching the seeded companies exactly so the
-#: scorer has something to rank rather than nothing to score.
-CULTURE_PREFERENCES = {
-    "empathy": 0.5, "creative_drive": 0.5, "adaptability": 0.5,
-    "futuristic": 0.5, "harmony": 0.5, "data_orientation": 0.5,
-    "pace": "fast", "work_environment": "collaborative",
+#: What the six-trait read needs on the person side: six core scores. Placed
+#: through the `assessment_store` doorway rather than by sitting the instrument,
+#: which is how tests/test_company_lens_api.py does it too -- the read never
+#: looks past that function, and a sitting here would be forty-odd answers for
+#: one dict.
+CORE_SCORES = {
+    "autonomy": 0.5, "pace": 0.5, "collaboration": 0.5,
+    "feedback": 0.5, "innovation": 0.5, "decision": 0.5,
 }
+
+
+def _place_person(monkeypatch):
+    import assessment_store
+
+    monkeypatch.setattr(
+        assessment_store, "get_dimension_scores", lambda _user_id: dict(CORE_SCORES)
+    )
+
+
+def _researched_company(name, slug):
+    """A company `GET /me/matches` lists: one shared trait record is enough to be
+    listed (`not_enough_evidence`, after the ranked ones). Written through the
+    store, the way the research pipeline writes, so a rewrite of that path that
+    stopped listing such a company fails here. Inside an app context."""
+    import company_evidence_store as store
+    from model import Company, db
+
+    company = Company(name=name, slug=slug, profile_json={"overview": {}})
+    db.session.add(company)
+    db.session.commit()
+    run = store.start_research_run(
+        db, company.id, trigger="on_demand", provider="anthropic",
+        model="test-model", prompt_version="r1",
+    )
+    store.write_trait_records(
+        db, company.id,
+        [store.TraitRecordInput(dimension_key="autonomy", scope="company", status="unknown")],
+        aggregation_version="agg-test",
+    )
+    store.finish_research_run(db, run.id, status="done", cost_usd=0)
+    return company.id
 
 
 def _noop(*_args, **_kwargs):
     return None
-
-
-def _give_culture_preferences(user_id):
-    """Put a preference vector on the profile. Does not commit."""
-    from solverah.repositories import profile_repository
-
-    profile_repository.update_document(
-        user_id,
-        lambda existing: {**existing, "culture_preferences": CULTURE_PREFERENCES},
-    )
 
 
 @pytest.fixture(autouse=True)
@@ -249,27 +273,25 @@ def test_company_detail_response_matches_schema(client, auth):
     CompanyDetailResponse.model_validate(resp.get_json())
 
 
-def test_matches_response_matches_schema(client, auth):
+def test_matches_response_matches_schema_in_every_state(client, auth, monkeypatch):
+    """The three states one body shape has to hold (six-trait build, A33)."""
     from app import app
-    from model import Company, User, db
+
+    body = MatchesResponse.model_validate(client.get("/api/v1/me/matches").get_json())
+    assert body.state == "core_required"
+
+    _place_person(monkeypatch)
+    body = MatchesResponse.model_validate(client.get("/api/v1/me/matches").get_json())
+    assert body.state == "no_companies"
 
     with app.app_context():
-        db.session.add(Company(
-            name="Match Co", slug="match-co", profile_json={"overview": {"industry": "Tech"}},
-            pace="fast", work_environment="collaborative", empathy=0.5, creative_drive=0.5,
-            adaptability=0.5, futuristic=0.5, harmony=0.5, data_orientation=0.5,
-        ))
-        user = User.query.filter_by(email=EMAIL).first()
-        _give_culture_preferences(user.id)
-        db.session.commit()
-
-    resp = client.get("/api/v1/me/matches")
-
-    assert resp.status_code == 200
-    MatchesResponse.model_validate(resp.get_json())
+        _researched_company("Match Co", "match-co")
+    body = MatchesResponse.model_validate(client.get("/api/v1/me/matches").get_json())
+    assert body.state == "ranked"
+    assert body.total_companies == 1
 
 
-def test_a_page_of_matches_never_repeats_a_company(client, auth):
+def test_a_page_of_matches_never_repeats_a_company(client, auth, monkeypatch):
     """The pagination property that replaced the old partition guarantee.
 
     `GET /company-lens/matches` returned two fixed slices and partitioned them at
@@ -279,19 +301,11 @@ def test_a_page_of_matches_never_repeats_a_company(client, auth):
     ordering guarantees and an offset over a shifting list does not.
     """
     from app import app
-    from model import Company, User, db
 
+    _place_person(monkeypatch)
     with app.app_context():
         for i in range(3):
-            db.session.add(Company(
-                name="Split Co %d" % i, slug="split-co-%d" % i, profile_json={"overview": {}},
-                pace="fast", work_environment="collaborative", empathy=i / 10,
-                creative_drive=0.5, adaptability=0.5, futuristic=0.5,
-                harmony=0.5, data_orientation=0.5,
-            ))
-        user = User.query.filter_by(email=EMAIL).first()
-        _give_culture_preferences(user.id)
-        db.session.commit()
+            _researched_company("Split Co %d" % i, "split-co-%d" % i)
 
     body = MatchesResponse.model_validate(
         client.get("/api/v1/me/matches?limit=5").get_json()
@@ -299,10 +313,7 @@ def test_a_page_of_matches_never_repeats_a_company(client, auth):
 
     ids = [entry.id for entry in body.data]
     assert len(ids) == len(set(ids))
-    assert body.total_companies_scored == 3
-
-
-# ── Recommendations and assessments ─────────────────────────────────────────
+    assert body.total_companies == 3
 
 
 def test_recommendations_responses_match_schema(client, auth):

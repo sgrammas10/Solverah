@@ -31,6 +31,7 @@ frames never reach a client -- they are how an attacker maps a schema.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from .observability.logging import current_request_id, get_logger
@@ -104,6 +105,17 @@ class ApiError(Exception):
     status = 500
     title = "Internal server error"
     code = "internal"
+
+    #: How the handler logs this error. ``None`` means by status: a 5xx at
+    #: ERROR (Sentry's default logging integration turns ERROR into an event,
+    #: so a misconfigured provider or a missing corpus still alerts), a 4xx at
+    #: INFO. Never with a traceback -- an ``ApiError`` is a
+    #: decision a handler made, and the only frame a traceback could show is
+    #: the ``raise``. (Unexpected exceptions keep their traceback: they go
+    #: through the catch-all 500 handler, not this attribute.) A subclass for a
+    #: state that is expected in normal operation -- a feature deliberately
+    #: switched off, say -- sets ``logging.INFO`` so every hit is not an alarm.
+    log_level: Optional[int] = None
 
     def __init__(
         self,
@@ -218,16 +230,19 @@ def register_error_handlers(app) -> None:
 
     @app.errorhandler(ApiError)
     def _handle_api_error(exc: ApiError):
-        # 4xx is the client's problem and is expected traffic; 5xx is ours.
-        if exc.status >= 500:
-            logger.exception(
-                "api_error", extra={"event": "api_error", "code": exc.code, "status": exc.status}
-            )
-        else:
-            logger.info(
-                "api_error",
-                extra={"event": "api_error", "code": exc.code, "status": exc.status},
-            )
+        # 4xx is the client's problem and is expected traffic; a 5xx is ours and
+        # stays ERROR so it still reaches Sentry, but without a traceback (until
+        # 2026-10-14 it was ``logger.exception``, a stack that only pointed at
+        # its own ``raise``). ``log_level`` lets a subclass whose state is
+        # expected in normal operation -- ``research_disabled``, the default of
+        # a switched-off feature -- log below ERROR so it is not an alarm.
+        level = exc.log_level
+        if level is None:
+            level = logging.ERROR if exc.status >= 500 else logging.INFO
+        logger.log(
+            level, "api_error",
+            extra={"event": "api_error", "code": exc.code, "status": exc.status},
+        )
         return _respond(exc.to_problem())
 
     @app.errorhandler(HTTPException)

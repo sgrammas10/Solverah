@@ -299,10 +299,79 @@ Situation Report's new default-pin rule does not reach this scenario: EMAIL has
 one core sitting, and one sitting short-circuits to itself. Core's 409
 `retake_cooldown` is off by default and not exercised. After the recapture:
 0 differences across 116.
+
+**Extended and re-baselined for the six-trait CompanyLens build (2026-10-14).** A
+deliberate change, and A33 (docs/ARCHITECTURE.md) is the ledger. Verified before
+any edit to this script, on the standing baseline: 7 differences, all body-only
+and all additive -- `pulse-history` (`company_link_id: null` on the check-in),
+`submit-environment-report` and `submit-past-environment-report` (the five
+exploratory outcomes echoed as `null`, `version` -> `env-v3-2026-10-13`), the
+three `situation-report-*` reads (`tolerance_applied: false` and, per dimension,
+`must_have: false` and `within_tolerance: false`), and `export`
+(`trait_preferences`, `job_postings`, `company_links`, `outcome_*` on each
+environment report, `company_link_id` on each check-in). No step was removed or
+reordered. `submit-past-environment-report` now also SENDS the five outcomes, so
+they are pinned with real values and not only as nulls; the current report keeps
+sending none, which pins the skipped shape.
+
+The interim `culture_fit_score` matching path is gone with this build, and this
+script used to seed its input. `_seed_legacy_work_pulse` still writes the profile's
+`culture_preferences` -- the key is still echoed in the profile document and the
+export, and prod rows still hold it -- but as a literal
+(`LEGACY_CULTURE_PREFERENCES`) rather than through the derivation the deleted path
+owned, so nothing here imports from it.
+
+Forty steps are appended (thirty-six here, four for the research door below),
+and the block runs in TWO STATES in the way the
+W-4 block does. First with company 1 unresearched: `GET /me/matches` is
+`no_companies`, `GET /companies/1/read` is `not_researched`, and `POST
+/me/job-postings` is captured as its 503, because `OPENAI_API_KEY` is not set here
+exactly as it is not on the CI runner (it and `ANTHROPIC_API_KEY` are popped at the
+top of `run_scenario`, so a developer's shell cannot turn the 503 into a paid call).
+`post-job-posting-unknown-company` pins that the company check precedes the
+provider check: a 400 with no key set is the ordering made visible. Then
+`_seed_company_records` and `_seed_job_posting` write a done research run, items,
+scores and trait records through `company_evidence_store` with fixed values -- the
+only way to a `ranked` read without a provider. `matches-ranked`, `company-read` and
+`company-read-with-posting` are then captured with the tolerance step unanswered
+(the hinge at the floor, `preferences_answered: false`), the tolerance step is
+answered through `PUT /me/trait-preferences` (one must-have, autonomy), and the
+same three reads plus `GET /me/situation-report` are captured again -- the second
+set is where `must_have`, `within_tolerance` and `tolerance_applied` carry real
+values. `matches-core-required` and `company-read-core-required` are the no-job
+account's: it has no core sitting. The company-link steps pin the one-open-link
+rule on the wire (`post-company-link-second` closes the first, which
+`company-links` shows), and `pulse-checkin-linked` is a check-in made while a
+link is open, so `pulse-history-linked` carries `company_link_id` populated.
+`export-after-companylens` is the export with every new key populated; the
+trait-preferences `sitting_id` in it is a per-run `uuid4().hex` and is masked as
+`<SITTING>`, by the same rule the job and submission ids are.
+
+**The research door, behind the public switch (C5c, same day).** C5c landed after
+the thirty-six steps above were recorded, so its four steps are appended at the
+very end. `SOLVERAH_COMPANYLENS_RESEARCH_ENABLED` is read at call time and is OFF
+by default -- production's state -- so it is popped at the top of `run_scenario`
+and set per step. `research-company-disabled` (switch off, an unseeded name) is
+the 503 `research_disabled` problem document; `research-company-cached-while-
+disabled` proves cached research is served with the switch off; with the switch
+on, `research-company-provider-unavailable` (the same unseeded name, no
+`ANTHROPIC_API_KEY`) is the 503 `provider_unavailable`, and `research-company-
+cached` the same 202. Both refusals ask about the same name because a refused
+request writes nothing, the Company row included. C5c also turned
+`post-job-posting-provider-unavailable` from a LegacyError body into a
+`provider_unavailable` problem document -- the one step above that moved, in
+place (body and mimetype). `request_id` on every problem document is masked
+`<RID>`, as always.
+
+Not captured: the research and posting pipelines themselves (provider-backed; the
+unit tests stub them), and the schema-level 422s on `?posting_id=abc` and a
+non-date `started_on`, which `enforce=True` answers before the handler runs.
+After the recapture: 0 differences across 156.
 """
 
 from __future__ import annotations
 
+import datetime
 import importlib.util
 import json
 import os
@@ -422,6 +491,10 @@ _REQUEST_ID = re.compile(r'("request_id"\s*:\s*)"[0-9a-f]{32}"')
 #: The character class is the assertion, exactly as `_SUBMISSION_ID` documents.
 _JOB_ID = re.compile(r'("job_id"\s*:\s*)"[0-9a-f]{32}"')
 _STATUS_URL_ID = re.compile(r'("status_url"\s*:\s*"[^"]*/)[0-9a-f]{32}(")')
+#: A trait-preferences sitting (A33): `uuid4().hex` grouping the six rows of one
+#: save, on the wire only in the export. Same format, same assertion-by-mask as
+#: the ids above.
+_SITTING_ID = re.compile(r'("sitting_id"\s*:\s*)"[0-9a-f]{32}"')
 
 
 def _mask(text: str) -> str:
@@ -431,6 +504,7 @@ def _mask(text: str) -> str:
     text = _REQUEST_ID.sub(r'\1"<RID>"', text)
     text = _JOB_ID.sub(r'\1"<JID>"', text)
     text = _STATUS_URL_ID.sub(r"\g<1><JID>\g<2>", text)
+    text = _SITTING_ID.sub(r'\1"<SITTING>"', text)
     return _ISO_TIMESTAMP.sub("<TS>", text)
 
 
@@ -749,6 +823,199 @@ def _seed_company(db) -> None:
     db.session.commit()
 
 
+#: The shared trait records the CompanyLens block (A33) reads for company 1.
+#: Four known, one mixed, one unknown: enough known traits for a ranked read
+#: (`company_match_service.MIN_KNOWN_FOR_READ` is 3) with every record status on
+#: the wire at once. The numbers are fixed and never reach the wire -- the read
+#: carries labels, counts, dates and flags -- so they are chosen only to put the
+#: company on a definite side of the person on each trait.
+COMPANY_TRAIT_SPEC = {
+    "autonomy": ("known", 0.9),
+    "pace": ("known", 0.2),
+    "collaboration": ("known", 0.5),
+    "feedback": ("mixed", 0.2, 0.8),
+    "innovation": ("unknown",),
+    "decision": ("known", 0.6),
+}
+#: The private role-scope records on EMAIL's pasted posting: one known trait
+#: that DISAGREES with the company read (autonomy, 0.1 against 0.9), one that
+#: agrees, and four the scorer abstained on. Traits not named are unknown.
+POSTING_TRAIT_SPEC = {"autonomy": ("known", 0.1), "pace": ("known", 0.2)}
+POSTING_TITLE = "Ops Lead"
+POSTING_TEXT = "Own the regional process end to end."
+#: The public research switch (C5c). Spelled here rather than imported so the
+#: capture fails loudly, as a diff, if the variable is ever renamed.
+RESEARCH_SWITCH = "SOLVERAH_COMPANYLENS_RESEARCH_ENABLED"
+#: A name no step seeds: the research refusals must be captured for a company
+#: that does NOT exist yet, because "a refused request writes nothing" includes
+#: the Company row -- the second refusal would otherwise find a row the first
+#: one had created.
+FRESH_COMPANY_NAME = "Fresh Co"
+#: Fixed `published_at` values: a date with no time part is not masked, so it
+#: has to be the same on every run.
+EVIDENCE_DATES = tuple(datetime.date(2026, 9, day) for day in (1, 2, 3, 4))
+
+
+def _scorer_run_id(db) -> int:
+    """A `scorer_run` row for the scores below to hang off. Nothing on it reaches
+    the wire; it exists because `write_item_scores` refuses a score with no run."""
+    from model import ScorerRun
+
+    run = ScorerRun(
+        model="contract-fixture", temperature=0, temperature_honored=True,
+        rubric_version="v3.1", packet_version="contract-fixture",
+    )
+    db.session.add(run)
+    db.session.commit()
+    return run.id
+
+
+def _score_ids_for(db, item_ids) -> list:
+    from model import EvidenceItemScore
+
+    rows = (
+        EvidenceItemScore.query.filter(EvidenceItemScore.evidence_item_id.in_(item_ids))
+        .order_by(EvidenceItemScore.id)
+        .all()
+    )
+    return [row.id for row in rows]
+
+
+def _seed_company_records(app, company_id: int) -> int:
+    """Give *company_id* a done research run with shared trait records (A33).
+
+    Written through `company_evidence_store`, the same writes the research
+    pipeline makes, in the same order: the run, its items, their scores under a
+    scorer run, the records linked to those scores, and the run closed as done.
+    No provider is involved: the pipeline's two calls are the only paid calls in
+    the app and this script must never make one. Returns the run id, which the
+    research poll step asks after.
+    """
+    import company_evidence_store as store
+    from model import db
+
+    with app.app_context():
+        run = store.start_research_run(
+            db, company_id, trigger="on_demand", provider="anthropic",
+            model="contract-fixture", prompt_version="contract-fixture",
+        )
+        scorer_id = _scorer_run_id(db)
+        inputs = []
+        for dim, shape in COMPANY_TRAIT_SPEC.items():
+            status = shape[0]
+            if status == "known":
+                points = [shape[1]] * 3
+                labels = [None] * 3
+            elif status == "mixed":
+                points = [shape[1], shape[1], shape[2], shape[2]]
+                labels = ["corporate", "corporate", "sites", "sites"]
+            else:
+                points = [None]
+                labels = [None]
+            item_ids = store.write_items(
+                db, company_id,
+                [
+                    store.EvidenceItemInput(
+                        "company" if label is None else "division",
+                        "employee_review",
+                        "verbatim text the scorer saw: %s %d" % (dim, i),
+                        "A reviewer describes %s (%s, item %d)." % (dim, status, i),
+                        scope_label=label,
+                        published_at=EVIDENCE_DATES[i],
+                    )
+                    for i, label in enumerate(labels)
+                ],
+                research_run_id=run.id,
+            )
+            store.write_item_scores(
+                db,
+                [
+                    store.ItemScoreInput(item_id, dim, score=point, abstained=point is None)
+                    for item_id, point in zip(item_ids, points)
+                ],
+                scorer_run_id=scorer_id,
+            )
+            score_ids = _score_ids_for(db, item_ids)
+            if status == "known":
+                inputs.append(store.TraitRecordInput(
+                    dimension_key=dim, scope="company", status="known",
+                    estimate=shape[1], confidence=0.7, score_ids=score_ids,
+                ))
+            elif status == "mixed":
+                inputs.append(store.TraitRecordInput(
+                    dimension_key=dim, scope="company", status="mixed",
+                    low_end=shape[1], high_end=shape[2], confidence=0.5,
+                    split_explained_by="scope", score_ids=score_ids,
+                ))
+            else:
+                inputs.append(store.TraitRecordInput(
+                    dimension_key=dim, scope="company", status="unknown",
+                    score_ids=score_ids,
+                ))
+        store.write_trait_records(
+            db, company_id, inputs, aggregation_version="contract-fixture"
+        )
+        store.finish_research_run(db, run.id, status="done", cost_usd=0.1)
+        return run.id
+
+
+def _seed_job_posting(app, email: str, company_id: int) -> int:
+    """Give *email* a scored paste of a posting at *company_id* (A33).
+
+    The same writes `run_job_posting_job` makes, minus the scorer call: the
+    posting row, one role-scope item under it, a score per trait, the private
+    role records, and the posting marked scored. Returns the posting id.
+    """
+    import company_evidence_store as store
+    from model import EvidenceItemScore, User, db
+    from solverah.domain.trait_preferences import TRAIT_KEYS
+
+    with app.app_context():
+        user_id = db.session.execute(
+            db.select(User.id).where(User.email == email)
+        ).scalar_one()
+        posting = store.create_job_posting(
+            db, user_id, posting_text=POSTING_TEXT, company_id=company_id,
+            title=POSTING_TITLE,
+        )
+        scorer_id = _scorer_run_id(db)
+        (item_id,) = store.write_items(
+            db, company_id,
+            [store.EvidenceItemInput(
+                "role", "user_pasted_posting", POSTING_TEXT,
+                "The posting says the role owns its process end to end.",
+                scope_label=POSTING_TITLE, published_at=EVIDENCE_DATES[3],
+            )],
+            job_posting_id=posting.id,
+        )
+        inputs = []
+        for dim in TRAIT_KEYS:
+            shape = POSTING_TRAIT_SPEC.get(dim, ("unknown",))
+            known = shape[0] == "known"
+            store.write_item_scores(
+                db,
+                [store.ItemScoreInput(
+                    item_id, dim, score=shape[1] if known else None, abstained=not known,
+                )],
+                scorer_run_id=scorer_id,
+            )
+            score_id = EvidenceItemScore.query.filter_by(
+                evidence_item_id=item_id, dimension_key=dim
+            ).one().id
+            inputs.append(store.TraitRecordInput(
+                dimension_key=dim, scope="role", scope_label=POSTING_TITLE,
+                status="known" if known else "unknown",
+                estimate=shape[1] if known else None,
+                confidence=0.6 if known else None,
+                score_ids=[score_id], job_posting_id=posting.id,
+            ))
+        store.write_trait_records(
+            db, company_id, inputs, aggregation_version="contract-fixture"
+        )
+        store.set_job_posting_status(db, posting.id, "scored")
+        return posting.id
+
+
 #: The refresh cookie and the path it is scoped to.  Both are configuration in
 #: the app (`JWT_REFRESH_COOKIE_NAME`, `JWT_REFRESH_COOKIE_PATH`); spelled out
 #: here because the test client's jar is keyed on the path, so a capture that
@@ -769,6 +1036,23 @@ LEGACY_WORK_PULSE_RESULT = {
     "archetype_description": "Sustained focus is where your output comes from.",
 }
 
+#: What the retired submit wrote to the profile beside the sitting: the culture
+#: vector derived from `WP_ANSWERS`. A literal since A33, not a call: the only
+#: reader of this key -- the interim `culture_fit_score` ranking behind
+#: `GET /me/matches` -- was deleted with the six-trait build, so this script no
+#: longer imports from that path. The key is still echoed in the profile document
+#: and the export, prod rows still hold it, and five steps pin it.
+LEGACY_CULTURE_PREFERENCES = {
+    "pace": "moderate",
+    "empathy": 0.5167,
+    "adaptability": 0.6,
+    "harmony": 0.6,
+    "data_orientation": 0.625,
+    "creative_drive": 0.65,
+    "futuristic": 0.665,
+    "work_environment": ["collaborative"],
+}
+
 
 def _seed_legacy_work_pulse(app, email: str) -> None:
     """Give *email* the stored sitting a user who took the retired Work Pulse has.
@@ -776,7 +1060,7 @@ def _seed_legacy_work_pulse(app, email: str) -> None:
     The retirement (A32) closed every write door, but production still holds
     these rows, and the promise that came with it is that they stay readable:
     the result route, the catalogue's `completed`, the session's
-    `wpl_completed`, the profile's derived `culture_preferences`, the
+    `wpl_completed`, the profile's stored `culture_preferences`, the
     dashboard's activity line and the export's `wpl_*` fields all read them.
     A scenario that can no longer submit one would stop pinning every one of
     those reads, so the row is written here, through the same repository calls
@@ -786,7 +1070,6 @@ def _seed_legacy_work_pulse(app, email: str) -> None:
     from solverah.domain import auth as auth_domain
     from solverah.repositories import assessment_repository, profile_repository
     from solverah.services.assessment_service import CLIENT_FORM_VERSION
-    from work_pulse.derive_preferences import derive_culture_preferences
 
     with app.app_context():
         user_id = db.session.execute(
@@ -802,9 +1085,8 @@ def _seed_legacy_work_pulse(app, email: str) -> None:
         submission.status = "scored"
         submission.completed_at = now
         submission.scored_at = now
-        preferences = derive_culture_preferences(WP_ANSWERS)
         profile_repository.update_extra_key(
-            user_id, "culture_preferences", lambda _stored: preferences
+            user_id, "culture_preferences", lambda _stored: dict(LEGACY_CULTURE_PREFERENCES)
         )
         db.session.commit()
 
@@ -866,6 +1148,18 @@ def run_scenario() -> List[Dict[str, Any]]:
     # builds one before it can refuse the request -- so without this the two
     # F-5 steps are 500s on both sides of the diff. Nothing is sent with it.
     os.environ.setdefault("ONET_API_KEY", "contract-not-a-real-key")
+    # Popped, not setdefault-ed: the CompanyLens block (A33) captures the two
+    # provider-backed POSTs as their 503, which is their answer on the CI runner
+    # where neither key exists. A developer's shell that had either set would
+    # instead record a 202 -- and, for the posting, start a real scorer call.
+    # Nothing captured earlier reads them: the assessment narratives are stubbed
+    # at `_chat_json`, the panel's embedder at `get_openai_client`, and the
+    # path-suggestion job fails on the corpus before it reaches a model.
+    os.environ.pop("ANTHROPIC_API_KEY", None)
+    os.environ.pop("OPENAI_API_KEY", None)
+    # The research switch (C5c) is read at call time and is OFF by default,
+    # which is production's state; the research steps set it per step.
+    os.environ.pop(RESEARCH_SWITCH, None)
     _load_conftest_guard()
 
     from app import app
@@ -1814,9 +2108,14 @@ def run_scenario() -> List[Dict[str, Any]]:
         item["item_id"]: next(o for o in item["options"] if o["pole"] == "high")["key"]
         for item in situation_items.ENVIRONMENT_ITEMS
     }
+    # The five exploratory outcomes (A33) are sent on the past report only, so
+    # one submission pins them with values and the current report above pins
+    # the skipped shape (every outcome echoed `null`).
     past_env_body = {
         "answers": past_env_answers, "stage_size": 2, "comp": 2, "industry": "retail",
         "experienced": 2, "subject": "past",
+        "satisfaction": 4, "performance": 4, "engagement": 3, "sustainability": 2,
+        "retention_intention": 3,
     }
     call(
         "submit-past-environment-report",
@@ -1833,6 +2132,260 @@ def run_scenario() -> List[Dict[str, Any]]:
         json=past_env_body,
         headers=mp_csrf,
     )
+
+    # -- CompanyLens: the six-trait build (A33) --------------------------------
+    #
+    # Appended after the past-job block so every record above keeps its
+    # position. EMAIL again, on `mp_csrf`'s session: a completed core sitting
+    # (`submit-core`) is the person side the six-trait read needs.
+    #
+    # THE BLOCK RUNS IN TWO STATES AND THE ORDER IS THE POINT, as the W-4
+    # block's is. First with company 1 unresearched -- `no_companies`,
+    # `not_researched`, and the 503 each provider-backed POST answers with no key
+    # set, which is the CI runner's state and this script's (both keys are
+    # popped at the top). Only then are the records written through the store,
+    # because that is the one way to a `ranked` read that spends nothing.
+    #
+    # `post-job-posting-unknown-company` pins an ordering: the company check
+    # comes BEFORE the provider check, so it is a 400 even with no key. A diff
+    # where it became a 503 would be that ordering reversed, which no unit test
+    # phrases as a wire fact.
+    from solverah.domain.trait_preferences import TRAIT_KEYS
+
+    call("trait-preferences-unanswered", "GET", "/api/v1/me/trait-preferences")
+    call("matches-no-companies", "GET", "/api/v1/me/matches")
+    call("company-read-not-researched", "GET", "/api/v1/companies/1/read")
+    # `POST /companies/research` is captured at the END of the scenario (the
+    # four `research-company-*` steps): C5c landed after the rest of this block
+    # was already recorded, and appending keeps every record above in place.
+    call("research-run-status-missing", "GET", "/api/v1/companies/research/424242")
+    call(
+        "post-job-posting-unknown-company",
+        "POST",
+        "/api/v1/me/job-postings",
+        json={"company_id": 424242, "text": POSTING_TEXT, "title": POSTING_TITLE},
+        headers=mp_csrf,
+    )
+    call(
+        "post-job-posting-provider-unavailable",
+        "POST",
+        "/api/v1/me/job-postings",
+        json={"company_id": 1, "text": POSTING_TEXT, "title": POSTING_TITLE},
+        headers=mp_csrf,
+    )
+    call("job-posting-missing", "GET", "/api/v1/me/job-postings/424242")
+
+    research_run_id = _seed_company_records(app, 1)
+    posting_id = _seed_job_posting(app, EMAIL, 1)
+
+    call("research-run-status", "GET", "/api/v1/companies/research/%d" % research_run_id)
+
+    # The tolerance step unanswered: the hinge at the floor, and
+    # `preferences_answered: false` on every read.
+    call("matches-ranked", "GET", "/api/v1/me/matches")
+    call("company-read", "GET", "/api/v1/companies/1/read")
+    call(
+        "company-read-with-posting",
+        "GET",
+        "/api/v1/companies/1/read?posting_id=%d" % posting_id,
+    )
+    # Another user's (here: nobody's) posting is a 404, not a 403: a posting id
+    # cannot be probed.
+    call("company-read-posting-not-owned", "GET", "/api/v1/companies/1/read?posting_id=424242")
+    call("company-read-missing", "GET", "/api/v1/companies/424242/read")
+    call("job-posting-status", "GET", "/api/v1/me/job-postings/%d" % posting_id)
+
+    # The tolerance step. Autonomy is the one must-have, with no give either
+    # way; pace gets the widest zone; the rest sit in the middle. The 400 is the
+    # business-rule one (three must-haves against a ceiling of two) -- the
+    # schema-level 422 is `enforce=True`'s, as every other `-malformed` step
+    # here reasons.
+    trait_steps = {"autonomy": (0, 0, True), "pace": (2, 2, False)}
+    traits = [
+        {
+            "dimension_key": key,
+            "under_steps": trait_steps.get(key, (1, 1, False))[0],
+            "over_steps": trait_steps.get(key, (1, 1, False))[1],
+            "must_have": trait_steps.get(key, (1, 1, False))[2],
+        }
+        for key in TRAIT_KEYS
+    ]
+    call(
+        "put-trait-preferences-too-many-must-haves",
+        "PUT",
+        "/api/v1/me/trait-preferences",
+        json={"traits": [dict(t, must_have=True) for t in traits[:3]] + traits[3:]},
+        headers=mp_csrf,
+    )
+    call(
+        "put-trait-preferences",
+        "PUT",
+        "/api/v1/me/trait-preferences",
+        json={"traits": traits},
+        headers=mp_csrf,
+    )
+    call("trait-preferences", "GET", "/api/v1/me/trait-preferences")
+
+    # The same three reads with the step answered: `preferences_answered: true`,
+    # and `must_have` / `within_tolerance` carrying real values -- and the
+    # Situation Report, where `tolerance_applied` reads true for the first time.
+    call("matches-ranked-with-preferences", "GET", "/api/v1/me/matches")
+    call("company-read-with-preferences", "GET", "/api/v1/companies/1/read")
+    call(
+        "company-read-with-posting-and-preferences",
+        "GET",
+        "/api/v1/companies/1/read?posting_id=%d" % posting_id,
+    )
+    call("situation-report-with-preferences", "GET", "/api/v1/me/situation-report")
+
+    # "I took this job". The second link closes the first in the same
+    # transaction (one open link per user), which `company-links` shows. The
+    # check-in is made while the second link is open, so it is the first in
+    # the scenario to carry `company_link_id` populated. The 422 is the
+    # business-rule one (ended before started); a non-date is `enforce=True`'s.
+    first_link = call(
+        "post-company-link",
+        "POST",
+        "/api/v1/me/company-links",
+        json={"company_id": 1, "started_on": "2026-01-15"},
+        headers=mp_csrf,
+    )
+    link_1 = first_link.get_json()["link"]["id"]
+    call(
+        "post-company-link-unknown-company",
+        "POST",
+        "/api/v1/me/company-links",
+        json={"company_id": 424242, "started_on": "2026-01-15"},
+        headers=mp_csrf,
+    )
+    second_link = call(
+        "post-company-link-second",
+        "POST",
+        "/api/v1/me/company-links",
+        json={"company_id": 1, "started_on": "2026-06-01"},
+        headers=mp_csrf,
+    )
+    link_2 = second_link.get_json()["link"]["id"]
+    call("company-links", "GET", "/api/v1/me/company-links")
+
+    linked_dims = dimensions_for_checkin(pulse_user_id, 1)
+    call(
+        "pulse-checkin-linked",
+        "POST",
+        "/api/v1/me/pulse/checkins",
+        json={"item_scores": {dim: 4 for dim in linked_dims}, "experienced": 3},
+        headers=mp_csrf,
+    )
+    call("pulse-history-linked", "GET", "/api/v1/me/pulse/history")
+
+    call(
+        "patch-company-link-before-start",
+        "PATCH",
+        "/api/v1/me/company-links/%d" % link_2,
+        json={"ended_on": "2026-05-01"},
+        headers=mp_csrf,
+    )
+    call(
+        "patch-company-link",
+        "PATCH",
+        "/api/v1/me/company-links/%d" % link_2,
+        json={"ended_on": "2026-09-30"},
+        headers=mp_csrf,
+    )
+    call(
+        "patch-company-link-missing",
+        "PATCH",
+        "/api/v1/me/company-links/424242",
+        json={"ended_on": "2026-09-30"},
+        headers=mp_csrf,
+    )
+    call(
+        "delete-company-link",
+        "DELETE",
+        "/api/v1/me/company-links/%d" % link_1,
+        headers=mp_csrf,
+    )
+    # Idempotence on the wire: the second delete is a 404, the same answer a
+    # link that never existed gets.
+    call(
+        "delete-company-link-again",
+        "DELETE",
+        "/api/v1/me/company-links/%d" % link_1,
+        headers=mp_csrf,
+    )
+    call("company-links-after", "GET", "/api/v1/me/company-links")
+
+    # The export with every key this build added populated: `trait_preferences`,
+    # `job_postings` (the paste's own text), `company_links`, the outcomes on
+    # the past report, and `company_link_id` on the linked check-in.
+    call("export-after-companylens", "GET", "/api/v1/me/export")
+
+    # The no-job account has no core sitting, so both reads are `core_required`
+    # -- a 200, because needing the core assessment first is not an error.
+    record(
+        "matches-core-required",
+        no_job.get("/api/v1/me/matches"),
+        "GET",
+        "/api/v1/me/matches",
+    )
+    record(
+        "company-read-core-required",
+        no_job.get("/api/v1/companies/1/read"),
+        "GET",
+        "/api/v1/companies/1/read",
+    )
+
+    # -- on-demand research, behind the public switch (C5c) -------------------
+    #
+    # Appended after the CompanyLens block, which was recorded before C5c
+    # landed, so every record above keeps its position. EMAIL again, on
+    # `mp_csrf`'s session. Company 1 holds the done run `_seed_company_records`
+    # wrote; `FRESH_COMPANY_NAME` holds nothing and must still hold nothing
+    # after both refusals -- that is what "a refused request writes nothing"
+    # means, and it is why the two refusals are asked about the SAME unseeded
+    # name: if the first had created the Company row, the second would be a
+    # different request.
+    #
+    # THE ORDER OF THE CHECKS IS THE PROPERTY. Switch first (so cached research
+    # is never gated and the switch costs nothing to read), providers second
+    # (so a 503 spends no budget), budget third, row last. The four steps pin
+    # the two refusals and the cached answer on either side of the switch; a
+    # diff where `research-company-disabled` became `provider_unavailable`
+    # would be the first two checks swapped.
+    research_body = {"name": FRESH_COMPANY_NAME}
+    cached_body = {"name": "Contract Industries"}
+    call(
+        "research-company-disabled",
+        "POST",
+        "/api/v1/companies/research",
+        json=research_body,
+        headers=mp_csrf,
+    )
+    call(
+        "research-company-cached-while-disabled",
+        "POST",
+        "/api/v1/companies/research",
+        json=cached_body,
+        headers=mp_csrf,
+    )
+    os.environ[RESEARCH_SWITCH] = "1"
+    try:
+        call(
+            "research-company-provider-unavailable",
+            "POST",
+            "/api/v1/companies/research",
+            json=research_body,
+            headers=mp_csrf,
+        )
+        call(
+            "research-company-cached",
+            "POST",
+            "/api/v1/companies/research",
+            json=cached_body,
+            headers=mp_csrf,
+        )
+    finally:
+        os.environ.pop(RESEARCH_SWITCH, None)
 
     return records
 

@@ -265,6 +265,10 @@ class Settings:
     # Absent providers degrade the feature that needs them; they never block boot.
     openai_api_key: Optional[str] = None
     groq_api_key: Optional[str] = None
+    # CompanyLens research (six-trait build, 2026-10-13). Read here for the boot
+    # log's presence check only; ``solverah.infra.llm.get_research_client``
+    # reads the variable at call time, like the OpenAI client does.
+    anthropic_api_key: Optional[str] = None
     onet_api_key: Optional[str] = None
     resend_api_key: Optional[str] = None
     s3_endpoint_url: Optional[str] = None
@@ -513,6 +517,7 @@ class Settings:
             log_format=log_format,
             openai_api_key=(env.get("OPENAI_API_KEY") or "").strip() or None,
             groq_api_key=(env.get("GROQ_API_KEY") or "").strip() or None,
+            anthropic_api_key=(env.get("ANTHROPIC_API_KEY") or "").strip() or None,
             onet_api_key=(env.get("ONET_API_KEY") or "").strip() or None,
             resend_api_key=(env.get("RESEND_API_KEY") or "").strip() or None,
             s3_endpoint_url=(env.get("S3_ENDPOINT_URL") or "").strip() or None,
@@ -578,6 +583,7 @@ class Settings:
             "providers": {
                 "openai": self.openai_api_key is not None,
                 "groq": self.groq_api_key is not None,
+                "anthropic": self.anthropic_api_key is not None,
                 "onet": self.onet_api_key is not None,
                 "resend": self.resend_api_key is not None,
                 "s3": self.s3_bucket_name is not None,

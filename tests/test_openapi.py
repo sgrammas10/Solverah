@@ -20,7 +20,13 @@ import re
 import pytest
 
 from solverah.factory import LEGACY_PREFIX, V1_PREFIX
-from solverah.openapi import DEFAULT_OUTPUT, build_openapi, route_spec, write_openapi
+from solverah.openapi import (
+    DEFAULT_DESCRIPTION,
+    DEFAULT_OUTPUT,
+    build_openapi,
+    route_spec,
+    write_openapi,
+)
 
 
 @pytest.fixture()
@@ -276,6 +282,27 @@ def test_committed_document_is_not_stale(flask_app):
     generated = json.dumps(build_openapi(flask_app), indent=2, sort_keys=True) + "\n"
 
     assert committed == generated, "docs/openapi.json is stale: python -m solverah.openapi"
+
+
+def test_info_description_is_fixed_and_not_an_operations(flask_app):
+    """`info.description` belongs to the document, not to whichever route sorts last.
+
+    The generator's loop variable used to shadow the `description` parameter,
+    so the document's description silently became the last operation's --
+    `PUT /me/skills`' docstring, then `PUT /me/trait-preferences`' once a route
+    sorted after it was added. A route addition at the end of the sort order
+    moved the committed document's description with no route having changed.
+    """
+    doc = build_openapi(flask_app)
+
+    assert doc["info"]["description"] == DEFAULT_DESCRIPTION
+    operation_descriptions = {
+        operation.get("description")
+        for operations in doc["paths"].values()
+        for operation in operations.values()
+    }
+    assert doc["info"]["description"] not in operation_descriptions
+    assert build_openapi(flask_app, description="custom")["info"]["description"] == "custom"
 
 
 def test_write_openapi_round_trips(tmp_path, flask_app):

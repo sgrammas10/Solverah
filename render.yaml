@@ -174,6 +174,48 @@ services:
       # no table. `create_app()` still runs, so the app's own config validation
       # applies, but nothing here queries.
 
+  # ---------------------------------------------- cron: CompanyLens run sweep
+  # Does NOT exist in the dashboard yet; created on the deploy day that ships
+  # the six-trait build (docs/RUNBOOK_DEPLOY_MAIN_MERGE.md, "CompanyLens
+  # six-trait"). Production has no Celery worker, so a research run lives on
+  # the web process's 2-thread pool. A deploy or crash mid-run leaves its row
+  # `queued` or `running` with nothing behind it, and `request_research` keeps
+  # returning that in-flight row, so that company can never be researched again.
+  # `flask companies sweep` fails `running` rows older than the research hard
+  # limit (1560 s) as `timed_out`, with no provider call, and re-dispatches
+  # `queued` rows older than 5 minutes.
+  #
+  # A re-dispatched run executes INSIDE THIS CRON's process (eager Celery, the
+  # research thread pool), and the process waits for it before exiting. So
+  # this cron needs ANTHROPIC_API_KEY and OPENAI_API_KEY (both in the
+  # solverah-prod group), and one pass can last as long as a research turn.
+  # Render runs at most one instance of a cron at a time, so a long pass delays
+  # the next one instead of overlapping it (verify in the dashboard after the
+  # first long pass).
+  #
+  # Every 10 minutes: the 5-minute queued window plus up to 10 minutes of cron
+  # latency means a lost run restarts within about 15 minutes. Running the
+  # sweep more often would not reap dead runs sooner, because the 26-minute
+  # running limit dominates.
+  #
+  # No FLASK_SKIP_DOTENV here, and the other crons do not set it either:
+  # Render's checkout has no .env (it is gitignored), so the Flask CLI finds
+  # nothing to load. The variable matters only on a laptop, whose .env holds
+  # the PROD DATABASE_URL (dry runs: FLASK_SKIP_DOTENV=1 plus a local URL).
+  - type: cron
+    name: solverah-companies-sweep
+    runtime: python
+    branch: main
+    schedule: "*/10 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: flask companies sweep
+    envVars:
+      - fromGroup: solverah-prod
+      - key: DATABASE_URL
+        fromDatabase:
+          name: solverah-db
+          property: connectionString
+
 # ------------------------------------------------------------------ database
 # Exists today, dashboard-created. Measured 2026-08-27 as PostgreSQL 18.3 —
 # uuidv7() is a native built-in the schema depends on (DEFAULT uuidv7()), so
@@ -261,7 +303,28 @@ envVarGroups:
       - key: REDIS_URL
         sync: false
       - key: OPENAI_API_KEY
+        sync: false             # also the CompanyLens scorer (gpt-5.5-2026-04-23)
+      # CompanyLens research (six-trait build). NOT SET IN PRODUCTION until the
+      # deploy day that ships it: Sebastian creates the key then. Unset is safe:
+      # research routes answer 503 before anything is written or spent.
+      - key: ANTHROPIC_API_KEY
         sync: false
+      # THE PUBLIC SWITCH (C5c, 2026-10-14): research opens to signed-in users only
+      # when this is truthy -- the key alone does not. Leave unset (off) until the
+      # attorney has reviewed review-site collection. Off: POST /companies/research
+      # answers 503 research_disabled; already-researched companies stay readable.
+      # SOLVERAH_RESEARCH_BLOCKED_DOMAINS: comma list passed to the research tools;
+      # the attorney's list goes here.
+      #   SOLVERAH_COMPANYLENS_RESEARCH_ENABLED   (default off)
+      #   SOLVERAH_RESEARCH_BLOCKED_DOMAINS       (default none)
+      # Optional overrides, read per call; leave unset. Each defaults to a
+      # pinned value in solverah/infra/llm. Any other model is a cost and
+      # quality change, so set one only on purpose.
+      #   SOLVERAH_RESEARCH_MODEL        (default claude-opus-5)
+      #   SOLVERAH_SCORER_MODEL          (default gpt-5.5-2026-04-23)
+      #   SOLVERAH_RESEARCH_SEARCH_TOOL / SOLVERAH_RESEARCH_FETCH_TOOL
+      # SOLVERAH_MODEL_WEIGHTS_SOURCE stays UNSET in production: unset reads
+      # priors.yaml, which is what the six-trait match serves.
       - key: GROQ_API_KEY
         sync: false
       - key: ONET_API_KEY

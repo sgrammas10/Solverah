@@ -1,6 +1,6 @@
 # Runbook — Database rollback
 
-**Status:** Path A rehearsed · Path C unrehearsed · **Owner:** Engineering · **Last revised:** 2026-10-02 (§7 added)
+**Status:** Path A rehearsed · Path C unrehearsed · **Owner:** Engineering · **Last revised:** 2026-10-14 (§8 added)
 
 Phase 0 and Phase 1 were reversible by redeploying the previous image. Phase 2 is the
 first phase where that stops being true: once a migration has rewritten rows, the old
@@ -274,3 +274,47 @@ clearing the refusal is a data decision for the pulse-experiments lane, not some
 improvise during an incident: for each user the query returns, every row but one must be
 abandoned or deleted. If that cannot be decided quickly, use Path A (§2) to restore the
 snapshot taken before the deploy, and accept losing the writes made since.
+
+---
+
+## 8. The CompanyLens six-trait batch (added 2026-10-14)
+
+Five revisions, applied in this order after `20261002_experiment_completed`:
+`20261013_trait_prefs` → `20261013_company_evidence` → `20261013_envreport_outcomes` →
+`20261013_user_company_link` → `20261013_pulse_company_link`. Checked on 2026-10-14:
+`20261013_trait_prefs` has `down_revision = "20261002_experiment_completed"`, and the
+chain has a single head, `20261013_pulse_company_link`.
+
+**Schema rollback of the whole batch:**
+
+```sh
+FLASK_SKIP_DOTENV=1 DATABASE_URL=<target> flask db downgrade 20261002_experiment_completed
+```
+
+Run it from the NEW code, because only that code has these downgrade scripts. Alembic
+walks the five in reverse, so `pulse_checkins.company_link_id` goes before the
+`user_company_link` table it points at.
+
+**None of the five refuses on a populated table** (schema-steward's review, re-read
+2026-10-14: no downgrade has a pre-check). Each one drops its data:
+
+| Revision | `downgrade` drops |
+|---|---|
+| `20261013_pulse_company_link` | `pulse_checkins.company_link_id` (the check-ins themselves stay) |
+| `20261013_user_company_link` | `user_company_link` and every "I took this job" link |
+| `20261013_envreport_outcomes` | the five exploratory outcome columns and their answers |
+| `20261013_company_evidence` | research runs, evidence items, item scores, trait records, pasted job postings, `company.headcount*`. Research money already spent is not recoverable |
+| `20261013_trait_prefs` | `person_trait_preference`, every stated tolerance and must-have |
+
+That is user data in three of the five (tolerances, links, outcome answers). Take the
+Path A snapshot (§2) before the downgrade if any of it should survive.
+
+**Usually you do not need this.** Every upgrade in the batch is additive, so the old
+code runs on the new schema, and a code rollback is a stamp plus a redeploy
+(`RUNBOOK_DEPLOY_MAIN_MERGE.md`, "CompanyLens six-trait" → Rollback). The previous
+`main` commit's chain ends at `20260921_path_wants`, which is five revisions earlier
+than the batch. Going that far back by downgrade passes through §7's
+`20261002_experiment_completed` and through `20261002_envreport_subject`. The second
+refuses while any past-job Environment Report exists.
+
+Not rehearsed. The downgrade chain has not been run against a populated lane database.

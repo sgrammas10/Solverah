@@ -330,6 +330,22 @@ def test_redacted_never_exposes_secrets():
     assert s.redacted()["database"] == "postgresql://db:5432/app"
 
 
+def test_anthropic_key_is_redacted_to_presence():
+    """The CompanyLens research key (2026-10-13) joins the providers block.
+
+    Presence only, like every other entry: the boot log answers "is research
+    configured?" without ever carrying the key. Absent is the CI runner's state
+    and must read False rather than be missing from the block.
+    """
+    absent = Settings.from_env(BASE_ENV)
+    present = Settings.from_env(dict(BASE_ENV, ANTHROPIC_API_KEY="sk-ant-live-abcdef"))
+
+    assert absent.redacted()["providers"]["anthropic"] is False
+    assert present.redacted()["providers"]["anthropic"] is True
+    assert "sk-ant-live-abcdef" not in repr(present.redacted())
+    assert Settings.from_env(dict(BASE_ENV, ANTHROPIC_API_KEY="   ")).anthropic_api_key is None
+
+
 def test_settings_are_immutable():
     """Configuration that can change after boot can differ between two workers."""
     s = Settings.from_env(BASE_ENV)
@@ -533,8 +549,21 @@ def test_create_app_boots_under_exactly_the_ci_environment():
         JWT_COOKIE_SAMESITE="Lax",
     )
 
-    with mock.patch.dict(os.environ, ci_env, clear=True):
-        app = create_app()
+    # `create_app()` is not side-effect free: `init_celery` stores the new app
+    # on the Celery conf as `solverah_flask_app`, and anything that later reads
+    # the "current" app from there -- `company_research.jobs.dispatch` decides
+    # inline-vs-thread off that app's `testing` flag -- would see this
+    # throwaway (TESTING is not set on it) instead of the suite's app. Found
+    # 2026-10-14: every CompanyLens research test that ran after this one went
+    # to the thread pool and deadlocked the teardown. Put the conf back.
+    from solverah.infra.queue import celery_app
+
+    suite_app = celery_app.conf.get("solverah_flask_app")
+    try:
+        with mock.patch.dict(os.environ, ci_env, clear=True):
+            app = create_app()
+    finally:
+        celery_app.conf.solverah_flask_app = suite_app
 
     assert app.extensions["solverah_settings"] is not None
     assert app.extensions["solverah_settings"].is_testing is True

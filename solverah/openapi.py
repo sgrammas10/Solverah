@@ -73,6 +73,7 @@ from pydantic import BaseModel
 from pydantic.json_schema import models_json_schema
 
 __all__ = [
+    "DEFAULT_DESCRIPTION",
     "OPENAPI_VERSION",
     "RouteSpec",
     "build_openapi",
@@ -88,6 +89,18 @@ JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 #: can generate its typed client without booting the API, and CI can fail on
 #: drift -- see tests/test_openapi.py.
 DEFAULT_OUTPUT = Path(__file__).resolve().parent.parent / "docs" / "openapi.json"
+
+#: ``info.description`` when :func:`build_openapi` is given none.  A fixed
+#: string, deliberately: it is part of the committed document, so anything that
+#: varied with the route set would show up as a drift diff on a change that
+#: touched no route.  The Phase 1 text it replaces promised an ``x-legacy-path``
+#: on every operation, which Phase 1b removed.
+DEFAULT_DESCRIPTION = (
+    "Generated from the pydantic models on each handler by "
+    "`python -m solverah.openapi`. Only the versioned `/api/v1` paths are "
+    "documented; the health probes are unversioned platform endpoints and are "
+    "deliberately absent."
+)
 
 #: Attribute the decorator stashes its spec under.
 _SPEC_ATTR = "__solverah_openapi__"
@@ -398,9 +411,18 @@ def build_openapi(
                 "tags": list(spec.tags) or [rule.endpoint.split(".")[0]],
                 "responses": _build_responses(spec, key_map, PROBLEM_RESPONSE_MODEL),
             }
-            description = spec.description or _docstring(app.view_functions[rule.endpoint])
-            if description:
-                operation["description"] = description
+            # Its own name on purpose: this used to be ``description``, which
+            # shadowed the *parameter* of that name, so ``info.description``
+            # below silently became whichever operation was rendered last --
+            # ``PUT /me/skills``' docstring until a route sorted after it was
+            # added, then ``PUT /me/trait-preferences``'.  The document's own
+            # description moved every time a route was added at the end of the
+            # sort order, with no route having changed.
+            operation_description = spec.description or _docstring(
+                app.view_functions[rule.endpoint]
+            )
+            if operation_description:
+                operation["description"] = operation_description
             if parameters:
                 operation["parameters"] = parameters
             # OpenAPI 3.1 permits a body on DELETE, and ``DELETE /me`` needs
@@ -424,14 +446,7 @@ def build_openapi(
         "info": {
             "title": title,
             "version": version,
-            "description": description
-            or (
-                "Generated from the pydantic models on each handler. "
-                "Every operation below is also served at the unversioned path "
-                "recorded in its `x-legacy-path`, for the duration of the "
-                "frontend cutover; the unversioned paths are not part of the "
-                "supported contract."
-            ),
+            "description": description or DEFAULT_DESCRIPTION,
         },
         "paths": dict(sorted(paths.items())),
         "components": {

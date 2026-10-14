@@ -60,6 +60,14 @@
             "title": "Assessment Answers",
             "type": "array"
           },
+          "company_links": {
+            "description": "Every \"I took this job\" link the user made, newest start first.",
+            "items": {
+              "$ref": "#/components/schemas/ExportedCompanyLink"
+            },
+            "title": "Company Links",
+            "type": "array"
+          },
           "dimension_scores": {
             "items": {
               "additionalProperties": true,
@@ -108,6 +116,14 @@
               "$ref": "#/components/schemas/ExportedIntakeSubmission"
             },
             "title": "Intake Submissions",
+            "type": "array"
+          },
+          "job_postings": {
+            "description": "Every job posting the user pasted, newest first.",
+            "items": {
+              "$ref": "#/components/schemas/ExportedJobPosting"
+            },
+            "title": "Job Postings",
             "type": "array"
           },
           "job_recommendations": {
@@ -194,6 +210,14 @@
             ],
             "default": null,
             "description": "The D-15 re-pin override, or null if the user has never recalibrated."
+          },
+          "trait_preferences": {
+            "description": "Every sitting of the trait-preference form, oldest first (append-only).",
+            "items": {
+              "$ref": "#/components/schemas/ExportedTraitPreference"
+            },
+            "title": "Trait Preferences",
+            "type": "array"
           }
         },
         "required": [
@@ -513,9 +537,130 @@
         "title": "CompanyDetailResponse",
         "type": "object"
       },
+      "CompanyLinkCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "started_on": {
+            "format": "date",
+            "title": "Started On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "company_id",
+          "started_on"
+        ],
+        "title": "CompanyLinkCreateRequest",
+        "type": "object"
+      },
+      "CompanyLinkEndRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "ended_on": {
+            "format": "date",
+            "title": "Ended On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ended_on"
+        ],
+        "title": "CompanyLinkEndRequest",
+        "type": "object"
+      },
+      "CompanyLinkEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanyListEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          },
+          "ended_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ended On"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "started_on": {
+            "title": "Started On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "started_on"
+        ],
+        "title": "CompanyLinkEntry",
+        "type": "object"
+      },
+      "CompanyLinkListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyLinkEntry"
+            },
+            "title": "Data",
+            "type": "array"
+          }
+        },
+        "title": "CompanyLinkListResponse",
+        "type": "object"
+      },
+      "CompanyLinkResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "link": {
+            "$ref": "#/components/schemas/CompanyLinkEntry"
+          }
+        },
+        "required": [
+          "link"
+        ],
+        "title": "CompanyLinkResponse",
+        "type": "object"
+      },
       "CompanyListEntry": {
         "additionalProperties": false,
-        "description": "One company in the list.\n\nDeliberately not the full profile: the list ships the fields a card renders\nand ``GET /companies/{id}`` ships the rest. The endpoint this pattern\nreplaces had no list at all, so every screen that wanted several companies\nfetched the whole research document for each.",
+        "description": "One company in the list.\n\nDeliberately not the full profile: the list ships the fields a card renders\nand ``GET /companies/{id}`` ships the rest.",
         "properties": {
           "id": {
             "title": "Id",
@@ -651,6 +796,195 @@
         "title": "CompanyListResponse",
         "type": "object"
       },
+      "CompanyReadQuery": {
+        "properties": {
+          "posting_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "One of the caller's own pasted postings for this company.",
+            "title": "Posting Id"
+          }
+        },
+        "title": "CompanyReadQuery",
+        "type": "object"
+      },
+      "CompanyReadResponse": {
+        "additionalProperties": false,
+        "description": "`GET /companies/{id}/read`. `traits` is present for `ranked` and\n`not_enough_evidence`; absent for `core_required` and `not_researched`.",
+        "properties": {
+          "company": {
+            "$ref": "#/components/schemas/CompanyRef"
+          },
+          "coverage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverageCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "flags": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FlagCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "missing": {
+            "items": {
+              "enum": [
+                "autonomy",
+                "pace",
+                "collaboration",
+                "feedback",
+                "innovation",
+                "decision"
+              ],
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "next_step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NextStep"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "posting": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PostingRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "preferences_answered": {
+            "title": "Preferences Answered",
+            "type": "boolean"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchRunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "state": {
+            "enum": [
+              "ranked",
+              "not_enough_evidence",
+              "core_required",
+              "not_researched"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "traits": {
+            "items": {
+              "$ref": "#/components/schemas/TraitRead"
+            },
+            "title": "Traits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "state",
+          "company",
+          "preferences_answered"
+        ],
+        "title": "CompanyReadResponse",
+        "type": "object"
+      },
+      "CompanyRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "size_band": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "1..5, the Environment Report's own size bands; null unknown.",
+            "title": "Size Band"
+          },
+          "size_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Size Note"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "CompanyRef",
+        "type": "object"
+      },
       "ConfirmEmailRequest": {
         "additionalProperties": false,
         "properties": {
@@ -671,93 +1005,35 @@
         "title": "ConfirmEmailRequest",
         "type": "object"
       },
-      "CultureMatchEntry": {
-        "additionalProperties": true,
-        "description": "One scored company.\n\n``top_matching_dimensions`` and ``top_mismatching_dimensions`` are the two\nhighest- and two lowest-scoring dimensions, and ``fit_summary`` is the\nsentence built from them.",
+      "CoverageCounts": {
+        "additionalProperties": false,
+        "description": "How many of the six traits the company could be read on. Always reported;\nfewer than 3 known is `not_enough_evidence`.",
         "properties": {
-          "fit_score": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Fit Score"
-          },
-          "fit_summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Fit Summary"
-          },
-          "id": {
-            "title": "Id",
+          "known": {
+            "title": "Known",
             "type": "integer"
           },
-          "industry": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Industry"
+          "mixed": {
+            "title": "Mixed",
+            "type": "integer"
           },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Name"
+          "total": {
+            "description": "Always 6.",
+            "title": "Total",
+            "type": "integer"
           },
-          "slug": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Slug"
-          },
-          "top_matching_dimensions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Top Matching Dimensions",
-            "type": "array"
-          },
-          "top_mismatching_dimensions": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Top Mismatching Dimensions",
-            "type": "array"
+          "unknown": {
+            "title": "Unknown",
+            "type": "integer"
           }
         },
         "required": [
-          "id"
+          "known",
+          "mixed",
+          "unknown",
+          "total"
         ],
-        "title": "CultureMatchEntry",
+        "title": "CoverageCounts",
         "type": "object"
       },
       "DashboardActivity": {
@@ -1047,6 +1323,21 @@
             "description": "Optional, displayed nowhere at launch (\u26916) -- stored for a future aggregation lane.",
             "title": "Employer Name"
           },
+          "engagement": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional exploratory outcome, 1..5, stored raw: 'How energised are you by the work itself?' Null or absent means skipped.",
+            "title": "Engagement"
+          },
           "experienced": {
             "description": "Overall, how well is this role working for you?",
             "maximum": 5,
@@ -1074,6 +1365,51 @@
             "description": "The organization's industry, one of the causal model's `industry` levels, or null (or absent) for 'not sure / prefer not to say'.",
             "title": "Industry"
           },
+          "performance": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional exploratory outcome, 1..5, stored raw: 'How well do you think you are performing in this role?' Null or absent means skipped.",
+            "title": "Performance"
+          },
+          "retention_intention": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional exploratory outcome, 1..5, stored raw: 'How likely is it that you will still be in this role a year from now?' Null or absent means skipped.",
+            "title": "Retention Intention"
+          },
+          "satisfaction": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional exploratory outcome, 1..5, stored raw: 'All things considered, how satisfied are you with this job?' Null or absent means skipped.",
+            "title": "Satisfaction"
+          },
           "stage_size": {
             "description": "1 (seed) .. 5 (enterprise).",
             "maximum": 5,
@@ -1090,6 +1426,21 @@
             ],
             "title": "Subject",
             "type": "string"
+          },
+          "sustainability": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional exploratory outcome, 1..5, stored raw: 'Could you keep working the way you do now for another year?' Null or absent means skipped.",
+            "title": "Sustainability"
           }
         },
         "required": [
@@ -1127,6 +1478,18 @@
             "title": "Dimension Scores",
             "type": "object"
           },
+          "engagement": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Engagement"
+          },
           "experienced": {
             "title": "Experienced",
             "type": "integer"
@@ -1150,6 +1513,42 @@
             "default": null,
             "title": "Industry"
           },
+          "performance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Performance"
+          },
+          "retention_intention": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Retention Intention"
+          },
+          "satisfaction": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Satisfaction"
+          },
           "stage_size": {
             "title": "Stage Size",
             "type": "integer"
@@ -1161,6 +1560,18 @@
             ],
             "title": "Subject",
             "type": "string"
+          },
+          "sustainability": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sustainability"
           },
           "version": {
             "title": "Version",
@@ -1176,6 +1587,123 @@
           "subject"
         ],
         "title": "EnvironmentReportSubmitResponse",
+        "type": "object"
+      },
+      "EvidenceItem": {
+        "additionalProperties": false,
+        "description": "One paraphrased piece of evidence. Never a verbatim quote (GAP-14), never a score.",
+        "properties": {
+          "abstained": {
+            "default": false,
+            "title": "Abstained",
+            "type": "boolean"
+          },
+          "paraphrase": {
+            "title": "Paraphrase",
+            "type": "string"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO date, or null.",
+            "title": "Published At"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "scope_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope Label"
+          },
+          "source_type": {
+            "title": "Source Type",
+            "type": "string"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Url"
+          }
+        },
+        "required": [
+          "paraphrase",
+          "source_type",
+          "scope"
+        ],
+        "title": "EvidenceItem",
+        "type": "object"
+      },
+      "EvidenceSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "abstained": {
+            "title": "Abstained",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "first_dated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Dated"
+          },
+          "last_dated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Dated"
+          },
+          "source_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Source Types",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "abstained"
+        ],
+        "title": "EvidenceSummary",
         "type": "object"
       },
       "ExperimentAbandonResponse": {
@@ -1515,6 +2043,58 @@
         "title": "ExportedAccount",
         "type": "object"
       },
+      "ExportedCompanyLink": {
+        "additionalProperties": false,
+        "description": "One \"I took this job\" link the user made (C6): which company, and when.",
+        "properties": {
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "ended_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 date the job ended, or null while it is current.",
+            "title": "Ended On"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "started_on": {
+            "description": "ISO 8601 date the user said they started.",
+            "title": "Started On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "company_id",
+          "started_on"
+        ],
+        "title": "ExportedCompanyLink",
+        "type": "object"
+      },
       "ExportedEnvironmentReport": {
         "additionalProperties": false,
         "description": "One sitting of the Situation Report's environment-side instrument (BUILD_PLAN D-7).\n\nPassed straight through from ``environment_report_store``'s own serialization --\nthe same dict the store already hands the ``GET /me/situation-report`` read path --\nrather than a second, export-specific shape.",
@@ -1575,6 +2155,66 @@
             "default": null,
             "description": "Industry level key, or null: 'not sure' or, before env-v2, never asked.",
             "title": "Industry"
+          },
+          "outcome_engagement": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome Engagement"
+          },
+          "outcome_performance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome Performance"
+          },
+          "outcome_retention_intention": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome Retention Intention"
+          },
+          "outcome_satisfaction": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome Satisfaction"
+          },
+          "outcome_sustainability": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Outcome Sustainability"
           },
           "raw_answers": {
             "additionalProperties": true,
@@ -1858,6 +2498,68 @@
         "title": "ExportedIntakeSubmission",
         "type": "object"
       },
+      "ExportedJobPosting": {
+        "additionalProperties": false,
+        "description": "One job posting the user pasted (C3). ``posting_text`` is their own text.",
+        "properties": {
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Company Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "posting_text": {
+            "title": "Posting Text",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "posting_text",
+          "status"
+        ],
+        "title": "ExportedJobPosting",
+        "type": "object"
+      },
       "ExportedJobRecommendation": {
         "additionalProperties": false,
         "properties": {
@@ -2026,6 +2728,19 @@
         "additionalProperties": false,
         "description": "One completed Pulse check-in (BUILD_PLAN B-1, D-7).\n\n``item_scores`` holds only the round-robin dimensions that check-in served --\nnever all five -- straight from ``pulse_store``'s own serialization, the same\ndict B-2/B-3's reads will use.",
         "properties": {
+          "company_link_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The id of the company link (company_links) that was active when this check-in was filed, or null when none was (C8).",
+            "title": "Company Link Id"
+          },
           "experienced": {
             "title": "Experienced",
             "type": "integer"
@@ -2224,6 +2939,86 @@
           "submission_id"
         ],
         "title": "ExportedSituationReportPin",
+        "type": "object"
+      },
+      "ExportedTraitPreference": {
+        "additionalProperties": false,
+        "description": "One trait's row from one sitting of the trait-preference form (C1).\n\nA sitting is six rows sharing ``sitting_id``; every sitting is exported, oldest\nfirst, because earlier sittings are kept rather than overwritten.",
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "ISO 8601 timestamp.",
+            "title": "Created At"
+          },
+          "dimension": {
+            "title": "Dimension",
+            "type": "string"
+          },
+          "form_version": {
+            "title": "Form Version",
+            "type": "string"
+          },
+          "must_have": {
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "over_steps": {
+            "title": "Over Steps",
+            "type": "integer"
+          },
+          "sitting_id": {
+            "title": "Sitting Id",
+            "type": "string"
+          },
+          "under_steps": {
+            "title": "Under Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sitting_id",
+          "dimension",
+          "under_steps",
+          "over_steps",
+          "must_have",
+          "form_version"
+        ],
+        "title": "ExportedTraitPreference",
+        "type": "object"
+      },
+      "FlagCounts": {
+        "additionalProperties": false,
+        "properties": {
+          "investigate": {
+            "description": "Unknown must-have traits.",
+            "title": "Investigate",
+            "type": "integer"
+          },
+          "must_have_breaks": {
+            "description": "Known traits outside the user's tolerance that are must-haves. One or more sorts the company last; it is never hidden.",
+            "title": "Must Have Breaks",
+            "type": "integer"
+          },
+          "risks": {
+            "description": "Mixed must-have traits whose worse end breaks the tolerance.",
+            "title": "Risks",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "must_have_breaks",
+          "risks",
+          "investigate"
+        ],
+        "title": "FlagCounts",
         "type": "object"
       },
       "FocusTypeResult": {
@@ -2855,6 +3650,120 @@
         "title": "IntakeSignInResponse",
         "type": "object"
       },
+      "JobPostingCreateRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "text": {
+            "description": "The pasted posting.",
+            "maxLength": 40000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "required": [
+          "company_id",
+          "text"
+        ],
+        "title": "JobPostingCreateRequest",
+        "type": "object"
+      },
+      "JobPostingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "posting": {
+            "$ref": "#/components/schemas/JobPostingStatus"
+          }
+        },
+        "required": [
+          "posting"
+        ],
+        "title": "JobPostingResponse",
+        "type": "object"
+      },
+      "JobPostingStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Company Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          },
+          "has_read": {
+            "description": "Whether role-level records exist for it yet.",
+            "title": "Has Read",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "scored",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "has_read"
+        ],
+        "title": "JobPostingStatus",
+        "type": "object"
+      },
       "LegacyError": {
         "additionalProperties": false,
         "description": "The pre-Phase-1 error body: ``{\"error\": \"...\"}``.\n\nHandlers return this from their own explicit failure branches, and Phase 1a\nkeeps every one of them byte-for-byte.  It coexists with\n:class:`ProblemDetailResponse`, which is what the Phase 0 error handlers\nproduce for anything a handler did not catch itself.\n\nThe two shapes are why ``src/shared/api/apiError.ts`` reads both.  Phase 1b\ncollapses them by moving handlers onto ``solverah.errors.ApiError``.",
@@ -3282,6 +4191,124 @@
         "title": "ManagerProfileSubmitResponse",
         "type": "object"
       },
+      "MatchEntry": {
+        "additionalProperties": false,
+        "description": "One company in the ranking. `rank` is null for `not_enough_evidence`.",
+        "properties": {
+          "coverage": {
+            "$ref": "#/components/schemas/CoverageCounts"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/FlagCounts"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "missing": {
+            "description": "Traits with no read (unknown).",
+            "items": {
+              "enum": [
+                "autonomy",
+                "pace",
+                "collaboration",
+                "feedback",
+                "innovation",
+                "decision"
+              ],
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "must_have_reads": {
+            "items": {
+              "$ref": "#/components/schemas/TraitReadSummary"
+            },
+            "title": "Must Have Reads",
+            "type": "array"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "next_step": {
+            "$ref": "#/components/schemas/NextStep"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rank"
+          },
+          "research": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchRunStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "size_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Size Note"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slug"
+          },
+          "state": {
+            "enum": [
+              "ranked",
+              "not_enough_evidence"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "coverage",
+          "flags",
+          "next_step"
+        ],
+        "title": "MatchEntry",
+        "type": "object"
+      },
       "MatchesQuery": {
         "description": "Query parameters for ``GET /me/matches``.",
         "properties": {
@@ -3298,19 +4325,6 @@
             "description": "Opaque token from next_cursor.",
             "title": "Cursor"
           },
-          "lens": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Scoring lens. Only \"culture\" exists today.",
-            "title": "Lens"
-          },
           "limit": {
             "anyOf": [
               {
@@ -3323,19 +4337,6 @@
             "default": null,
             "description": "Rows per page. Clamped to 1-100.",
             "title": "Limit"
-          },
-          "order": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "\"best\" (default) ranks strongest fit first; \"worst\" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end.",
-            "title": "Order"
           }
         },
         "title": "MatchesQuery",
@@ -3343,19 +4344,14 @@
       },
       "MatchesResponse": {
         "additionalProperties": false,
-        "description": "A page of scored companies.\n\n``total_companies_scored`` is carried alongside the page because it is what\nthe UI puts in \"N companies scored\", and a client cannot derive it from a\npage. It is also the honest measure of P0-2: it counts the rows this request\npulled into Python and scored, every time, with no index and no cache.",
+        "description": "A page of the ranking, or one of the two empty states.\n\n`core_required`: the user has no current core sitting (not a 400 -- a state the\npage renders). `no_companies`: nothing has been researched yet. `ranked`: `data`\nholds ranked companies first (must-have breaks last among them) and\n`not_enough_evidence` companies after.",
         "properties": {
           "data": {
             "items": {
-              "$ref": "#/components/schemas/CultureMatchEntry"
+              "$ref": "#/components/schemas/MatchEntry"
             },
             "title": "Data",
             "type": "array"
-          },
-          "lens": {
-            "description": "Which scoring lens produced these. Always \"culture\" today.",
-            "title": "Lens",
-            "type": "string"
           },
           "next_cursor": {
             "anyOf": [
@@ -3369,20 +4365,29 @@
             "default": null,
             "title": "Next Cursor"
           },
-          "order": {
-            "description": "\"best\" or \"worst\".",
-            "title": "Order",
+          "preferences_answered": {
+            "description": "Whether the user has answered the tolerance step. If not, every trait reads with the 0.15 floor zone and no must-haves.",
+            "title": "Preferences Answered",
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "ranked",
+              "core_required",
+              "no_companies"
+            ],
+            "title": "State",
             "type": "string"
           },
-          "total_companies_scored": {
-            "title": "Total Companies Scored",
+          "total_companies": {
+            "title": "Total Companies",
             "type": "integer"
           }
         },
         "required": [
-          "total_companies_scored",
-          "lens",
-          "order"
+          "state",
+          "total_companies",
+          "preferences_answered"
         ],
         "title": "MatchesResponse",
         "type": "object"
@@ -3400,6 +4405,95 @@
           "message"
         ],
         "title": "MessageResponse",
+        "type": "object"
+      },
+      "MixedEnd": {
+        "additionalProperties": false,
+        "properties": {
+          "direction": {
+            "enum": [
+              "more",
+              "less",
+              "even"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "within_tolerance": {
+            "title": "Within Tolerance",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "direction",
+          "within_tolerance"
+        ],
+        "title": "MixedEnd",
+        "type": "object"
+      },
+      "MixedRead": {
+        "additionalProperties": false,
+        "description": "A mixed trait, both ends read separately. Never averaged.",
+        "properties": {
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whether scope or time explains the split, when it does.",
+            "title": "Explanation"
+          },
+          "high_end": {
+            "$ref": "#/components/schemas/MixedEnd"
+          },
+          "low_end": {
+            "$ref": "#/components/schemas/MixedEnd"
+          }
+        },
+        "required": [
+          "low_end",
+          "high_end"
+        ],
+        "title": "MixedRead",
+        "type": "object"
+      },
+      "NextStep": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "enum": [
+              "decide",
+              "investigate",
+              "prepare",
+              "explore",
+              "act",
+              "dont_act_yet"
+            ],
+            "title": "Category",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "reason"
+        ],
+        "title": "NextStep",
         "type": "object"
       },
       "OkResponse": {
@@ -4204,6 +5298,238 @@
         "title": "PathWantsResponse",
         "type": "object"
       },
+      "PostingRead": {
+        "additionalProperties": false,
+        "properties": {
+          "company_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Company Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          },
+          "disagreements": {
+            "items": {
+              "enum": [
+                "autonomy",
+                "pace",
+                "collaboration",
+                "feedback",
+                "innovation",
+                "decision"
+              ],
+              "type": "string"
+            },
+            "title": "Disagreements",
+            "type": "array"
+          },
+          "has_read": {
+            "description": "Whether role-level records exist for it yet.",
+            "title": "Has Read",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "scored",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          },
+          "traits": {
+            "items": {
+              "$ref": "#/components/schemas/PostingTraitRead"
+            },
+            "title": "Traits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "has_read"
+        ],
+        "title": "PostingRead",
+        "type": "object"
+      },
+      "PostingTraitRead": {
+        "additionalProperties": false,
+        "description": "The pasted posting's role-level read of one trait, beside the company's.",
+        "properties": {
+          "dimension": {
+            "enum": [
+              "autonomy",
+              "pace",
+              "collaboration",
+              "feedback",
+              "innovation",
+              "decision"
+            ],
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "more",
+                  "less",
+                  "even"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: the company offers \"more\" or \"less\" of the trait than you prefer (\"even\" when the two agree exactly).",
+            "title": "Direction"
+          },
+          "disagrees": {
+            "description": "Both the company and the posting are known on this trait and they fall on different sides, or far apart.",
+            "title": "Disagrees",
+            "type": "boolean"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Explanation"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "enum": [
+                  "must_have_break",
+                  "risk",
+                  "investigate"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flag"
+          },
+          "high_pole": {
+            "title": "High Pole",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low_pole": {
+            "title": "Low Pole",
+            "type": "string"
+          },
+          "must_have": {
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "paraphrases": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "title": "Paraphrases",
+            "type": "array"
+          },
+          "questions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "known",
+              "mixed",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "within_tolerance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: inside your flat zone.",
+            "title": "Within Tolerance"
+          }
+        },
+        "required": [
+          "dimension",
+          "label",
+          "low_pole",
+          "high_pole",
+          "status",
+          "must_have",
+          "disagrees"
+        ],
+        "title": "PostingTraitRead",
+        "type": "object"
+      },
       "ProblemDetailError": {
         "additionalProperties": true,
         "description": "One field-level entry inside a problem document's ``errors`` array.",
@@ -4430,6 +5756,19 @@
         "additionalProperties": false,
         "description": "One check-in as ``GET /me/pulse/history`` lists it.",
         "properties": {
+          "company_link_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The user's active UserCompanyLink ('I took this job') at the moment this check-in was recorded, or null if they had none. Six-trait build, C8: lets later analysis tie repeated low 'experienced' ratings to a CompanyLens read.",
+            "title": "Company Link Id"
+          },
           "experienced": {
             "title": "Experienced",
             "type": "integer"
@@ -5107,6 +6446,119 @@
         "title": "RegisterResponse",
         "type": "object"
       },
+      "ResearchRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "The company's name.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ResearchRequest",
+        "type": "object"
+      },
+      "ResearchRunResponse": {
+        "additionalProperties": false,
+        "description": "`202` from `POST /companies/research`. `cached` is true when a fresh run already\nexisted and nothing new was started.",
+        "properties": {
+          "cached": {
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "run": {
+            "$ref": "#/components/schemas/ResearchRunStatus"
+          }
+        },
+        "required": [
+          "run",
+          "cached"
+        ],
+        "title": "ResearchRunResponse",
+        "type": "object"
+      },
+      "ResearchRunStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanyListEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "company_id": {
+            "title": "Company Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Created At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Finished At"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "company_id",
+          "status"
+        ],
+        "title": "ResearchRunStatus",
+        "type": "object"
+      },
       "ResendConfirmationRequest": {
         "additionalProperties": false,
         "properties": {
@@ -5613,6 +7065,411 @@
         "title": "SummaryUser",
         "type": "object"
       },
+      "TraitPreferenceEntry": {
+        "additionalProperties": false,
+        "description": "One trait as stored. Unanswered: steps null, must_have false, answered false.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "dimension_key": {
+            "enum": [
+              "autonomy",
+              "pace",
+              "collaboration",
+              "feedback",
+              "innovation",
+              "decision"
+            ],
+            "title": "Dimension Key",
+            "type": "string"
+          },
+          "must_have": {
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "over_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0, 1 or 2; null when the user has not answered.",
+            "title": "Over Steps"
+          },
+          "under_steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0, 1 or 2; null when the user has not answered.",
+            "title": "Under Steps"
+          }
+        },
+        "required": [
+          "dimension_key",
+          "under_steps",
+          "over_steps",
+          "must_have",
+          "answered"
+        ],
+        "title": "TraitPreferenceEntry",
+        "type": "object"
+      },
+      "TraitPreferenceInput": {
+        "description": "One trait's answer.",
+        "properties": {
+          "dimension_key": {
+            "description": "One of autonomy, pace, collaboration, feedback, innovation, decision.",
+            "title": "Dimension Key",
+            "type": "string"
+          },
+          "must_have": {
+            "description": "Non-negotiable. At most two per user.",
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "over_steps": {
+            "description": "How much MORE of this trait than the user prefers a job may provide without cost, in steps of 0.25: 0, 1 or 2.",
+            "title": "Over Steps",
+            "type": "integer"
+          },
+          "under_steps": {
+            "description": "How much LESS of this trait than the user prefers a job may provide without cost, in steps of 0.25: 0, 1 or 2.",
+            "title": "Under Steps",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dimension_key",
+          "under_steps",
+          "over_steps",
+          "must_have"
+        ],
+        "title": "TraitPreferenceInput",
+        "type": "object"
+      },
+      "TraitPreferencesDocument": {
+        "additionalProperties": false,
+        "description": "The user's latest sitting, or all six traits unanswered.\n\n`answered: false` means the user never answered or skipped; matching and the\nSituation Report then behave exactly as before this step existed.",
+        "properties": {
+          "answered": {
+            "title": "Answered",
+            "type": "boolean"
+          },
+          "max_must_haves": {
+            "description": "The most must-haves a user may set (2).",
+            "title": "Max Must Haves",
+            "type": "integer"
+          },
+          "traits": {
+            "description": "All six traits, in the product's fixed order.",
+            "items": {
+              "$ref": "#/components/schemas/TraitPreferenceEntry"
+            },
+            "title": "Traits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answered",
+          "max_must_haves",
+          "traits"
+        ],
+        "title": "TraitPreferencesDocument",
+        "type": "object"
+      },
+      "TraitPreferencesPutRequest": {
+        "description": "All six traits, each exactly once. Appends a new sitting; earlier ones are kept.",
+        "properties": {
+          "traits": {
+            "description": "Exactly six entries, one per trait.",
+            "items": {
+              "$ref": "#/components/schemas/TraitPreferenceInput"
+            },
+            "title": "Traits",
+            "type": "array"
+          }
+        },
+        "required": [
+          "traits"
+        ],
+        "title": "TraitPreferencesPutRequest",
+        "type": "object"
+      },
+      "TraitRead": {
+        "additionalProperties": false,
+        "description": "One trait with its evidence, as `GET /companies/{id}/read` shows it.",
+        "properties": {
+          "dimension": {
+            "enum": [
+              "autonomy",
+              "pace",
+              "collaboration",
+              "feedback",
+              "innovation",
+              "decision"
+            ],
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "more",
+                  "less",
+                  "even"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: the company offers \"more\" or \"less\" of the trait than you prefer (\"even\" when the two agree exactly).",
+            "title": "Direction"
+          },
+          "evidence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Unknown and mixed traits: one plain line.",
+            "title": "Explanation"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "enum": [
+                  "must_have_break",
+                  "risk",
+                  "investigate"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flag"
+          },
+          "high_pole": {
+            "title": "High Pole",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low_pole": {
+            "title": "Low Pole",
+            "type": "string"
+          },
+          "mixed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MixedRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "must_have": {
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "paraphrases": {
+            "description": "Known traits: the newest paraphrases.",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItem"
+            },
+            "title": "Paraphrases",
+            "type": "array"
+          },
+          "questions": {
+            "description": "Must-have traits that are unknown or mixed: what to ask at interview.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "scope_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Scope Note"
+          },
+          "status": {
+            "enum": [
+              "known",
+              "mixed",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "within_tolerance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: inside your flat zone.",
+            "title": "Within Tolerance"
+          }
+        },
+        "required": [
+          "dimension",
+          "label",
+          "low_pole",
+          "high_pole",
+          "status",
+          "must_have"
+        ],
+        "title": "TraitRead",
+        "type": "object"
+      },
+      "TraitReadSummary": {
+        "additionalProperties": false,
+        "description": "One trait as the list shows it: labels only, no numbers.",
+        "properties": {
+          "dimension": {
+            "enum": [
+              "autonomy",
+              "pace",
+              "collaboration",
+              "feedback",
+              "innovation",
+              "decision"
+            ],
+            "title": "Dimension",
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "more",
+                  "less",
+                  "even"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: the company offers \"more\" or \"less\" of the trait than you prefer (\"even\" when the two agree exactly).",
+            "title": "Direction"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "enum": [
+                  "must_have_break",
+                  "risk",
+                  "investigate"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flag"
+          },
+          "high_pole": {
+            "title": "High Pole",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low_pole": {
+            "title": "Low Pole",
+            "type": "string"
+          },
+          "must_have": {
+            "title": "Must Have",
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "known",
+              "mixed",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "within_tolerance": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Known traits only: inside your flat zone.",
+            "title": "Within Tolerance"
+          }
+        },
+        "required": [
+          "dimension",
+          "label",
+          "low_pole",
+          "high_pole",
+          "status",
+          "must_have"
+        ],
+        "title": "TraitReadSummary",
+        "type": "object"
+      },
       "WorkPulseAnswer": {
         "additionalProperties": true,
         "properties": {
@@ -5817,7 +7674,7 @@
     }
   },
   "info": {
-    "description": "PUT /me/skills - write the full set of proficiency ratings.\n\nPUT rather than the PATCH this replaces, because the write is a wholesale\nreplacement of the ratings map, not a merge into it. Also sets\nskills_proficiency_confirmed so the rating modal stops re-prompting.",
+    "description": "Generated from the pydantic models on each handler by `python -m solverah.openapi`. Only the versioned `/api/v1` paths are documented; the health probes are unversioned platform endpoints and are deliberately absent.",
     "title": "Solverah API",
     "version": "1.0.0"
   },
@@ -6846,7 +8703,7 @@
     },
     "/api/v1/companies": {
       "get": {
-        "description": "GET /companies - one page of companies.\n\nNew in Phase 1b: there was no list endpoint, so a screen wanting several\ncompanies fetched the full research document for each one by id.\n\nPaginated with an opaque keyset cursor, never an offset (A5). Pass\nnext_cursor back as ?cursor= and stop when it comes back null. A cursor the\nserver did not mint is a 422, not a silent page one -- answering a garbled\ncursor with the first page is how a paging loop becomes an infinite one.",
+        "description": "GET /companies - one page of companies, keyset-paginated (A5).",
         "operationId": "get_companies_company_list",
         "parameters": [
           {
@@ -6965,6 +8822,163 @@
         ]
       }
     },
+    "/api/v1/companies/research": {
+      "post": {
+        "description": "Finds or creates the company and answers `202` with the run to poll. A `done` run younger than the cache window is returned as is (`cached: true`) and costs nothing; an in-flight run is returned as is. Otherwise a new run is queued. Each user may start at most five new runs a day (`429` beyond that); cached hits do not count. `503` is a problem document: `research_disabled` when on-demand research is switched off on this server (cached runs are still returned), or `provider_unavailable` when no research provider is configured. A refused request writes nothing.",
+        "operationId": "post_companies_research_company",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunResponse"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Too many requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Research a company by name, on demand",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/companies/research/{run_id}": {
+      "get": {
+        "description": "GET /companies/research/<run_id> - the run's status.",
+        "operationId": "get_companies_research_run_status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchRunStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Poll a research run",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
     "/api/v1/companies/{company_id}": {
       "get": {
         "description": "GET /companies/<company_id> - Return a company's full profile.",
@@ -7017,6 +9031,91 @@
           }
         ],
         "summary": "Fetch a company's full research profile",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/companies/{company_id}/read": {
+      "get": {
+        "description": "Six trait reads: status (known / mixed / unknown), direction versus the user's preference, inside or outside their tolerance, must-have, paraphrased evidence (both sides for a mixed trait, with the scope or time explanation when there is one), interview questions for a must-have that is unknown or mixed, and the company-size confidence note. With `?posting_id=` (one of the caller's own pastes for this company) the posting's role-level read sits beside the company's, with disagreements named. Another user's posting is a 404.",
+        "operationId": "get_companies_company_read",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "company_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "One of the caller's own pasted postings for this company.",
+            "in": "query",
+            "name": "posting_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Posting Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyReadResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "The full per-trait read of one company for the authenticated user",
         "tags": [
           "companies"
         ]
@@ -7667,6 +9766,259 @@
         ]
       }
     },
+    "/api/v1/me/company-links": {
+      "get": {
+        "description": "GET /me/company-links - every link, newest start first.",
+        "operationId": "get_companies_list_company_links",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLinkListResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "List the user's company links",
+        "tags": [
+          "companies"
+        ]
+      },
+      "post": {
+        "description": "\"I took this job\": links later Pulse check-ins to the CompanyLens read (PRODUCT_DECISIONS.md section 2, what changes the weights, item 4).",
+        "operationId": "post_companies_post_company_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyLinkCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLinkResponse"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record that the user took a job at a company",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/me/company-links/{link_id}": {
+      "delete": {
+        "description": "Owner-only: another user's link is a 404.",
+        "operationId": "delete_companies_delete_company_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Remove one of the user's company links",
+        "tags": [
+          "companies"
+        ]
+      },
+      "patch": {
+        "description": "Owner-only: another user's link is a 404. ended_on must be on or after started_on.",
+        "operationId": "patch_companies_patch_company_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompanyLinkEndRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyLinkResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "\"I left\": close one of the user's company links",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
     "/api/v1/me/dashboard": {
       "get": {
         "description": "GET /me/dashboard - profile completion, counts, activity, next steps.\n\nrecentActivity is the caller's real events (newest first, ISO timestamps)\nand recommendations their next unfinished steps; see\nsolverah.services.dashboard_feed. The three counts are live.",
@@ -7716,7 +10068,7 @@
     },
     "/api/v1/me/environment-report": {
       "post": {
-        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md \u00a72, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`.",
+        "description": "Scores the twelve environment items instantly (rules-scored, no Celery) and stores an append-only `environment_reports` row (D-16 tradition: a resubmission is a new row, never an update). `career_status` is snapshotted from the caller's profile at submit time, not taken from the request body. `first_job` has no role to describe and is refused with a distinguishable `409` (`errors[0].code == \"first_job_no_role\"`) the UI turns into the skip path (PRODUCT_DECISIONS.md \u00a72, 2026-09-10). Optional `subject` (default `current`): `past` files the user's one report about the job before their current or most recent one (PRODUCT_DECISIONS.md \u00a72, 2026-10-01). It is refused `409` with `errors[0].code` `first_job_no_role` for first_job, `current_report_required` before any current report exists, and `past_report_limit` once one is filed. A past report is stored and exported but never changes `GET /me/situation-report` beyond its `past_job_report_filed` flag. The response echoes `subject`. Five optional exploratory outcomes follow `experienced` (`satisfaction`, `performance`, `engagement`, `sustainability`, `retention_intention`; PRODUCT_DECISIONS.md \u00a72, 2026-10-13): each 1..5 or null/absent for skipped, stored raw, echoed back, and never read by the Situation Report.",
         "operationId": "post_me_post_my_environment_report",
         "requestBody": {
           "content": {
@@ -8026,6 +10378,163 @@
         ]
       }
     },
+    "/api/v1/me/job-postings": {
+      "post": {
+        "description": "The text is the user's own paste; nothing is fetched. It is scored against the same rubric as the company evidence and its records are private to the caller -- pass the posting's id as `?posting_id=` on `GET /companies/{id}/read`. `503` is a `provider_unavailable` problem document when the scorer has no key; nothing is written. Postings are not gated by the research switch.",
+        "operationId": "post_companies_post_job_posting",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobPostingCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobPostingResponse"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Too many requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Service unavailable"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Paste a job posting to be read at role level",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
+    "/api/v1/me/job-postings/{posting_id}": {
+      "get": {
+        "description": "Owner-only: another user's posting is a 404, not a 403.",
+        "operationId": "get_companies_get_job_posting",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "posting_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobPostingResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Poll one of the caller's pasted postings",
+        "tags": [
+          "companies"
+        ]
+      }
+    },
     "/api/v1/me/manager-playbook": {
       "get": {
         "description": "Diffs this user's ManagerMatch needs against their latest manager-profile sitting (`POST /assessments/manager-profile`) and returns the assembled playbook. Two states answer `409`, distinguishably: no ManagerMatch sitting yet (`errors[0].code == \"no_manager_match\"`), and a ManagerMatch sitting but no manager profile yet (`\"no_manager_profile\"`) -- a client routes the user at whichever instrument is missing rather than showing a generic error.",
@@ -8085,7 +10594,7 @@
     },
     "/api/v1/me/matches": {
       "get": {
-        "description": "Replaces `GET /company-lens/matches`, which returned two fixed-size slices -- `best_fits` and `worst_fits` -- in one body, with nothing reachable beyond them. `?order=worst` carries the second slice over: the two halves are now two directions through one paginated list.\n\nWrites nothing. Still an O(all-companies) in-process scan (P0-2), of each company's id and eight culture columns only; names, slugs and industries are read afterwards for the returned page alone. The cursor is what lets that scan be replaced behind an unchanged contract; it is not itself the fix.",
+        "description": "Every company with shared research records, ordered by the causal model's ranking for this user with the gate layer on top: a company with a must-have broken on a known trait is flagged and sorted last, never hidden; a company read on fewer than 3 of 6 traits is `not_enough_evidence`, has no rank and is listed after the ranked ones. No probability, score or percentage is carried: the order is the output.\n\n`state` is `core_required` when the user has no current core sitting and `no_companies` when nothing has been researched yet; both are 200s.",
         "operationId": "get_companies_my_matches",
         "parameters": [
           {
@@ -8123,42 +10632,6 @@
               "default": null,
               "title": "Limit"
             }
-          },
-          {
-            "description": "Scoring lens. Only \"culture\" exists today.",
-            "in": "query",
-            "name": "lens",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Lens"
-            }
-          },
-          {
-            "description": "\"best\" (default) ranks strongest fit first; \"worst\" ranks weakest first. The endpoint this replaces returned both halves in one body, which is why the parameter exists rather than the client paging to the end.",
-            "in": "query",
-            "name": "order",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "title": "Order"
-            }
           }
         ],
         "responses": {
@@ -8171,16 +10644,6 @@
               }
             },
             "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Bad request"
           },
           "404": {
             "content": {
@@ -8196,7 +10659,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
                 }
               }
             },
@@ -8218,7 +10681,7 @@
             "accessTokenCookie": []
           }
         ],
-        "summary": "Rank companies by fit for the authenticated user",
+        "summary": "Rank researched companies for the authenticated user on the six traits",
         "tags": [
           "companies"
         ]
@@ -9859,7 +12322,7 @@
     },
     "/api/v1/me/situation-report": {
       "get": {
-        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
+        "description": "Three states, distinguished by `state`: `needs_core` (no completed `core` sitting yet -- an already-submitted environment report is echoed as bare dimension scores, with no gap to compute), `needs_environment_report` (core done, no environment report yet), and `complete` (the full gap report, needs-forward sliced when the pinned career_status is past-tense). D-15 (structural, every state): no person-side score, no numeric gap, no per-dimension magnitude, ever. Person-side reads go through the pinned snapshot (\u26915) -- a core retake with no explicit `POST /me/situation-report/recalibrate` leaves this response byte-identical. `manager` is always present: `{'has_profile': bool}`, a link-or-prompt to the Manager Decoder. `complete` additionally carries `events_since_report` (BUILD_PLAN B-4): Pulse life/work events logged after the environment report's `submitted_at`, each `{'type', 'date'}` and never a `note` -- what the frontend's resubmission banner reads -- and `career_status_changed` (bool): whether the user's live career status now reads in a different tense from the one the report was filed under, so the frontend can ask them to describe the job again (the report itself is not re-sliced). `needs_core` carries `core_unreadable: true` when a core sitting exists but the pinned one has no readable scores. `complete` also carries `tolerance_applied` (bool: whether the user's stated per-trait tolerance set the buckets), and each of its dimensions carries `must_have` (bool; must-haves order first within their bucket) and `within_tolerance` (bool: aligned only because of that tolerance). A user who never answered the tolerance step gets all three false and today's buckets and order. Every state carries `past_job_report_filed` (bool): whether the user's one past-job environment report exists. Only reports about the current job feed the report itself.",
         "operationId": "get_me_get_my_situation_report",
         "responses": {
           "200": {
@@ -10076,6 +12539,121 @@
         "summary": "Replace self-rated skill proficiencies",
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/v1/me/trait-preferences": {
+      "get": {
+        "description": "The latest sitting of the short step that follows Work Pulse. A user who never answered, or skipped, gets `answered: false` with all six traits unanswered (steps `null`) -- matching and the Situation Report then behave exactly as they did before this step existed.",
+        "operationId": "get_assessments_get_trait_preferences",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraitPreferencesDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          }
+        ],
+        "summary": "Read the user's per-trait tolerance and must-have flags",
+        "tags": [
+          "assessments"
+        ]
+      },
+      "put": {
+        "description": "Carries all six traits. Each save is a new sitting; earlier sittings are kept and the newest is current. Answers `200` with the saved document.\n\n`400` (`invalid_trait_preferences`) when the body breaks a rule; each `errors` entry names it: `missing_trait`, `unknown_trait`, `duplicate_trait`, `steps_out_of_range` (steps must be 0, 1 or 2), `invalid_type`, or `too_many_must_haves` (at most two). A body that does not match the request schema at all is `422`.",
+        "operationId": "put_assessments_put_trait_preferences",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraitPreferencesPutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraitPreferencesDocument"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Save a new sitting of per-trait tolerance and must-have flags",
+        "tags": [
+          "assessments"
         ]
       }
     }
