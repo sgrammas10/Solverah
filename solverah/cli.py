@@ -25,6 +25,9 @@ dashboard env vars:
     flask corpus tasks         # no O*NET; the wants panel's eight tasks per job
                                # with plain-words labels (BUILD_PLAN W-3)
     flask corpus summaries     # no network; one O*NET sentence per card (W-18)
+    flask companies research   # spends money; batch prefill of CompanyLens runs
+    flask companies sweep      # every 10 minutes; fails dead research runs and
+                               # re-dispatches lost ones (six-trait build)
 
 ``pulse send-prompts`` is the newest of the four cron jobs and not load-bearing
 the way the first two are -- nothing breaks if a run is skipped, a due user is
@@ -82,6 +85,7 @@ from flask.cli import AppGroup
 
 __all__ = [
     "backups_cli",
+    "companies_cli",
     "corpus_cli",
     "outbox_cli",
     "pulse_cli",
@@ -94,6 +98,10 @@ retention_cli = AppGroup("retention", help="Data-retention purges (cron entry po
 backups_cli = AppGroup("backups", help="Database backups (cron entry point).")
 pulse_cli = AppGroup("pulse", help="Pulse check-in cadence (cron entry point).")
 corpus_cli = AppGroup("corpus", help="O*NET occupation vector corpus (BUILD_PLAN F-1).")
+companies_cli = AppGroup(
+    "companies",
+    help="CompanyLens research pipeline: batch prefill and the run sweep (six-trait build).",
+)
 
 #: The frontend origin the Pulse deep link is built against, when neither the
 #: env var nor `--base-url` supplies one. Same value as `factory.py`'s
@@ -1635,6 +1643,114 @@ def corpus_refresh(
     )
 
 
+@companies_cli.command("research")
+@click.argument("names", nargs=-1)
+@click.option(
+    "--from-file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="A starter list: one company name per line; blank lines and '#' lines skipped.",
+)
+@click.option(
+    "--force", is_flag=True, default=False,
+    help="Research again even when a run younger than 90 days exists.",
+)
+@click.option(
+    "--allow-when-disabled", is_flag=True, default=False,
+    help="Run even though SOLVERAH_COMPANYLENS_RESEARCH_ENABLED is off (an internal "
+         "batch prefill; the public door stays shut).",
+)
+def companies_research(names, from_file, force, allow_when_disabled):
+    """Research, score and aggregate each named company, in this process.
+
+    SPENDS MONEY at two providers (Anthropic research with web search and fetch,
+    OpenAI scoring). One JSON line per company with the run's status, cost and
+    record statuses, then a total line. Exit 0 when every run finished (done or
+    failed -- a failed run is a recorded outcome, like a retried outbox row);
+    non-zero when the pass itself could not start (missing key, bad name, or the
+    switch is off and --allow-when-disabled was not passed).
+
+        flask companies research "Acme Corp" "Globex"
+        flask companies research --from-file starter_companies.txt
+        flask companies research --allow-when-disabled "Acme Corp"
+
+    This is the batch half of "researched on demand and cached, plus a batch command
+    to pre-fill a starter set" (PRODUCT_DECISIONS.md section 2). The cache applies:
+    a company researched inside the last 90 days is reported from its existing run
+    unless --force. The public switch (SOLVERAH_COMPANYLENS_RESEARCH_ENABLED, default
+    off) gates signed-in users, not this command: pass --allow-when-disabled to
+    prefill while it is off. Without the flag the command refuses before any row is
+    written, so an operator cannot spend by accident on a server that is closed.
+    """
+    from model import db
+    from solverah.infra.llm import LLMProviderUnavailable
+    from solverah.services.company_research import service
+
+    wanted = [n.strip() for n in names if n and n.strip()]
+    if from_file:
+        for line in Path(from_file).read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                wanted.append(line)
+    if not wanted:
+        raise click.UsageError("name at least one company, or pass --from-file")
+    if not allow_when_disabled and not service.research_enabled():
+        raise click.ClickException(
+            "company research is disabled (%s is off); pass --allow-when-disabled "
+            "for an internal batch prefill" % service.RESEARCH_ENABLED_VAR
+        )
+
+    run_ids = []
+    for name in wanted:
+        try:
+            view = service.request_research(
+                db, company_name=name, trigger="batch", force=force, dispatch=False,
+                allow_when_disabled=allow_when_disabled,
+            )
+        except LLMProviderUnavailable as exc:
+            raise click.ClickException("provider unavailable: %s" % exc) from exc
+        if view.status == "queued":
+            view = service.run_research_job(view.id)
+        run_ids.append(view.id)
+        click.echo(json.dumps(service.research_run_summary(db, view.id), sort_keys=True))
+
+    total = service.total_cost_usd(db, run_ids)
+    click.echo(json.dumps({
+        "companies": len(run_ids),
+        "total_cost_usd": None if total is None else float(total),
+    }, sort_keys=True))
+
+
+@companies_cli.command("sweep")
+def companies_sweep() -> None:
+    """Re-dispatch lost research runs and fail dead ones (cron entry point).
+
+    Production has no Celery worker, so a research run lives on the web process's
+    thread pool; a deploy or a crash mid-run leaves its row ``queued`` or ``running``
+    with nothing behind it, and ``request_research`` keeps handing that in-flight row
+    back, so the company can never be researched again. This is the pass that clears
+    them (``service.sweep_research_runs``):
+
+    - ``running`` rows started longer ago than the research hard limit are failed as
+      ``timed_out``. No provider call.
+    - ``queued`` rows older than the stale-queue window are dispatched again. A
+      re-dispatched run executes in THIS process (eager Celery, the research thread
+      pool), and the process waits for it before exiting: the cron needs both
+      provider keys, and one pass can hold the cron for as long as a research turn.
+
+    One JSON line, ``{"reaped": n, "requeued": n}``, exit 0. As with ``outbox sweep``,
+    a non-zero exit means the pass itself crashed. There is no ``--dry-run``: the
+    service has no read-only mode.
+
+        flask companies sweep      # Render cron, every 10 minutes
+    """
+    from model import db
+    from solverah.services.company_research import service
+
+    result = service.sweep_research_runs(db)
+    click.echo(json.dumps(result, sort_keys=True))
+
+
 def register_cli(app) -> None:
     """Attach the operational command groups to *app*'s CLI."""
     app.cli.add_command(outbox_cli)
@@ -1642,3 +1758,4 @@ def register_cli(app) -> None:
     app.cli.add_command(backups_cli)
     app.cli.add_command(pulse_cli)
     app.cli.add_command(corpus_cli)
+    app.cli.add_command(companies_cli)

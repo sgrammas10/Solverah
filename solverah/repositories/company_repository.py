@@ -15,14 +15,13 @@ Usage (inside a Flask app context)::
 ``profile_json`` is the whole research document, tens of kilobytes a row, and
 the two paginated lists need one field of it.  So the reads they make are
 narrow: :func:`list_rows` and :func:`summaries` take ``industry`` out of the
-document by JSON path in the database, :func:`culture_rows` is the eight culture
-columns and the key, and :func:`network_sample` is three columns.  Only
-``GET /companies/<id>`` and the seeding shim read the document itself.
+document by JSON path in the database, and :func:`network_sample` is three
+columns.  Only ``GET /companies/<id>`` and the seeding shim read the document
+itself.
 
-Known scale limit, still: culture matching scores every company with a pace, in
-process, on every request -- P0-2 in docs/ARCHITECTURE.md, which the causal
-model replaces.  :func:`culture_rows` is that scan; it no longer drags the
-document along with it.
+P0-2 (the ``culture_rows`` scan every ``/me/matches`` request made) is gone with
+the interim scorer (six-trait build, 2026-10-13): the ranking now reads the
+company evidence records through ``company_evidence_store``.
 """
 
 from __future__ import annotations
@@ -35,19 +34,6 @@ import sqlalchemy as sa
 from model import Company, db
 from packages.ml.culture import CompanyProfile
 from solverah.infra import cache
-
-#: The eight columns ``matching_service`` builds a ``CultureValues`` from.
-CULTURE_COLUMNS = (
-    Company.work_environment,
-    Company.pace,
-    Company.empathy,
-    Company.creative_drive,
-    Company.adaptability,
-    Company.futuristic,
-    Company.harmony,
-    Company.data_orientation,
-)
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -119,6 +105,64 @@ def upsert_company(profile: CompanyProfile) -> Company:
 
     db.session.commit()
     return row
+
+
+def find_company(name: str, *, domain: Optional[str] = None) -> Optional[Company]:
+    """The row ``find_or_create_company`` would return for *name*, or None -- the same
+    dedupe order (domain, then the normalised name's slug), WITHOUT creating anything.
+    The research route reads this first so a refused request writes no row (C5c).
+    Raises ``ValueError`` for a blank or letterless name, as the creating path does."""
+    clean = (name or "").strip()
+    if not clean:
+        raise ValueError("a company needs a name")
+    row = None
+    if domain:
+        row = Company.query.filter_by(domain=domain).first()
+    if row is None:
+        slug = _slugify(clean)
+        if not slug:
+            raise ValueError("a company name needs at least one letter or digit")
+        row = Company.query.filter_by(slug=slug).first()
+    return row
+
+
+def find_or_create_company(name: str, *, domain: Optional[str] = None) -> Company:
+    """The row for a company a user NAMED (CompanyLens on-demand research, C5).
+
+    Dedupe order: by *domain* when given (the natural key), then by the normalised
+    name's slug. A miss creates a minimal row -- name, slug, an empty ``profile_json``
+    -- which the research pipeline then fills with evidence records; the seeded
+    ``CompanyProfile`` document is not required. ``domain`` is claimed on a new row
+    only when no other row holds it (it is unique).
+
+    Must be called inside a Flask application context.
+    """
+    clean = (name or "").strip()
+    row = find_company(clean, domain=domain)
+    if row is not None:
+        return row
+
+    row = Company(name=clean[:200], slug=_slugify(clean)[:200], profile_json={})
+    if domain and Company.query.filter_by(domain=domain).first() is None:
+        row.domain = domain
+    db.session.add(row)
+    db.session.flush()
+    cache.invalidate_on_commit(cache.company_detail_key(row.id))
+    db.session.commit()
+    return row
+
+
+def claim_domain(company: Company, domain: str) -> bool:
+    """Set ``company.domain`` when the company has none and no other row holds
+    *domain*. Returns whether it was set."""
+    if not domain or company.domain:
+        return False
+    if Company.query.filter(Company.domain == domain, Company.id != company.id).first():
+        return False
+    company.domain = domain
+    cache.invalidate_on_commit(cache.company_detail_key(company.id))
+    db.session.commit()
+    return True
 
 
 def get_company(slug_or_name: str) -> CompanyProfile | None:
@@ -236,30 +280,20 @@ def list_rows(
     return db.session.execute(statement).all()
 
 
-def culture_rows() -> List[sa.Row]:
-    """``id`` and the :data:`CULTURE_COLUMNS` of every company with a ``pace``.
-
-    The scan culture matching scores (P0-2): a company without a pace has never
-    been scoreable, so the filter is in the query rather than in the loop. In
-    no particular order -- the caller sorts by score.
-    """
-    return db.session.execute(
-        sa.select(Company.id, *CULTURE_COLUMNS).where(Company.pace.isnot(None))
-    ).all()
-
-
 def summaries(company_ids: Iterable[int]) -> Dict[int, sa.Row]:
-    """``{id: row}`` of ``id``, ``name``, ``slug`` and ``industry``, one IN query.
+    """``{id: row}`` of ``id``, ``name``, ``slug``, ``industry`` and ``headcount``,
+    one IN query.
 
-    For the page of matches a request returns, after scoring has chosen it. An
-    id with no row is absent. Sends nothing for no ids.
+    For the page a request returns, after ranking has chosen it. An id with no
+    row is absent. Sends nothing for no ids.
     """
     ids = list(company_ids)
     if not ids:
         return {}
     rows = db.session.execute(
         sa.select(
-            Company.id, Company.name, Company.slug, _industry().label("industry")
+            Company.id, Company.name, Company.slug, _industry().label("industry"),
+            Company.headcount,
         ).where(Company.id.in_(ids))
     )
     return {row.id: row for row in rows}

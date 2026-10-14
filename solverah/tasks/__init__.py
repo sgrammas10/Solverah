@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from solverah.tasks import (  # noqa: F401  -- imported for registration
     audit_tasks,
-    maintenance_tasks,
+    company_research_tasks,
     outbox_tasks,
     resume_tasks,
     scoring_tasks,
@@ -28,7 +28,7 @@ from solverah.tasks import (  # noqa: F401  -- imported for registration
 
 __all__ = [
     "audit_tasks",
-    "maintenance_tasks",
+    "company_research_tasks",
     "outbox_tasks",
     "resume_tasks",
     "scoring_tasks",

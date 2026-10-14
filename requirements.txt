@@ -60,6 +60,10 @@ pdfminer.six==20260107
 python-docx==1.2.0
 resend==2.42.0
 openai==3.6.0
+# CompanyLens company research (decided 2026-10-13): web search + web fetch on
+# Anthropic, through solverah/infra/llm (get_research_client). 1.x is built on
+# httpx2, the same HTTP layer openai==3.6.0 already pulls in; needs Python >=3.10.
+anthropic==1.13.0
 
 # Request/response schemas and the OpenAPI 3.1 document (see solverah/openapi.py).
 # v2 specifically: pydantic v2 emits JSON Schema draft 2020-12, which *is* the

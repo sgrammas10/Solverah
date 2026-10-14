@@ -475,3 +475,107 @@ def test_retention_run_path_windows_are_flags(ctx, sent):
     assert _surviving(
         PathNarrative.__table__, [ids["narrative_old"], ids["narrative_fresh"]]
     ) == set()
+
+
+# ── flask companies sweep ───────────────────────────────────────────────────
+
+
+def _no_provider(*_args, **_kwargs):
+    raise AssertionError("the sweep must not reach a provider for these rows")
+
+
+def test_companies_sweep_reaps_a_dead_run_and_leaves_fresh_ones_alone(ctx, monkeypatch):
+    """A `running` row older than the research hard limit is failed as `timed_out`
+    with no provider call; a fresh `queued` row and a fresh `running` row are untouched.
+    The provider accessors raise, so a stray re-dispatch would fail the test."""
+    import company_evidence_store as store
+    from model import CompanyResearchRun, db
+    from solverah.infra import llm
+    from solverah.repositories import company_repository
+    from solverah.services.company_research import service
+    from solverah.services.company_research.constants import (
+        RESEARCH_JOB_HARD_LIMIT_SECONDS,
+    )
+
+    monkeypatch.setattr(llm, "get_research_client", _no_provider)
+    monkeypatch.setattr(llm, "get_scorer_client", _no_provider)
+
+    def _run(name, status):
+        company = company_repository.find_or_create_company(name)
+        db.session.commit()
+        return store.start_research_run(
+            db, company.id, trigger="batch", provider="anthropic",
+            model="test-model", prompt_version="test", status=status,
+        ).id
+
+    dead = _run("Sweep Dead Co", "running")
+    live = _run("Sweep Live Co", "running")
+    fresh = _run("Sweep Fresh Co", "queued")
+    row = db.session.get(CompanyResearchRun, dead)
+    row.started_at = _ago(seconds=RESEARCH_JOB_HARD_LIMIT_SECONDS + 60)
+    db.session.commit()
+
+    exit_code, payload, result = _invoke(ctx, "companies", "sweep")
+
+    assert exit_code == 0, result.output
+    assert payload == {"reaped": 1, "requeued": 0}
+    db.session.expire_all()
+    reaped = db.session.get(CompanyResearchRun, dead)
+    assert reaped.status == "failed"
+    assert reaped.error == service.ERROR_TIMED_OUT
+    assert reaped.finished_at is not None
+    assert db.session.get(CompanyResearchRun, live).status == "running"
+    assert db.session.get(CompanyResearchRun, fresh).status == "queued"
+
+
+def test_companies_sweep_on_an_empty_table_exits_zero(ctx):
+    exit_code, payload, _ = _invoke(ctx, "companies", "sweep")
+
+    assert exit_code == 0
+    assert payload == {"reaped": 0, "requeued": 0}
+
+
+# ── flask companies research: the public switch ──────────────────────────────
+
+
+def test_companies_research_refuses_while_disabled_unless_told_otherwise(ctx, monkeypatch):
+    """With SOLVERAH_COMPANYLENS_RESEARCH_ENABLED off the batch command refuses
+    before writing a row; --allow-when-disabled runs it (an internal prefill). The
+    providers are fakes from the pipeline tests: no network, no key."""
+    from tests.test_company_research_pipeline import (
+        FakeResearchClient, FakeScorerClient, _research_message,
+    )
+    from model import CompanyResearchRun, db
+    from solverah.infra import llm
+
+    monkeypatch.delenv("SOLVERAH_COMPANYLENS_RESEARCH_ENABLED", raising=False)
+    research_fake = FakeResearchClient(_research_message())
+    monkeypatch.setattr(llm, "get_research_client", lambda: research_fake)
+    monkeypatch.setattr(llm, "get_scorer_client", lambda: FakeScorerClient())
+
+    exit_code, payload, result = _invoke(ctx, "companies", "research", "Prefill Co")
+    assert exit_code == 1, result.output
+    assert "--allow-when-disabled" in result.output
+    assert "SOLVERAH_COMPANYLENS_RESEARCH_ENABLED" in result.output
+    assert payload is None
+    assert research_fake.requests == []
+    assert db.session.query(CompanyResearchRun).count() == 0
+
+    exit_code, payload, result = _invoke(
+        ctx, "companies", "research", "--allow-when-disabled", "Prefill Co"
+    )
+    assert exit_code == 0, result.output
+    assert payload == {"companies": 1, "total_cost_usd": 0.075}
+    lines = [json.loads(line) for line in result.output.strip().splitlines()]
+    assert lines[0]["company"] == "Prefill Co" and lines[0]["status"] == "done"
+    assert len(research_fake.requests) == 1
+    db.session.expire_all()
+    (run,) = db.session.query(CompanyResearchRun).all()
+    assert run.status == "done" and run.trigger == "batch"
+
+    # Switch on: the flag is not needed.
+    monkeypatch.setenv("SOLVERAH_COMPANYLENS_RESEARCH_ENABLED", "1")
+    exit_code, payload, result = _invoke(ctx, "companies", "research", "Prefill Co")
+    assert exit_code == 0, result.output
+    assert payload["companies"] == 1  # the cached run; no second provider call
+    assert len(research_fake.requests) == 1

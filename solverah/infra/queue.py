@@ -260,6 +260,23 @@ def is_eager() -> bool:
     return bool(celery_app.conf.get("task_always_eager"))
 
 
+def active_flask_app():
+    """The Flask app the caller is running under, or None.
+
+    The one with an active app context when there is one (an HTTP call, a test
+    client, a CLI command); otherwise the app ``init_celery`` last registered (a
+    worker, a bare thread). The registered app alone is not enough: it is the
+    LAST ``create_app()`` in the process, which in a test run or a script that
+    builds a throwaway app is not the app handling the call. Lives here, not in
+    a service, so services stay free of ``flask`` (tests/test_layering.py).
+    """
+    if has_app_context():
+        from flask import current_app
+
+        return current_app._get_current_object()
+    return celery_app.conf.get("solverah_flask_app")
+
+
 def enqueue(task: Task, *args: Any, **kwargs: Any) -> Optional[str]:
     """Hand *task* to the broker, and never fail the caller if that does not work.
 
