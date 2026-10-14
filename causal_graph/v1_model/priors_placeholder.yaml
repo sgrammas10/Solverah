@@ -57,5 +57,16 @@ confounders:
 # Ordinal-head cutpoint spacings. NOT expert-elicited -- placeholder priors.
 # The cutpoint between ratings 3 and 4 is PINNED at 0 so that sigmoid(z)
 # is exactly P(rating >= 4) = "doing well"; see build_model.py.
+# This block is kept IDENTICAL to priors.yaml's (tests/test_ordinal_head.py), which
+# is why it carries the 2026-10-13 `date` / `why` keys while the rest of this
+# file, a frozen record, does not.
 cutpoints:
-  spacing: { mu_log: 0.405465, sigma_log: 0.5 }   # LogNormal; exp(mu) = 1.5
+  spacing:
+    mu_log: 0.405465   # LogNormal; exp(mu) = 1.5
+    sigma_log: 0.5
+    date: "2026-09-21"
+    why: >-
+      Placeholder, not elicited: LogNormal(log 1.5, 0.5) on each of the three free
+      spacings between adjacent ratings, chosen when the ordinal head was built. The
+      rating-3/4 cutpoint is pinned at 0 (ruling 2026-09-17) so the elicited weights
+      keep their binary meaning; the spacings are a diagnostic the data sets.

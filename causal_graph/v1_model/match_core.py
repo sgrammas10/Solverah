@@ -12,6 +12,11 @@ Carlo band in score_pairs() calls it per draw rather than keeping a second vecto
 copy -- slower, but two implementations of the same formula is how they diverge, and
 serving precomputes into match_recommendation rows anyway.
 
+Since 2026-10-13 the predictor can also read a person's per-dimension flat zone
+(`flat_zones`, the hinge -- see excess_gap) and skip a dimension whose env score is
+unknown (`env_missing`). Both default to None and leave every existing caller
+bit-identical. `point_z` serves the predictor alone, for ranking without a probability.
+
 Weight naming convention, shared with PyMC and the weight_posterior table
 -------------------------------------------------------------------------
 flatten_weights() / unflatten_weights() translate between the nested weight structure
@@ -60,6 +65,14 @@ def _company_lattice():
 
 
 COMPANY_LATTICE = _company_lattice()
+
+#: The pole-vs-pole gap: a person at the top of their ladder, snapped onto the
+#: company lattice, against the lowest env score the lattice can produce. This is
+#: the |gap| every one of Julie's twelve dimension answers was elicited at
+#: (Solverah_IP/priors_elicitation/convert_priors_response.py, GAP), so it is the
+#: one point on the gap axis where a cost is a measurement rather than our
+#: extrapolation. Derived, not typed, so a lattice change moves it.
+POLE_GAP = float(COMPANY_LATTICE.max() - COMPANY_LATTICE.min())
 
 
 def closest_achievable(value, lattice=COMPANY_LATTICE):
@@ -113,6 +126,155 @@ def fit_gap(person_score, env_score, snap_person=True):
     if snap_person:
         person_score = closest_achievable(person_score)
     return person_score - env_score
+
+
+# ---------------------------------------------------------------------------
+# THE HINGE (serving shape since 2026-10-13, PRODUCT_DECISIONS.md section 2,
+# "The six-trait match model"): flat inside a person's tolerance, linear outside.
+#
+# A person states, per dimension, how much LESS than they want is still fine
+# (the UNDER zone) and how much MORE (the OVER zone). In this file's sign
+# convention gap = person - env, so gap > 0 means the environment provides
+# less than the person wants and the under zone applies; gap < 0 means more,
+# and the over zone applies. Inside the zone the dimension costs nothing --
+# neither the symmetric `mag` term nor the directional `dir` term -- and
+# outside it the cost grows linearly in the excess.
+#
+# THE RESCALING. Julie's twelve dimension answers were elicited at the pole
+# gap (POLE_GAP, 0.8) and are the only measured points on the gap axis;
+# everything between 0 and 0.8 is our extrapolation. So the hinge keeps the
+# measured point fixed and moves only the extrapolation: the excess
+# max(0, |gap| - zone) is multiplied by POLE_GAP / (POLE_GAP - zone), which
+# makes a pole gap map to a pole gap whatever the zone, and therefore makes
+# her twelve answers reproduce exactly under any zone (tests/test_match_hinge.py).
+# The price is a steeper slope outside the zone (0.8/0.65 = 1.23x at the
+# 0.15 floor, 0.8/0.3 = 2.67x at a 0.5 zone): the person said the first
+# `zone` of mismatch is fine, so the same pole cost is reached over a shorter
+# run. An unrescaled hinge would instead cut the pole cost by w * zone and
+# silently re-weight her elicitation; a zone of 0.8 or more would leave no
+# run at all, which is why zones must be < POLE_GAP.
+#
+# THE SNAP. The zone applies to fit_gap's output, i.e. AFTER the person-side
+# snap onto COMPANY_LATTICE. The snap removes a structural artefact (a pole the
+# env scale cannot reach), not a real mismatch, and the tolerance is a statement
+# about real mismatch; a mid-scale person moves at most 0.02 under the snap,
+# well inside the 0.15 floor. The Situation Report classifies the UNsnapped
+# gap against the same 0.15 band (work_pulse/situation.py) -- a known, small
+# difference between the two consumers, not a contradiction.
+#
+# Written with abs, +, -, * and / only -- no np.where, np.maximum or np.sign --
+# so the same expression runs on numpy arrays AND on pytensor tensors inside
+# build_model's pm.Model() context (checked 2026-10-13: np.maximum and np.where
+# both fail on a TensorVariable; this algebra does not). build_model does not
+# pass flat_zones yet; when the pre-registered Look 2 comparison needs it, the
+# fit path can call outcome_logit(..., flat_zones=...) unchanged.
+#
+# With flat_zones=None, outcome_logit keeps the literal pre-2026-10-13
+# expression behind a branch, so every existing caller is bit-identical
+# (pinned against a verbatim copy of the old code, as the industry mask was).
+# ---------------------------------------------------------------------------
+def _positive_part(x):
+    """max(0, x) without np.maximum: exact for finite x and tensor-safe."""
+    return (x + abs(x)) / 2.0
+
+
+def excess_gap(gap, under_zone, over_zone, pole_gap=POLE_GAP):
+    """Signed gap with the flat zone removed and the pole cost preserved.
+
+    gap        : signed, person - env (fit_gap's output); scalar, array, or tensor
+    under_zone : how much LESS than wanted is free (applies where gap > 0)
+    over_zone  : how much MORE than wanted is free (applies where gap < 0)
+    Each zone is a float in [0, pole_gap), or an array broadcastable to `gap`.
+
+    Returns a signed value with the sign of `gap`: 0 inside the zone,
+    (|gap| - zone) * pole_gap / (pole_gap - zone) outside, so that
+    excess_gap(+pole_gap, ...) == +pole_gap and excess_gap(-pole_gap, ...) ==
+    -pole_gap for every zone. Zones are NOT validated here (see
+    _prepare_flat_zones); a tensor cannot be checked at trace time.
+    """
+    short = _positive_part(gap)        # env provides this much less than wanted
+    extra = _positive_part(-gap)       # ... or this much more
+    # Divide by the run first, then multiply by the pole: at |gap| == pole_gap
+    # the ratio is x / x == 1.0 exactly, so a pole gap stays a pole gap bitwise.
+    e_under = (_positive_part(short - under_zone) / (pole_gap - under_zone)) * pole_gap
+    e_over = (_positive_part(extra - over_zone) / (pole_gap - over_zone)) * pole_gap
+    return e_under - e_over
+
+
+def _check_zone(dim, side, value):
+    arr = np.asarray(value, dtype=float)
+    if arr.ndim > 1:
+        raise ValueError(
+            f"flat zone for '{dim}' ({side}) must be a scalar or a 1-d array, got "
+            f"shape {arr.shape}"
+        )
+    bad = ~np.isfinite(arr) | (arr < 0.0) | (arr >= POLE_GAP)
+    if np.atleast_1d(bad).any():
+        raise ValueError(
+            f"flat zone for '{dim}' ({side}) must satisfy 0 <= zone < {POLE_GAP} "
+            f"(the pole gap, the only point where a cost was elicited), got "
+            f"{np.atleast_1d(arr)[np.atleast_1d(bad)].tolist()} -- a zone of "
+            f"{POLE_GAP} or more leaves no run for the pole cost to be reached over. "
+            f"The 0.15 floor is applied upstream (solverah/domain/trait_preferences), "
+            f"not here."
+        )
+    return float(arr) if arr.ndim == 0 else arr
+
+
+def _prepare_flat_zones(flat_zones, cfg):
+    """{dim: (under_zone, over_zone)} validated against the active dimensions,
+    or None. STRICT both ways (D-07): a zone for every active dimension, no zone
+    for anything else -- a partial dict is evidence the caller and the config
+    disagree on the dimension set."""
+    if flat_zones is None:
+        return None
+    dims = [d["key"] for d in active(cfg["dimensions"])]
+    missing = [k for k in dims if k not in flat_zones]
+    unexpected = sorted(set(flat_zones) - set(dims))
+    if missing or unexpected:
+        raise ValueError(
+            f"flat_zones must carry exactly the active dimensions {dims}: "
+            f"missing {missing}, unexpected {unexpected} (D-07). Pass None for the "
+            f"linear-from-zero shape."
+        )
+    out = {}
+    for k in dims:
+        pair = flat_zones[k]
+        try:
+            under, over = pair
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"flat_zones['{k}'] must be a (under_zone, over_zone) pair, got {pair!r}"
+            ) from None
+        out[k] = (_check_zone(k, "under", under), _check_zone(k, "over", over))
+    return out
+
+
+def _prepare_env_present(env_missing, cfg):
+    """{dim: float array, 1.0 where the env score is known and 0.0 where it is
+    not}, for the dimensions that have at least one masked row; None when
+    nothing is masked. Same self-reversing pattern as conf_missing: an absent
+    key or an all-False mask is "known everywhere", and leaves no trace."""
+    if env_missing is None:
+        return None
+    dims = [d["key"] for d in active(cfg["dimensions"])]
+    unexpected = sorted(set(env_missing) - set(dims))
+    if unexpected:
+        raise ValueError(
+            f"env_missing names {unexpected}, which are not active dimensions "
+            f"{dims} (D-07)"
+        )
+    out = {}
+    for k in dims:
+        mask = env_missing.get(k)
+        if mask is None:
+            continue
+        mask = np.atleast_1d(np.asarray(mask, dtype=bool))
+        if mask.ndim > 1:
+            raise ValueError(f"env_missing['{k}'] must be a scalar or 1-d bool array")
+        if mask.any():
+            out[k] = np.where(mask, 0.0, 1.0)
+    return out or None
 
 
 # ---------------------------------------------------------------------------
@@ -244,18 +406,72 @@ def preprocess_conf(conf, cfg, conf_missing=None):
 #                 the numpy paths) -- the arithmetic here (+, -, *, abs,
 #                 indexing) doesn't care which.
 # ---------------------------------------------------------------------------
-def outcome_logit(person, env, conf, cfg, weights, snap_person=True):
+def outcome_logit(person, env, conf, cfg, weights, snap_person=True,
+                  flat_zones=None, env_missing=None):
+    """The linear predictor z.
+
+    flat_zones  : optional {dim_key: (under_zone, over_zone)} -- the person's
+                  tolerance per dimension, every active dimension present, each
+                  zone in [0, POLE_GAP). The gap enters through excess_gap()
+                  (the hinge, see above). None: linear from zero, the literal
+                  pre-2026-10-13 expression, bit-identical.
+    env_missing : optional {dim_key: bool array length N} marking rows whose
+                  env score for that dimension is UNKNOWN (a company trait with
+                  no evidence). A masked row's mag and dir terms are excluded
+                  from z entirely -- no gap, no penalty -- the same
+                  exclude-the-term ruling as conf_missing. The env value under
+                  a mask may be NaN or anything else; it is never read. None,
+                  or an all-False mask: bit-identical to no mask. The masked
+                  branch substitutes a placeholder with np.where and is
+                  therefore numpy-only, like closest_achievable.
+    Both are last and default to None so every existing caller is unchanged.
+    """
     feats = cfg["settings"]["gap_features"]     # e.g. ["mag", "dir"]
     z = weights["intercept"]
+    zones = _prepare_flat_zones(flat_zones, cfg)
+    present = _prepare_env_present(env_missing, cfg)
 
     for d in active(cfg["dimensions"]):
         k = d["key"]
-        g = fit_gap(person[k], env[k], snap_person=snap_person)
         w = weights["dimensions"][k]
-        if "mag" in feats:
-            z += w["mag"] * abs(g)              # any mismatch hurts (symmetric)
-        if "dir" in feats:
-            z += w["dir"] * g                   # directional asymmetry
+        known = None if present is None else present.get(k)
+        if zones is None and known is None:
+            # The literal pre-2026-10-13 expression, kept as-is because serving
+            # runs it on every request and must stay bit-identical when no zone
+            # and no mask is given (tests/test_match_hinge.py pins this against
+            # a verbatim copy, as tests/test_ordinal_head.py does for conf).
+            g = fit_gap(person[k], env[k], snap_person=snap_person)
+            if "mag" in feats:
+                z += w["mag"] * abs(g)          # any mismatch hurts (symmetric)
+            if "dir" in feats:
+                z += w["dir"] * g               # directional asymmetry
+            continue
+
+        env_k = env[k]
+        if known is not None:
+            # A masked row's env may be NaN; NaN * 0.0 is NaN, so give the row a
+            # finite placeholder before the gap. The term is multiplied by 0.0
+            # below, so the placeholder's value never reaches z.
+            env_k = np.where(known == 0.0, 0.5, np.asarray(env_k, dtype=float))
+        g = fit_gap(person[k], env_k, snap_person=snap_person)
+        if zones is not None:
+            under_zone, over_zone = zones[k]
+            g = excess_gap(g, under_zone, over_zone)
+        # Two separate additions, in the same order as the branch above -- NOT
+        # one combined term added once. Floating-point addition is not
+        # associative, and the pole-gap and known-row bitwise identities
+        # (tests/test_match_hinge.py) hold only under the same association.
+        if known is None:
+            if "mag" in feats:
+                z += w["mag"] * abs(g)
+            if "dir" in feats:
+                z += w["dir"] * g
+        else:
+            # known is 1.0 (x * 1.0 == x exactly) or 0.0 (z + 0.0 == z exactly).
+            if "mag" in feats:
+                z += (w["mag"] * abs(g)) * known
+            if "dir" in feats:
+                z += (w["dir"] * g) * known
     for c in active(cfg["confounders"]):
         if not c.get("measurable"):
             continue                            # unmeasurable -> not a term
@@ -458,7 +674,7 @@ def _sigmoid(z):
     return 1.0 / (1.0 + np.exp(-np.asarray(z, dtype=float)))
 
 
-def _validate_inputs(person, env, conf_raw, cfg):
+def _validate_inputs(person, env, conf_raw, cfg, flat_zones=None, env_missing=None):
     dims = [d["key"] for d in active(cfg["dimensions"])]
     confs = [c["key"] for c in active(cfg["confounders"]) if c.get("measurable")]
     for k in dims:
@@ -477,24 +693,80 @@ def _validate_inputs(person, env, conf_raw, cfg):
     lengths |= {len(np.atleast_1d(conf_raw[k])) for k in confs}
     if len(lengths) != 1:
         raise ValueError(f"inputs disagree on N: lengths {sorted(lengths)}")
+    n = lengths.pop()
+
+    # Both optional inputs are validated here as well as in outcome_logit, because
+    # only this layer knows N: a per-row zone or mask of the wrong length would
+    # otherwise broadcast or fail deep inside the arithmetic.
+    present = _prepare_env_present(env_missing, cfg)
+    for k, known in (present or {}).items():
+        if len(known) not in (1, n):
+            raise ValueError(
+                f"env_missing['{k}'] has length {len(known)}, inputs have N={n}"
+            )
+    zones = _prepare_flat_zones(flat_zones, cfg)
+    for k, pair in (zones or {}).items():
+        for side, zone in zip(("under", "over"), pair):
+            if np.ndim(zone) == 1 and len(zone) not in (1, n):
+                raise ValueError(
+                    f"flat zone for '{k}' ({side}) has length {len(zone)}, inputs "
+                    f"have N={n}"
+                )
+
+    # An env score that is NaN with no mask covering it would NaN out z silently
+    # (the same trap preprocess_conf closes for a confounder).
+    for k in dims:
+        values = np.atleast_1d(np.asarray(env[k], dtype=float))
+        unmasked_nan = np.isnan(values)
+        known = None if present is None else present.get(k)
+        if known is not None:
+            unmasked_nan = unmasked_nan & (known != 0.0)
+        if unmasked_nan.any():
+            raise ValueError(
+                f"env score for '{k}' is NaN at row(s) "
+                f"{np.flatnonzero(unmasked_nan).tolist()} with no env_missing mask "
+                f"marking them unknown -- pass env_missing to exclude the "
+                f"dimension for those rows, or supply a score."
+            )
 
 
-def point_p_fit(person, env, conf_raw, cfg, weights, conf_missing=None):
+def point_z(person, env, conf_raw, cfg, weights, conf_missing=None, flat_zones=None,
+            env_missing=None):
+    """The linear predictor z at the weight means -- for RANKING.
+
+    z is monotone in P(doing well) (sigmoid(z) is exactly that, see
+    ordinal_probs), so ordering candidates by z orders them by fit without ever
+    materialising a probability -- which is the rule for CompanyLens: no
+    probability reaches a user until outcome data has trained the model
+    (PRODUCT_DECISIONS.md section 2, 2026-10-13). Returns a float array length N.
+
+    conf_missing / flat_zones / env_missing: see preprocess_conf and outcome_logit.
+    """
+    _validate_inputs(person, env, conf_raw, cfg, flat_zones=flat_zones,
+                     env_missing=env_missing)
+    conf = preprocess_conf(conf_raw, cfg, conf_missing=conf_missing)
+    z = outcome_logit(person, env, conf, cfg, point_weights(weights), snap_person=True,
+                      flat_zones=flat_zones, env_missing=env_missing)
+    return np.asarray(z, dtype=float)
+
+
+def point_p_fit(person, env, conf_raw, cfg, weights, conf_missing=None, flat_zones=None,
+                env_missing=None):
     """Deterministic P(fit) at the weight means. `weights` has {mean, sd} leaves.
 
     conf_missing: optional {confounder_key: bool array length N} marking
     legitimately-absent confounder values, forwarded to preprocess_conf -- a masked
     row's term is excluded from z. Last and defaulting to None, so the serving path
     that never passes it is the unchanged path.
+    flat_zones / env_missing: the hinge and the unknown-trait mask, see
+    outcome_logit. Added after conf_missing, both defaulting to None.
     """
-    _validate_inputs(person, env, conf_raw, cfg)
-    conf = preprocess_conf(conf_raw, cfg, conf_missing=conf_missing)
-    z = outcome_logit(person, env, conf, cfg, point_weights(weights), snap_person=True)
-    return _sigmoid(z)
+    return _sigmoid(point_z(person, env, conf_raw, cfg, weights, conf_missing=conf_missing,
+                            flat_zones=flat_zones, env_missing=env_missing))
 
 
 def score_pairs(person, env, conf_raw, cfg, weights, draws=2000, seed=0, interval=0.90,
-                conf_missing=None):
+                conf_missing=None, flat_zones=None, env_missing=None):
     """P(fit) with an uncertainty band, for N (person, company) pairs.
 
     person, env : dict {dim_key: array-like length N} of dimension scores
@@ -515,17 +787,23 @@ def score_pairs(person, env, conf_raw, cfg, weights, draws=2000, seed=0, interva
 
     conf_missing : optional {confounder_key: bool array length N} marking
                   legitimately-absent confounder values, forwarded to
-                  preprocess_conf. Last, and defaulting to None, so every existing
+                  preprocess_conf. Defaulting to None, so every existing
                   call is untouched.
+    flat_zones / env_missing : the hinge and the unknown-trait mask, see
+                  outcome_logit. Added after conf_missing, both defaulting to
+                  None. With a zone, every draw prices the gap through the same
+                  excess_gap, so the band is the band of the hinged predictor.
     """
-    _validate_inputs(person, env, conf_raw, cfg)
+    _validate_inputs(person, env, conf_raw, cfg, flat_zones=flat_zones,
+                     env_missing=env_missing)
     conf = preprocess_conf(conf_raw, cfg, conf_missing=conf_missing)
     rng = np.random.default_rng(seed)
 
     p = np.empty((draws, len(np.atleast_1d(next(iter(person.values()))))))
     for i in range(draws):
         w = _draw_weights(weights, rng)
-        p[i] = _sigmoid(outcome_logit(person, env, conf, cfg, w, snap_person=True))
+        p[i] = _sigmoid(outcome_logit(person, env, conf, cfg, w, snap_person=True,
+                                      flat_zones=flat_zones, env_missing=env_missing))
 
     tail = (1.0 - interval) / 2.0
     return {

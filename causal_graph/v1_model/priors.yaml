@@ -1,4 +1,4 @@
-# priors.yaml  --  EXPERT-ELICITED weights (adopted 2026-09-17).
+# priors.yaml  --  EXPERT-ELICITED weights (adopted 2026-09-17). The penalty table.
 #
 # Source: Julie's returned priors_elicitation_v1 form (solverah_priors_julie.json, saved
 # 2026-09-17), converted by Solverah_IP/priors_elicitation/convert_priors_response.py.
@@ -15,6 +15,15 @@
 # need into a tolerance), so NO noise-floor read sits under these numbers, in either
 # direction. They stop being guesses only when a fit has outcome data to pull them.
 #
+# SINCE 2026-10-13 every entry also carries `why` (where the number comes from) and
+# `date` (when it was set) -- PRODUCT_DECISIONS.md section 2, "The six-trait match
+# model": the penalty table gains a why and a date per entry rather than a second
+# file. Every number is byte-identical to the 2026-09-17 file; only those two keys
+# were added. Every loader reads `mean` and `sd` and ignores the rest
+# (match_core.weights_from_priors, build_model.sample_weights_from_priors, the
+# Situation Report's weight reader). Dates are quoted so they load as strings, not
+# datetime objects. Keep this file ASCII (tests/test_ordinal_head.py pins it).
+#
 # Convention (logistic linear predictor):
 #   logit(P_fit) = intercept
 #                + sum over active dims:  mag*|gap| + dir*gap
@@ -24,6 +33,11 @@
 #   sd   -> how sure the expert is. Small sd = confident, large sd = "not sure, let the
 #           data decide."
 #
+# Since 2026-10-13 the SERVING gap is hinged: inside the person's flat zone a dimension
+# costs nothing, outside it the excess is rescaled so a pole gap (0.8) keeps the cost
+# written here (match_core.excess_gap). The weights are unchanged by that: they still
+# price the pole, which is the only point Julie was asked about.
+#
 # Baseline: a well-matched person was put at 8 in 10 -> intercept 1.386294
 #
 #   mag < 0 : a mismatch on this dimension lowers the odds
@@ -32,33 +46,160 @@
 #
 # Her answers (person-high/role-low, person-low/role-high), out of 10:
 #   autonomy 7/7   pace 3/4   collaboration 7/6   feedback 7/3   innovation 5/5   decision 8/5
+#
+# The converter's algebra, for every dimension (GAP = 0.8, both answers as logits):
+#   mag = (logit(high/low) + logit(low/high) - 2 * intercept) / (2 * GAP)
+#   dir = (logit(high/low) - logit(low/high)) / (2 * GAP)
+#   sd  = sqrt(0.35^2 + 0.35^2) / (2 * GAP) = 0.309359   ("confident" -> 0.35 per answer)
 
-intercept: { mean: 1.386294, sd: 1.000000 }
+intercept:
+  mean: 1.386294
+  sd: 1.000000
+  date: "2026-09-17"
+  why: >-
+    Julie's elicited baseline: a well-matched person, 8 in 10 still doing well a year
+    later; logit(0.8). The sd is the converter's constant -- she was not asked how
+    sure she was of the baseline -- not an elicited value.
 
 dimensions:
-  autonomy:      { mag: {mean: -0.673746, sd: 0.309359}, dir: {mean: 0.000000, sd: 0.309359} }
-  pace:          { mag: {mean: -2.515845, sd: 0.309359}, dir: {mean: -0.276145, sd: 0.309359} }
-  collaboration: { mag: {mean: -0.949891, sd: 0.309359}, dir: {mean: 0.276145, sd: 0.309359} }
-  feedback:      { mag: {mean: -1.732868, sd: 0.309359}, dir: {mean: 1.059122, sd: 0.309359} }
-  innovation:    { mag: {mean: -1.732868, sd: 0.309359}, dir: {mean: 0.000000, sd: 0.309359} }
-  decision:      { mag: {mean: -0.866434, sd: 0.309359}, dir: {mean: 0.866434, sd: 0.309359} }
+  autonomy:
+    mag:
+      mean: -0.673746
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 7 in 10, person-low/role-high
+        7 in 10 (converter algebra above). sd from "confident".
+    dir:
+      mean: 0.000000
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        The same two answers are equal (7 and 7), so neither direction of mismatch
+        is cheaper.
+  pace:
+    mag:
+      mean: -2.515845
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 3 in 10, person-low/role-high
+        4 in 10 -- the costliest dimension she named. sd from "confident".
+    dir:
+      mean: -0.276145
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        4 vs 3: a steady person in a fast role (wanting LESS pace than the role has)
+        is the slightly cheaper direction, so dir < 0.
+  collaboration:
+    mag:
+      mean: -0.949891
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 7 in 10, person-low/role-high
+        6 in 10. sd from "confident".
+    dir:
+      mean: 0.276145
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        7 vs 6: wanting MORE collaboration than the role offers is the slightly
+        cheaper direction, so dir > 0.
+  feedback:
+    mag:
+      mean: -1.732868
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 7 in 10, person-low/role-high
+        3 in 10. sd from "confident".
+    dir:
+      mean: 1.059122
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        7 vs 3: wanting more feedback than you get is far cheaper than getting
+        more (and blunter) feedback than you want -- her strongest asymmetry.
+  innovation:
+    mag:
+      mean: -1.732868
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 5 in 10, person-low/role-high
+        5 in 10. sd from "confident".
+    dir:
+      mean: 0.000000
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        The same two answers are equal (5 and 5), so neither direction of mismatch
+        is cheaper.
+  decision:
+    mag:
+      mean: -0.866434
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        Julie, pole gap 0.8: person-high/role-low 8 in 10, person-low/role-high
+        5 in 10. sd from "confident".
+    dir:
+      mean: 0.866434
+      sd: 0.309359
+      date: "2026-09-17"
+      why: >-
+        8 vs 5: wanting more data-driven decisions than the role has is cheaper
+        than being asked for data you would rather replace with judgement, so
+        dir > 0 (and equal to |mag|: the cheap direction costs nothing at the pole).
   # structure / orientation added here when toggled active
 
 confounders:
   # continuous confounders (stage_size, comp): one weight, applied to the
-  # standardized value. stage_size: 7/10 large vs 7/10 small -> no effect.
-  # comp: 9/10 above market vs 5/10 below -> 0.549306 per standardized unit.
-  stage_size:  { mean: 0.000000, sd: 0.500000 }
-  comp:        { mean: 0.549306, sd: 0.500000 }
+  # standardized value (solverah_model_config.yaml `scale`). No confidence question
+  # is asked for confounders, so every sd here is the converter's default
+  # (CONFOUNDER_SD_DEFAULT = 0.5), not hers.
+  stage_size:
+    mean: 0.000000
+    sd: 0.500000
+    date: "2026-09-17"
+    why: >-
+      Julie: 7 in 10 at a large company vs 7 in 10 at a small one -> no effect per
+      standardized unit. sd: converter default.
+  comp:
+    mean: 0.549306
+    sd: 0.500000
+    date: "2026-09-17"
+    why: >-
+      Julie: 9 in 10 paid above market vs 5 in 10 below; (logit(0.9) - logit(0.5))
+      over the standardized span of the 1-5 band (4 units) = 0.549306 per
+      standardized unit. sd: converter default.
   # industry is categorical (see solverah_model_config.yaml `levels`) -- this
   # single {mean, sd} is the shared prior for a *vector* of independent
-  # per-level weights, not one scalar weight. She answered "yes, it matters"; that
-  # keeps the mean neutral and the sd wide, leaving the per-level story to data.
-  industry:    { mean: 0.000000, sd: 1.000000 }
+  # per-level weights, not one scalar weight.
+  industry:
+    mean: 0.000000
+    sd: 1.000000
+    date: "2026-09-17"
+    why: >-
+      Julie answered "yes, it matters" and no per-level question was asked, so the
+      mean stays neutral and the sd wide: one shared prior over the per-level
+      vector, leaving the per-level story to data. Masked on every row the
+      environment instrument produced before it asked industry (2026-10-01).
   # prestige added here when toggled active
 
 # Ordinal-head cutpoint spacings. NOT expert-elicited -- placeholder priors.
 # The cutpoint between ratings 3 and 4 is PINNED at 0 so that sigmoid(z)
 # is exactly P(rating >= 4) = "doing well"; see build_model.py.
+# This block is kept IDENTICAL in priors_placeholder.yaml (tests/test_ordinal_head.py).
 cutpoints:
-  spacing: { mu_log: 0.405465, sigma_log: 0.5 }   # LogNormal; exp(mu) = 1.5
+  spacing:
+    mu_log: 0.405465   # LogNormal; exp(mu) = 1.5
+    sigma_log: 0.5
+    date: "2026-09-21"
+    why: >-
+      Placeholder, not elicited: LogNormal(log 1.5, 0.5) on each of the three free
+      spacings between adjacent ratings, chosen when the ordinal head was built. The
+      rating-3/4 cutpoint is pinned at 0 (ruling 2026-09-17) so the elicited weights
+      keep their binary meaning; the spacings are a diagnostic the data sets.

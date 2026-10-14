@@ -238,3 +238,64 @@ it as pilot-form.
 launch. Counting them is what makes Look 1 reachable; labelling them and checking
 app-only is what keeps a mode difference (a form instead of the app's stepper) from
 passing as a finding.
+
+### Amendment 3 — 2026-10-13: exploratory outcomes, the hinge as the serving shape, tolerance as a person feature, the transfer gap
+
+Written 2026-10-13, before any look and before any outcome row has been extracted for
+one. Follows Sebastian's 2026-10-13 decisions on the six-trait match model
+(`docs/PRODUCT_DECISIONS.md` §2, "The six-trait match model"). The primary outcome
+(`experienced` ≥ 4), the §0.3 model, and every Part 1 rule are **unchanged**.
+
+**(a) Exploratory outcomes.** The Environment Report may gain optional items after
+`experienced`: satisfaction, performance, engagement, sustainability, retention, each
+answered 1–5 and mapped linearly to 0–1 (1 → 0, 5 → 1). They are **exploratory only**
+(Part 3): no decision rule, no threshold, never a primary outcome, and a report filed
+before the items existed is not excluded for lacking them.
+
+**(b) The serving shape is a hinge.** Since 2026-10-13 the serving predictor
+(`match_core.outcome_logit` through `match_core.excess_gap`) can read a per-person,
+per-dimension, per-direction flat zone: inside it a dimension costs nothing; outside it
+the excess |gap| − zone is multiplied by 0.8 / (0.8 − zone) and then priced by the
+elicited `mag` and `dir` weights, so a pole gap (0.8) keeps exactly its elicited cost
+and Julie's twelve answers reproduce under every zone. The zone is the larger of the
+person's stated tolerance and the 0.15 measurement-noise band. Which shape serves a
+person who has not answered (the 0.15 hinge, or today's linear path) is a product
+setting outside this document; it does not touch the Look 2 comparison, which uses the
+fixed 0.15 zone on every row. For this document:
+- Part 2 item 2 (linear vs hinge at 0.15, by PSIS-LOO) now has its hinge
+  **pre-built** — the fixed-zone variant, 0.15 in both directions on every row, with
+  the rescaling above — built with no access to outcome rows. It runs **as written** at
+  Look 2. The rescaling is declared here so that Look 2 compares exactly the shape that
+  serves, and not an unrescaled hinge that would also cut every pole cost by
+  `weight × 0.15`.
+- The **personalised-zone** variant (each row at its respondent's own tolerance) is
+  exploratory (Part 3) at Look 2: the item was pre-registered as fixed-zone, and
+  tolerance answers will exist for few respondents.
+- Look 1 is unaffected: its fit is linear-from-zero as fixed in §0.3. No hinge is
+  fitted at Look 1.
+- Which shape *serves* is a product decision already taken (the hinge), not an outcome
+  of Look 2. Look 2 can only report whether the data prefers it; a change of serving
+  shape on that basis would be its own decision.
+
+**(c) Tolerance and must-have as person features.** A respondent's per-trait tolerance
+(0, 1 or 2 person-lattice steps, under and over) and must-have flags (at most 2) are
+recorded on the training row when present. Any analysis that uses them — for example
+whether a gap inside a stated tolerance predicts the rating less than one outside it —
+is exploratory (Part 3). They are not covariates in the §0.3 model.
+
+**(d) Transfer gap.** Every outcome row pairs a person with their **self-described**
+environment (the Environment Report), while CompanyLens applies the same predictor to
+**researched** company evidence. A fit on Environment Report rows therefore says nothing
+yet about calibration on researched evidence. Before any probability is ever shown to a
+user, calibration must also be checked on outcomes linked to a researched company
+through "I took this job" (the company link plus Pulse check-ins). Recorded as an
+exploratory analysis with **no decision rule attached now**; a rule needs its own
+amendment once such rows exist.
+
+**Why.** (a) Julie's brief asked for the outcome to be defined in more than one way; the
+pre-registered primary stays the one the priors were elicited against. (b) The hinge was
+the no-Julie candidate fix for additivity harshness (2026-09-17) and the product has now
+adopted it for serving; building it before Look 2's extract, and fixing its exact form
+here, keeps the pre-registered comparison honest. (c) and (d) name data that will exist
+before it is clear how it should be used, so that its use is a later, written decision
+rather than a look-time choice.

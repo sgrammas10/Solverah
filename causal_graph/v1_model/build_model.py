@@ -273,7 +273,8 @@ def ordinal_observed(outcome: Sequence[Any], levels: int) -> np.ndarray:
 
 def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
                 conf_missing: Optional[Mapping[str, Any]] = None,
-                global_scale: Optional[Mapping[str, Any]] = None):
+                global_scale: Optional[Mapping[str, Any]] = None,
+                flat_zones: Optional[Mapping[str, Any]] = None):
     """
     person, env : dict {dim_key: array-like, length N}
     conf        : dict {confounder_key: array-like, length N} -- RAW values
@@ -300,6 +301,17 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
                   from global_scale.global_scale_settings() swaps the twelve
                   independent dimension-weight RVs for one shared scale s plus
                   tightly-shrunk deviations: weight = s * prior_mean + delta.
+
+    flat_zones  : optional {dim_key: (under_zone, over_zone)}, DEFAULT OFF, passed
+                  straight through to match_core.outcome_logit (the hinge, C2 of
+                  the 2026-10-13 six-trait build). None builds the literal
+                  linear-from-zero predictor, bit-identical to before the argument
+                  existed: same pm.Data, same free RVs, same logp. A per-row zone
+                  (a 1-d array of length N per side) is accepted, so a fit can
+                  carry each person's own tolerance. This is what lets the
+                  pre-registration's Look 2 hinge comparison be fitted
+                  (Amendment 3: the FIXED 0.15 variant). excess_gap is written
+                  with abs/+/-/* only, so the same algebra runs on pm.Data tensors.
 
     `p_fit` is a pm.Deterministic on BOTH heads and means the same thing on
     both: P(this goes well). On the ordinal head that is P(rating >=
@@ -332,7 +344,8 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
             for k, v in preprocess_conf(conf, cfg, conf_missing=conf_missing).items()
         }
 
-        z = outcome_logit(person_data, env_data, conf_data, cfg, weights, snap_person=False)
+        z = outcome_logit(person_data, env_data, conf_data, cfg, weights, snap_person=False,
+                          flat_zones=flat_zones)
         pm.Deterministic("p_fit", pm.math.sigmoid(z))
 
         if not is_ordinal:
@@ -362,15 +375,16 @@ def build_model(person, env, conf, cfg, pri, outcome=None, head: str = "appeal",
 def prior_predictive(person, env, conf, cfg, pri, draws=2000, random_seed=None,
                      head: str = "appeal",
                      conf_missing: Optional[Mapping[str, Any]] = None,
-                     global_scale: Optional[Mapping[str, Any]] = None):
+                     global_scale: Optional[Mapping[str, Any]] = None,
+                     flat_zones: Optional[Mapping[str, Any]] = None):
     """P(fit) under the expert priors alone -- no observed outcomes yet.
 
-    `head` and `conf_missing` are passed through to build_model() and default to
-    the pre-2026-09-17 behavior. They go LAST because recovery_multiseed.py and
-    the analysis scripts call this positionally.
+    `head`, `conf_missing`, `global_scale` and `flat_zones` are passed through to
+    build_model() and default to the pre-2026-09-17 behavior. They go LAST because
+    recovery_multiseed.py and the analysis scripts call this positionally.
     """
     model = build_model(person, env, conf, cfg, pri, head=head, conf_missing=conf_missing,
-                        global_scale=global_scale)
+                        global_scale=global_scale, flat_zones=flat_zones)
     with model:
         idata = pm.sample_prior_predictive(draws=draws, random_seed=random_seed)
     return idata.prior["p_fit"]
@@ -378,16 +392,19 @@ def prior_predictive(person, env, conf, cfg, pri, draws=2000, random_seed=None,
 
 def fit_posterior(person, env, conf, outcome, cfg, pri, head: str = "appeal",
                   conf_missing: Optional[Mapping[str, Any]] = None,
-                  global_scale: Optional[Mapping[str, Any]] = None, **sample_kwargs):
+                  global_scale: Optional[Mapping[str, Any]] = None,
+                  flat_zones: Optional[Mapping[str, Any]] = None, **sample_kwargs):
     """Update the priors on observed (person, env, conf) -> outcome data.
 
     head="experienced" fits the 1..5 ordinal through OrderedLogistic; see
     build_model(). `outcome` is passed to the head unchanged -- nothing here
-    ever dichotomizes an experienced rating (D-20). `global_scale` (default
-    None = off) is passed to build_model and never reaches pm.sample.
+    ever dichotomizes an experienced rating (D-20). `global_scale` and
+    `flat_zones` (default None = off) are passed to build_model and never reach
+    pm.sample.
     """
     model = build_model(person, env, conf, cfg, pri, outcome=outcome, head=head,
-                        conf_missing=conf_missing, global_scale=global_scale)
+                        conf_missing=conf_missing, global_scale=global_scale,
+                        flat_zones=flat_zones)
     with model:
         idata = pm.sample(**sample_kwargs)
     return idata

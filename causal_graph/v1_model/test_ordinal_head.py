@@ -399,3 +399,86 @@ def test_a_short_fit_with_industry_masked_leaves_its_weight_at_the_prior(cfg_pri
     # ...and the weights that ARE supplied did learn something, so the assertion
     # above is about masking rather than about a fit that simply never ran.
     assert float(idata.posterior["w_comp"].values.std(ddof=1)) < 0.5
+
+
+# ---------------------------------------------------------------------------
+# 8. The flat_zones passthrough (C9, 2026-10-13)
+#
+# build_model(flat_zones=...) hands the person's tolerance to outcome_logit so
+# the pre-registration's Look 2 hinge comparison can be FITTED. Two contracts:
+# the default (None) is the model that existed before the argument did, and a
+# zone that is given reaches the predictor and prices the gap exactly as the
+# numpy serving path (match_core.point_p_fit) prices it.
+# ---------------------------------------------------------------------------
+
+FLOOR_ZONES = {d: (0.15, 0.15) for d in DIMS}
+
+
+def _p_fit_at_prior_means(model):
+    """p_fit evaluated at the model's initial point: every Normal weight at its mean."""
+    point = model.initial_point()
+    givens = {model[name]: value for name, value in point.items() if name in model.named_vars}
+    return np.asarray(model["p_fit"].eval(givens), dtype=float)
+
+
+@pytest.mark.parametrize("head", ["appeal", "experienced"])
+def test_flat_zones_default_is_the_model_that_existed_before_the_argument(cfg_pri, head):
+    cfg, pri = cfg_pri
+    person, env, conf = _inputs()
+    outcome = (np.array([0, 1] * (N // 2)) if head == "appeal"
+               else np.array([1, 2, 3, 4, 5] + [3] * (N - 5)))
+
+    before = bm.build_model(person, env, conf, cfg, pri, outcome=outcome, head=head)
+    after = bm.build_model(person, env, conf, cfg, pri, outcome=outcome, head=head,
+                           flat_zones=None)
+
+    assert {v.name for v in before.data_vars} == {v.name for v in after.data_vars}
+    assert {v.name for v in before.free_RVs} == {v.name for v in after.free_RVs}
+    assert {v.name for v in before.observed_RVs} == {v.name for v in after.observed_RVs}
+    np.testing.assert_array_equal(_p_fit_at_prior_means(before), _p_fit_at_prior_means(after))
+
+    a = np.asarray(bm.prior_predictive(person, env, conf, cfg, pri, draws=50,
+                                       random_seed=7, head=head))
+    b = np.asarray(bm.prior_predictive(person, env, conf, cfg, pri, draws=50,
+                                       random_seed=7, head=head, flat_zones=None))
+    np.testing.assert_array_equal(a, b)
+
+
+def test_flat_zones_reach_the_predictor_and_agree_with_the_numpy_serving_path(cfg_pri):
+    """The PyMC graph with a zone prices every row exactly as match_core.point_p_fit
+    does with the same zone -- the fit and the serving path read one hinge."""
+    from match_core import point_p_fit, weights_from_priors
+
+    cfg, pri = cfg_pri
+    person, env, conf = _inputs(seed=3)
+    weights = weights_from_priors(cfg, pri)
+
+    linear = _p_fit_at_prior_means(bm.build_model(person, env, conf, cfg, pri))
+    hinged = _p_fit_at_prior_means(
+        bm.build_model(person, env, conf, cfg, pri, flat_zones=FLOOR_ZONES))
+    assert not np.array_equal(linear, hinged), "the zone never reached the predictor"
+
+    np.testing.assert_allclose(
+        hinged, point_p_fit(person, env, conf, cfg, weights, flat_zones=FLOOR_ZONES),
+        rtol=0, atol=1e-12,
+    )
+    np.testing.assert_allclose(
+        linear, point_p_fit(person, env, conf, cfg, weights), rtol=0, atol=1e-12,
+    )
+
+    # A per-row zone (each person's own tolerance) is accepted by the graph too.
+    rng = np.random.default_rng(1)
+    per_row = {d: (rng.choice([0.15, 0.25, 0.5], N), rng.choice([0.15, 0.25, 0.5], N))
+               for d in DIMS}
+    np.testing.assert_allclose(
+        _p_fit_at_prior_means(bm.build_model(person, env, conf, cfg, pri, flat_zones=per_row)),
+        point_p_fit(person, env, conf, cfg, weights, flat_zones=per_row),
+        rtol=0, atol=1e-12,
+    )
+
+
+def test_an_invalid_zone_is_refused_at_build_time(cfg_pri):
+    cfg, pri = cfg_pri
+    person, env, conf = _inputs()
+    with pytest.raises(ValueError, match="flat_zones must carry exactly"):
+        bm.build_model(person, env, conf, cfg, pri, flat_zones={"pace": (0.15, 0.15)})

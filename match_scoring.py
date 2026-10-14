@@ -48,6 +48,7 @@ from match_core import (  # noqa: E402
     flatten_weights,
     load,
     point_p_fit,
+    point_z,
     score_pairs,
     unflatten_weights,
     weights_from_priors,
@@ -60,11 +61,13 @@ __all__ = [
     "load",
     "load_run_weights",
     "point_p_fit",
+    "point_z",
     "record_fitted_run",
     "score_pairs",
     "score_with_current_run",
     "seed_priors_model_run",
     "weights_from_priors",
+    "z_with_current_run",
 ]
 
 PRIORS_MODEL_VERSION = "v1-priors-only"
@@ -231,12 +234,21 @@ def load_run_weights(db, run=None, cfg=None):
     return run, weights
 
 
-def score_with_current_run(db, person, env, conf_raw, draws=2000, seed=0):
+def score_with_current_run(db, person, env, conf_raw, draws=2000, seed=0,
+                           conf_missing=None, flat_zones=None, env_missing=None):
     """P(fit) + band for N pairs under the current run's weights.
 
     person/env: {dimension_key: array-like length N}; conf_raw: raw confounder values.
     Person scores come from assessment_store.get_dimension_scores() -- this module
     never reads them itself (D-01).
+
+    conf_missing / flat_zones / env_missing are passed straight through to
+    match_core.score_pairs (the confounder mask, the person's per-dimension flat
+    zone for the hinge, and the unknown-trait mask); all default to None, which is
+    the unchanged linear-from-zero path. The flat zones come from
+    solverah/domain/trait_preferences.flat_zones, already floored at 0.15 -- and
+    None for a user who has not answered, which here means the linear path; a
+    caller that wants the 0.15 hinge for such a user builds the dict itself.
 
     Returns (run, {"p_fit": ..., "p_fit_low": ..., "p_fit_high": ...}) -- the arrays
     line up with match_recommendation's columns; writing those rows is the match
@@ -244,4 +256,23 @@ def score_with_current_run(db, person, env, conf_raw, draws=2000, seed=0):
     """
     cfg, _ = load()
     run, weights = load_run_weights(db, cfg=cfg)
-    return run, score_pairs(person, env, conf_raw, cfg, weights, draws=draws, seed=seed)
+    return run, score_pairs(person, env, conf_raw, cfg, weights, draws=draws, seed=seed,
+                            conf_missing=conf_missing, flat_zones=flat_zones,
+                            env_missing=env_missing)
+
+
+def z_with_current_run(db, person, env, conf_raw, conf_missing=None, flat_zones=None,
+                       env_missing=None):
+    """The linear predictor z (at the weight means) for N pairs under the current
+    run's weights -- the RANKING entry point.
+
+    CompanyLens orders companies by z and never materialises a probability
+    (PRODUCT_DECISIONS.md section 2, 2026-10-13: no probability reaches a user
+    until real outcome data has trained the model). Same inputs and pass-through
+    arguments as score_with_current_run. Returns (run, z) with z a float array
+    length N; z is internal and must not appear on any payload.
+    """
+    cfg, _ = load()
+    run, weights = load_run_weights(db, cfg=cfg)
+    return run, point_z(person, env, conf_raw, cfg, weights, conf_missing=conf_missing,
+                        flat_zones=flat_zones, env_missing=env_missing)
