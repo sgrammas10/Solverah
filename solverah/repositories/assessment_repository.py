@@ -30,7 +30,7 @@ the same one-release stay ``users.profile_data`` is serving.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.orm import load_only
@@ -44,7 +44,6 @@ __all__ = [
     "current_submissions",
     "delete_for_user",
     "open_current",
-    "work_pulse_answers_for_users",
 ]
 
 #: Kinds whose current sitting is one row, updated in place on a retake. ``core``
@@ -128,29 +127,6 @@ def current_submissions(
         .distinct(AssessmentSubmission.kind)
     ).scalars()
     return {row.kind: row for row in rows}
-
-
-def work_pulse_answers_for_users(user_ids: Sequence[int]) -> Dict[int, Any]:
-    """``{user_id: answers}`` of each user's Work Pulse sitting, in one query.
-
-    Only the answers: not the result, and not the narrative. A user who has not
-    sat Work Pulse is absent. No ordering is needed to pick the *current* row --
-    ``uq_assessment_submissions_current`` holds one row per user for every kind
-    but ``core``, which is the rule :func:`current_submission` rests on for these
-    kinds too. Sends nothing at all for an empty *user_ids*.
-
-    The batch read behind ``matching_service.backfill_culture_preferences``.
-    """
-    ids = list(user_ids)
-    if not ids:
-        return {}
-    rows = db.session.execute(
-        sa.select(AssessmentSubmission.user_id, AssessmentSubmission.answers).where(
-            AssessmentSubmission.kind == "work_pulse",
-            AssessmentSubmission.user_id.in_(ids),
-        )
-    )
-    return {user_id: answers for user_id, answers in rows}
 
 
 def current_result(user_id: int, kind: str) -> Optional[AssessmentSubmission]:

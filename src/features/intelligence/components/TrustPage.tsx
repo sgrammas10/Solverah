@@ -20,8 +20,9 @@
  * COPY RULES, and each one is load-bearing:
  *
  *  1. Nothing on this page promises a feature that does not exist. Matching is
- *     described in the future tense throughout because CompanyLens is
- *     coming-soon (PRODUCT_DECISIONS §2), and the Situation Report is not
+ *     described as live (CompanyLens, PRODUCT_DECISIONS §2 six-trait entry):
+ *     evidence-backed reads, coverage stated, never a score, percentage or
+ *     probability, paraphrased evidence only. The Situation Report is not
  *     named at all — its decision entry is still a draft awaiting sign-off.
  *  2. The calibration section ends in a limits paragraph rather than a claim.
  *     "Two blind raters" is real (round 1, six packets) and small; saying so
@@ -85,11 +86,11 @@ const SECTIONS: TrustSection[] = [
     },
   },
   {
-    title: "What matching will mean, and what it will not",
+    title: "What matching means, and what it does not",
     body: [
-      "Company matching is not live. The model it depends on is still being built, and rather than ship a plausible-looking number in the meantime, CompanyLens says coming soon. When it does arrive, here is the shape of it.",
-      "It will be an estimate with uncertainty attached, not a verdict. A match says two profiles line up on the dimensions we can actually measure. It does not say you would be happy there, that you would be hired, or that you would do well — those turn on a particular manager, a particular team and a particular year, none of which are in the data.",
-      "It will be one output, not the product. The question underneath every instrument here is what conditions let you work well, how far your current situation sits from them, and what you can change. A ranked list of companies is one answer to that question. It is not the only one, and the rest of Solverah is not holding its breath for it.",
+      "Company matching is live in CompanyLens, as one signal among others. For each trait it gives you a read on how a company lines up with what you have told us you need, the evidence behind that read, and how much evidence there is: it tells you when it is working from only some of the six traits. It never shows a score, a percentage or a probability, because a plausible-looking number would claim more than the evidence can carry. The evidence it shows is paraphrased, not quoted.",
+      "It is an estimate with uncertainty attached, not a verdict. A match says two profiles line up on the dimensions we can actually measure. It does not say you would be happy there, that you would be hired, or that you would do well — those turn on a particular manager, a particular team and a particular year, none of which are in the data.",
+      "It is one output, not the product. The question underneath every instrument here is what conditions let you work well, how far your current situation sits from them, and what you can change. A ranked list of companies is one answer to that question. It is not the only one, and the rest of Solverah is not holding its breath for it.",
       "And it is never something done to you. Employers do not see your answers or your dimension scores. No employer decision about you is made through Solverah. Matching exists so that you can look outward — not so that anyone can rank you.",
     ],
   },
@@ -98,12 +99,12 @@ const SECTIONS: TrustSection[] = [
     body: [
       "Three disciplines, in plain terms.",
       "Item sets are read for bias before people answer them. Someone goes through each question hunting for the option that sounds like the answer a better person would give, and for questions that quietly assume an office, a seniority or a particular kind of team. What turns up is written down and fixed — or written down and accepted, with the reason it was not fixed. These reviews are documents that name the items they could not repair, not a box anybody ticks. The most recent one found a real flaw in one of our own shipped instruments, which is the only evidence worth having that a review is doing anything.",
-      "Company evidence is scored by more than one trained rater, working blind. They read the same material, they cannot see each other’s scores, and where they disagree we keep the disagreement. We do not average it away or drop the odd one out. Two careful people reading the same evidence differently is information about the evidence, and discarding it would make the profiles look more certain than they are.",
+      "Company evidence is scored by more than one trained rater, working blind. They read the same material, they cannot see each other’s scores, and where they disagree we keep the disagreement. We do not average it away or drop the odd one out. Two careful people reading the same evidence differently is information about the evidence, and discarding it would make the profiles look more certain than they are. That is how the scoring rubric is calibrated. The company reads you see in CompanyLens are scored automatically, by an AI scorer applying that same rubric to each piece of evidence, and each read tells you how much evidence it rests on. Checking that automatic scoring against the human raters is part of the unfinished work below.",
       "We attack our own anonymisation. The material raters read has the company’s identity stripped out of it, so that their scores describe evidence rather than a reputation they already hold. Stripping is easy to do badly, so we read the scrubbed version back and hunt for whatever still gives the company away — and we record what we find, including the leaks we decide not to close and why. Then we ask every rater afterwards whether they recognised the company anyway. When someone did, that goes down next to their scores instead of being quietly dropped.",
     ],
     aside: {
       title: "The honest limits of all that",
-      body: "This work is real and it is not finished. Not every instrument has had the same depth of review, the calibration set is small, the model it feeds is not deployed, and none of it has yet been checked against how people actually answer at scale — which is something we can only learn once enough people have. That evidence will change some of these items. We would rather write that here than imply a finished science.",
+      body: "This work is real and it is not finished. Not every instrument has had the same depth of review, the calibration set is small, the model it feeds runs on expert estimates and has not yet been trained on real outcomes (which is why it never shows you a probability), and none of it has yet been checked against how people actually answer at scale — which is something we can only learn once enough people have. That evidence will change some of these items. We would rather write that here than imply a finished science.",
     },
   },
   {
@@ -121,7 +122,7 @@ function TrustPage() {
   return (
     <DocLayout
       title="How this works, and what we hold back"
-      meta="Last reviewed 10 September 2026"
+      meta="Last reviewed 14 October 2026"
       lead={
         <p>
           Solverah measures the conditions you do your best work in. This page covers how those

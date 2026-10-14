@@ -1,287 +1,196 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { QueryClientProvider } from "@tanstack/react-query";
-import CompanyLensPage from "./CompanyLensPage";
-import { ApiError } from "../../../shared/api/apiError";
-import { createQueryClient } from "../../../shared/api/queryClient";
-
-const mocks = vi.hoisted(() => ({
-  navigate: vi.fn(),
-  fetchWithAuth: vi.fn(),
-}));
-
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-router-dom")>();
-  return { ...actual, useNavigate: () => mocks.navigate };
-});
-
-vi.mock("../../auth/useAuth", () => ({
-  useAuth: () => ({ fetchWithAuth: mocks.fetchWithAuth }),
-}));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
-
 /**
- * One page of `GET /api/v1/me/matches`.
+ * CompanyLensPage -- the six-trait list over a real (MSW) network.
  *
- * Phase 1b replaced `GET /company-lens/matches`, which returned `best_fits` and
- * `worst_fits` in a single body, with a cursor-paginated ranking that `?order=`
- * reads from either end. The screen still shows both ends, so it now issues two
- * requests -- which is what `mockMatchesOnce` below exists to queue.
+ * Rewritten for the six-trait build (2026-10-13): the old page rendered
+ * `fit_score` as "91% match" from two `?order=` walks. The API now carries no
+ * score at all, so every state here is also run through `assertNoProbabilityText`.
  */
-const BEST_FITS = [
-  {
-    id: 1,
-    name: "Stripe",
-    slug: "stripe",
-    industry: "Fintech",
-    fit_score: 0.91,
-    top_matching_dimensions: ["empathy", "creative_drive"],
-    top_mismatching_dimensions: [],
-    fit_summary: "Strong match for your work style.",
-  },
-  {
-    id: 2,
-    name: "Notion",
-    slug: "notion",
-    industry: "Productivity",
-    fit_score: 0.85,
-    top_matching_dimensions: ["harmony"],
-    top_mismatching_dimensions: ["pace"],
-    fit_summary: "Good overall alignment.",
-  },
-];
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-const WORST_FITS = [
-  {
-    id: 3,
-    name: "Goldman Sachs",
-    slug: "goldman-sachs",
-    industry: "Finance",
-    fit_score: 0.31,
-    top_matching_dimensions: [],
-    top_mismatching_dimensions: ["empathy", "harmony"],
-    fit_summary: "High-pressure environment may not suit you.",
-  },
-];
+import { AuthProvider } from "../../auth";
+import { createQueryClient } from "../../../shared/api/queryClient";
+import { server, useApiMocks, recordRequests, signedIn } from "../../../../tests/msw/server";
+import { mock } from "../../../../tests/msw/contract";
+import {
+  MATCH_GRINDSTONE,
+  MATCH_NORTHWIND,
+  MATCH_STUDIO,
+  assertNoProbabilityText,
+  matchesBody,
+  matchesReply,
+  researchAccepted,
+  researchProgresses,
+} from "../../../../tests/msw/companyLensHandlers";
+import CompanyLensPage from "./CompanyLensPage";
 
-function page(data: unknown[], order: string) {
-  return {
-    data,
-    next_cursor: null,
-    total_companies_scored: 100,
-    lens: "culture",
-    order,
-  };
-}
+useApiMocks();
+const { requests } = recordRequests();
 
-/** Queue the pair of responses one render of this screen consumes. */
-function mockMatchesOnce() {
-  mocks.fetchWithAuth
-    .mockResolvedValueOnce(page(BEST_FITS, "best"))
-    .mockResolvedValueOnce(page(WORST_FITS, "worst"));
-}
+const matchCalls = () => requests.filter((r) => r === "GET /api/v1/me/matches");
 
-/** The matches query needs a client; fresh per render, per the
- *  useProfileForm.test precedent, so no cache entry leaks between tests.
- *  The real client, with the real retry policy: the failure fixtures below are
- *  ApiErrors with 4xx statuses, which shouldRetry refuses to retry — a bare
- *  `new Error(...)` here would be classified as a network failure and retried,
- *  and the mock's next (undefined) response would take the test somewhere
- *  unintended. That mirrors production, where fetchWithAuth only ever throws
- *  ApiError for a server-rejected request. */
-function renderCompanyLensPage() {
-  render(
+function renderPage() {
+  return render(
     <QueryClientProvider client={createQueryClient()}>
-      <MemoryRouter>
-        <CompanyLensPage />
-      </MemoryRouter>
-    </QueryClientProvider>
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/company-lens"]}>
+          <Routes>
+            <Route
+              path="/company-lens"
+              element={<CompanyLensPage researchPollTiming={{ initialMs: 15, factor: 1, maxMs: 15 }} />}
+            />
+            <Route path="/work-pulse" element={<p>Work Pulse page</p>} />
+            <Route path="/intelligence" element={<p>Intelligence page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    </QueryClientProvider>,
   );
 }
 
-// ─── loading state ─────────────────────────────────────────────────────────────
+const bodyText = () => document.body.textContent ?? "";
 
-describe("CompanyLensPage - loading state", () => {
-  it("shows loading spinner on mount", () => {
-    mocks.fetchWithAuth.mockReturnValue(new Promise(() => {}));
-    renderCompanyLensPage();
-    expect(screen.getByText(/Scoring companies/i)).toBeInTheDocument();
-  });
-});
-
-// ─── happy path ────────────────────────────────────────────────────────────────
-
-describe("CompanyLensPage - happy path", () => {
-  it("renders section headings after fetch", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() =>
-      expect(screen.getByText(/Companies that match how you work/i)).toBeInTheDocument()
+describe("CompanyLensPage - loading and errors", () => {
+  it("shows a loading state first", () => {
+    server.use(
+      signedIn(),
+      mock("get", "/api/v1/me/matches").resolve(() => new Promise(() => {})),
     );
-    expect(screen.getByText(/Companies worth understanding/i)).toBeInTheDocument();
+    renderPage();
+    expect(screen.getByText(/Reading companies against your answers/)).toBeInTheDocument();
   });
 
-  it("renders best-fit company names", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => expect(screen.getByText("Stripe")).toBeInTheDocument());
-    expect(screen.getByText("Notion")).toBeInTheDocument();
-  });
-
-  it("renders worst-fit company names", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => expect(screen.getByText("Goldman Sachs")).toBeInTheDocument());
-  });
-
-  it("renders fit score percentages", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => expect(screen.getByText("91% match")).toBeInTheDocument());
-  });
-});
-
-// ─── model-pending state ───────────────────────────────────────────────────────
-
-describe("CompanyLensPage - model-pending state", () => {
-  // Renamed from "no-prefs state" 2026-09-08 (⚑3, BUILD_PLAN.md §0.2): the
-  // core→8-dim culture-preferences mapping this 400/409 reports is not being
-  // built, so the old "Complete Work Pulse to unlock CompanyLens™" copy blamed
-  // a user who had already finished it. Coming-soon copy replaces it; the
-  // detection (message substring) is unchanged.
-  it("shows coming-soon copy when culture preferences missing, with no gated language", async () => {
-    // A 409 ApiError, as the server actually sends it: 4xx is not retryable,
-    // so the model-pending screen appears without the query retrying into the
-    // mock's exhausted (undefined) responses.
-    mocks.fetchWithAuth
-      .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }))
-      .mockRejectedValueOnce(new ApiError("culture preferences not set", { status: 409 }));
-    renderCompanyLensPage();
-    await waitFor(() =>
-      expect(screen.getByText(/CompanyLens™ is coming soon/i)).toBeInTheDocument()
+  it("shows an error with a working retry", async () => {
+    let call = 0;
+    server.use(
+      signedIn(),
+      mock("get", "/api/v1/me/matches").resolve(({ request }) => {
+        void request;
+        call += 1;
+        return call === 1
+          ? Response.json({ error: "nope" }, { status: 404 })
+          : Response.json(matchesBody(), { status: 200 });
+      }),
     );
-    expect(screen.queryByRole("button", { name: /start work pulse/i })).toBeNull();
-    // feature_tour.spec.ts classifies this route's body against these regexes;
-    // GATED must not fire alongside COMING-SOON.
-    expect(document.body.textContent).not.toMatch(/unlock|locked/i);
-  });
-
-  it("navigates to /intelligence when 'Back to Intelligence' clicked", async () => {
-    mocks.fetchWithAuth
-      .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }))
-      .mockRejectedValueOnce(new ApiError("Work Pulse not completed", { status: 409 }));
-    renderCompanyLensPage();
-    await waitFor(() => screen.getByRole("button", { name: /back to intelligence/i }));
-    fireEvent.click(screen.getByRole("button", { name: /back to intelligence/i }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
+    renderPage();
+    expect(await screen.findByText(/couldn't load CompanyLens/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("Northwind Freight")).toBeInTheDocument();
   });
 });
 
-// ─── error handling ────────────────────────────────────────────────────────────
+describe("CompanyLensPage - core_required", () => {
+  it("invites the user to Work Pulse without blaming them", async () => {
+    server.use(signedIn(), matchesReply(matchesBody({ state: "core_required", data: [], total_companies: 0 })));
+    renderPage();
+    expect(await screen.findByText("Start with how you like to work")).toBeInTheDocument();
+    expect(bodyText()).not.toMatch(/you (haven't|have not|didn't|failed)|unlock|locked/i);
+    // No research input until there is something to read companies against.
+    expect(screen.queryByLabelText("Research a company")).toBeNull();
+    assertNoProbabilityText(bodyText());
 
-describe("CompanyLensPage - error handling", () => {
-  it("shows error UI on fetch failure", async () => {
-    // 400, not a bare Error: this test means "the request failed and stays
-    // failed", and a 4xx is the class shouldRetry surfaces immediately.
-    mocks.fetchWithAuth
-      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }))
-      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }));
-    renderCompanyLensPage();
-    await waitFor(() =>
-      expect(screen.getByText(/Couldn't load your company matches/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Take Work Pulse" }));
+    expect(await screen.findByText("Work Pulse page")).toBeInTheDocument();
+  });
+});
+
+describe("CompanyLensPage - no_companies", () => {
+  it("invites the user to research a company", async () => {
+    server.use(signedIn(), matchesReply(matchesBody({ state: "no_companies", data: [], total_companies: 0 })));
+    renderPage();
+    expect(await screen.findByText("No companies yet")).toBeInTheDocument();
+    expect(screen.getByLabelText("Research a company")).toBeInTheDocument();
+    assertNoProbabilityText(bodyText());
+  });
+});
+
+describe("CompanyLensPage - ranked", () => {
+  it("renders ranked cards in the API's order, then the not-enough-evidence section", async () => {
+    server.use(signedIn(), matchesReply());
+    renderPage();
+    await screen.findByText("Northwind Freight");
+
+    const ranked = screen.getByRole("region", { name: "Your companies" });
+    const names = within(ranked)
+      .getAllByRole("article")
+      .map((card) => card.getAttribute("aria-label"));
+    expect(names).toEqual([MATCH_NORTHWIND.name, MATCH_GRINDSTONE.name]);
+
+    const thin = screen.getByRole("region", { name: "Not enough evidence yet" });
+    expect(within(thin).getByText(MATCH_STUDIO.name as string)).toBeInTheDocument();
+    expect(within(thin).getByText(/Too little evidence on Autonomy, Collaboration, Feedback and Decision basis/)).toBeInTheDocument();
+    expect(within(thin).getByText(/Clear reads on 2 of 6 traits/)).toBeInTheDocument();
+    // An unranked company is not placed among the ranked ones.
+    expect(within(ranked).queryByText(MATCH_STUDIO.name as string)).toBeNull();
+  });
+
+  it("shows coverage, the next step with its reason, must-have reads, flags and size", async () => {
+    server.use(signedIn(), matchesReply());
+    renderPage();
+    const card = await screen.findByRole("article", { name: "Northwind Freight" });
+    expect(within(card).getByText(/Based on 4 of 6 traits/)).toBeInTheDocument();
+    expect(within(card).getByText("Investigate")).toBeInTheDocument();
+    expect(within(card).getByText(MATCH_NORTHWIND.next_step.reason)).toBeInTheDocument();
+    expect(within(card).getByText(/The evidence disagrees/)).toBeInTheDocument();
+    expect(within(card).getByText("Must-have at risk")).toBeInTheDocument();
+    expect(within(card).getByText("1 must-have at risk")).toBeInTheDocument();
+    expect(within(card).getByText(/Thousands of people/)).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Northwind Freight" })).toHaveAttribute("href", "/companies/41");
+
+    const broken = screen.getByRole("article", { name: "Grindstone Corp" });
+    expect(within(broken).getByText(/More on the fast side than you prefer, outside your give/)).toBeInTheDocument();
+    expect(within(broken).getByText("Must-have outside your give")).toBeInTheDocument();
+    expect(within(broken).getByText(/updating the research/)).toBeInTheDocument();
+
+    assertNoProbabilityText(bodyText());
+  });
+
+  it("links gently to the tolerance step when preferences are unanswered", async () => {
+    server.use(signedIn(), matchesReply(matchesBody({ preferences_answered: false })));
+    renderPage();
+    const link = await screen.findByRole("link", { name: "Tell us how much give you have" });
+    expect(link).toHaveAttribute("href", "/trait-preferences");
+  });
+
+  it("does not show the tolerance nudge once preferences are answered", async () => {
+    server.use(signedIn(), matchesReply());
+    renderPage();
+    await screen.findByText("Northwind Freight");
+    expect(screen.queryByRole("link", { name: "Tell us how much give you have" })).toBeNull();
+  });
+
+  it("walks the cursor with Show more", async () => {
+    const cursors: (string | null)[] = [];
+    server.use(
+      signedIn(),
+      mock("get", "/api/v1/me/matches").resolve(({ request }) => {
+        const cursor = new URL(request.url).searchParams.get("cursor");
+        cursors.push(cursor);
+        const body = cursor
+          ? matchesBody({ data: [MATCH_STUDIO], next_cursor: null })
+          : matchesBody({ data: [MATCH_NORTHWIND], next_cursor: "page-2" });
+        return Response.json(body, { status: 200 });
+      }),
     );
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Show more companies" }));
+    expect(await screen.findByText(MATCH_STUDIO.name as string)).toBeInTheDocument();
+    expect(cursors).toEqual([null, "page-2"]);
+    expect(screen.queryByRole("button", { name: "Show more companies" })).toBeNull();
   });
 
-  it("retry button re-fetches successfully", async () => {
-    // The failed attempt consumes both of its calls before the retry's pair.
-    mocks.fetchWithAuth
-      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }))
-      .mockRejectedValueOnce(new ApiError("API down", { status: 400 }));
-    renderCompanyLensPage();
-    await waitFor(() => screen.getByRole("button", { name: /try again/i }));
-    mockMatchesOnce();
-    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
-    await waitFor(() => expect(screen.getByText("Stripe")).toBeInTheDocument());
-  });
+  it("refreshes the list when a research run finishes", async () => {
+    server.use(signedIn(), matchesReply(), researchAccepted(), researchProgresses(["done"]));
+    renderPage();
+    await screen.findByText("Northwind Freight");
+    expect(matchCalls()).toHaveLength(1);
 
-  it("retries a 500 through shouldRetry and renders the retry's success", async () => {
-    // The behaviour this round adopted on purpose: a converted GET routes
-    // through queryClient.ts's shouldRetry, so a transient 5xx is retried
-    // (bounded) instead of surfacing at the first blip. Safe on this API:
-    // Phase 3a removed every commit from GET handlers, so the retried read
-    // re-reads and nothing else. First attempt's pair 500s; the automatic
-    // retry consumes the queued success pair and the page renders.
-    mocks.fetchWithAuth
-      .mockRejectedValueOnce(new ApiError("upstream hiccup", { status: 500 }))
-      .mockRejectedValueOnce(new ApiError("upstream hiccup", { status: 500 }));
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(
-      () => expect(screen.getByText("Stripe")).toBeInTheDocument(),
-      // Past the ~1s backoff shouldRetry's first retry waits out.
-      { timeout: 5000 }
-    );
-    // Two failed calls, then the retried pair.
-    expect(mocks.fetchWithAuth).toHaveBeenCalledTimes(4);
-  });
-});
-
-// ─── view toggle ──────────────────────────────────────────────────────────────
-
-describe("CompanyLensPage - view toggle", () => {
-  it("toggles to list view when list icon clicked", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => screen.getByTitle("List view"));
-    fireEvent.click(screen.getByTitle("List view"));
-    // List view still shows the same company names
-    expect(screen.getByText("Stripe")).toBeInTheDocument();
-  });
-});
-
-// ─── navigation ───────────────────────────────────────────────────────────────
-
-describe("CompanyLensPage - navigation", () => {
-  it("back to intelligence button navigates to /intelligence", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => screen.getByText(/back to intelligence/i));
-    fireEvent.click(screen.getByText(/back to intelligence/i));
-    expect(mocks.navigate).toHaveBeenCalledWith("/intelligence");
-  });
-
-  it("clicking a company card navigates to the company detail page", async () => {
-    mockMatchesOnce();
-    renderCompanyLensPage();
-    await waitFor(() => screen.getAllByText("View company profile →")[0]);
-    fireEvent.click(screen.getAllByText("View company profile →")[0]);
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      "/companies/1",
-      expect.objectContaining({ state: expect.objectContaining({ fit_score: 0.91 }) })
-    );
-  });
-});
-
-
-// ─── de-duplication across the two ends ───────────────────────────────────────
-
-describe("CompanyLensPage - overlapping ends", () => {
-  it("does not render a company in both lists", async () => {
-    // The endpoint this screen replaced partitioned at the midpoint so a
-    // company could never appear in both slices. A paginated ranking cannot do
-    // that -- with few companies the two orders genuinely overlap -- so the
-    // screen filters the weak end against the strong one.
-    mocks.fetchWithAuth
-      .mockResolvedValueOnce(page(BEST_FITS, "best"))
-      .mockResolvedValueOnce(page([...BEST_FITS].reverse(), "worst"));
-
-    renderCompanyLensPage();
-
-    await waitFor(() => expect(screen.getByText("Stripe")).toBeInTheDocument());
-    expect(screen.getAllByText("Stripe")).toHaveLength(1);
-    expect(screen.getAllByText("Notion")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("Research a company"), {
+      target: { value: "Acme Logistics" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Research" }));
+    expect(await screen.findByText("Research on Acme Logistics is finished.")).toBeInTheDocument();
+    await waitFor(() => expect(matchCalls().length).toBeGreaterThanOrEqual(2));
   });
 });

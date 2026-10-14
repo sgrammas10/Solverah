@@ -33,9 +33,10 @@
  *
  * WHAT IT DOES NOT EXERCISE: any backend code whatsoever. The response shapes
  * below are transcribed from the types the frontend declares -- SessionResponse
- * in src/contexts/authContext.ts, AssessmentForm in src/hooks/useAssessment.ts,
- * MatchesPage in src/pages/CompanyLensPage.tsx -- so they can drift from what
- * Flask actually returns. tests/test_frontend_contract.py is the check that
+ * in src/features/auth, AssessmentForm in src/features/assessments/useAssessment.ts,
+ * and the generated MatchesResponse / TraitPreferencesDocument in
+ * src/shared/api/schema.ts -- so they can drift from what Flask actually returns.
+ * tests/test_frontend_contract.py is the check that
  * catches that drift: it asserts every path the SPA calls is one the API serves.
  * The two are complementary and neither replaces the other.
  */
@@ -83,27 +84,80 @@ export function buildAssessmentForm() {
   return { form_version: "e2e-1", respondent_id: "e2e-respondent", blocks };
 }
 
-function companyMatch(id: number, name: string, fit: number) {
-  return {
-    id,
-    name,
-    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-    industry: "Software",
-    fit_score: fit,
-    top_matching_dimensions: ["pace", "harmony"],
-    top_mismatching_dimensions: ["data_orientation"],
-    fit_summary: name + " lines up with how you work on pace and harmony.",
-  };
-}
+const coverage = (known: number, mixed: number) => ({
+  known,
+  mixed,
+  unknown: 6 - known - mixed,
+  total: 6,
+});
 
-export const BEST_MATCHES = [
-  companyMatch(101, "Northwind Labs", 0.92),
-  companyMatch(102, "Harbour Systems", 0.87),
+/**
+ * Three companies in the six-trait wire shape (MatchesResponse, PRODUCT_DECISIONS
+ * §2, 2026-10-13).
+ *
+ * The server's order IS the ranking: two `ranked` companies, the one with a broken
+ * must-have last among them, then one `not_enough_evidence` company. No entry
+ * carries a score, a percentage or a probability, because the contract has none.
+ */
+export const MATCH_ENTRIES = [
+  {
+    id: 101,
+    name: "Northwind Freight",
+    slug: "northwind-freight",
+    state: "ranked",
+    rank: 1,
+    coverage: coverage(3, 1),
+    flags: { must_have_breaks: 0, risks: 0, investigate: 0 },
+    next_step: { category: "decide", reason: "Most of what matters to you is clear here." },
+    must_have_reads: [],
+    missing: ["feedback", "decision"],
+    size_note: "Hundreds of people: teams here can differ from the company-wide read. Ask about the team.",
+    research: null,
+  },
+  {
+    id: 102,
+    name: "Grindstone Corp",
+    slug: "grindstone-corp",
+    state: "ranked",
+    rank: 2,
+    coverage: coverage(5, 0),
+    flags: { must_have_breaks: 1, risks: 0, investigate: 0 },
+    next_step: { category: "decide", reason: "One of your must-haves is outside your give here." },
+    must_have_reads: [],
+    missing: ["innovation"],
+    size_note: null,
+    research: null,
+  },
+  {
+    id: 103,
+    name: "Little Studio",
+    slug: "little-studio",
+    state: "not_enough_evidence",
+    rank: null,
+    coverage: coverage(2, 0),
+    flags: { must_have_breaks: 0, risks: 0, investigate: 0 },
+    next_step: { category: "explore", reason: "We found too little to read this company well." },
+    must_have_reads: [],
+    missing: ["autonomy", "collaboration", "feedback", "decision"],
+    size_note: null,
+    research: null,
+  },
 ];
-export const WORST_MATCHES = [
-  companyMatch(201, "Grindstone Corp", 0.31),
-  companyMatch(202, "Ledger and Co", 0.24),
-];
+
+const TRAIT_KEYS = ["autonomy", "pace", "collaboration", "feedback", "innovation", "decision"];
+
+/** `GET /me/trait-preferences` for a user who has never answered the tolerance step. */
+export const UNANSWERED_TRAIT_PREFERENCES = {
+  answered: false,
+  max_must_haves: 2,
+  traits: TRAIT_KEYS.map((dimension_key) => ({
+    dimension_key,
+    answered: false,
+    must_have: false,
+    under_steps: null,
+    over_steps: null,
+  })),
+};
 
 /** Everything the SPA sent, so the spec can assert on the request side. */
 export interface ApiJournal {
@@ -111,8 +165,8 @@ export interface ApiJournal {
   verify?: Record<string, unknown>;
   login?: Record<string, unknown>;
   submission?: { responses: Record<string, string> };
-  /** `order` query param of each GET /me/matches, in call order. */
-  matchOrders: string[];
+  /** The `state` each GET /me/matches answered with, in call order. */
+  matchStates: string[];
   /** Any /api/v1 request with no handler below. Asserted empty -- see the spec. */
   unhandled: string[];
   /** The form actually served, so the spec can check the tokens that came back. */
@@ -130,7 +184,7 @@ export interface ApiJournal {
  */
 export async function installApiStubs(page: Page): Promise<ApiJournal> {
   const servedForm = buildAssessmentForm();
-  const journal: ApiJournal = { matchOrders: [], unhandled: [], servedForm };
+  const journal: ApiJournal = { matchStates: [], unhandled: [], servedForm };
   const state = { signedIn: false, wpV2Completed: false };
 
   await page.route("**/api/v1/**", async (route) => {
@@ -214,16 +268,51 @@ export async function installApiStubs(page: Page): Promise<ApiJournal> {
           dimensions_scored: 6,
         });
 
+      case "GET /me/situation-report":
+        // The dashboard's Situation card reads this on sign-in. No environment
+        // report is ever filed on the smoke path, so the report never completes.
+        return json(
+          200,
+          state.wpV2Completed
+            ? {
+                state: "needs_environment_report",
+                can_submit_environment_report: true,
+                manager: { has_profile: false },
+                past_job_report_filed: false,
+              }
+            : {
+                state: "needs_core",
+                environment: null,
+                manager: { has_profile: false },
+                past_job_report_filed: false,
+              },
+        );
+
+      case "GET /me/trait-preferences":
+        // Never answered: the smoke path skips the tolerance step, and skipping
+        // writes nothing. A PUT would land in `unhandled` and fail the spec.
+        return json(200, UNANSWERED_TRAIT_PREFERENCES);
+
       case "GET /me/matches": {
-        const order = url.searchParams.get("order") ?? "";
-        journal.matchOrders.push(order);
-        return json(200, {
-          data: order === "best" ? BEST_MATCHES : WORST_MATCHES,
-          next_cursor: null,
-          total_companies_scored: BEST_MATCHES.length + WORST_MATCHES.length,
-          lens: "culture",
-          order,
-        });
+        // Before a core sitting the page gets a STATE, not an error status.
+        // `preferences_answered` stays false: the tolerance step was skipped.
+        const body = state.wpV2Completed
+          ? {
+              state: "ranked",
+              data: MATCH_ENTRIES,
+              next_cursor: null,
+              total_companies: MATCH_ENTRIES.length,
+              preferences_answered: false,
+            }
+          : {
+              state: "core_required",
+              data: [],
+              next_cursor: null,
+              total_companies: 0,
+              preferences_answered: false,
+            };
+        journal.matchStates.push(body.state);
+        return json(200, body);
       }
 
       default:

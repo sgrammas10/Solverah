@@ -536,20 +536,26 @@ export default function IntelligencePage() {
             </div>
           )}
 
-          {/* CompanyLens card — coming soon for everyone.
-              Not a gate: ⚑3 (BUILD_PLAN.md §0.2) shelved the core→8-dim
-              culture-preferences mapping this depends on, so GET /me/matches
-              400s for every current-instrument user regardless of
-              wp_v2_completed. There is nothing left for a user to unlock. */}
-          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 opacity-60">
+          {/* CompanyLens card — live. Trait-by-trait reads with the evidence
+              behind each; never a score, percentage or probability
+              (PRODUCT_DECISIONS §2, six-trait entry). Not gated on any
+              assessment: the page itself says what it still needs. */}
+          <div className="rounded-xl border border-cream-muted bg-white px-5 py-5">
             <p className="text-sm font-semibold text-ink-primary">CompanyLens™</p>
             <p className="text-xs text-ink-secondary mt-0.5 mb-2">
               Company environment and cultural alignment
             </p>
-            <p className="text-xs text-ink-secondary leading-relaxed">
-              Our matching model is still being built. Your Work Pulse results
-              are already saved and will feed it the moment it's ready.
+            <p className="text-xs text-ink-secondary leading-relaxed mb-4">
+              See how companies you're considering line up with what you've told
+              us you need, trait by trait, with the evidence behind each read.
             </p>
+            <button
+              type="button"
+              onClick={() => navigate("/company-lens")}
+              className="bg-forest-dark text-white font-semibold px-3 py-1.5 rounded text-xs hover:bg-forest-mid transition-colors"
+            >
+              Open CompanyLens →
+            </button>
           </div>
 
           {/* Path Intelligence */}

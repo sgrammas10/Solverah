@@ -1164,7 +1164,9 @@ def test_a_current_only_dataset_is_byte_identical_to_the_pre_subject_assembler(
     new_names = {f.name for f in dataclasses.fields(new.rows[0])}
     # respondent_source arrived later (pilot form, 2026-10-01); see the test below.
     assert new_names - old_names == {
-        "report_subject", "current_report_ordinal", "respondent_source"}
+        "report_subject", "current_report_ordinal", "respondent_source",
+        *atd.EXPLORATORY_OUTCOME_COLUMNS, "trait_preferences_sitting_id", "trait_preferences",
+    }
     assert old_names <= new_names
 
     # On current-only data the new fields are fully determined.
@@ -1204,7 +1206,12 @@ def test_app_rows_are_byte_identical_to_the_pre_provenance_assembler(client, mon
     _assert_only_the_pin_label_was_renamed(new, old)
     old_names = {f.name for f in dataclasses.fields(old.rows[0])}
     new_names = {f.name for f in dataclasses.fields(new.rows[0])}
-    assert new_names - old_names == {"respondent_source"}
+    assert new_names - old_names == {
+        "respondent_source",
+        # C6 (2026-10-13): exploratory outcomes + the tolerance sitting, all None on
+        # rows that predate them.
+        *atd.EXPLORATORY_OUTCOME_COLUMNS, "trait_preferences_sitting_id", "trait_preferences",
+    }
     assert {r.respondent_source for r in new.rows} == {"app"}
 
 
@@ -1352,3 +1359,89 @@ def test_row_values_honour_schema_sql_ranges(client, monkeypatch):
     for dimension in ENV_DIMENSIONS:
         assert 0.0 <= result.person[dimension][0] <= 1.0
         assert 0.0 <= result.env[dimension][0] <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# C6 (2026-10-13): exploratory outcomes and the tolerance sitting ride on the row
+# ---------------------------------------------------------------------------
+
+
+def _save_prefs(email, *, under=1, over=1, must=()):
+    """A tolerance sitting through the doorway (assessment_store), as the route does."""
+    import assessment_store
+    from app import app
+    from model import User, db
+    from solverah.domain.trait_preferences import TRAIT_KEYS, parse_trait_preferences
+
+    prefs = parse_trait_preferences([
+        {"dimension_key": k, "under_steps": under, "over_steps": over, "must_have": k in must}
+        for k in TRAIT_KEYS
+    ])
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        sitting_id = assessment_store.save_trait_preferences(db, user.id, prefs)
+        db.session.commit()
+    return sitting_id
+
+
+def _post_env_with_outcomes(client, csrf, **outcomes):
+    payload = {
+        "answers": _answers_from_plan(None), "stage_size": 4, "comp": 2,
+        "industry": None, "experienced": 4, **outcomes,
+    }
+    return client.post("/api/v1/me/environment-report", json=payload,
+                       headers={"X-CSRF-TOKEN": csrf})
+
+
+def test_exploratory_outcomes_ride_on_the_row_raw_and_never_in_the_outcome_array(
+    client, monkeypatch
+):
+    """Amendment 3(a): the five C4 items are carried per row, 1..5 as stored, None when
+    skipped; `outcome` stays the pre-registered `experienced` item."""
+    csrf = _register_and_login(client, monkeypatch, "e4_c6_out@example.com")
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _post_env_with_outcomes(
+        client, csrf, satisfaction=5, performance=4, engagement=3, sustainability=2,
+    ).status_code == 200
+
+    result = _assemble()
+    [row] = result.rows
+    assert result.outcome[0] == 4
+    assert (row.outcome_satisfaction, row.outcome_performance, row.outcome_engagement,
+            row.outcome_sustainability, row.outcome_retention_intention) == (5, 4, 3, 2, None)
+    assert atd.EXPLORATORY_OUTCOME_COLUMNS == (
+        "outcome_satisfaction", "outcome_performance", "outcome_engagement",
+        "outcome_sustainability", "outcome_retention_intention",
+    )
+    # Not an array: the fit's inputs are unchanged by the amendment.
+    assert not hasattr(result, "outcome_satisfaction")
+
+
+def test_a_report_carries_the_tolerance_sitting_current_when_it_was_filed(client, monkeypatch):
+    """Amendment 3(c). Report 1 is filed before any sitting: no preferences, never
+    backdated. Sitting A, then report 2: A. Sitting B, then report 3: B -- and report 2
+    still says A."""
+    email = "e4_c6_prefs@example.com"
+    csrf = _register_and_login(client, monkeypatch, email)
+    _set_career_status(client, csrf, "employed")
+    _complete_core(client, csrf)
+    assert _post_env(client, csrf).status_code == 200
+    sitting_a = _save_prefs(email, under=0, over=2, must=("autonomy",))
+    assert _post_env(client, csrf).status_code == 200
+    sitting_b = _save_prefs(email, under=2, over=0, must=("pace", "decision"))
+    assert _post_env(client, csrf).status_code == 200
+
+    rows = sorted(_assemble().rows, key=lambda r: r.report_ordinal)
+    assert [r.trait_preferences_sitting_id for r in rows] == [None, sitting_a, sitting_b]
+    assert rows[0].trait_preferences is None
+    assert rows[1].trait_preferences["autonomy"] == {
+        "under_steps": 0, "over_steps": 2, "must_have": True,
+    }
+    assert rows[1].trait_preferences["pace"]["must_have"] is False
+    assert rows[2].trait_preferences["pace"] == {
+        "under_steps": 2, "over_steps": 0, "must_have": True,
+    }
+    assert set(rows[2].trait_preferences) == set(ENV_DIMENSIONS)
+    # the pure rule, directly
+    assert atd._trait_preferences_at([], rows[0].submitted_at) == (None, None)

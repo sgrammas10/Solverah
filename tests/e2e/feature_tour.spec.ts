@@ -43,6 +43,7 @@ const ROUTES: Array<{ path: string; label: string }> = [
   { path: "/intelligence", label: "Intelligence hub" },
   { path: "/solverah-profile", label: "Solverah profile (alias)" },
   { path: "/company-lens", label: "CompanyLens" },
+  { path: "/trait-preferences", label: "Trait preferences" },
   { path: "/intelligence/paths", label: "Path Intelligence (Pro)" },
   { path: "/focus-type", label: "FocusType" },
   { path: "/focus-type/results", label: "FocusType results" },
@@ -68,6 +69,23 @@ const ROUTES: Array<{ path: string; label: string }> = [
   { path: "/feed", label: "Feed" },
   { path: "/search", label: "Search" },
 ];
+
+/**
+ * CompanyLens is live (six-trait model, PRODUCT_DECISIONS §2, 2026-10-13), so the
+ * generic COMING-SOON / GATED words say nothing about it. Name which of its three
+ * states rendered instead. After this tour's core sitting, a fresh database gives
+ * NO-COMPANIES; RANKED means researched companies already exist; CORE-REQUIRED
+ * here means the sitting did not register. Any percentage is flagged loudly,
+ * because the page must never show a score, a percentage or a probability.
+ */
+function companyLensState(body: string): string {
+  let state = "LENS:UNRECOGNISED ";
+  if (/Start with how you like to work/.test(body)) state = "LENS:CORE-REQUIRED ";
+  else if (/No companies yet/.test(body)) state = "LENS:NO-COMPANIES ";
+  else if (/Your companies|Not enough evidence yet/.test(body)) state = "LENS:RANKED ";
+  if (/%/.test(body)) state += "LENS:PERCENT-SHOWN! ";
+  return state;
+}
 
 test("FEATURE TOUR: what every authenticated route actually does", async ({ page }) => {
   test.setTimeout(600_000);
@@ -99,6 +117,9 @@ test("FEATURE TOUR: what every authenticated route actually does", async ({ page
     await page.getByRole("radio").nth(n % 2).click();
     await page.getByRole("button", { name: n === total ? "Finish" : "Next" }).click();
   }
+  // The optional tolerance step opens first; skip it so the tour sees an
+  // unanswered user (it surveys /trait-preferences on its own below).
+  await page.getByRole("button", { name: "Skip for now" }).click({ timeout: 30_000 });
   await expect(page.getByText("That's everything we need")).toBeVisible({ timeout: 30_000 });
 
   // ── the survey ──
@@ -135,6 +156,7 @@ test("FEATURE TOUR: what every authenticated route actually does", async ({ page
       if (/unlock|locked/i.test(main)) note += "GATED ";
       if (/something went wrong|couldn't load|error/i.test(main)) note += "ERROR-COPY ";
       if (chars < 400) note += "NEARLY-EMPTY ";
+      if (path === "/company-lens") note += companyLensState(main);
       if (landed !== path) note += `REDIRECTED->${landed} `;
 
       await page.screenshot({

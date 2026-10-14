@@ -21,6 +21,8 @@
 import { expect, test } from "@playwright/test";
 
 import { ITEM_COUNT, TEST_USER, installApiStubs } from "./fixtures/api";
+// The same no-probability guard the CompanyLens component tests run.
+import { assertNoProbabilityText } from "../msw/companyLensHandlers";
 
 test("register -> verify -> assessment -> matches", async ({ page }) => {
   const api = await installApiStubs(page);
@@ -89,6 +91,17 @@ test("register -> verify -> assessment -> matches", async ({ page }) => {
     });
   });
 
+  await test.step("matches before the assessment", async () => {
+    await page.goto("/company-lens");
+
+    // No core sitting yet: a prompt, not an error and not an empty ranking.
+    await expect(
+      page.getByRole("heading", { name: "Start with how you like to work" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Take Work Pulse" })).toBeVisible();
+    await expect(page.locator('section[aria-labelledby="lens-ranked"]')).toHaveCount(0);
+  });
+
   await test.step("assessment", async () => {
     await page.goto("/work-pulse");
 
@@ -113,6 +126,11 @@ test("register -> verify -> assessment -> matches", async ({ page }) => {
       await advance.click();
     }
 
+    // A saved sitting opens the tolerance step first (six-trait model,
+    // 2026-10-13). Skipping writes nothing -- any PUT would show up in
+    // `api.unhandled` -- and leads on to the completion card.
+    await expect(page.getByRole("heading", { name: "How much give is there?" })).toBeVisible();
+    await page.getByRole("button", { name: "Skip for now" }).click();
     await expect(page.getByText("That's everything we need")).toBeVisible();
 
     // The submission is the point of the step: 24 answers, keyed by the opaque
@@ -126,20 +144,31 @@ test("register -> verify -> assessment -> matches", async ({ page }) => {
     await page.goto("/company-lens");
 
     await expect(
-      page.getByRole("heading", { name: /Companies ranked by how well they match/ }),
+      page.getByRole("heading", { name: "Companies, read against how you like to work" }),
     ).toBeVisible();
 
-    // Both ends of the ranking are walked, as two requests rather than one body.
-    await expect(page.getByText("Companies that match how you work")).toBeVisible();
-    await expect(page.getByText("Companies worth understanding before committing")).toBeVisible();
+    // The server's order IS the ranking, and the page keeps it: the company
+    // with a broken must-have is listed last among the ranked, never hidden.
+    const ranked = page.locator('section[aria-labelledby="lens-ranked"] article');
+    await expect(ranked).toHaveCount(2);
+    expect(await ranked.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")))).toEqual(
+      ["Northwind Freight", "Grindstone Corp"],
+    );
+    // Coverage is the only number on a card: how much of the company we could read.
+    await expect(ranked.first().getByText("Based on 4 of 6 traits")).toBeVisible();
+    await expect(ranked.nth(1).getByText("1 must-have outside your give")).toBeVisible();
 
-    // exact:true on the names: each card also prints the company name inside its
-    // fit_summary sentence, so a substring match resolves to two elements.
-    await expect(page.getByText("Northwind Labs", { exact: true })).toBeVisible();
-    await expect(page.getByText("92% match")).toBeVisible();
-    await expect(page.getByText("Grindstone Corp", { exact: true })).toBeVisible();
+    // A company read on too few traits is not placed, and says what is missing.
+    await expect(page.getByRole("heading", { name: "Not enough evidence yet" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Little Studio" })).toBeVisible();
 
-    expect([...api.matchOrders].sort()).toEqual(["best", "worst"]);
+    // The tolerance step was skipped, so the page offers it again.
+    await expect(page.getByRole("link", { name: "Tell us how much give you have" })).toBeVisible();
+
+    // PRODUCT_DECISIONS §2: never a score, a percentage or a probability.
+    assertNoProbabilityText(await page.getByRole("main").innerText());
+
+    expect(api.matchStates).toEqual(["core_required", "ranked"]);
   });
 
   // Drift check. An endpoint the SPA calls that this suite does not model is

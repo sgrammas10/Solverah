@@ -178,7 +178,8 @@ export default function WorkPulseResultsPage() {
           </button>
         </div>
 
-        {/* CompanyLens teaser */}
+        {/* CompanyLens: live. Words only -- no score, percentage or probability
+            anywhere on this card (D-15, product decisions section 2). */}
         {(() => {
           const topSignalTitle =
             result.emerging_signals.length > 0
@@ -193,26 +194,16 @@ export default function WorkPulseResultsPage() {
                 Your {topSignalTitle} signals may reveal something about company fit.
               </h2>
               <p className="text-sm text-ink-secondary leading-relaxed mt-2">
-                Work Pulse Pro, coming soon, will map your work patterns against real
-                company environments. Some companies consistently amplify the friction you
-                described. Others are built in ways that reduce it. CompanyLens will show
-                you which is which.
+                CompanyLens reads real company environments against what you need, and
+                shows you what each company looks like on the things that matter to you,
+                where the evidence is thin, and what to ask next.
               </p>
-              <div className="grid grid-cols-2 gap-3 mt-4">
-                <div className="rounded-lg border border-cream-muted bg-cream-subtle px-4 py-3">
-                  <div className="h-3 w-24 rounded bg-gray-200 blur-sm mb-2" />
-                  <span className="text-xs text-ink-tertiary">Fit score: --</span>
-                </div>
-                <div className="rounded-lg border border-cream-muted bg-cream-subtle px-4 py-3">
-                  <div className="h-3 w-20 rounded bg-gray-200 blur-sm mb-2" />
-                  <span className="text-xs text-ink-tertiary">Fit score: --</span>
-                </div>
-              </div>
-              {/* Pro is visible but not buyable yet (product owner, 2026-09-28):
-                  a label, not a button, so nothing looks clickable-but-dead. */}
-              <p className="mt-4 rounded-[4px] border border-dashed border-cream-muted bg-cream-base px-4 py-3 text-center text-sm font-semibold text-ink-secondary">
-                CompanyLens™ · Pro · coming soon
-              </p>
+              <Link
+                to="/company-lens"
+                className="mt-4 block w-full rounded bg-forest-dark py-3.5 text-center font-semibold text-white transition-colors hover:bg-forest-mid"
+              >
+                Open CompanyLens →
+              </Link>
             </div>
           );
         })()}

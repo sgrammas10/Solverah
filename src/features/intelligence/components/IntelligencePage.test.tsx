@@ -317,23 +317,19 @@ describe("IntelligencePage - completed without a narrative", () => {
     });
   });
 
-  it("shows the coming-soon CompanyLens card instead of implying matches are ready", () => {
-    // Until 2026-09-08 this card read "Your company matches are ready." with a
-    // button to /company-lens, which 400s for every current-instrument user:
-    // ⚑3 (BUILD_PLAN.md §0.2) shelved the culture-preferences mapping the
-    // matches endpoint needs. The gate never meant anything -- CompanyLens is
-    // coming-soon regardless of wp_v2_completed.
+  it("shows a live CompanyLens card that links to /company-lens", () => {
+    // CompanyLens is built (PRODUCT_DECISIONS §2, six-trait entry): per-trait
+    // reads with evidence. The card is no longer greyed out or coming-soon.
     renderIntelligencePage();
     expect(screen.getByText(/CompanyLens™/)).toBeInTheDocument();
-    expect(screen.queryByText(/matches are ready/i)).toBeNull();
-    expect(screen.queryByRole("button", { name: /open companylens/i })).toBeNull();
+    expect(screen.queryByText(/still being built/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /open companylens/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/company-lens");
   });
 
-  it("no longer renders a disabled 'Coming soon' button on the CompanyLens card (dead UI removal)", () => {
-    // The button was disabled and did nothing when clicked -- unlike Path
-    // Intelligence's "Pro · coming soon" badge, which stays (09-28 ruling)
-    // because its button is live and navigates to /intelligence/paths.
+  it("describes CompanyLens without a score, percentage or probability", () => {
     renderIntelligencePage();
+    expect(screen.getByText(/trait by trait, with the evidence behind each read/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Coming soon" })).toBeNull();
   });
 

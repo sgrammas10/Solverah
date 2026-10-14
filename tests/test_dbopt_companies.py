@@ -37,27 +37,7 @@ from sqlalchemy import event
 from tests.query_count import count_queries
 
 EMAIL = "dbopt-f@example.test"
-DERIVED_EMAIL = "dbopt-f-derived@example.test"
 PASSWORD = "Strongpass1!"
-
-#: The stored culture preferences the matches walks score against.
-PREFS = {
-    "empathy": 0.8, "creative_drive": 0.6, "adaptability": 0.4, "futuristic": 0.7,
-    "harmony": 0.5, "data_orientation": 0.3, "pace": "fast",
-    "work_environment": "collaborative, remote",
-}
-
-#: A second preference vector, for the page walk whose scores change mid-walk.
-OTHER_PREFS = {
-    "empathy": 0.2, "creative_drive": 0.9, "adaptability": 0.8, "futuristic": 0.9,
-    "harmony": 0.2, "data_orientation": 0.7, "pace": "very-fast",
-    "work_environment": "startup, remote",
-}
-
-#: Twelve Work Pulse answers the derivation turns into a preference vector.
-WORK_PULSE_ANSWERS = [
-    {"question_id": "wp-q%d" % i, "option_id": "wp-q%d-b" % i} for i in range(1, 13)
-]
 
 _NO_KEY = "<overview has no industry key>"
 _NO_OVERVIEW = "<profile_json has no overview>"
@@ -107,6 +87,8 @@ SEED = [
     (28, "Zeta Caf\u00e9", "Food", "slow", "collaborative", 0.50, 0.30, 0.20, 0.30, 0.80, 0.20),
 ]
 
+#: The legacy culture columns the seed still fills: they stay on the table until a
+#: later migration drops them (the interim scorer that read them is gone).
 _CULTURE_COLUMNS = (
     "pace", "work_environment", "empathy", "creative_drive", "adaptability",
     "futuristic", "harmony", "data_orientation",
@@ -183,38 +165,6 @@ def _user_id(email):
 
     with app.app_context():
         return User.query.filter_by(email=email).one().id
-
-
-def _store_prefs(email, prefs):
-    from app import app
-    from model import db
-    from solverah.repositories import profile_repository
-
-    user_id = _user_id(email)
-    with app.app_context():
-        profile_repository.update_document(
-            user_id, lambda existing: {**existing, "culture_preferences": prefs}
-        )
-        db.session.commit()
-
-
-def _give_work_pulse(user_id, answers=WORK_PULSE_ANSWERS):
-    """A scored Work Pulse sitting, written the way ``test_read_path_writes`` does."""
-    from app import app
-    from model import db
-    from solverah.domain import auth as auth_domain
-    from solverah.repositories import assessment_repository
-    from solverah.services import assessment_service
-
-    with app.app_context():
-        submission = assessment_repository.open_current(
-            user_id, "work_pulse", assessment_service.CLIENT_FORM_VERSION
-        )
-        submission.answers = answers
-        submission.narrative = "A Work Pulse narrative nobody on the matches path reads."
-        submission.status = "scored"
-        submission.completed_at = submission.scored_at = auth_domain.utcnow()
-        db.session.commit()
 
 
 def _mint(key):
@@ -362,65 +312,11 @@ def _company_edge_records(client):
     return records
 
 
-MATCH_WALKS = (
-    "/api/v1/me/matches?limit=7",
-    "/api/v1/me/matches?limit=7&order=worst",
-    "/api/v1/me/matches",
-    "/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture",
-    "/api/v1/me/matches?limit=500&order=best",
-)
-
-
-def _match_walk_records(client):
-    records = []
-    for start in MATCH_WALKS:
-        records.extend(_walk(client, start))
-    return records
-
-
-def _match_edge_records(client):
-    records = []
-    best = client.get("/api/v1/me/matches?limit=5").get_json()
-    # A cursor from the best-first walk handed to the worst-first one.
-    records.append(_get(client, "/api/v1/me/matches?limit=5&order=worst&cursor=%s"
-                        % best["next_cursor"]))
-    records.append(_get(client, "/api/v1/me/matches?limit=0"))
-    records.append(_get(client, "/api/v1/me/matches?limit=abc"))
-    records.append(_get(client, "/api/v1/me/matches?lens=salary"))
-    records.append(_get(client, "/api/v1/me/matches?order=sideways"))
-    records.append(_get(client, "/api/v1/me/matches?cursor=not-a-real-cursor"))
-    # The preferences change between two pages: every score moves, so the
-    # cursor's (id, score) no longer names a row.
-    _store_prefs(EMAIL, OTHER_PREFS)
-    records.append(_get(client, "/api/v1/me/matches?limit=5&cursor=%s" % best["next_cursor"]))
-    records.append(_get(client, "/api/v1/me/matches?limit=5&order=worst&cursor=%s"
-                        % best["next_cursor"]))
-    return records
-
-
 def _assert_recording(actual, expected):
     """Compare record by record, printing the first difference in full."""
     for index, (got, want) in enumerate(zip(actual, expected)):
         assert got == want, "record %d differs:\n  got  %r\n  want %r" % (index, got, want)
     assert len(actual) == len(expected), (len(actual), len(expected))
-
-
-def _matches_scenario(client):
-    """No preferences yet (400 outranks a bad cursor), then every page and edge."""
-    records = [
-        _get(client, "/api/v1/me/matches?cursor=not-a-real-cursor"),
-        _get(client, "/api/v1/me/matches"),
-    ]
-    _store_prefs(EMAIL, PREFS)
-    return records + _match_walk_records(client) + _match_edge_records(client)
-
-
-def _derived_scenario(client):
-    """Preferences derived from Work Pulse answers on the read, never stored."""
-    _sign_in(client, DERIVED_EMAIL)
-    _give_work_pulse(_user_id(DERIVED_EMAIL))
-    return (_walk(client, "/api/v1/me/matches?limit=9")
-            + _walk(client, "/api/v1/me/matches?limit=9&order=worst"))
 
 
 # -- characterisation: recorded before the change, required after it -----------
@@ -455,19 +351,6 @@ def test_company_cursor_edge_cases_are_unchanged(client, auth):
     _assert_db_orders_names_as_recorded()
 
     _assert_recording(_company_edge_records(client), COMPANY_EDGES)
-
-
-def test_every_match_page_is_unchanged(client, auth):
-    """Both orders, several page sizes, a cursor across orders and across a re-score."""
-    _seed()
-
-    _assert_recording(_matches_scenario(client), MATCH_PAGES)
-
-
-def test_derived_preference_match_pages_are_unchanged(client, auth):
-    _seed()
-
-    _assert_recording(_derived_scenario(client), DERIVED_PAGES)
 
 
 # -- regression: what each request reads ---------------------------------------
@@ -545,206 +428,6 @@ def test_a_company_page_reads_its_window_and_never_the_document(client, auth):
         statement, _parameters, rowcount = reads[0]
         assert rowcount <= int(re.search(r"limit=(\d+)", url).group(1)) + 2, (url, rowcount)
         assert not _WHOLE_DOCUMENT.search(statement), (url, statement)
-
-
-def test_matches_read_profile_json_only_for_the_page_it_returns(client, auth):
-    """Ledger ``matching_service``:387 (``_score_all``) and :219 (``_format_entry``).
-
-    Scoring reads the key and the eight culture columns of the scoreable rows --
-    ``pace IS NOT NULL`` in SQL -- and the one statement that touches
-    ``profile_json`` asks for the returned page's ids and no others.
-    """
-    _seed()
-    _store_prefs(EMAIL, PREFS)
-
-    with _sql() as sent:
-        resp = client.get("/api/v1/me/matches?limit=3")
-    assert resp.status_code == 200
-    page_ids = [row["id"] for row in resp.get_json()["data"]]
-
-    reads = _reads_of(sent, "company")
-    touching = [entry for entry in reads if "profile_json" in entry[0]]
-    assert len(touching) == 1, reads
-    statement, parameters, rowcount = touching[0]
-    assert re.search(r"company\.id IN \(", statement), statement
-    assert sorted(v for v in parameters.values() if isinstance(v, int)) == sorted(page_ids)
-    assert rowcount == len(page_ids)
-
-    (scan, _parameters, scanned), = [entry for entry in reads if entry not in touching]
-    assert _select_list(scan) == {"id", *_CULTURE_COLUMNS}, scan
-    assert re.search(r"company\.pace IS NOT NULL", scan), scan
-    assert scanned == len([row for row in SEED if row[3] is not None])
-
-
-def test_matches_read_one_profile_key_not_the_document(client, auth):
-    """Ledger ``matching_service``:155 (``resolve_culture_preferences``).
-
-    Six statements -- the profile row, four child tables and the assessment
-    results -- to read one key of ``profiles.extra``.
-    """
-    _seed()
-    _store_prefs(EMAIL, PREFS)
-
-    with _sql() as sent:
-        assert client.get("/api/v1/me/matches?limit=3").status_code == 200
-
-    assert len(_reads_of(sent, "profiles")) == 1, sent
-    for table in _PROFILE_CHILD_TABLES + ("assessment_submissions",):
-        assert _reads_of(sent, table) == [], (table, sent)
-
-
-def test_the_derive_path_reads_the_answers_without_the_narrative(client, auth):
-    """Ledger ``matching_service``:139 (``_derive_culture_preferences``).
-
-    With no stored preferences the read derives them from the Work Pulse
-    answers: one read of the submission, and not of its narrative.
-    """
-    _seed()
-    _give_work_pulse(_user_id(EMAIL))
-
-    with _sql() as sent:
-        assert client.get("/api/v1/me/matches?limit=3").status_code == 200
-
-    (statement, _parameters, _rows), = _reads_of(sent, "assessment_submissions")
-    assert "narrative" not in statement, statement
-    assert "answers" in statement, statement
-
-
-# -- regression: the culture-preference backfill --------------------------------
-
-
-def _backfill_population(derivable, underivable=1, stored=1):
-    """Profiles with Work Pulse answers, without them, and already backfilled.
-
-    Returns ``{"derivable": [...], "underivable": [...], "stored": [...]}`` ids.
-    Only the first two kinds are candidates: the sweep selects on the key.
-    """
-    from app import app
-    from model import User, db
-    from solverah.repositories import profile_repository
-
-    ids = {"derivable": [], "underivable": [], "stored": []}
-    with app.app_context():
-        for kind, count in (("derivable", derivable), ("underivable", underivable),
-                            ("stored", stored)):
-            for n in range(count):
-                user = User(email="%s-%d@example.test" % (kind, n),
-                            password_hash="not-a-real-hash")
-                db.session.add(user)
-                db.session.flush()
-                ids[kind].append(user.id)
-                profile_repository.update_document(
-                    user.id, lambda doc: {**doc, "summary": "backfill fixture"}
-                )
-        for user_id in ids["stored"]:
-            profile_repository.update_document(
-                user_id, lambda doc: {**doc, "culture_preferences": PREFS}
-            )
-        db.session.commit()
-    for user_id in ids["derivable"]:
-        _give_work_pulse(user_id)
-    return ids
-
-
-@contextlib.contextmanager
-def _commits():
-    from model import db
-
-    seen = []
-
-    def _record_commit(conn):
-        seen.append(conn)
-
-    event.listen(db.engine, "commit", _record_commit)
-    try:
-        yield seen
-    finally:
-        event.remove(db.engine, "commit", _record_commit)
-
-
-@pytest.mark.parametrize("derivable", [2, 5])
-def test_the_backfill_reads_submissions_once_and_writes_one_key_per_user(client, derivable):
-    """Ledger ``matching_service``:163/181/185/192/196.
-
-    Per user it used to load the whole document (six statements), read the Work
-    Pulse row, rewrite the whole document through ``update_document`` and
-    commit. Now: one read of every candidate's Work Pulse answers, then per user
-    the three statements of ``update_extra_key``, and one commit for the sweep.
-    """
-    from app import app
-    from model import db
-    from solverah.repositories import profile_repository
-    from solverah.services import matching_service
-    from work_pulse.derive_preferences import derive_culture_preferences
-
-    ids = _backfill_population(derivable)
-
-    with app.app_context():
-        with count_queries() as statements, _commits() as commits:
-            counts = matching_service.backfill_culture_preferences()
-
-        assert counts == {"considered": derivable + 1, "written": derivable, "underivable": 1}
-        reads = [(s, None, None) for s in statements]
-        assert len(_reads_of(reads, "assessment_submissions")) == 1, statements
-        for table in _PROFILE_CHILD_TABLES:
-            assert _reads_of(reads, table) == [], (table, statements)
-        assert len(statements) == 2 + 3 * derivable, statements
-        assert len(commits) == 1
-
-        expected = derive_culture_preferences(WORK_PULSE_ANSWERS)
-        for user_id in ids["derivable"]:
-            assert profile_repository.read_extra_key(user_id, "culture_preferences") == expected
-        for user_id in ids["underivable"]:
-            assert "culture_preferences" not in profile_repository.load_document(user_id)
-        for user_id in ids["stored"]:
-            assert profile_repository.read_extra_key(user_id, "culture_preferences") == PREFS
-        db.session.rollback()
-
-
-def test_the_backfill_never_overwrites_a_value_that_lands_mid_sweep(client, monkeypatch):
-    """The sweep's rule -- write only where the key is still empty -- holds at write time.
-
-    It checked the stored value, derived, then wrote unconditionally: a Work
-    Pulse submit landing between the check and the write (the submit writes
-    ``culture_preferences`` itself) was overwritten with a value derived from the
-    answers the sweep had read. The check now runs inside the compare-and-swap.
-    """
-    from app import app
-    from model import db
-    from solverah.repositories import profile_repository
-    from solverah.services import matching_service
-    from work_pulse import derive_preferences
-
-    ids = _backfill_population(2, underivable=0, stored=0)
-    first = ids["derivable"][0]
-    real_derive = derive_preferences.derive_culture_preferences
-    calls = []
-
-    def _derive_while_a_submit_lands(answers):
-        if not calls:
-            # The submit's own write, committed on a connection of its own while
-            # the sweep is between reading and writing this user.
-            with db.engine.begin() as connection:
-                connection.execute(
-                    sa.text(
-                        "UPDATE profiles SET extra = extra || CAST(:patch AS jsonb), "
-                        "version = version + 1 WHERE user_id = :user_id"
-                    ),
-                    {"patch": json.dumps({"culture_preferences": OTHER_PREFS}),
-                     "user_id": first},
-                )
-        calls.append(answers)
-        return real_derive(answers)
-
-    monkeypatch.setattr(derive_preferences, "derive_culture_preferences",
-                        _derive_while_a_submit_lands)
-
-    with app.app_context():
-        counts = matching_service.backfill_culture_preferences()
-
-        assert counts == {"considered": 2, "written": 1, "underivable": 0}
-        assert profile_repository.read_extra_key(first, "culture_preferences") == OTHER_PREFS
-        db.session.rollback()
 
 
 # -- regression: the agent chat --------------------------------------------------
@@ -965,76 +648,3 @@ COMPANY_EDGES = [
      [[], None]),
 ]
 
-MATCH_PAGES = [
-    ('/api/v1/me/matches?cursor=not-a-real-cursor', 400, '291c92e2aa9bf6b0cee4af833374ff0732c7788973750c13de05f53c73c27f81',
-     {'error': 'Work Pulse not completed \u2014 culture preferences not found'}),
-    ('/api/v1/me/matches', 400, '291c92e2aa9bf6b0cee4af833374ff0732c7788973750c13de05f53c73c27f81',
-     {'error': 'Work Pulse not completed \u2014 culture preferences not found'}),
-    ('/api/v1/me/matches?limit=7', 200, '925b73c947c9bb2793d040271cabe81b4946c30b1ba9d98387ec9eeb18ce1091',
-     [[[23, 0.9889], [25, 0.9667], [7, 0.9167], [17, 0.9167], [18, 0.9167], [11, 0.8611], [2, 0.8278]], 'eyJpZCI6Miwic2NvcmUiOjAuODI3OH0', 26]),
-    ('/api/v1/me/matches?limit=7&cursor=eyJpZCI6Miwic2NvcmUiOjAuODI3OH0', 200, '0c85be3d7edbc2aa3ec3c1b6b77bb7076d62403901ee0020226fa0f7c5f56ebb',
-     [[[24, 0.7944], [4, 0.79], [9, 0.7873], [14, 0.7833], [15, 0.7728], [1, 0.7672], [26, 0.7617]], 'eyJpZCI6MjYsInNjb3JlIjowLjc2MTd9', 26]),
-    ('/api/v1/me/matches?limit=7&cursor=eyJpZCI6MjYsInNjb3JlIjowLjc2MTd9', 200, 'ee00b5bfc6f1a9cb155a16c25ce16b1247254f3e360935f79db1bd88937baab4',
-     [[[30, 0.76], [13, 0.6944], [19, 0.6678], [6, 0.645], [29, 0.6389], [28, 0.6289], [8, 0.5617]], 'eyJpZCI6OCwic2NvcmUiOjAuNTYxN30', 26]),
-    ('/api/v1/me/matches?limit=7&cursor=eyJpZCI6OCwic2NvcmUiOjAuNTYxN30', 200, 'd3a16db278fc8c2a7d6215918fcb2537b066e9777afdcb075ef4c1fea2a508f0',
-     [[[20, 0.5617], [22, 0.56], [5, 0.5011], [3, 0.4561], [21, 0.4444]], None, 26]),
-    ('/api/v1/me/matches?limit=7&order=worst', 200, '8d1aff2e8c4a82b0934fb55060b670127cc4cf427b75e3ecf0fd993153915121',
-     [[[21, 0.4444], [3, 0.4561], [5, 0.5011], [22, 0.56], [8, 0.5617], [20, 0.5617], [28, 0.6289]], 'eyJpZCI6MjgsInNjb3JlIjowLjYyODl9', 26]),
-    ('/api/v1/me/matches?limit=7&order=worst&cursor=eyJpZCI6MjgsInNjb3JlIjowLjYyODl9', 200, '5c8757d836d105464191303fcfa97d11a6348e583106de23ff40363a8f57747c',
-     [[[29, 0.6389], [6, 0.645], [19, 0.6678], [13, 0.6944], [30, 0.76], [26, 0.7617], [1, 0.7672]], 'eyJpZCI6MSwic2NvcmUiOjAuNzY3Mn0', 26]),
-    ('/api/v1/me/matches?limit=7&order=worst&cursor=eyJpZCI6MSwic2NvcmUiOjAuNzY3Mn0', 200, '976418ec87ba95607a7c3e10dbadba72bf6063a19e997c905f7e6c21696a2caf',
-     [[[15, 0.7728], [14, 0.7833], [9, 0.7873], [4, 0.79], [24, 0.7944], [2, 0.8278], [11, 0.8611]], 'eyJpZCI6MTEsInNjb3JlIjowLjg2MTF9', 26]),
-    ('/api/v1/me/matches?limit=7&order=worst&cursor=eyJpZCI6MTEsInNjb3JlIjowLjg2MTF9', 200, '12321c46382705fbd5afb62d26b668a883c7094ee9382c39ad020c0b488832e4',
-     [[[7, 0.9167], [17, 0.9167], [18, 0.9167], [25, 0.9667], [23, 0.9889]], None, 26]),
-    ('/api/v1/me/matches', 200, '83078678053c806d8a0bf24088dd7b2a2af263deaf2d0e71963ad1b6606d9878',
-     [[[23, 0.9889], [25, 0.9667], [7, 0.9167], [17, 0.9167], [18, 0.9167], [11, 0.8611], [2, 0.8278], [24, 0.7944], [4, 0.79], [9, 0.7873], [14, 0.7833], [15, 0.7728], [1, 0.7672], [26, 0.7617], [30, 0.76], [13, 0.6944], [19, 0.6678], [6, 0.645], [29, 0.6389], [28, 0.6289]], 'eyJpZCI6MjgsInNjb3JlIjowLjYyODl9', 26]),
-    ('/api/v1/me/matches?cursor=eyJpZCI6MjgsInNjb3JlIjowLjYyODl9', 200, '612dcfbc2428c553b3e24791c2a3172ecb41a3934da83f619ef338e31ed04fea',
-     [[[8, 0.5617], [20, 0.5617], [22, 0.56], [5, 0.5011], [3, 0.4561], [21, 0.4444]], None, 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture', 200, '01ab181bd41608eef212468c04eb3d0edbd219540a3caa286ae38b08203a7885',
-     [[[21, 0.4444], [3, 0.4561], [5, 0.5011], [22, 0.56]], 'eyJpZCI6MjIsInNjb3JlIjowLjU2fQ', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6MjIsInNjb3JlIjowLjU2fQ', 200, '179b75ed207de015f6499881e63c32cc849f65d5c518fa2eafbcc169050f4681',
-     [[[8, 0.5617], [20, 0.5617], [28, 0.6289], [29, 0.6389]], 'eyJpZCI6MjksInNjb3JlIjowLjYzODl9', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6MjksInNjb3JlIjowLjYzODl9', 200, 'd9d3b50c2147e7b1359f373db253ff327309a67fa3eacf1cda61917f1f2b4e63',
-     [[[6, 0.645], [19, 0.6678], [13, 0.6944], [30, 0.76]], 'eyJpZCI6MzAsInNjb3JlIjowLjc2fQ', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6MzAsInNjb3JlIjowLjc2fQ', 200, 'd9c04bbdd78f017b2bd6ed6bf30f4dec23bf952f0263e4c17e85e2a9eb350f2f',
-     [[[26, 0.7617], [1, 0.7672], [15, 0.7728], [14, 0.7833]], 'eyJpZCI6MTQsInNjb3JlIjowLjc4MzN9', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6MTQsInNjb3JlIjowLjc4MzN9', 200, 'de82667f595cd6944d2afad1421b1c404295c0e4e0f88a5b3347363d7a319094',
-     [[[9, 0.7873], [4, 0.79], [24, 0.7944], [2, 0.8278]], 'eyJpZCI6Miwic2NvcmUiOjAuODI3OH0', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6Miwic2NvcmUiOjAuODI3OH0', 200, '33b6bec417f66ec90311f21380c34bfd7858df6ea81fe830377eb1f5b3c7bc10',
-     [[[11, 0.8611], [7, 0.9167], [17, 0.9167], [18, 0.9167]], 'eyJpZCI6MTgsInNjb3JlIjowLjkxNjd9', 26]),
-    ('/api/v1/me/matches?limit=4&order=%20WORST%20&lens=Culture&cursor=eyJpZCI6MTgsInNjb3JlIjowLjkxNjd9', 200, 'ee143abe89ad10bcc127ee5e314d6ed7e56421c8245b4d5973a14195c3747c1c',
-     [[[25, 0.9667], [23, 0.9889]], None, 26]),
-    ('/api/v1/me/matches?limit=500&order=best', 200, 'f4a5262511595ed2b516d3fc7a3c56a3dfe5e2513db7138b8f2cd9a4e61eccd1',
-     [[[23, 0.9889], [25, 0.9667], [7, 0.9167], [17, 0.9167], [18, 0.9167], [11, 0.8611], [2, 0.8278], [24, 0.7944], [4, 0.79], [9, 0.7873], [14, 0.7833], [15, 0.7728], [1, 0.7672], [26, 0.7617], [30, 0.76], [13, 0.6944], [19, 0.6678], [6, 0.645], [29, 0.6389], [28, 0.6289], [8, 0.5617], [20, 0.5617], [22, 0.56], [5, 0.5011], [3, 0.4561], [21, 0.4444]], None, 26]),
-    ('/api/v1/me/matches?limit=5&order=worst&cursor=eyJpZCI6MTgsInNjb3JlIjowLjkxNjd9', 200, 'ee143abe89ad10bcc127ee5e314d6ed7e56421c8245b4d5973a14195c3747c1c',
-     [[[25, 0.9667], [23, 0.9889]], None, 26]),
-    ('/api/v1/me/matches?limit=0', 200, 'b197f0084e3da4864b8d8d83805f7c0177caf24b78a8487d13ba182d350b62b5',
-     [[[23, 0.9889]], 'eyJpZCI6MjMsInNjb3JlIjowLjk4ODl9', 26]),
-    ('/api/v1/me/matches?limit=abc', 422, '6d408085861cf299dff27db28e811653397c69da5ce9442876501cfa14b19240',
-     'validation'),
-    ('/api/v1/me/matches?lens=salary', 400, 'a22af6c4cb4c710712379b992292a2bdd348a6b69eff3a64d3c4e487cba87f1c',
-     {'error': "Unsupported lens 'salary'"}),
-    ('/api/v1/me/matches?order=sideways', 400, '09e1c4756fbf651d1c86d3dc83551f1dd43f8e34f1ad56d77020a143d18b349c',
-     {'error': "order must be 'best' or 'worst'"}),
-    ('/api/v1/me/matches?cursor=not-a-real-cursor', 422, '917e10460fe8a91d6073e10c7fa1e0628164c5a6ce3b156fd1322acd109dc624',
-     'validation'),
-    ('/api/v1/me/matches?limit=5&cursor=eyJpZCI6MTgsInNjb3JlIjowLjkxNjd9', 200, '0703f7a0ae6668552782f1a42e1df7f63f6f51ff604ea60836b87569e0ef964a',
-     [[[13, 0.8822], [21, 0.7278], [30, 0.7056], [24, 0.6933], [11, 0.6489]], 'eyJpZCI6MTEsInNjb3JlIjowLjY0ODl9', 26]),
-    ('/api/v1/me/matches?limit=5&order=worst&cursor=eyJpZCI6MTgsInNjb3JlIjowLjkxNjd9', 200, 'd2aabe8c5069aa98e6ceadf529fe2e5fc462fb8fde787f85ae612d670fb591bd',
-     [[[22, 0.9611]], None, 26]),
-]
-
-DERIVED_PAGES = [
-    ('/api/v1/me/matches?limit=9', 200, 'c875c97e279d0182439bced811490bfdcb0c3070fb91f4b3e15c51bda0bad5f1',
-     [[[26, 0.9341], [15, 0.9196], [4, 0.8513], [7, 0.8346], [17, 0.8346], [18, 0.8346], [9, 0.8324], [2, 0.798], [23, 0.7624]], 'eyJpZCI6MjMsInNjb3JlIjowLjc2MjR9', 26]),
-    ('/api/v1/me/matches?limit=9&cursor=eyJpZCI6MjMsInNjb3JlIjowLjc2MjR9', 200, '39fdc9ed3c1ea2d02e89f8444af487655ae0c4967b31307fa008ce25c0fc937f',
-     [[[25, 0.7624], [28, 0.7498], [6, 0.7493], [19, 0.748], [1, 0.7381], [24, 0.718], [14, 0.6869], [8, 0.6715], [20, 0.6715]], 'eyJpZCI6MjAsInNjb3JlIjowLjY3MTV9', 26]),
-    ('/api/v1/me/matches?limit=9&cursor=eyJpZCI6MjAsInNjb3JlIjowLjY3MTV9', 200, '98666f3a92dc4252b43795aeb0c50e014a93ebdb9f52bd1480202c2edc400764',
-     [[[13, 0.6643], [11, 0.6569], [29, 0.6531], [30, 0.6487], [3, 0.6104], [22, 0.5298], [21, 0.5193], [5, 0.5165]], None, 26]),
-    ('/api/v1/me/matches?limit=9&order=worst', 200, 'f12ad8a215134e5651932a9b2ba0e7929f0091742ea745890f1dd20d5d6d3fa9',
-     [[[5, 0.5165], [21, 0.5193], [22, 0.5298], [3, 0.6104], [30, 0.6487], [29, 0.6531], [11, 0.6569], [13, 0.6643], [8, 0.6715]], 'eyJpZCI6OCwic2NvcmUiOjAuNjcxNX0', 26]),
-    ('/api/v1/me/matches?limit=9&order=worst&cursor=eyJpZCI6OCwic2NvcmUiOjAuNjcxNX0', 200, '8642d59d69593618ca929451fff630ae28a28b3007c02313b76ece6ebcf9d562',
-     [[[20, 0.6715], [14, 0.6869], [24, 0.718], [1, 0.7381], [19, 0.748], [6, 0.7493], [28, 0.7498], [23, 0.7624], [25, 0.7624]], 'eyJpZCI6MjUsInNjb3JlIjowLjc2MjR9', 26]),
-    ('/api/v1/me/matches?limit=9&order=worst&cursor=eyJpZCI6MjUsInNjb3JlIjowLjc2MjR9', 200, '27e1de167a113867160531be7de85d85e8e5f794697bdaadecf3e6f6131760aa',
-     [[[2, 0.798], [9, 0.8324], [7, 0.8346], [17, 0.8346], [18, 0.8346], [4, 0.8513], [15, 0.9196], [26, 0.9341]], None, 26]),
-]

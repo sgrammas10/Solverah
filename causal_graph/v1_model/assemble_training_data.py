@@ -41,7 +41,7 @@ saying what did NOT select it; see FUNNEL_FIELD_CAPTURE_NOTES.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Literal, Optional, Sequence
 
 import numpy as np
@@ -483,6 +483,15 @@ class EnvironmentTrainingRow:
     outcome_source: str = OUTCOME_SOURCE
     capture_path: str = CAPTURE_PATH
 
+    # --- exploratory (Amendment 3), carried per row, never in the arrays ----
+    outcome_satisfaction: Optional[int] = None
+    outcome_performance: Optional[int] = None
+    outcome_engagement: Optional[int] = None
+    outcome_sustainability: Optional[int] = None
+    outcome_retention_intention: Optional[int] = None
+    trait_preferences_sitting_id: Optional[str] = None
+    trait_preferences: Optional[dict] = None
+
     # --- named by the handoff, not suppliable from an environment report ---
     company_id: None = None
     recommendation_id: None = None
@@ -655,6 +664,46 @@ FUNNEL_FIELD_CAPTURE_NOTES: dict[str, str] = {
         "tenure, so the DB cannot supply it. The one field here a future instrument "
         "question COULD fill -- flagged as such rather than as a permanent absence."
     ),
+    # --- exploratory, Amendment 3 (2026-10-13) ------------------------------
+    "outcome_satisfaction": (
+        "environment_reports.outcome_satisfaction, RAW 1..5 or None (skipped on an "
+        "env-v3 row, never asked on an older one -- env_form_version tells them apart). "
+        "EXPLORATORY (pre-registration Amendment 3(a)): carried on the row, never in "
+        "`outcome`, which stays the pre-registered `experienced` item. The 0..1 "
+        "mapping ((rating - 1) / 4) is the analysis's, not storage's."
+    ),
+    "outcome_performance": (
+        "environment_reports.outcome_performance, RAW 1..5 or None. Exploratory; see "
+        "outcome_satisfaction."
+    ),
+    "outcome_engagement": (
+        "environment_reports.outcome_engagement, RAW 1..5 or None. Exploratory; see "
+        "outcome_satisfaction."
+    ),
+    "outcome_sustainability": (
+        "environment_reports.outcome_sustainability, RAW 1..5 or None. Exploratory; "
+        "see outcome_satisfaction. The journey in 05_USER_JOURNEYS.md (Maya) is why it "
+        "is asked: 'doing well' by the primary outcome can be unsustainable."
+    ),
+    "outcome_retention_intention": (
+        "environment_reports.outcome_retention_intention, RAW 1..5 or None. "
+        "Exploratory; see outcome_satisfaction."
+    ),
+    "trait_preferences_sitting_id": (
+        "The tolerance/must-have sitting that was CURRENT when this report was filed: "
+        "the user's latest sitting created at or before submitted_at (None if they had "
+        "not answered by then -- a later sitting never backdates onto an earlier "
+        "report). Read through the person-side table the assembler is granted; the "
+        "match service reads the same thing through assessment_store."
+    ),
+    "trait_preferences": (
+        "{dimension: {'under_steps', 'over_steps', 'must_have'}} for that sitting, or "
+        "None. EXPLORATORY (Amendment 3(c)): tolerance as a person feature. Steps are "
+        "person-lattice steps (0.25 each); the flat zone is max(0.15, steps * 0.25) per "
+        "direction (solverah.domain.trait_preferences.flat_zones). Not in the arrays: "
+        "the primary analysis is zone-free and the hinge comparison (Look 2) builds its "
+        "zones from this field."
+    ),
 }
 
 #: The subset of FUNNEL_FIELD_CAPTURE_NOTES that is always NULL on this path,
@@ -742,6 +791,7 @@ def assemble_environment_rows(
     score_person: Callable[[dict], dict],
     scoring_key_version: Optional[str],
     respondent_sources: Optional[dict] = None,
+    trait_preference_sittings: Optional[dict] = None,
 ) -> EnvironmentAssembleResult:
     """Build the arrays from fully-resolved lookups.
 
@@ -761,6 +811,12 @@ def assemble_environment_rows(
     respondent_sources:   {user_id: 'app' | 'pilot_form'}. A user it does not
                           name is 'app', so a caller that predates the pilot
                           form gets exactly the rows it always got.
+    trait_preference_sittings: {user_id: [(created_at, sitting_id, prefs), ...]}
+                          oldest first (`_fetch_trait_preference_sittings`). A
+                          report gets the sitting current at its submitted_at
+                          (`_trait_preferences_at`); a user it does not name,
+                          or a report filed before their first sitting, gets
+                          None -- exploratory, Amendment 3(c).
 
     Every excluded report lands in `dropped` with a reason. Silently shrinking N
     is the "empty response read as absence" bug this project keeps catching
@@ -883,6 +939,9 @@ def assemble_environment_rows(
             conf_vals[key].append(cf_row[key])
             conf_missing_vals[key].append(cf_missing[key])
         outcome_vals.append(outcome_value)
+        prefs_sitting_id, prefs = _trait_preferences_at(
+            (trait_preference_sittings or {}).get(user_id, []), report["submitted_at"]
+        )
         rows.append(
             EnvironmentTrainingRow(
                 environment_report_id=report_id,
@@ -902,6 +961,13 @@ def assemble_environment_rows(
                 respondent_source=(respondent_sources or {}).get(
                     user_id, RESPONDENT_SOURCE_APP
                 ),
+                outcome_satisfaction=report.get("outcome_satisfaction"),
+                outcome_performance=report.get("outcome_performance"),
+                outcome_engagement=report.get("outcome_engagement"),
+                outcome_sustainability=report.get("outcome_sustainability"),
+                outcome_retention_intention=report.get("outcome_retention_intention"),
+                trait_preferences_sitting_id=prefs_sitting_id,
+                trait_preferences=prefs,
             )
         )
 
@@ -958,7 +1024,9 @@ def assemble_environment_rows(
 def _fetch_environment_reports(conn: Connection) -> list[dict]:
     sql = text(
         "SELECT id, user_id, submitted_at, stage_size, comp, industry, experienced_outcome, "
-        "career_status, employer_name_normalized, version, subject "
+        "career_status, employer_name_normalized, version, subject, "
+        "outcome_satisfaction, outcome_performance, outcome_engagement, "
+        "outcome_sustainability, outcome_retention_intention "
         "FROM environment_reports"
     )
     return [dict(r) for r in conn.execute(sql).mappings().all()]
@@ -1156,6 +1224,64 @@ def _fetch_pinned_responses(conn: Connection, submission_ids: list[str]) -> tupl
     return choices, {k: "|".join(sorted(v)) for k, v in versions.items()}
 
 
+#: The five exploratory outcome columns, in the order they are asked.
+EXPLORATORY_OUTCOME_COLUMNS: tuple[str, ...] = (
+    "outcome_satisfaction",
+    "outcome_performance",
+    "outcome_engagement",
+    "outcome_sustainability",
+    "outcome_retention_intention",
+)
+
+
+def _fetch_trait_preference_sittings(conn: Connection, user_ids: list[int]) -> dict:
+    """{user_id: [(created_at, sitting_id, {dim: {under_steps, over_steps, must_have}}),
+    ...]} oldest sitting first. Every sitting is read (the table is append-only, six
+    rows per sitting); which one a report gets is decided in
+    `_trait_preferences_at`, in Python, so the rule is testable without a database."""
+    if not user_ids:
+        return {}
+    stmt = text(
+        "SELECT user_id, sitting_id, dimension_key, under_steps, over_steps, must_have, "
+        "created_at FROM person_trait_preference WHERE user_id IN :uids"
+    ).bindparams(bindparam("uids", expanding=True))
+    rows = conn.execute(stmt, {"uids": user_ids}).mappings().all()
+    sittings: dict = {}
+    for r in rows:
+        key = (r["user_id"], str(r["sitting_id"]).replace("-", ""))
+        entry = sittings.setdefault(key, {"created_at": r["created_at"], "prefs": {}})
+        entry["created_at"] = min(entry["created_at"], r["created_at"])
+        entry["prefs"][r["dimension_key"]] = {
+            "under_steps": int(r["under_steps"]),
+            "over_steps": int(r["over_steps"]),
+            "must_have": bool(r["must_have"]),
+        }
+    out: dict = {}
+    for (user_id, sitting_id), entry in sittings.items():
+        out.setdefault(user_id, []).append((entry["created_at"], sitting_id, entry["prefs"]))
+    for user_id in out:
+        out[user_id].sort(key=lambda item: (_aware(item[0]), item[1]))
+    return out
+
+
+def _aware(moment: datetime) -> datetime:
+    """UTC-aware for comparison: environment_reports.submitted_at is naive in the
+    model, the preference table's created_at is timezone-aware."""
+    if moment.tzinfo is None:
+        return moment.replace(tzinfo=timezone.utc)
+    return moment
+
+
+def _trait_preferences_at(sittings: list, submitted_at: datetime) -> tuple:
+    """(sitting_id, prefs) of the latest sitting created at or before *submitted_at*,
+    or (None, None). Pure."""
+    chosen = None
+    for created_at, sitting_id, prefs in sittings:
+        if _aware(created_at) <= _aware(submitted_at):
+            chosen = (sitting_id, prefs)
+    return chosen if chosen is not None else (None, None)
+
+
 def _app_assessment_form():
     """The app's person-side doorway, imported lazily.
 
@@ -1265,6 +1391,7 @@ def assemble_environment_training_data(
         score_person,
         scoring_key_version,
         respondent_sources=_fetch_respondent_sources(conn, user_ids),
+        trait_preference_sittings=_fetch_trait_preference_sittings(conn, user_ids),
     )
 
 

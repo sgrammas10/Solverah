@@ -27,6 +27,7 @@ destroys every row for the deleting user.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Optional, Sequence
 
 import sqlalchemy as sa
@@ -80,6 +81,29 @@ def _require_served_item_scores(
             )
 
 
+def _active_company_link_id(db, user_id: int) -> Optional[int]:
+    """The id of the user's ACTIVE `UserCompanyLink`, or None when they have none.
+
+    "Active" (six-trait build, C8, 2026-10-13; `model.PulseCheckin.company_link_id`'s
+    docstring): `started_on <= today` and (`ended_on` is None or `ended_on >= today`).
+    Read through `company_evidence_store.company_links_for_user`, a cross-lane read --
+    this module never writes to `user_company_link`. That store function already
+    orders newest-`started_on`-first, so the first row meeting both conditions is the
+    one to attach. A user cannot hold two open links at all as of the orchestrator's
+    2026-10-13 one-current-job ruling: `create_company_link` closes any prior open link
+    before inserting a new one, and `ix_ucl_one_open_per_user` (a partial unique index
+    on `user_id` where `ended_on IS NULL`) enforces it in the DB -- this still takes
+    "first match" rather than assume it.
+    """
+    import company_evidence_store
+
+    today = datetime.date.today()
+    for link in company_evidence_store.company_links_for_user(db, user_id):
+        if link.started_on <= today and (link.ended_on is None or link.ended_on >= today):
+            return link.id
+    return None
+
+
 def _add_checkin(db, user_id: int, *, sequence, item_scores, experienced, version):
     """Validate and flush one check-in; returns the ORM row."""
     from model import PulseCheckin
@@ -94,6 +118,7 @@ def _add_checkin(db, user_id: int, *, sequence, item_scores, experienced, versio
         item_scores=dict(item_scores),
         experienced=experienced,
         version=version,
+        company_link_id=_active_company_link_id(db, user_id),
     )
     db.session.add(row)
     # Populates row.id for a caller that needs it before commit -- and, through the
@@ -213,6 +238,7 @@ def _serialize_checkin(row) -> dict[str, Any]:
         "item_scores": dict(row.item_scores),
         "experienced": row.experienced,
         "version": row.version,
+        "company_link_id": row.company_link_id,
     }
 
 
@@ -237,7 +263,10 @@ def _unchanged(value):
 #: The keys of each serializer above, and how a projected read formats the ones
 #: that are not passed through as stored -- the serializers' own formatting, so a
 #: projected read and a whole-row read agree on every key they share.
-_CHECKIN_KEYS = ("id", "user_id", "taken_at", "sequence", "item_scores", "experienced", "version")
+_CHECKIN_KEYS = (
+    "id", "user_id", "taken_at", "sequence", "item_scores", "experienced", "version",
+    "company_link_id",
+)
 _CHECKIN_FORMATS = {"taken_at": _iso, "item_scores": dict}
 _EVENT_KEYS = ("id", "user_id", "at", "event_type", "note")
 _EVENT_FORMATS = {"at": _iso}

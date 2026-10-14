@@ -1,404 +1,220 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth";
-
-interface CompanyMatch {
-  id: number;
-  name: string;
-  slug: string;
-  industry: string;
-  fit_score: number;
-  top_matching_dimensions: string[];
-  top_mismatching_dimensions: string[];
-  fit_summary: string;
-}
-
 /**
- * One page of `GET /api/v1/me/matches`.
+ * /company-lens -- companies read against how you like to work, on six traits.
  *
- * Phase 1b replaced `GET /company-lens/matches`, which returned two fixed-size
- * slices -- `best_fits` and `worst_fits` -- in a single body with nothing
- * reachable beyond them. The list is now cursor-paginated in one direction at a
- * time, so `?order=best` and `?order=worst` are two walks through one ranking
- * and either can be continued past the first page.
+ * PRODUCT_DECISIONS.md §2, "The six-trait match model" (2026-10-13). One call,
+ * `GET /me/matches`, in one of three states:
+ *
+ *   core_required  no current core sitting: a friendly prompt to /work-pulse
+ *   no_companies   nothing researched yet: an invitation to research one
+ *   ranked         ranked cards in the server's order, then "Not enough evidence yet"
+ *
+ * The server's order IS the ranking. There is no probability, score or
+ * percentage on the wire and none is made here -- see companyLensCopy.ts. A
+ * company with a broken must-have is flagged and listed last by the server; it
+ * is never hidden, and neither is a company we could not read well enough.
  */
-interface MatchesPage {
-  data: CompanyMatch[];
-  next_cursor: string | null;
-  total_companies_scored: number;
-  lens: string;
-  order: string;
-}
+import type { ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
-/** Both ends of the ranking, as this screen renders them. */
-interface MatchesView {
-  best: CompanyMatch[];
-  worst: CompanyMatch[];
-  total_companies_scored: number;
-}
+import { useMatches, type MatchEntry } from "../useCompanyLens";
+import type { PollTiming } from "../usePoll";
+import { LEAD, PAGE_H1, PRIMARY } from "../../../shared/ui/publicStyles";
+import { BODY_MUTED, PANEL, QUIET_BUTTON, REPORT_H2, TEXT_LINK } from "../lensStyles";
+import CompanyMatchCard, { NotEnoughEvidenceRow } from "./CompanyMatchCard";
+import ResearchCompanyForm from "./ResearchCompanyForm";
 
-const DIM_LABELS: Record<string, string> = {
-  empathy: "Empathy",
-  creative_drive: "Creative Drive",
-  adaptability: "Adaptability",
-  futuristic: "Future Orientation",
-  harmony: "Harmony",
-  data_orientation: "Data Orientation",
-  pace: "Work Pace",
-  work_environment: "Work Environment",
-};
-
-interface MatchCardProps {
-  match: CompanyMatch;
-  accent: "forest" | "amber";
-}
-
-interface MatchRowProps {
-  match: CompanyMatch;
-  accent: "forest" | "amber";
-}
-
-function MatchRow({ match, accent }: MatchRowProps) {
-  const navigate = useNavigate();
-
+function Shell({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-cream-muted bg-white hover:border-forest-light transition-colors cursor-pointer"
-      onClick={() =>
-        navigate(`/companies/${match.id}`, {
-          state: {
-            fit_score: match.fit_score,
-            top_matching_dimensions: match.top_matching_dimensions,
-            top_mismatching_dimensions: match.top_mismatching_dimensions,
-          },
-        })
-      }
+    <main className="min-h-screen bg-cream-base font-body text-ink-primary antialiased">
+      <div className="mx-auto w-full max-w-3xl space-y-10 px-4 pb-24 pt-8 sm:px-6 md:pt-14">
+        {children}
+      </div>
+    </main>
+  );
+}
+
+function BackLink() {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate("/intelligence")}
+      className="text-[0.9rem] font-medium text-ink-secondary transition-colors hover:text-forest-mid"
     >
-      <span className="font-semibold text-sm text-ink-primary min-w-0 truncate flex-1">
-        {match.name}
-      </span>
-      <span
-        className={`text-sm font-semibold shrink-0 ${
-          accent === "forest" ? "text-forest-dark" : "text-amber-600"
-        }`}
-      >
-        {Math.round(match.fit_score * 100)}%
-      </span>
-      <span className="text-xs font-semibold text-forest-mid shrink-0">→</span>
-    </div>
+      <span aria-hidden>←</span> Back to Intelligence
+    </button>
   );
 }
 
-function MatchCard({ match, accent }: MatchCardProps) {
-  const navigate = useNavigate();
-
+function Header({ children }: { children?: ReactNode }) {
   return (
-    <div className="rounded-xl border border-cream-muted bg-white px-5 py-5 space-y-3 hover:border-forest-light transition-colors">
-      {/* Top row */}
-      <div className="flex justify-between items-start gap-3">
-        <div>
-          <p className="font-display text-lg font-semibold text-ink-primary">{match.name}</p>
-          {match.industry && (
-            <p className="text-xs text-forest-light mt-0.5">{match.industry}</p>
-          )}
-        </div>
-        <p
-          className={`shrink-0 text-xl font-semibold ${
-            accent === "forest" ? "text-forest-dark" : "text-amber-600"
-          }`}
-        >
-          {Math.round(match.fit_score * 100)}% match
-        </p>
-      </div>
-
-      {/* Dimension chips */}
-      {(match.top_matching_dimensions.length > 0 ||
-        match.top_mismatching_dimensions.length > 0) && (
-        <div className="flex flex-wrap gap-1.5">
-          {match.top_matching_dimensions.map((d) => (
-            <span
-              key={`m-${d}`}
-              className="bg-forest-pale text-forest-mid border border-forest-light text-xs font-semibold px-2.5 py-1 rounded-full"
-            >
-              {DIM_LABELS[d] ?? d}
-            </span>
-          ))}
-          {match.top_mismatching_dimensions.map((d) => (
-            <span
-              key={`mm-${d}`}
-              className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-2.5 py-1 rounded-full"
-            >
-              {DIM_LABELS[d] ?? d}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Fit summary */}
-      {match.fit_summary && (
-        <p className="text-sm text-ink-secondary leading-relaxed">{match.fit_summary}</p>
-      )}
-
-      {/* Footer link */}
-      <button
-        type="button"
-        onClick={() =>
-          navigate(`/companies/${match.id}`, {
-            state: {
-              fit_score: match.fit_score,
-              top_matching_dimensions: match.top_matching_dimensions,
-              top_mismatching_dimensions: match.top_mismatching_dimensions,
-            },
-          })
-        }
-        className="text-sm font-semibold text-forest-mid hover:underline"
-      >
-        View company profile →
-      </button>
-    </div>
+    <header className="max-w-[62ch] space-y-4">
+      <p className="text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-forest-light">
+        CompanyLens™
+      </p>
+      <h1 className={PAGE_H1}>Companies, read against how you like to work</h1>
+      <p className={LEAD}>
+        We read what's public about each company on six traits (autonomy, pace, collaboration,
+        feedback, innovation and how decisions get made) and set it beside what you told us you
+        prefer. Where the evidence is thin or disagrees, we say so.
+      </p>
+      {children}
+    </header>
   );
 }
 
-/** Query keys for the two-ended matches view. `all` is the invalidation handle. */
-export const companyMatchKeys = {
-  all: ["companyMatches"] as const,
-  view: (limit: number) => ["companyMatches", "view", limit] as const,
-};
+function PreferencesNudge() {
+  return (
+    <p className={`${BODY_MUTED} rounded-[6px] bg-forest-pale/50 px-4 py-3`}>
+      These reads use a narrow range around each of your answers.{" "}
+      <Link to="/trait-preferences" className={TEXT_LINK}>
+        Tell us how much give you have
+      </Link>{" "}
+      on each trait, and which ones are must-haves.
+    </p>
+  );
+}
 
-export default function CompanyLensPage() {
+interface CompanyLensPageProps {
+  /** Override the research polling schedule (tests). */
+  researchPollTiming?: PollTiming;
+}
+
+export default function CompanyLensPage({ researchPollTiming }: CompanyLensPageProps = {}) {
   const navigate = useNavigate();
-  const { fetchWithAuth } = useAuth();
+  const matches = useMatches();
 
-  const [limit, setLimit] = useState(5);
-  const [viewMode, setViewMode] = useState<"card" | "list">("card");
-
-  // Keyed on `limit`: "Show more" bumps the key, and the fresh key loads like
-  // the hand-rolled refetch did. A 5xx now gets queryClient.ts's bounded
-  // retries (safe: Phase 3a removed every commit from GET handlers), while the
-  // no-prefs rejection is a 4xx and surfaces immediately.
-  const matchesQuery = useQuery({
-    queryKey: companyMatchKeys.view(limit),
-    queryFn: async (): Promise<MatchesView> => {
-      // Two requests where there was one: the endpoint no longer returns
-      // both ends of the ranking in a single body. They are issued together,
-      // so this is still one round trip's latency.
-      const [best, worst] = await Promise.all([
-        fetchWithAuth<MatchesPage>(`/me/matches?order=best&limit=${limit}`),
-        fetchWithAuth<MatchesPage>(`/me/matches?order=worst&limit=${limit}`),
-      ]);
-      // Drop from the weak end anything already shown at the strong end.
-      //
-      // The endpoint this replaced partitioned at the midpoint whenever there
-      // were at most 2*limit companies, so a company could never appear in
-      // both lists. A paginated list cannot do that -- it walks a ranking, it
-      // does not carve one -- so the screen has to. Filtering rather than
-      // slicing at a computed midpoint means no overlap regardless of how the
-      // two page sizes and the total relate.
-      const shownAsBest = new Set(best.data.map((match) => match.id));
-      return {
-        best: best.data,
-        worst: worst.data.filter((match) => !shownAsBest.has(match.id)),
-        total_companies_scored: best.total_companies_scored,
-      };
-    },
-  });
-
-  const data = matchesQuery.data ?? null;
-  const errorMsg =
-    matchesQuery.error instanceof Error ? matchesQuery.error.message : "";
-  // The 400/409 the backend sends while the culture-preferences mapping this
-  // endpoint needs is unbuilt (⚑3, BUILD_PLAN.md §0.2). Not something a user
-  // can fix -- the model is what's pending, not their Work Pulse completion.
-  const modelPending =
-    matchesQuery.isError &&
-    (errorMsg.includes("culture preferences") ||
-      errorMsg.includes("Work Pulse not completed"));
-
-  const handleShowMore = () => {
-    setLimit(limit + 5);
-  };
-
-  if (matchesQuery.isLoading) {
+  if (matches.isLoading) {
     return (
-      <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
-        <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
-        <p className="text-sm text-ink-secondary">
-          Scoring companies against your Work Pulse results…
-        </p>
-      </div>
+      <Shell>
+        <div className="flex flex-col items-center gap-4 pt-16" role="status">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-forest-light border-t-transparent motion-reduce:animate-none" />
+          <p className={BODY_MUTED}>Reading companies against your answers...</p>
+        </div>
+      </Shell>
     );
   }
 
-  if (matchesQuery.isError && !modelPending) {
+  if (matches.isError || !matches.data) {
     return (
-      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div className="max-w-sm w-full rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          <p className="font-medium mb-1">Couldn't load your company matches.</p>
-          <p className="text-xs">Please try again in a moment.</p>
+      <Shell>
+        <div className="mx-auto max-w-sm rounded-[6px] border border-red-200 bg-red-50 px-5 py-4 text-red-800" role="alert">
+          <p className="mb-1 font-semibold">We couldn't load CompanyLens right now.</p>
+          <p className="text-[0.88rem]">Please try again in a moment.</p>
           <button
             type="button"
-            onClick={() => matchesQuery.refetch()}
-            className="mt-3 text-xs font-semibold text-red-700 underline"
+            onClick={() => void matches.refetch()}
+            className="mt-3 text-[0.88rem] font-semibold text-red-800 underline underline-offset-4"
           >
             Try again
           </button>
         </div>
-      </div>
+      </Shell>
     );
   }
 
-  if (modelPending) {
+  const pages = matches.data.pages;
+  const first = pages[0];
+
+  if (first.state === "core_required") {
     return (
-      <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
-        <div className="rounded-xl border border-cream-muted bg-white px-6 py-8 text-center max-w-sm w-full">
-          <h2 className="font-display text-xl font-semibold text-ink-primary mb-2">
-            CompanyLens™ is coming soon
-          </h2>
-          <p className="text-sm text-ink-secondary leading-relaxed mb-6">
-            We're still building the matching model behind it. Your Work Pulse
-            results are already saved and will feed it the moment it's ready
-            — there's nothing you need to do.
-          </p>
-          <button
-            type="button"
-            onClick={() => navigate("/intelligence")}
-            className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
-          >
-            Back to Intelligence
-          </button>
-        </div>
-      </div>
+      <Shell>
+        <BackLink />
+        <Header>
+          <section className={`${PANEL} space-y-4 px-5 py-5`}>
+            <h2 className={REPORT_H2}>Start with how you like to work</h2>
+            <p className={BODY_MUTED}>
+              CompanyLens compares companies with your own preferences, so it needs your Work
+              Pulse answers first. It's a short set of questions, and every read here builds on
+              it.
+            </p>
+            <button type="button" onClick={() => navigate("/work-pulse")} className={PRIMARY}>
+              Take Work Pulse
+            </button>
+          </section>
+        </Header>
+      </Shell>
     );
   }
 
-  if (!data) return null;
-
-  const maxPerGroup = Math.floor(data.total_companies_scored / 2);
-  const showMoreVisible = limit < maxPerGroup;
+  const entries: MatchEntry[] = pages.flatMap((page) => page.data ?? []);
+  const ranked = entries.filter((entry) => entry.state === "ranked");
+  const thin = entries.filter((entry) => entry.state === "not_enough_evidence");
 
   return (
-    <div className="min-h-screen bg-cream-base">
-      <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-10">
+    <Shell>
+      <BackLink />
+      <Header>{!first.preferences_answered && <PreferencesNudge />}</Header>
 
-        {/* Back link */}
-        <button
-          type="button"
-          onClick={() => navigate("/intelligence")}
-          className="text-sm font-semibold text-forest-mid hover:underline"
-        >
-          ← Back to Intelligence
-        </button>
+      <section className={`${PANEL} px-5 py-5`}>
+        <ResearchCompanyForm pollTiming={researchPollTiming} />
+      </section>
 
-        {/* Header */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-forest-light">
-            CompanyLens™
+      {first.state === "no_companies" ? (
+        <section className="space-y-2">
+          <h2 className={REPORT_H2}>No companies yet</h2>
+          <p className={BODY_MUTED}>
+            Name a company you're curious about above, whether it's one you're interviewing
+            with or one you've always wondered about. Once it's researched, its read shows up
+            here.
           </p>
-          <div className="flex items-start justify-between gap-4">
-            <h1 className="font-display text-2xl sm:text-3xl font-semibold text-ink-primary">
-              Companies ranked by how well they match how you work.
-            </h1>
-            {/* View toggle */}
-            <div className="flex shrink-0 items-center gap-1 border border-cream-muted rounded-lg p-1 bg-white mt-1">
-              <button
-                type="button"
-                onClick={() => setViewMode("card")}
-                title="Card view"
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === "card"
-                    ? "bg-forest-dark text-white"
-                    : "text-ink-secondary hover:text-ink-primary"
-                }`}
-              >
-                {/* Grid icon */}
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" />
-                  <rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" />
-                  <rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" />
-                  <rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode("list")}
-                title="List view"
-                className={`p-1.5 rounded transition-colors ${
-                  viewMode === "list"
-                    ? "bg-forest-dark text-white"
-                    : "text-ink-secondary hover:text-ink-primary"
-                }`}
-              >
-                {/* List icon */}
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <rect x="1" y="2" width="14" height="2.5" rx="1" fill="currentColor" />
-                  <rect x="1" y="6.75" width="14" height="2.5" rx="1" fill="currentColor" />
-                  <rect x="1" y="11.5" width="14" height="2.5" rx="1" fill="currentColor" />
-                </svg>
-              </button>
-            </div>
-          </div>
-          <p className="text-sm text-ink-secondary">
-            Based on your Work Pulse results. Scores reflect culture and environment
-            fit — not job availability.
-          </p>
-        </div>
+        </section>
+      ) : (
+        <>
+          {ranked.length > 0 && (
+            <section className="space-y-4" aria-labelledby="lens-ranked">
+              <div className="space-y-1">
+                <h2 id="lens-ranked" className={REPORT_H2}>
+                  Your companies
+                </h2>
+                <p className={BODY_MUTED}>
+                  Closest to how you like to work first. A company that breaks one of your
+                  must-haves is flagged and listed last, never hidden.
+                </p>
+              </div>
+              <ol className="space-y-3">
+                {ranked.map((entry) => (
+                  <li key={entry.id}>
+                    <CompanyMatchCard entry={entry} />
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
 
-        {/* Section 1 — Strong fits */}
-        <div className="space-y-4">
-          <h2 className="font-display text-lg font-semibold text-ink-primary">
-            Companies that match how you work
-          </h2>
-          <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
-            {data.best.map((match) =>
-              viewMode === "card" ? (
-                <MatchCard key={match.id} match={match} accent="forest" />
-              ) : (
-                <MatchRow key={match.id} match={match} accent="forest" />
-              )
-            )}
-          </div>
-          {showMoreVisible && (
-            <div className="flex justify-center pt-2">
+          {thin.length > 0 && (
+            <section className="space-y-4" aria-labelledby="lens-thin">
+              <div className="space-y-1">
+                <h2 id="lens-thin" className={REPORT_H2}>
+                  Not enough evidence yet
+                </h2>
+                <p className={BODY_MUTED}>
+                  We found too little to read these companies on at least three traits, so we
+                  don't place them. Here's what's missing.
+                </p>
+              </div>
+              <ul className="space-y-3">
+                {thin.map((entry) => (
+                  <NotEnoughEvidenceRow key={entry.id} entry={entry} />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {matches.hasNextPage && (
+            <div className="flex justify-center">
               <button
                 type="button"
-                onClick={handleShowMore}
-                className="border-2 border-forest-dark text-forest-dark font-semibold px-5 py-2.5 rounded hover:bg-forest-pale transition-colors"
+                onClick={() => void matches.fetchNextPage()}
+                disabled={matches.isFetchingNextPage}
+                className={QUIET_BUTTON}
               >
-                Show more
+                {matches.isFetchingNextPage ? "Loading..." : "Show more companies"}
               </button>
             </div>
           )}
-        </div>
-
-        {/* Section 2 — Approach carefully */}
-        <div className="space-y-4">
-          <h2 className="font-display text-lg font-semibold text-ink-primary">
-            Companies worth understanding before committing
-          </h2>
-          <div className={viewMode === "card" ? "space-y-3" : "space-y-1.5"}>
-            {data.worst.map((match) =>
-              viewMode === "card" ? (
-                <MatchCard key={match.id} match={match} accent="amber" />
-              ) : (
-                <MatchRow key={match.id} match={match} accent="amber" />
-              )
-            )}
-          </div>
-          {showMoreVisible && (
-            <div className="flex justify-center pt-2">
-              <button
-                type="button"
-                onClick={handleShowMore}
-                className="border-2 border-amber-400 text-amber-700 font-semibold px-5 py-2.5 rounded hover:bg-amber-50 transition-colors"
-              >
-                Show more
-              </button>
-            </div>
-          )}
-        </div>
-
-      </div>
-    </div>
+        </>
+      )}
+    </Shell>
   );
 }

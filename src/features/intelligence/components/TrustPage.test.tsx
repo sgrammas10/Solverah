@@ -10,8 +10,8 @@
  *  - the calibration section still names all three disciplines AND still ends
  *    in its limits paragraph (the paragraph is the reason the section is not
  *    marketing; losing it silently is the realistic regression);
- *  - matching is still described as not-yet-live, because the page is wrong the
- *    day it implies CompanyLens works.
+ *  - matching is described as live without a score, because the page is wrong the
+ *    day it implies a number or a probability.
  */
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -39,7 +39,7 @@ describe("TrustPage", () => {
     const headings = [
       /the questions are forced choices/i,
       /there is no score to see/i,
-      /what matching will mean/i,
+      /what matching means/i,
       /how we check our own instruments/i,
       /your answers/i,
     ];
@@ -80,9 +80,11 @@ describe("TrustPage", () => {
     expect(screen.getByRole("heading", { name: /why does focustype show me a result/i })).toBeInTheDocument();
   });
 
-  it("describes matching as not yet live, and as one output rather than the product", () => {
+  it("describes matching as live, evidence-backed and never a probability, and as one output", () => {
     renderTrustPage();
-    expect(screen.getByText(/company matching is not live/i)).toBeInTheDocument();
+    expect(screen.getByText(/company matching is live in companylens/i)).toBeInTheDocument();
+    expect(screen.queryByText(/company matching is not live/i)).toBeNull();
+    expect(screen.getByText(/never shows a score, a percentage or a probability/i)).toBeInTheDocument();
     expect(screen.getByText(/one output, not the product/i)).toBeInTheDocument();
     expect(screen.getByText(/an estimate with uncertainty attached, not a verdict/i)).toBeInTheDocument();
   });

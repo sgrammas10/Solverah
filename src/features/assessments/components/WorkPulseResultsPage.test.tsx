@@ -129,13 +129,19 @@ describe("WorkPulseResultsPage", () => {
     expect(screen.getByRole("link", { name: /how this works/i })).toHaveAttribute("href", "/trust");
   });
 
-  it("labels Pro and CompanyLens as coming soon, with no dead unlock buttons", () => {
+  it("links to the live CompanyLens, with no fit score or number, and Pro stays a label", () => {
     mocks.wpState.cachedResult = MOCK_RESULT;
     mocks.user = { wpl_completed: true };
     renderPage();
 
+    expect(screen.getByRole("link", { name: /open companylens/i })).toHaveAttribute(
+      "href",
+      "/company-lens"
+    );
+    expect(screen.queryByText(/fit score/i)).toBeNull();
+    expect(screen.queryByText(/%/)).toBeNull();
+    expect(screen.queryByText(/CompanyLens™ · Pro · coming soon/)).toBeNull();
     expect(screen.getByText("Work Pulse Pro · coming soon")).toBeInTheDocument();
-    expect(screen.getByText("CompanyLens™ · Pro · coming soon")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /unlock/i })).toBeNull();
   });
 

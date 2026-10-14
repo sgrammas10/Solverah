@@ -158,6 +158,12 @@ test("REAL STACK: register -> verify -> sign in -> assessment -> environment rep
       await advance.click();
     }
 
+    // A saved sitting opens the optional tolerance step first (six-trait model,
+    // 2026-10-13); skipping it writes nothing and leads on to the completion card.
+    await expect(page.getByRole("heading", { name: "How much give is there?" })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByRole("button", { name: "Skip for now" }).click();
     await expect(page.getByText("That's everything we need")).toBeVisible({ timeout: 30_000 });
     await page.screenshot({ path: "test-results/real-04-submitted.png", fullPage: true });
   });
@@ -279,11 +285,10 @@ test("REAL STACK: register -> verify -> sign in -> assessment -> environment rep
     expect(await buckets.count(), "no dimension carried a bucket").toBeGreaterThan(0);
 
     // The guidance notice must reach the page verbatim -- it is the scope
-    // disclaimer, not decoration.
+    // disclaimer, not decoration. (The old "What this is, and what it isn't"
+    // footer was folded into "About this report" in 0796599.)
     await expect(page.getByText(/This guidance is general, not personal/)).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "What this is, and what it isn't" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "About this report" })).toBeVisible();
 
     // D-15, checked at the pixel rather than in a unit test's fixture: the
     // payload carries `env_score` per dimension as a 0-1 float, and not one of

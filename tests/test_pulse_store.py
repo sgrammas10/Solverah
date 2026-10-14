@@ -467,3 +467,150 @@ def test_event_requires_a_real_user(client):
         db.session.add(PulseEvent(user_id=999999, event_type="other"))
         with pytest.raises(IntegrityError):
             db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# company_link_id (six-trait build, C8): attach the user's ACTIVE
+# `UserCompanyLink` at write time; detach cleanly (SET NULL) when it is deleted.
+# ---------------------------------------------------------------------------
+
+
+def _mk_company(db, name="Acme", slug="acme"):
+    from model import Company
+
+    company = Company(name=name, slug=slug, profile_json={})
+    db.session.add(company)
+    db.session.commit()
+    return company
+
+
+def _mk_link(db, user_id, company_id, *, started_on, ended_on=None):
+    from model import UserCompanyLink
+
+    link = UserCompanyLink(
+        user_id=user_id, company_id=company_id, started_on=started_on, ended_on=ended_on
+    )
+    db.session.add(link)
+    db.session.commit()
+    return link
+
+
+def test_checkin_with_no_link_gets_null_company_link_id(client, seed_user):
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+
+        result = latest_pulse_checkin(1)
+        assert result["company_link_id"] is None
+
+
+def test_checkin_attaches_the_active_link(client, seed_user):
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        company = _mk_company(db)
+        today = datetime.date.today()
+        link = _mk_link(db, 1, company.id, started_on=today - datetime.timedelta(days=30))
+
+        _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+
+        result = latest_pulse_checkin(1)
+        assert result["company_link_id"] == link.id
+
+
+def test_checkin_does_not_attach_an_ended_link(client, seed_user):
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        company = _mk_company(db)
+        today = datetime.date.today()
+        _mk_link(
+            db, 1, company.id,
+            started_on=today - datetime.timedelta(days=60),
+            ended_on=today - datetime.timedelta(days=1),
+        )
+
+        _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+
+        result = latest_pulse_checkin(1)
+        assert result["company_link_id"] is None
+
+
+def test_checkin_does_not_attach_a_future_dated_link(client, seed_user):
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        company = _mk_company(db)
+        today = datetime.date.today()
+        _mk_link(db, 1, company.id, started_on=today + datetime.timedelta(days=5))
+
+        _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+
+        result = latest_pulse_checkin(1)
+        assert result["company_link_id"] is None
+
+
+def test_deleting_the_link_nulls_the_checkin_but_keeps_it(client, seed_user):
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    import company_evidence_store
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        company = _mk_company(db)
+        today = datetime.date.today()
+        link = _mk_link(db, 1, company.id, started_on=today - datetime.timedelta(days=10))
+
+        checkin_id = _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+
+        before = latest_pulse_checkin(1)
+        assert before["company_link_id"] == link.id
+
+        assert company_evidence_store.delete_company_link(db, 1, link.id) is True
+
+        after = latest_pulse_checkin(1)
+        assert after["id"] == checkin_id
+        assert after["company_link_id"] is None
+
+
+def test_checkin_stops_attaching_a_link_once_the_user_ends_it(client, seed_user):
+    import company_evidence_store
+    from app import app
+    from pulse_store import latest_pulse_checkin
+    from model import db
+
+    seed_user(1)
+    with app.app_context():
+        company = _mk_company(db)
+        today = datetime.date.today()
+        link = _mk_link(db, 1, company.id, started_on=today - datetime.timedelta(days=60))
+
+        _write_checkin(db, user_id=1, sequence=0)
+        db.session.commit()
+        assert latest_pulse_checkin(1)["company_link_id"] == link.id
+
+        company_evidence_store.end_company_link(
+            db, 1, link.id, ended_on=today - datetime.timedelta(days=1))
+
+        _write_checkin(db, user_id=1, sequence=1)
+        db.session.commit()
+        assert latest_pulse_checkin(1)["company_link_id"] is None

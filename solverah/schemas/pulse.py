@@ -69,6 +69,15 @@ class PulseCheckinRecord(SolverahModel):
     item_scores: Dict[str, int]
     experienced: int
     version: str
+    company_link_id: Optional[int] = Field(
+        default=None,
+        description=(
+            "The user's active UserCompanyLink ('I took this job') at the moment this "
+            "check-in was recorded, or null if they had none. Six-trait build, C8: "
+            "lets later analysis tie repeated low 'experienced' ratings to a "
+            "CompanyLens read."
+        ),
+    )
 
 
 class PulseEventRequest(SolverahModel):
