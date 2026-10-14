@@ -49,6 +49,13 @@
  * them lives at length. The link sits on the employer line rather than replacing either claim:
  * a reader who wants the short version should not have to leave this page to get it.
  *
+ * TOLERANCE STEP (six-trait match model, 2026-10-13). Right after a sitting is saved --
+ * a first sitting or a retake -- the page shows TraitPreferencesStep before the
+ * completion card's next steps: per trait, how much more or less than preferred is
+ * fine, plus up to two must-haves. "Skip for now" writes nothing and leaves the user
+ * unanswered, which keeps matching and the Situation Report exactly as they were.
+ * The card links to /trait-preferences to change the answers later.
+ *
  * THE RESULTS SCREEN DELIBERATELY DOES NOT EXIST for this instrument (decided 2026-08-19:
  * completion state only). Returning a respondent's six dimension scores hands a retaker a
  * gradient to optimise against and teaches the item-to-dimension mapping the shuffle and
@@ -60,6 +67,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AssessmentStepper from "./AssessmentStepper";
+import TraitPreferencesStep from "./TraitPreferencesStep";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
@@ -263,6 +271,9 @@ export default function WorkPulsePage() {
   // server changes until Finish, so completion holds while this is true.
   const [retaking, setRetaking] = useState(false);
   const [justRetook, setJustRetook] = useState(false);
+  // The tolerance step, shown once right after a sitting is saved and before the
+  // card's next steps. Closed by saving or skipping.
+  const [traitStepOpen, setTraitStepOpen] = useState(false);
 
   const isCompleted = justCompleted || Boolean(user?.wp_v2_completed);
   const hasLegacyResults = Boolean(user?.wpl_completed);
@@ -307,6 +318,7 @@ export default function WorkPulsePage() {
     queryClient.invalidateQueries({ queryKey: situationReportKeys.all });
     queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEY });
     setJustCompleted(true);
+    setTraitStepOpen(true);
   }
 
   const secondary =
@@ -326,7 +338,14 @@ export default function WorkPulsePage() {
           data-testid="work-pulse-panel"
           className="rounded-xl border border-cream-muted bg-cream-base/95 backdrop-blur-sm px-5 py-8 sm:px-8 shadow-sm"
         >
-        {isCompleted && !retaking ? (
+        {isCompleted && !retaking && traitStepOpen ? (
+          <div className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
+              ✦ Work Pulse Complete
+            </p>
+            <TraitPreferencesStep onFinished={() => setTraitStepOpen(false)} />
+          </div>
+        ) : isCompleted && !retaking ? (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
               ✦ Work Pulse Complete
@@ -447,6 +466,17 @@ export default function WorkPulsePage() {
               >
                 {retakeDraftSaved ? "Continue your retake →" : "Retake Work Pulse"}
               </button>
+              {/* A button, not a link: the card carries no links at all, so a
+                  results link cannot creep back in unnoticed (D-15 test). */}
+              <p className="text-sm text-ink-secondary">
+                <button
+                  type="button"
+                  onClick={() => navigate("/trait-preferences")}
+                  className="font-semibold text-forest-dark hover:underline"
+                >
+                  Change how much give you have on each area →
+                </button>
+              </p>
             </div>
           </div>
         ) : (

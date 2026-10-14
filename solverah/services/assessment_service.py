@@ -43,6 +43,7 @@ from typing import Any, Dict, List, Optional
 
 from model import User, db
 from solverah.domain import auth as auth_domain
+from solverah.errors import ValidationError
 from solverah.infra import llm
 from solverah.repositories import assessment_repository, path_fit_repository
 from solverah.services import assessment_prompts, path_cache
@@ -54,6 +55,9 @@ __all__ = [
     "RETIRED_WORK_PULSE_MESSAGE",
     "precheck",
     "AssessmentResult",
+    "TraitPreferencesInvalid",
+    "read_trait_preferences",
+    "save_trait_preferences",
     "KINDS_BY_KEY",
     "catalogue",
     "find_kind",
@@ -695,3 +699,76 @@ def completed_kinds(user: User) -> set:
     except Exception:  # noqa: BLE001 -- a catalogue must not fail a page load
         pass
     return finished
+
+
+# ---------------------------------------------------------------------------
+# Trait preferences: per-trait tolerance and must-have (six-trait model, 2026-10-13)
+# ---------------------------------------------------------------------------
+#
+# A short, skippable step after core, retakeable any time. Core itself -- its items,
+# its scoring, its D-01 path -- is untouched: these are a separate person-side record
+# behind `assessment_store`, and the rules live in `solverah.domain.trait_preferences`.
+
+
+class TraitPreferencesInvalid(ValidationError):
+    """A PUT /me/trait-preferences body that breaks a rule: a missing, unknown or
+    repeated trait, a step count outside 0..2, or more than two must-haves.
+
+    400 rather than ValidationError's 422, by ruling (2026-10-13 build plan, review
+    focus 5): these are the product's rules, not the body's shape. A body that does
+    not even match the request schema is still the house 422 from the enforcement
+    hook. The `errors` entries carry the specific `code` a client can branch on.
+    """
+
+    status = 400
+    title = "Invalid trait preferences"
+    code = "invalid_trait_preferences"
+
+
+def _trait_preferences_body(prefs) -> Dict[str, Any]:
+    from solverah.domain.trait_preferences import MAX_MUST_HAVES, TRAIT_KEYS
+
+    return {
+        "answered": all(prefs[key].answered for key in TRAIT_KEYS),
+        "max_must_haves": MAX_MUST_HAVES,
+        "traits": [
+            {
+                "dimension_key": key,
+                "under_steps": prefs[key].under_steps,
+                "over_steps": prefs[key].over_steps,
+                "must_have": prefs[key].must_have,
+                "answered": prefs[key].answered,
+            }
+            for key in TRAIT_KEYS
+        ],
+    }
+
+
+def read_trait_preferences(user: User) -> Dict[str, Any]:
+    """GET /me/trait-preferences: the latest sitting, or all six unanswered."""
+    from assessment_store import get_trait_preferences
+
+    return _trait_preferences_body(get_trait_preferences(db, user.id))
+
+
+def save_trait_preferences(user: User, payload: Any) -> Dict[str, Any]:
+    """PUT /me/trait-preferences: append a sitting of all six traits and echo it back.
+
+    Raises TraitPreferencesInvalid (400) for a rule violation. The echo is built from
+    what was written, so there is no read-back after the commit.
+    """
+    from assessment_store import save_trait_preferences as store_save
+    from solverah.domain.trait_preferences import (
+        TraitPreferenceError,
+        parse_trait_preferences,
+    )
+
+    raw = payload.get("traits") if isinstance(payload, dict) else None
+    try:
+        prefs = parse_trait_preferences(raw)
+    except TraitPreferenceError as exc:
+        raise TraitPreferencesInvalid(detail=str(exc), errors=exc.errors) from exc
+
+    store_save(db, user.id, prefs)
+    db.session.commit()
+    return _trait_preferences_body(prefs)

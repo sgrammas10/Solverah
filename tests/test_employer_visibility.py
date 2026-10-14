@@ -51,6 +51,11 @@ PERSON_SIDE_NAMES = {
     "AssessmentResponse",
     "person_dimension_score",
     "assessment_response",
+    # The six-trait match model's stated tolerance and must-have flags (2026-10-13).
+    # Self-stated rather than derived, but just as personal: an employer who could read
+    # which traits a person will not bend on holds their negotiating position.
+    "PersonTraitPreference",
+    "person_trait_preference",
 }
 
 # Every module permitted to reference them, with the reason it is permitted. A path here is a
@@ -71,6 +76,13 @@ ALLOWED: dict[str, str] = {
         "class of grant as the 20260819 entry above. It is one-shot, runs under `flask db "
         "upgrade`, and is not reachable from any HTTP route -- which is the property that "
         "makes this a grant and not a leak."
+    ),
+    "migrations/versions/20261013_trait_prefs.py": (
+        "creates the trait-preference table (six-trait match model, 2026-10-13). Same "
+        "class of grant as the 20260819 entry: a one-shot schema step under `flask db "
+        "upgrade`, not reachable from any HTTP route, and unable to route through "
+        "assessment_store because it must run against the schema as it stood at its "
+        "revision."
     ),
     "causal_graph/v1_model/assemble_training_data.py": (
         "research pipeline, not app-facing. Reads person-side scores to build the training set "

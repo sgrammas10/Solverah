@@ -106,6 +106,7 @@ const AgentChat = lazy(() => import("../features/agent/components/AgentChat"));
 const WorkPulsePage = lazy(() => import("../features/assessments/components/WorkPulsePage"));
 const AssessmentPage = lazy(() => import("../features/assessments/components/AssessmentPage"));
 const WorkPulseResultsPage = lazy(() => import("../features/assessments/components/WorkPulseResultsPage"));
+const TraitPreferencesPage = lazy(() => import("../features/assessments/components/TraitPreferencesPage"));
 const FocusTypePage = lazy(() => import("../features/assessments/components/FocusTypePage"));
 const FocusTypeResultsPage = lazy(() => import("../features/assessments/components/FocusTypeResultsPage"));
 const IntelligencePage = lazy(() => import("../features/intelligence/components/IntelligencePage"));
@@ -281,6 +282,7 @@ function App() {
                 {/* Work Pulse routes */}
                 <Route path="/work-pulse" element={<WorkPulsePage />} />
                 <Route path="/work-pulse/results" element={<WorkPulseResultsPage />} />
+                <Route path="/trait-preferences" element={<TraitPreferencesPage />} />
                 <Route path="/solverah-profile" element={<IntelligencePage />} />
                 <Route path="/intelligence" element={<IntelligencePage />} />
 

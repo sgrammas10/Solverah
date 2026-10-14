@@ -13,7 +13,7 @@ reaches a client.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field, RootModel
 
@@ -40,6 +40,10 @@ __all__ = [
     "ManagerMatchAnswer",
     "ManagerMatchResult",
     "ManagerMatchSubmitRequest",
+    "TraitPreferenceEntry",
+    "TraitPreferenceInput",
+    "TraitPreferencesDocument",
+    "TraitPreferencesPutRequest",
     "WorkPulseAnswer",
     "WorkPulseResult",
     "WpllResultResponse",
@@ -407,3 +411,79 @@ SCORING_JOB_RESPONSES: Dict[str, type] = {
     "wpll": WpllScoringJobStatus,
     "manager_match": ManagerMatchScoringJobStatus,
 }
+
+
+# ===========================================================================
+# GET / PUT /me/trait-preferences -- per-trait tolerance and must-have
+# ===========================================================================
+#
+# The six-trait match model (PRODUCT_DECISIONS.md §2, 2026-10-13). The request
+# fields are plain `str` / `int` / `bool` rather than `Literal` or bounded ints, the
+# same split `solverah/schemas/experiments.py` makes: an outright malformed body is
+# the enforcement hook's 422, while the product's rules (all six traits once each,
+# steps 0..2, at most two must-haves) are the service's 400 with a specific code.
+
+
+class TraitPreferenceInput(SolverahModel):
+    """One trait's answer."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    dimension_key: str = Field(
+        description=(
+            "One of autonomy, pace, collaboration, feedback, innovation, decision."
+        )
+    )
+    under_steps: int = Field(
+        description=(
+            "How much LESS of this trait than the user prefers a job may provide "
+            "without cost, in steps of 0.25: 0, 1 or 2."
+        )
+    )
+    over_steps: int = Field(
+        description=(
+            "How much MORE of this trait than the user prefers a job may provide "
+            "without cost, in steps of 0.25: 0, 1 or 2."
+        )
+    )
+    must_have: bool = Field(description="Non-negotiable. At most two per user.")
+
+
+class TraitPreferencesPutRequest(SolverahModel):
+    """All six traits, each exactly once. Appends a new sitting; earlier ones are kept."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    traits: List[TraitPreferenceInput] = Field(
+        description="Exactly six entries, one per trait."
+    )
+
+
+class TraitPreferenceEntry(SolverahModel):
+    """One trait as stored. Unanswered: steps null, must_have false, answered false."""
+
+    dimension_key: Literal[
+        "autonomy", "pace", "collaboration", "feedback", "innovation", "decision"
+    ]
+    under_steps: Optional[int] = Field(
+        description="0, 1 or 2; null when the user has not answered."
+    )
+    over_steps: Optional[int] = Field(
+        description="0, 1 or 2; null when the user has not answered."
+    )
+    must_have: bool
+    answered: bool
+
+
+class TraitPreferencesDocument(SolverahModel):
+    """The user's latest sitting, or all six traits unanswered.
+
+    `answered: false` means the user never answered or skipped; matching and the
+    Situation Report then behave exactly as before this step existed.
+    """
+
+    answered: bool
+    max_must_haves: int = Field(description="The most must-haves a user may set (2).")
+    traits: List[TraitPreferenceEntry] = Field(
+        description="All six traits, in the product's fixed order."
+    )

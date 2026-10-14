@@ -42,6 +42,8 @@ from solverah.schemas.assessments import (
     ManagerMatchResult,
     ManagerMatchSubmitRequest,
     ScoringJobAccepted,
+    TraitPreferencesDocument,
+    TraitPreferencesPutRequest,
     WpllResultResponse,
     WpllSubmitRequest,
 )
@@ -446,6 +448,73 @@ def assessment_kind_result(kind: str):
     if not user:
         return jsonify({"error": "User not found"}), 404
     return _respond(assessment_service.result(resolved, user))
+
+
+# ---------------------------------------------------------------------------
+# Trait preferences: per-trait tolerance and must-have (six-trait model, 2026-10-13)
+# ---------------------------------------------------------------------------
+
+
+@document(
+    "Read the user's per-trait tolerance and must-have flags",
+    tags=["assessments"],
+    responses={200: TraitPreferencesDocument, 404: LegacyError},
+    security=_AUTHENTICATED,
+    enforce=True,
+    description=(
+        "The latest sitting of the short step that follows Work Pulse. A user who "
+        "never answered, or skipped, gets `answered: false` with all six traits "
+        "unanswered (steps `null`) -- matching and the Situation Report then behave "
+        "exactly as they did before this step existed."
+    ),
+)
+@assessments_bp.route("/me/trait-preferences", methods=["GET"])
+@jwt_required()
+def get_trait_preferences():
+    """GET /me/trait-preferences - the latest sitting, or all six unanswered."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(assessment_service.read_trait_preferences(user)), 200
+
+
+@document(
+    "Save a new sitting of per-trait tolerance and must-have flags",
+    tags=["assessments"],
+    request=TraitPreferencesPutRequest,
+    responses={
+        200: TraitPreferencesDocument,
+        400: PROBLEM_RESPONSE_MODEL,
+        404: LegacyError,
+    },
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Carries all six traits. Each save is a new sitting; earlier sittings are "
+        "kept and the newest is current. Answers `200` with the saved document.\n\n"
+        "`400` (`invalid_trait_preferences`) when the body breaks a rule; each "
+        "`errors` entry names it: `missing_trait`, `unknown_trait`, "
+        "`duplicate_trait`, `steps_out_of_range` (steps must be 0, 1 or 2), "
+        "`invalid_type`, or `too_many_must_haves` (at most two). A body that does "
+        "not match the request schema at all is `422`."
+    ),
+)
+@assessments_bp.route("/me/trait-preferences", methods=["PUT"])
+@limiter.limit(DEFAULT_SUBMISSION_LIMIT)
+@jwt_required()
+def put_trait_preferences():
+    """PUT /me/trait-preferences - append a sitting of all six traits."""
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return (
+        jsonify(
+            assessment_service.save_trait_preferences(
+                user, request.get_json(silent=True) or {}
+            )
+        ),
+        200,
+    )
 
 
 # ---------------------------------------------------------------------------

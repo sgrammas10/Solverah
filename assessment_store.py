@@ -60,6 +60,7 @@ import os
 from datetime import datetime
 
 from assessment_form import ScoredSubmission
+from solverah.domain.trait_preferences import TraitPreference
 
 __all__ = [
     "completed_core_sittings",
@@ -68,11 +69,14 @@ __all__ = [
     "first_completed_core_submission_id",
     "get_dimension_confidences",
     "get_dimension_scores",
+    "get_trait_preferences",
     "has_completed_assessment",
     "latest_completed_core_submission_id",
     "latest_core_completed_at",
     "persist_submission",
     "respondent_id_for_user",
+    "save_trait_preferences",
+    "TraitPreference",
 ]
 
 
@@ -424,6 +428,110 @@ def latest_core_completed_at(user_id: int):
     return row[0] if row is not None else None
 
 
+def get_trait_preferences(db, user_id: int) -> dict[str, TraitPreference]:
+    """The user's per-trait tolerance and must-have flags, from their LATEST sitting.
+
+    THE sanctioned read for the six-trait match model's person-side preferences
+    (PRODUCT_DECISIONS.md §2, 2026-10-13): the Situation Report and the match service
+    read tolerance through here, never through the table.
+
+    Always all six keys. A user with no sitting gets every trait UNANSWERED
+    (steps None, must_have False, answered False) -- which means "today's behaviour"
+    downstream, never a default tolerance. `solverah.domain.trait_preferences.flat_zones`
+    turns the result into zones, or None for an unanswered user.
+
+    One statement: the latest sitting is the one holding the user's highest row id,
+    found by a scalar subquery on `ix_ptpref_user_latest`.
+    """
+    from sqlalchemy import select
+
+    from model import PersonTraitPreference as Pref
+    from solverah.domain.trait_preferences import unanswered_preferences
+
+    latest_sitting = (
+        select(Pref.sitting_id)
+        .where(Pref.user_id == user_id)
+        .order_by(Pref.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    rows = db.session.execute(
+        select(
+            Pref.dimension_key, Pref.under_steps, Pref.over_steps, Pref.must_have
+        ).where(Pref.user_id == user_id, Pref.sitting_id == latest_sitting)
+    ).all()
+
+    prefs = unanswered_preferences()
+    for dimension_key, under_steps, over_steps, must_have in rows:
+        prefs[dimension_key] = TraitPreference(
+            dimension_key=dimension_key,
+            under_steps=under_steps,
+            over_steps=over_steps,
+            must_have=bool(must_have),
+            answered=True,
+        )
+    return prefs
+
+
+def save_trait_preferences(db, user_id: int, prefs) -> str:
+    """Append one sitting of trait preferences. Returns its sitting id (32 hex chars).
+
+    `prefs` is `{trait: TraitPreference}` covering all six traits, each answered.
+    Validated here as well as at the route (`validate_trait_preferences` raises
+    `TraitPreferenceError`), because this is the write path every caller shares and the
+    two-must-have rule has no database constraint behind it.
+
+    Append-only: earlier sittings stay (Julie's principle, 2026-10-13: never overwrite
+    earlier context automatically); the newest becomes current for
+    `get_trait_preferences`. Does NOT commit -- the caller owns the transaction,
+    as with `persist_submission`.
+    """
+    import uuid
+
+    from model import PersonTraitPreference as Pref
+    from solverah.domain.trait_preferences import (
+        FORM_VERSION,
+        TRAIT_KEYS,
+        validate_trait_preferences,
+    )
+
+    validate_trait_preferences(prefs)
+    sitting_id = uuid.uuid4()
+    db.session.add_all(
+        Pref(
+            user_id=user_id,
+            sitting_id=sitting_id,
+            dimension_key=key,
+            under_steps=prefs[key].under_steps,
+            over_steps=prefs[key].over_steps,
+            must_have=prefs[key].must_have,
+            form_version=FORM_VERSION,
+        )
+        for key in TRAIT_KEYS
+    )
+    db.session.flush()
+    return sitting_id.hex
+
+
+def _export_trait_preferences(user_id: int) -> list[dict]:
+    """Every trait-preference row this user has, every sitting, oldest first."""
+    from model import PersonTraitPreference as Pref
+
+    rows = Pref.query.filter_by(user_id=user_id).order_by(Pref.id).all()
+    return [
+        {
+            "sitting_id": r.sitting_id.hex,
+            "dimension": r.dimension_key,
+            "under_steps": r.under_steps,
+            "over_steps": r.over_steps,
+            "must_have": r.must_have,
+            "form_version": r.form_version,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
 def export_person_side(user_id: int) -> dict[str, list[dict]]:
     """Every person-side row we hold for one user, as plain dicts.
 
@@ -476,4 +584,8 @@ def export_person_side(user_id: int) -> dict[str, list[dict]]:
             }
             for s in scores
         ],
+        # Every sitting, not just the current one -- the same "what do you HOLD" reading
+        # as the two keys above. account_service picks keys from this dict by name, so
+        # this reaches /me/export only once auth-accounts wires it in.
+        "trait_preferences": _export_trait_preferences(user_id),
     }

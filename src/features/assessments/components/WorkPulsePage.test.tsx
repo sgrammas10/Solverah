@@ -70,6 +70,21 @@ vi.mock("./AssessmentStepper", async () => {
   };
 });
 
+// The tolerance step has its own test file; here it is a stub whose two buttons
+// stand for "saved" and "skipped".
+vi.mock("./TraitPreferencesStep", () => ({
+  default: (props: { onFinished: (outcome: "saved" | "skipped") => void }) => (
+    <div data-testid="trait-preferences-step">
+      <button type="button" onClick={() => props.onFinished("skipped")}>
+        Skip tolerance step
+      </button>
+      <button type="button" onClick={() => props.onFinished("saved")}>
+        Save tolerance step
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock("../../../shared/ui/HeroNetworkAnimation", () => ({
   default: () => null,
 }));
@@ -576,6 +591,7 @@ describe("WorkPulsePage - retake", () => {
     await act(async () => {
       await mocks.stepperProps.onComplete();
     });
+    fireEvent.click(screen.getByRole("button", { name: "Skip tolerance step" }));
 
     expect(screen.getByText(/still reads the sitting it was built from/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /see your situation report/i })).toBeInTheDocument();
@@ -591,5 +607,64 @@ describe("WorkPulsePage - retake", () => {
     });
 
     expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+  });
+});
+
+describe("WorkPulsePage - tolerance step after a sitting (six-trait model)", () => {
+  async function finishSitting() {
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "abc",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+  }
+
+  it("shows the tolerance step right after the sitting is saved, before the next steps", async () => {
+    await finishSitting();
+
+    expect(screen.getByTestId("trait-preferences-step")).toBeInTheDocument();
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
+  });
+
+  it("skipping goes on to the completion card", async () => {
+    await finishSitting();
+    fireEvent.click(screen.getByRole("button", { name: "Skip tolerance step" }));
+
+    expect(screen.queryByTestId("trait-preferences-step")).toBeNull();
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
+  });
+
+  it("saving goes on to the completion card", async () => {
+    await finishSitting();
+    fireEvent.click(screen.getByRole("button", { name: "Save tolerance step" }));
+
+    expect(screen.queryByTestId("trait-preferences-step")).toBeNull();
+    expect(screen.getByRole("button", { name: /describe your job/i })).toBeInTheDocument();
+  });
+
+  it("a returning completed user goes straight to the card, which links to the retake", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    renderPage();
+
+    expect(screen.queryByTestId("trait-preferences-step")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: /how much give you have on each area/i })
+    );
+    expect(mocks.navigate).toHaveBeenCalledWith("/trait-preferences");
+  });
+
+  it("a failed submit does not open the step", async () => {
+    mocks.assessment.submit = vi.fn().mockResolvedValue(null);
+    renderPage();
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+
+    expect(screen.queryByTestId("trait-preferences-step")).toBeNull();
   });
 });
