@@ -22,6 +22,10 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import deferred
 from flask_sqlalchemy import SQLAlchemy
 
+# The six trait keys `person_trait_preference.dimension_key` may hold (its CHECK).
+# Single source: the domain module, which is pure (no Flask, no SQLAlchemy).
+from solverah.domain.trait_preferences import TRAIT_KEYS as TRAIT_PREFERENCE_DIMENSIONS
+
 db = SQLAlchemy()
 
 #: Part 4.2's `user_role`, spelled the way the system already spells it.
@@ -503,8 +507,25 @@ class Company(db.Model):
     harmony = db.Column(db.Float)
     data_orientation = db.Column(db.Float)
 
+    # Company size (2026-10-13, six-trait build, C3). `headcount` is the raw number;
+    # the model's `stage_size` confounder (1..5, the Environment Report's own bands) is
+    # DERIVED from it and written to company_confounder_value by
+    # company_evidence_store.set_company_size -- the raw number lives here so the band
+    # can be re-cut if the bands ever move, and `headcount_source` says where it came
+    # from (free text: 'careers page', 'LinkedIn', 'declared'). All three nullable:
+    # every existing company predates them, and an unknown size is NULL, never 0.
+    headcount = db.Column(db.Integer, nullable=True)
+    headcount_as_of = db.Column(db.Date, nullable=True)
+    headcount_source = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
     updated_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "headcount IS NULL OR headcount >= 1", name="ck_company_headcount_positive"
+        ),
+    )
 
 
 class IntakeSubmission(db.Model):
@@ -831,6 +852,61 @@ class PersonDimensionScore(db.Model):
     user = db.relationship("User", backref="dimension_scores")
 
 
+class PersonTraitPreference(db.Model):
+    """One trait's stated tolerance and must-have flag, in one sitting. Append-only.
+
+    The six-trait match model (PRODUCT_DECISIONS.md §2, 2026-10-13): per trait, how
+    much LESS (`under_steps`) and how much MORE (`over_steps`) of the trait than the
+    user's core preference a job may provide without cost, in person-lattice steps of
+    0.25, plus a must-have flag (at most two per sitting, enforced by the service --
+    a CHECK cannot see sibling rows). `solverah.domain.trait_preferences` defines
+    under/over against both gap sign conventions.
+
+    A sitting is six rows sharing `sitting_id`; the latest sitting (highest `id`) is
+    the user's current answer and earlier sittings are kept, never overwritten. No
+    sitting at all means UNANSWERED, which every consumer reads as "today's
+    behaviour", never as a default tolerance.
+
+    NOT EMPLOYER-VISIBLE, same as the score table above: read and written only through
+    `assessment_store` (D-01; tests/test_employer_visibility.py lists this table). No
+    `ondelete` on `user_id`, like the other person-side tables: account deletion
+    tombstones the user row rather than deleting it.
+    """
+
+    __tablename__ = "person_trait_preference"
+
+    id = db.Column(db.BigInteger, autoincrement=True, primary_key=True)
+    # No index=True: ix_ptpref_user_latest below leads with user_id.
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    sitting_id = db.Column(UUID(as_uuid=True), nullable=False)
+    dimension_key = db.Column(db.String(32), nullable=False)
+    under_steps = db.Column(db.SmallInteger, nullable=False)
+    over_steps = db.Column(db.SmallInteger, nullable=False)
+    must_have = db.Column(db.Boolean, nullable=False, server_default=db.false())
+    form_version = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("sitting_id", "dimension_key", name="uq_ptpref_sitting_dim"),
+        db.CheckConstraint(
+            "dimension_key IN %s" % (TRAIT_PREFERENCE_DIMENSIONS,),
+            name="ck_ptpref_dimension_vocab",
+        ),
+        db.CheckConstraint(
+            "under_steps >= 0 AND under_steps <= 2", name="ck_ptpref_under_steps_range"
+        ),
+        db.CheckConstraint(
+            "over_steps >= 0 AND over_steps <= 2", name="ck_ptpref_over_steps_range"
+        ),
+        # "Latest sitting for this user": the highest id among the user's rows.
+        db.Index("ix_ptpref_user_latest", "user_id", db.text("id DESC")),
+    )
+
+    user = db.relationship("User", backref="trait_preferences")
+
+
 # ---------------------------------------------------------------------------
 # Company side + match/funnel + model runs (causal_graph/v1_model/schema.sql, S-07)
 # ---------------------------------------------------------------------------
@@ -1030,6 +1106,490 @@ class CompanyConfounderValue(db.Model):
     )
 
     company = db.relationship("Company", backref="confounder_values")
+
+
+# ---------------------------------------------------------------------------
+# Company evidence pipeline (six-trait build, C3, 2026-10-13)
+# ---------------------------------------------------------------------------
+# PRODUCT_DECISIONS.md §2 "The six-trait match model": each company trait is a RECORD,
+# not a number. The production pipeline is research run -> evidence items -> per-item,
+# per-dimension scores (with an explicit abstain) -> an aggregated trait record per
+# (company, dimension, scope). These tables are its storage; the research/scoring code
+# (C5) writes them and the match service (C6) reads them, both through
+# company_evidence_store.py, which is the only door.
+#
+# Two things the shape is built around:
+#   - `excerpt_internal` on an evidence item is the third-party text the scorer saw. It
+#     is NEVER serialized by any route or page (GAP-14, AI_GOVERNANCE_AND_CLAIMS.md): the
+#     column is `deferred` so no serializer picks it up by walking the row, the store's
+#     views do not carry it, and tests/test_company_evidence_internal.py enforces
+#     reachability the way test_employer_visibility.py enforces D-01. `paraphrase` is
+#     what users may see.
+#   - The existing company_dimension_score / dimension_score_citation path (S1-6) stays
+#     as the research/ground-truth path and is NOT repurposed. These tables are the
+#     product path. A score row here still points at the same `scorer_run` so a rubric
+#     change is a re-run on both paths.
+#
+# No NULLS NOT DISTINCT key is needed in this block, and that is stated rather than
+# assumed (20260906_scorer_run's lesson): the only unique key, on evidence_item_score, is
+# over three NOT NULL columns; trait records keep history (no unique key, latest wins by
+# computed_at); nothing else is de-duplicated by the database.
+
+RESEARCH_TRIGGERS = ("on_demand", "batch")
+RESEARCH_RUN_STATUSES = ("queued", "running", "done", "failed")
+EVIDENCE_SCOPES = ("company", "division", "location", "role")
+EVIDENCE_SOURCE_TYPES = (
+    "careers_page", "employee_review", "job_posting", "first_person", "news",
+    "disclosure", "user_pasted_posting",
+)
+TRAIT_RECORD_STATUSES = ("known", "mixed", "unknown")
+SPLIT_EXPLANATIONS = ("scope", "time")
+JOB_POSTING_STATUSES = ("pending", "scored", "failed")
+
+
+class CompanyResearchRun(db.Model):
+    """One run of the production web-research step for one company.
+
+    The on-demand cache reads its state from here: the latest row per company says
+    whether research is queued, running, done or failed, and `finished_at` is the cache
+    age. `model` is the exact pinned snapshot string, never an alias, for the same reason
+    `scorer_run.model` is. Separate from `scorer_run` on purpose -- research (which
+    documents exist) and scoring (what a document says about a trait) are different
+    vendors, different prompts and different version axes.
+    """
+
+    __tablename__ = "company_research_run"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    trigger = db.Column(db.Text, nullable=False)
+    provider = db.Column(db.Text, nullable=False)
+    model = db.Column(db.Text, nullable=False)
+    prompt_version = db.Column(db.Text, nullable=False)
+    status = db.Column(db.Text, nullable=False, default="queued")
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    cost_usd = db.Column(db.Numeric(12, 6), nullable=True)
+    #: Present only on `failed`. Written from a fixed vocabulary or a trimmed message,
+    #: never a raw provider exception (those carry prompt fragments and request ids).
+    error = db.Column(db.Text, nullable=True)
+    #: INTERNAL ONLY (C5b, review F2). The pipeline's run card: candidates, drop counts
+    #: by reason, citation counts by kind, served model, the scope declaration, yield
+    #: per source type against v4.11's minimums, the RAW research text and the
+    #: citations' verbatim text. The last two put it under GAP-14 exactly as
+    #: `excerpt_internal` is: `deferred`, never on a view, never serialized;
+    #: tests/test_company_evidence_internal.py guards the name.
+    diagnostics_internal = deferred(db.Column(JSONB, nullable=True))
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "trigger IN ('on_demand', 'batch')", name="ck_cresearch_trigger_vocab"
+        ),
+        db.CheckConstraint(
+            "status IN ('queued', 'running', 'done', 'failed')",
+            name="ck_cresearch_status_vocab",
+        ),
+        db.CheckConstraint(
+            "status = 'failed' OR error IS NULL", name="ck_cresearch_error_only_on_failed"
+        ),
+        db.CheckConstraint(
+            "(status IN ('done', 'failed')) = (finished_at IS NOT NULL)",
+            name="ck_cresearch_finished_iff_terminal",
+        ),
+        db.CheckConstraint(
+            "status = 'queued' OR started_at IS NOT NULL",
+            name="ck_cresearch_started_unless_queued",
+        ),
+        db.CheckConstraint("cost_usd IS NULL OR cost_usd >= 0", name="ck_cresearch_cost_nonneg"),
+        # Latest run per company is the cache-status read; this is its index.
+        db.Index("ix_cresearch_company_created", "company_id", "created_at"),
+    )
+
+    company = db.relationship("Company", backref="research_runs")
+
+
+class JobPostingSubmission(db.Model):
+    """A job posting the USER pasted (never fetched or scraped) to be read at role scope.
+
+    User-keyed: `posting_text` is the user's own paste and is free text, so the
+    account-deletion flow destroys it and /me/export returns it (D-7b's free-text rule).
+    That wiring is auth-accounts', not this lane's -- tests/test_export_delete_coverage.py
+    names this table until it lands. `company_id` is nullable: a user can paste a
+    posting before the company it names exists in `company`.
+    """
+
+    __tablename__ = "job_posting_submission"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=True)
+    title = db.Column(db.Text, nullable=True)
+    posting_text = db.Column(db.Text, nullable=False)
+    status = db.Column(db.Text, nullable=False, default="pending")
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "status IN ('pending', 'scored', 'failed')", name="ck_jobposting_status_vocab"
+        ),
+        db.CheckConstraint("length(posting_text) > 0", name="ck_jobposting_text_nonempty"),
+        db.Index("ix_jobposting_user", "user_id"),
+    )
+
+    user = db.relationship("User", backref="job_postings")
+    company = db.relationship("Company", backref="job_postings")
+
+
+class CompanyEvidenceItem(db.Model):
+    """One piece of evidence about one company, at one scope, from one source.
+
+    Exactly one parent: a research run found it, or a user pasted it as a job posting
+    (`job_posting_id`, always `source_type = 'user_pasted_posting'` and `scope = 'role'`
+    -- a posting is role-level evidence by decision). `excerpt_internal` is what the
+    scorer scores and is internal only; `paraphrase` is the only text a user may see.
+    """
+
+    __tablename__ = "company_evidence_item"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    research_run_id = db.Column(
+        db.BigInteger, db.ForeignKey("company_research_run.id"), nullable=True
+    )
+    job_posting_id = db.Column(
+        db.BigInteger, db.ForeignKey("job_posting_submission.id"), nullable=True
+    )
+    scope = db.Column(db.Text, nullable=False)
+    #: e.g. 'Austin office', 'Engineering', a role title. NULL at company scope.
+    scope_label = db.Column(db.Text, nullable=True)
+    source_type = db.Column(db.Text, nullable=False)
+    source_url = db.Column(db.Text, nullable=True)
+    published_at = db.Column(db.Date, nullable=True)
+    retrieved_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+    #: Who is speaking, as the researcher recorded it ('employee review, Cashier',
+    #: 'employer response', 'CEO, interview'). Rubric gate 2's input to the scorer, and
+    #: how the aggregation tells an employer's reply on a review site from a review
+    #: (C5b, review F4).
+    speaker = db.Column(db.Text, nullable=True)
+    #: INTERNAL ONLY. `deferred` so the column is not loaded with the row and no
+    #: serializer that walks a loaded instance can carry it by accident. Read it
+    #: explicitly, and only in the scorer's write path.
+    excerpt_internal = deferred(db.Column(db.Text, nullable=False))
+    paraphrase = db.Column(db.Text, nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "(research_run_id IS NOT NULL AND job_posting_id IS NULL) "
+            "OR (research_run_id IS NULL AND job_posting_id IS NOT NULL)",
+            name="ck_cevidence_one_parent",
+        ),
+        db.CheckConstraint(
+            "scope IN ('company', 'division', 'location', 'role')",
+            name="ck_cevidence_scope_vocab",
+        ),
+        db.CheckConstraint(
+            "source_type IN ('careers_page', 'employee_review', 'job_posting', "
+            "'first_person', 'news', 'disclosure', 'user_pasted_posting')",
+            name="ck_cevidence_source_vocab",
+        ),
+        db.CheckConstraint(
+            "(job_posting_id IS NOT NULL) = (source_type = 'user_pasted_posting')",
+            name="ck_cevidence_posting_source",
+        ),
+        db.CheckConstraint(
+            "job_posting_id IS NULL OR scope = 'role'", name="ck_cevidence_posting_is_role"
+        ),
+        db.CheckConstraint(
+            "scope <> 'company' OR scope_label IS NULL",
+            name="ck_cevidence_company_scope_unlabelled",
+        ),
+        db.CheckConstraint("length(paraphrase) > 0", name="ck_cevidence_paraphrase_nonempty"),
+        db.Index("ix_cevidence_company", "company_id"),
+        db.Index("ix_cevidence_run", "research_run_id"),
+        db.Index("ix_cevidence_posting", "job_posting_id"),
+    )
+
+    company = db.relationship("Company", backref="evidence_items")
+    research_run = db.relationship("CompanyResearchRun", backref="evidence_items")
+    job_posting = db.relationship("JobPostingSubmission", backref="evidence_items")
+
+
+class EvidenceItemScore(db.Model):
+    """One scorer's read of one evidence item on one dimension, or its abstention.
+
+    `abstained` is the v3.1 rubric's explicit `insufficient_evidence` skip: the item was
+    looked at for this dimension and found to say nothing about it. That is a different
+    fact from "not scored yet" (no row), so it is a row with `score IS NULL`, and the
+    CHECK makes the two columns say the same thing. `scorer_run_id` is NOT NULL: every
+    row here was produced by a pinned model under a named rubric, or it is not a score.
+    One row per (item, dimension, scorer run); a re-run under a new run inserts beside
+    the old rows rather than over them.
+    """
+
+    __tablename__ = "evidence_item_score"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    evidence_item_id = db.Column(
+        db.BigInteger, db.ForeignKey("company_evidence_item.id"), nullable=False
+    )
+    dimension_key = db.Column(db.String(32), nullable=False)
+    score = db.Column(db.Float, nullable=True)
+    abstained = db.Column(db.Boolean, nullable=False)
+    #: The scorer's own confidence band for this cell (rubric gate 5, anchors v3.1's
+    #: confidence bands). STORED so it can be studied; the aggregation never weights or
+    #: filters by it (C5b, review F4; no weighting in v1 pending Julie's answer).
+    confidence = db.Column(db.Float, nullable=True)
+    scorer_run_id = db.Column(db.BigInteger, db.ForeignKey("scorer_run.id"), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "evidence_item_id", "dimension_key", "scorer_run_id",
+            name="uq_iscore_item_dim_run",
+        ),
+        db.CheckConstraint(
+            "(abstained AND score IS NULL) OR (NOT abstained AND score IS NOT NULL)",
+            name="ck_iscore_abstained_iff_null",
+        ),
+        db.CheckConstraint(
+            "score IS NULL OR (score >= 0 AND score <= 1)", name="ck_iscore_score_range"
+        ),
+        db.CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_iscore_confidence_range",
+        ),
+        db.Index("ix_iscore_run", "scorer_run_id"),
+    )
+
+    item = db.relationship("CompanyEvidenceItem", backref="scores")
+    scorer_run = db.relationship("ScorerRun", backref="item_scores")
+
+
+class CompanyTraitRecord(db.Model):
+    """The aggregated read of one trait for one company at one scope: a record, not a number.
+
+    `status` carries the shape: `known` has an `estimate` and no ends; `mixed` has
+    `low_end`/`high_end` and NO estimate (mixed is never averaged -- the CHECKs make an
+    averaged mixed row unrepresentable); `unknown` has neither. `split_explained_by`
+    records, for a mixed row, whether scope or time explains the disagreement.
+
+    History is kept: every aggregation inserts, and the latest `computed_at` per
+    (company, dimension, scope, scope_label, job_posting_id) wins
+    (company_evidence_store.trait_records / posting_trait_records). `aggregation_version`
+    names the provisional rules that produced the row, so a rule change is visible per row
+    rather than inferred from a date. The item scores a row was computed from are linked
+    through company_trait_record_evidence, which is what makes `evidence_count` checkable
+    and "paraphrased evidence from both sides" exact.
+
+    PRIVATE vs SHARED (orchestrator review, 2026-10-13). A record built from a user's
+    pasted posting carries that `job_posting_id` and is PRIVATE to the posting's owner:
+    it is never returned by the shared read, and it is destroyed with the posting on
+    account deletion. A record with `job_posting_id IS NULL` is the shared company read
+    and is built only from research-run items. The store refuses to mix the two.
+    """
+
+    __tablename__ = "company_trait_record"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    #: Set when the record was aggregated from one user's pasted posting (always at
+    #: `role` scope); NULL for the shared, research-derived record.
+    job_posting_id = db.Column(
+        db.BigInteger, db.ForeignKey("job_posting_submission.id"), nullable=True
+    )
+    dimension_key = db.Column(db.String(32), nullable=False)
+    scope = db.Column(db.Text, nullable=False)
+    scope_label = db.Column(db.Text, nullable=True)
+    status = db.Column(db.Text, nullable=False)
+    estimate = db.Column(db.Float, nullable=True)
+    low_end = db.Column(db.Float, nullable=True)
+    high_end = db.Column(db.Float, nullable=True)
+    confidence = db.Column(db.Float, nullable=True)
+    #: Non-abstaining item scores behind the row; `abstain_count` is the abstentions.
+    evidence_count = db.Column(
+        db.Integer, nullable=False, default=0, server_default=db.text("0")
+    )
+    abstain_count = db.Column(
+        db.Integer, nullable=False, default=0, server_default=db.text("0")
+    )
+    first_dated = db.Column(db.Date, nullable=True)
+    last_dated = db.Column(db.Date, nullable=True)
+    split_explained_by = db.Column(db.Text, nullable=True)
+    aggregation_version = db.Column(db.Text, nullable=False)
+    computed_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "scope IN ('company', 'division', 'location', 'role')",
+            name="ck_ctrait_scope_vocab",
+        ),
+        db.CheckConstraint(
+            "status IN ('known', 'mixed', 'unknown')", name="ck_ctrait_status_vocab"
+        ),
+        db.CheckConstraint(
+            "scope <> 'company' OR scope_label IS NULL",
+            name="ck_ctrait_company_scope_unlabelled",
+        ),
+        db.CheckConstraint(
+            "(status = 'known') = (estimate IS NOT NULL)", name="ck_ctrait_known_iff_estimate"
+        ),
+        db.CheckConstraint(
+            "(status = 'mixed') = (low_end IS NOT NULL AND high_end IS NOT NULL)",
+            name="ck_ctrait_mixed_iff_ends",
+        ),
+        db.CheckConstraint(
+            "(low_end IS NULL) = (high_end IS NULL)", name="ck_ctrait_ends_together"
+        ),
+        db.CheckConstraint(
+            "low_end IS NULL OR high_end IS NULL OR low_end <= high_end",
+            name="ck_ctrait_ends_ordered",
+        ),
+        db.CheckConstraint(
+            "estimate IS NULL OR (estimate >= 0 AND estimate <= 1)",
+            name="ck_ctrait_estimate_range",
+        ),
+        db.CheckConstraint(
+            "low_end IS NULL OR (low_end >= 0 AND low_end <= 1)", name="ck_ctrait_low_range"
+        ),
+        db.CheckConstraint(
+            "high_end IS NULL OR (high_end >= 0 AND high_end <= 1)",
+            name="ck_ctrait_high_range",
+        ),
+        db.CheckConstraint(
+            "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)",
+            name="ck_ctrait_confidence_range",
+        ),
+        db.CheckConstraint(
+            "split_explained_by IS NULL OR split_explained_by IN ('scope', 'time')",
+            name="ck_ctrait_split_vocab",
+        ),
+        # A mixed record says what explains its split; a KNOWN record may carry 'time'
+        # as the "changed recently" note when the recent side of a time-explained split
+        # decided it (C5b, provisional Julie ask 4). Never on unknown.
+        db.CheckConstraint(
+            "split_explained_by IS NULL OR status <> 'unknown'",
+            name="ck_ctrait_split_not_unknown",
+        ),
+        db.CheckConstraint(
+            "evidence_count >= 0 AND abstain_count >= 0", name="ck_ctrait_counts_nonneg"
+        ),
+        db.CheckConstraint(
+            "(first_dated IS NULL) = (last_dated IS NULL)", name="ck_ctrait_dates_together"
+        ),
+        db.CheckConstraint(
+            "first_dated IS NULL OR last_dated IS NULL OR first_dated <= last_dated",
+            name="ck_ctrait_dates_ordered",
+        ),
+        db.CheckConstraint(
+            "job_posting_id IS NULL OR scope = 'role'", name="ck_ctrait_posting_is_role"
+        ),
+        # The latest-wins read: DISTINCT ON these five, ordered by computed_at DESC,
+        # id DESC -- the trailing columns are declared in that order and direction so
+        # the index serves the ORDER BY as written (ix_ptpref_user_latest's pattern).
+        db.Index(
+            "ix_ctrait_latest",
+            "company_id", "dimension_key", "scope", "scope_label", "job_posting_id",
+            db.text("computed_at DESC"), db.text("id DESC"),
+        ),
+        db.Index("ix_ctrait_posting", "job_posting_id"),
+    )
+
+    company = db.relationship("Company", backref="trait_records")
+    job_posting = db.relationship("JobPostingSubmission", backref="trait_records")
+
+
+class CompanyTraitRecordEvidence(db.Model):
+    """Which item scores a trait record was computed from. One row per (record, score).
+
+    Without this, "the evidence behind this record" would have to be re-derived from
+    whatever items exist NOW, which drifts from the row's own `evidence_count` the moment
+    a later research run adds an item. With it, a mixed record can name the paraphrases
+    on each side exactly, and the store can derive the counts rather than trust them.
+    """
+
+    __tablename__ = "company_trait_record_evidence"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    trait_record_id = db.Column(
+        db.BigInteger, db.ForeignKey("company_trait_record.id"), nullable=False
+    )
+    evidence_item_score_id = db.Column(
+        db.BigInteger, db.ForeignKey("evidence_item_score.id"), nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "trait_record_id", "evidence_item_score_id",
+            name="uq_ctrait_evidence_record_score",
+        ),
+        db.Index("ix_ctrait_evidence_score", "evidence_item_score_id"),
+    )
+
+    record = db.relationship("CompanyTraitRecord", backref="evidence_links")
+    item_score = db.relationship("EvidenceItemScore", backref="record_links")
+
+
+class UserCompanyLink(db.Model):
+    """"I took this job": the user says they now work at a company CompanyLens read.
+
+    Six-trait build, C6 (2026-10-13). PRODUCT_DECISIONS.md §2, "What changes the
+    weights" item 4: after launch, 90-day check-ins through Pulse are linked to the
+    CompanyLens read by this row, so a later check-in is a data point for whether the
+    read was right. C8 attaches `PulseCheckin.company_link_id` to it.
+
+    User-keyed: `started_on` is a date the user stated about their own working life, so
+    /me/export returns it and account deletion handles it; that wiring is auth-accounts'
+    (tests/test_export_delete_coverage.py names this table until it lands). `ended_on`
+    is NULL while the job is current; the row is kept, not deleted, when it ends, so the
+    check-ins filed under it keep their anchor. Nothing here carries a score, a gap or a
+    probability -- the row is a date-stamped pointer, nothing more.
+
+    ONE CURRENT JOB PER USER (orchestrator ruling, 2026-10-13, schema-steward review
+    F3+F4): `company_evidence_store.create_company_link` closes any open link of the
+    user's (sets its `ended_on`) inside the same transaction as the new insert, so a
+    user never holds two open links. `ix_ucl_one_open_per_user` enforces this at the DB
+    layer too -- a partial unique index on `user_id` where `ended_on IS NULL`.
+    """
+
+    __tablename__ = "user_company_link"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey("users.id"), nullable=False)
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    started_on = db.Column(db.Date, nullable=False)
+    ended_on = db.Column(db.Date, nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "ended_on IS NULL OR ended_on >= started_on", name="ck_ucl_ended_after_started"
+        ),
+        db.Index("ix_ucl_user_started", "user_id", "started_on"),
+        db.Index(
+            "ix_ucl_one_open_per_user", "user_id",
+            unique=True,
+            postgresql_where=db.text("ended_on IS NULL"),
+        ),
+    )
+
+    user = db.relationship("User", backref="company_links")
+    company = db.relationship("Company", backref="user_links")
 
 
 class ModelRun(db.Model):
@@ -1291,6 +1851,17 @@ ENV_INDUSTRIES = ("tech", "finance", "healthcare", "retail", "other")
 #: current report exists.
 ENV_REPORT_SUBJECTS = ("current", "past")
 
+#: The five optional exploratory outcome columns on `environment_reports`
+#: (PRODUCT_DECISIONS.md §2, 2026-10-13), in form order. The values of
+#: `work_pulse.situation_items.OUTCOME_COLUMNS`; a tripwire test asserts the two agree.
+ENV_OUTCOME_COLUMNS = (
+    "outcome_satisfaction",
+    "outcome_performance",
+    "outcome_engagement",
+    "outcome_sustainability",
+    "outcome_retention_intention",
+)
+
 
 class EnvironmentReport(db.Model):
     """One submission of the environment-side instrument. Append-only: id is not a person's
@@ -1335,6 +1906,16 @@ class EnvironmentReport(db.Model):
     # "Overall, how well is this role working for you?" 1..5 -- the model's outcome node,
     # same ordinal shape as `outcome_experienced.working_scale`.
     experienced_outcome = db.Column(db.SmallInteger, nullable=False)
+    # Five OPTIONAL exploratory outcomes (PRODUCT_DECISIONS.md §2, 2026-10-13), asked
+    # after `experienced`, each 1..5 stored RAW (`work_pulse.situation_items.OUTCOME_COLUMNS`).
+    # NULL is "skipped" on an env-v3 row and "never asked" on an older one. Mapping to
+    # 0..1 is the analysis's job, never storage's. Exploratory: none of these is the
+    # pre-registered primary outcome, which stays `experienced_outcome`.
+    outcome_satisfaction = db.Column(db.SmallInteger, nullable=True)
+    outcome_performance = db.Column(db.SmallInteger, nullable=True)
+    outcome_engagement = db.Column(db.SmallInteger, nullable=True)
+    outcome_sustainability = db.Column(db.SmallInteger, nullable=True)
+    outcome_retention_intention = db.Column(db.SmallInteger, nullable=True)
     #: The user's status WHEN THEY FILED. On a `subject='past'` row this is still the
     #: filer's status that day, not a description of the past job.
     career_status = db.Column(db.Text, nullable=False)
@@ -1375,6 +1956,13 @@ class EnvironmentReport(db.Model):
         db.CheckConstraint(
             "subject = 'current' OR career_status <> 'first_job'",
             name="ck_envreport_past_not_first_job",
+        ),
+        *(
+            db.CheckConstraint(
+                "%s IS NULL OR (%s >= 1 AND %s <= 5)" % (column, column, column),
+                name="ck_envreport_%s_range" % column,
+            )
+            for column in ENV_OUTCOME_COLUMNS
         ),
         db.Index(
             "ix_environment_reports_user_submitted",
@@ -1626,6 +2214,21 @@ class PulseCheckin(db.Model):
     #: Which item set produced this row -- `EnvironmentReport.version`'s role, under the
     #: name this table's column uses (`pulse_items.FORM_VERSION`).
     version = db.Column(db.Text, nullable=False)
+    #: The user's ACTIVE `UserCompanyLink` at the moment this check-in was written --
+    #: `started_on <= today` and (`ended_on` IS NULL or `ended_on >= today`) -- or NULL
+    #: when they had none (six-trait build, C8, 2026-10-13). `pulse_store._add_checkin`
+    #: resolves this through `company_evidence_store.company_links_for_user`, a
+    #: cross-lane read; this module never writes to that table. `ondelete="SET NULL"`
+    #: so deleting the link (by the user -- `delete_company_link` or `end_company_link`
+    #: leaving a closed row behind) never blocks on or deletes this row -- the check-in
+    #: rides the tombstone de-identified exactly as it did before this column existed.
+    #: Account deletion RETAINS the user's links (house precedent:
+    #: `employer_name_normalized`), so it never touches this column either.
+    company_link_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("user_company_link.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     __table_args__ = (
         db.CheckConstraint("sequence >= 0", name="ck_pulsecheckin_sequence_nonneg"),
@@ -1637,6 +2240,9 @@ class PulseCheckin(db.Model):
             "user_id",
             db.text("taken_at DESC"),
         ),
+        # The ON DELETE SET NULL target: without it every link delete scans
+        # pulse_checkins (the 20260928 ledger-index rule).
+        db.Index("ix_pulse_checkins_company_link", "company_link_id"),
     )
 
     user = db.relationship("User", backref="pulse_checkins")
