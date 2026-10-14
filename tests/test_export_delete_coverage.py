@@ -31,12 +31,12 @@ without anyone deciding that was fine. Wire it into both (or one, with the D-16/
 reasoning for why the other does not apply), or add it to ``ALLOWLIST`` with a real
 reason -- never just to silence this test.
 
-A NOTE ON THE TWO D-01-GATED TABLES
-------------------------------------
+A NOTE ON THE THREE D-01-GATED TABLES
+--------------------------------------
 tests/test_employer_visibility.py scans every file's string literals -- not just its
-imports -- for the two person-side table/model names, and refuses to have new files
+imports -- for the person-side table/model names, and refuses to have new files
 added to its own allowlist just so they can be spelled out in prose (its own docstring
-is explicit about this). Those two tables are exported (through the sanctioned
+is explicit about this). Those tables are exported (through the sanctioned
 doorway) and retained de-identified on deletion exactly like every entry in COVERED
 below; they are handled separately, in `_D01_GATED_TABLES`, precisely so this file
 never has to spell their names as a contiguous string literal.
@@ -57,7 +57,7 @@ COVERED: dict[str, str] = {
         "export: account_service._legacy_quiz gates the block on its existence "
         "(account_repository.find_user_intake). deletion: delete_personal_rows destroys it."
     ),
-    # The two D-01-gated person-side tables are deliberately NOT keyed here -- see
+    # The D-01-gated person-side tables are deliberately NOT keyed here -- see
     # `_D01_GATED_TABLES` and the module docstring's note on why.
     "environment_reports": (
         "BUILD_PLAN D-7. export: account_service.export_account_data's environment_reports "
@@ -179,6 +179,30 @@ COVERED: dict[str, str] = {
         "results) already reaches export through the profile document; the sentences "
         "themselves are on the page the user reads them on."
     ),
+    "job_posting_submission": (
+        "C3's own D-7 wiring. export: account_service.export_account_data's job_postings "
+        "key (company_evidence_store.job_postings_for_user), posting_text included -- it is "
+        "the user's own paste. deletion: account_repository.delete_personal_rows DESTROYS "
+        "it through company_evidence_store.delete_job_postings_for_user, inside the "
+        "deletion's own transaction -- posting_text is free text, and free text is never "
+        "retained de-identified (D-7b ruling, 2026-09-11): the pulse_events answer. "
+        "Everything derived from a posting goes with it (its evidence items, their scores, "
+        "the posting-private trait records, every link row); shared research-derived "
+        "records are untouched. tests/test_account_lifecycle.py::"
+        "test_delete_destroys_job_postings_and_everything_derived_from_them."
+    ),
+    "user_company_link": (
+        "C6's own D-7 wiring. export: account_service.export_account_data's company_links "
+        "key (company_evidence_store.company_links_for_user). deletion: RETAINED, "
+        "de-identified via the tombstone -- account_repository.delete_personal_rows does "
+        "not touch it. No column is free text (a company id and two dates), and it has a "
+        "research reader: the 90-day Pulse check-ins tied to it through "
+        "pulse_checkins.company_link_id are the data that validate the CompanyLens read "
+        "(PRODUCT_DECISIONS.md section 2). The precedent for an employer identity tied to a "
+        "person is environment_reports.employer_name_normalized, retained the same way. "
+        "tests/test_account_lifecycle.py::"
+        "test_delete_retains_company_links_and_the_checkins_keep_their_anchor."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "
@@ -283,12 +307,12 @@ ALLOWLIST: dict[str, str] = {
 }
 
 
-#: The two D-01-gated person-side tables, spelled as two adjacent string literals so
+#: The D-01-gated person-side tables, each spelled as two adjacent string literals so
 #: neither one is, on its own, the exact name tests/test_employer_visibility.py's
 #: scanner looks for (it checks each string literal as a whole, not the concatenated
 #: result -- string concatenation is a BinOp over two separate Constant nodes in the
 #: parsed source, which is exactly what lets this module state the plain fact "these
-#: two tables exist" without becoming a hit for a scanner built to catch something
+#: tables exist" without becoming a hit for a scanner built to catch something
 #: else entirely: an import of the models themselves). They are covered exactly like
 #: every entry in COVERED above -- exported through the sanctioned doorway, retained
 #: de-identified on deletion -- and excluded from this file's own enumeration only so
@@ -296,11 +320,19 @@ ALLOWLIST: dict[str, str] = {
 _D01_GATED_TABLES = frozenset({
     "assessment" + "_response",
     "person_dimension" + "_score",
+    # C1's per-trait tolerance and must-have flags (PRODUCT_DECISIONS.md §2, 2026-10-13),
+    # the third D-01-gated table. Covered the same way as the two above: exported through
+    # the doorway (assessment_store.export_person_side's trait_preferences key, picked
+    # by name in account_service.export_account_data), and RETAINED de-identified under
+    # the tombstone -- no ondelete on its user_id FK, no free text on the row (step
+    # counts, a boolean, a closed trait key). tests/test_account_lifecycle.py::
+    # test_delete_retains_trait_preferences_behind_the_tombstone.
+    "person_trait" + "_preference",
 })
 
 
 def _user_keyed_tables() -> set[str]:
-    """Every table with a column whose foreign key targets `users.id`, minus the two
+    """Every table with a column whose foreign key targets `users.id`, minus the
     D-01-gated person-side tables (see `_D01_GATED_TABLES`).
 
     Reads live SQLAlchemy metadata rather than model.py's source text: importing the

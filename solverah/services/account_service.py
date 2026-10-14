@@ -29,9 +29,22 @@ migration:
       free text (`item_scores`/`experienced` on one, `dimension`/`direction`/
       `register`/`status` -- all closed vocabularies -- on the other) -- the D-7b
       ruling's actual test, which the other three also happen to pass.
+    * C1's per-trait tolerance/must-have sittings are a third person-side table and
+      ride the same mechanism for the same reason: behind D-01's doorway, no
+      ``ondelete`` on ``user_id``, and no free text (step counts, a boolean, closed
+      trait keys).
+    * C6's "I took this job" links (``user_company_link``) ride it as well: a company
+      id and two dates, no free text, and a research reader -- PRODUCT_DECISIONS.md
+      §2's 90-day check-ins are tied to the CompanyLens read through them, so a
+      retained check-in keeps its anchor. The house precedent for an employer
+      identity tied to a person is ``environment_reports.employer_name_normalized``
+      (⚑6): retained under the tombstone for the future aggregation lane. That
+      column is the user's own typed text, so the sentence above saying none of
+      those tables carries a free-text identifier is not quite true of it.
     * Everything else containing personal content is destroyed, including
       ``pulse_events`` (``note`` is free text, so D-7b puts it on the other side of
-      that same line) and every resume object in R2.
+      that same line), the user's pasted job postings with everything derived from
+      them (C3; ``posting_text`` is free text), and every resume object in R2.
     * ``AuditLog`` event rows are kept (they now point at the tombstone); their
       IP/user-agent columns age out separately via retention_cleanup.py. This is also
       where ``situation_report_recalibrate`` events end up -- an ordinary
@@ -51,6 +64,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from assessment_store import export_person_side
+from company_evidence_store import company_links_for_user, job_postings_for_user
 from environment_report_store import environment_report_history
 from experiment_store import experiments_for_user
 from manager_profile_store import manager_profile_history
@@ -213,6 +227,32 @@ def _legacy_quiz(
     }
 
 
+def _exported_posting(posting: Any) -> Dict[str, Any]:
+    """One ``JobPostingView`` as the export carries it: the store's view, timestamp as ISO 8601."""
+    return {
+        "id": posting.id,
+        "company_id": posting.company_id,
+        "title": posting.title,
+        "posting_text": posting.posting_text,
+        "status": posting.status,
+        "created_at": posting.created_at.isoformat() if posting.created_at else None,
+    }
+
+
+def _exported_company_link(link: Any) -> Dict[str, Any]:
+    """One ``CompanyLinkView`` as the export carries it: dates and timestamp as ISO 8601.
+
+    ``user_id`` is left off, as on a posting: every row in an export is the subject's.
+    """
+    return {
+        "id": link.id,
+        "company_id": link.company_id,
+        "started_on": link.started_on.isoformat(),
+        "ended_on": link.ended_on.isoformat() if link.ended_on else None,
+        "created_at": link.created_at.isoformat() if link.created_at else None,
+    }
+
+
 def export_account_data(user: User) -> AccountResult:
     """One JSON document of every identified data class held for this user."""
     intakes = account_repository.find_intakes_for_email(user.email)
@@ -270,6 +310,10 @@ def export_account_data(user: User) -> AccountResult:
         # contract.
         "assessment_answers": person_side["answers"],
         "dimension_scores": person_side["dimension_scores"],
+        # PRODUCT_DECISIONS.md §2 (six-trait model, C1): every sitting of the per-trait
+        # tolerance/must-have form, oldest first -- "what do you HOLD", not just the
+        # current answer. Read through the same D-01 doorway as the two keys above.
+        "trait_preferences": person_side["trait_preferences"],
         # BUILD_PLAN B-1's D-7 rule: pulse_checkins/pulse_events join export the same
         # commit that creates them. Unbounded reads (no since/until) -- a subject-access
         # export is "everything held", not a recent window.
@@ -317,6 +361,18 @@ def export_account_data(user: User) -> AccountResult:
         # BUILD_PLAN D-7b. See the comment above these two submissions are fetched:
         # this is deliberately only the raw answers, not a repeat of `result`, which
         # already reaches export inside `profile`.
+        # C3: every job posting the user pasted, newest first. `posting_text` is their
+        # own free text, so it owes an export (D-7b) -- and it is destroyed on deletion,
+        # see account_repository.delete_personal_rows.
+        "job_postings": [
+            _exported_posting(posting) for posting in job_postings_for_user(db, user.id)
+        ],
+        # C6: every "I took this job" link, newest start first. It names the user's
+        # employer, so it owes an export; it is RETAINED on deletion -- see the
+        # module docstring.
+        "company_links": [
+            _exported_company_link(link) for link in company_links_for_user(db, user.id)
+        ],
         "focus_type_answers": (
             focus_type_submission.answers if focus_type_submission is not None else None
         ),
@@ -387,9 +443,9 @@ def delete_account(user: User, confirm: Any) -> AccountResult:
     #    Nothing to do here; that is the point of tombstoning instead of
     #    deleting the row. environment_reports/environment_dimension_score,
     #    manager_profiles, situation_report_pins (BUILD_PLAN D-7), and
-    #    pulse_checkins (BUILD_PLAN D-7b, 2026-09-11) ride the identical
-    #    mechanism -- see this module's docstring -- so there is nothing to do
-    #    for any of them here either.
+    #    pulse_checkins (BUILD_PLAN D-7b, 2026-09-11), C1's trait-preference
+    #    sittings and C6's company links ride the identical mechanism -- see this module's docstring --
+    #    so there is nothing to do for any of them here either.
 
     audit.log_audit_event(
         action="account_deleted",

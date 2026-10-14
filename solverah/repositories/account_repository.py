@@ -9,7 +9,9 @@ an identifiable person.
 
 Nothing here reaches the person-side tables.  They are read through
 ``assessment_store`` -- the single auditable doorway D-01 keeps the allowlist
-closed around.
+closed around.  C1's trait-preference sittings are among them: no free text,
+no ``ondelete``, retained de-identified under the tombstone like the core
+assessment's answers and scores.
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from typing import List
 
 from sqlalchemy import delete, func
 
+from company_evidence_store import delete_job_postings_for_user
 from model import (
     IntakeSubmission,
     JobRecommendation,
@@ -189,6 +192,27 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # rather than by the `ON DELETE CASCADE` on `fk_pathnarrative_user`, for the
     # reason the paragraphs above give: deletion tombstones the user row.
     path_narrative_repository.delete_for_user(user_id)
+    # Pasted job postings (C3). `posting_text` is the user's own free text about their job
+    # search, and free text is never retained de-identified (D-7b) -- the `pulse_events`
+    # answer. The store destroys everything derived from a posting with it: its evidence
+    # items, their scores, the posting-private trait records and every link row on either
+    # side. Shared research-derived records are untouched; the store never let a
+    # posting's scores into one.
+    #
+    # Through the store, the only door to those tables -- with `commit=False`, because
+    # this function must not commit: the postings go in the same transaction as the
+    # tombstone, or a deletion that fails at the tombstone leaves an account still live
+    # with its postings already gone.
+    delete_job_postings_for_user(db, user_id, commit=False)
+    #
+    # C6's "I took this job" links are deliberately NOT here, and neither is the store's
+    # `delete_company_links_for_user`. A link is a company id and two dates -- no free
+    # text, so the D-7b spelling rule retains it -- and unlike `path_wants` it has a
+    # reader: the 90-day Pulse check-ins that validate the CompanyLens read are tied to
+    # it (PRODUCT_DECISIONS.md §2). It rides the tombstone, the same answer the house
+    # gives `environment_reports.employer_name_normalized`, the other employer identity
+    # tied to a person. Destroying it here would NULL every retained check-in's
+    # `company_link_id` and strip the research value C8 added the column for.
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

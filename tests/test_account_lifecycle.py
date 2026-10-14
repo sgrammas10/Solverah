@@ -887,3 +887,361 @@ def test_export_omits_focus_type_and_manager_match_answers_when_never_sat(client
 
     assert payload["focus_type_answers"] is None
     assert payload["manager_match_answers"] is None
+
+
+# ── C1 trait preferences and C3 pasted job postings ─────────────────────────
+#
+# The two tables answer the D-7b question from opposite sides. The trait-preference
+# sittings hold no free text (step counts, a boolean, a closed trait key) and sit
+# behind D-01's doorway with no `ondelete`, so they are RETAINED de-identified under
+# the tombstone like the core assessment's rows. A pasted posting is the user's own
+# free text, so it is DESTROYED, with everything the pipeline derived from it.
+
+def _seed_trait_preferences(user_id, under, over, must=()):
+    """One sitting, through the D-01 doorway's write path."""
+    from app import app
+    from assessment_store import save_trait_preferences
+    from model import db
+    from solverah.domain.trait_preferences import TRAIT_KEYS, TraitPreference
+
+    with app.app_context():
+        sitting = save_trait_preferences(db, user_id, {
+            key: TraitPreference(
+                dimension_key=key, under_steps=under, over_steps=over,
+                must_have=key in must, answered=True,
+            )
+            for key in TRAIT_KEYS
+        })
+        db.session.commit()
+        return sitting
+
+
+def _seed_scored_posting(user_id, slug, text="We move fast and break things."):
+    """A pasted posting with the whole derived chain under it: one evidence item, its
+    score, and a posting-private trait record linked to that score. Every write goes
+    through company_evidence_store, the only door to those tables. Returns the
+    posting id and the private record id."""
+    from app import app
+    from company_evidence_store import (
+        EvidenceItemInput,
+        ItemScoreInput,
+        TraitRecordInput,
+        create_job_posting,
+        write_item_scores,
+        write_items,
+        write_trait_records,
+    )
+    from model import Company, EvidenceItemScore, ScorerRun, db
+
+    with app.app_context():
+        company = Company(name=slug.title(), slug=slug, profile_json={})
+        scorer = ScorerRun(
+            model="test-model", temperature=0, temperature_honored=True,
+            rubric_version="v3.1", packet_version="v4.11",
+        )
+        db.session.add_all([company, scorer])
+        db.session.commit()
+
+        posting = create_job_posting(
+            db, user_id, posting_text=text, title="Staff Engineer", company_id=company.id
+        )
+        (item_id,) = write_items(
+            db, company.id,
+            # Positional on purpose: the third field is the scorer's internal copy, a
+            # name tests/test_company_evidence_internal.py keeps out of this file.
+            [EvidenceItemInput(
+                "role", "user_pasted_posting", text, "The posting describes a fast pace.",
+                scope_label="Staff Engineer",
+            )],
+            job_posting_id=posting.id,
+        )
+        write_item_scores(db, [ItemScoreInput(item_id, "pace", score=0.9)], scorer_run_id=scorer.id)
+        score_id = EvidenceItemScore.query.filter_by(evidence_item_id=item_id).one().id
+        (record_id,) = write_trait_records(
+            db, company.id,
+            [TraitRecordInput(
+                "pace", "role", "known", estimate=0.9, scope_label="Staff Engineer",
+                score_ids=[score_id], job_posting_id=posting.id,
+            )],
+            aggregation_version="agg-test",
+        )
+        return posting.id, record_id
+
+
+def _posting_trace(posting_id, record_id):
+    """How many rows of each derived kind still hang off one posting."""
+    from app import app
+    from model import (
+        CompanyEvidenceItem,
+        CompanyTraitRecord,
+        CompanyTraitRecordEvidence,
+        EvidenceItemScore,
+        JobPostingSubmission,
+        db,
+    )
+
+    with app.app_context():
+        item_ids = [
+            i for (i,) in db.session.query(CompanyEvidenceItem.id).filter_by(job_posting_id=posting_id)
+        ]
+        return {
+            "posting": JobPostingSubmission.query.filter_by(id=posting_id).count(),
+            "items": len(item_ids),
+            "scores": EvidenceItemScore.query.filter(
+                EvidenceItemScore.evidence_item_id.in_(item_ids or [-1])
+            ).count(),
+            "records": CompanyTraitRecord.query.filter_by(job_posting_id=posting_id).count(),
+            "links": CompanyTraitRecordEvidence.query.filter_by(trait_record_id=record_id).count(),
+        }
+
+
+def test_export_includes_trait_preferences_and_job_postings(client, monkeypatch):
+    """Every trait sitting, oldest first; every pasted posting, newest first, with the
+    text the user pasted. A bystander's paste is not in it."""
+    _, bystander_id = _register_and_login(client, monkeypatch, email="c3-export-bystander@example.com")
+    _seed_scored_posting(bystander_id, "bystander-co", text="Not yours.")
+
+    _, user_id = _register_and_login(client, monkeypatch, email="c3-export@example.com")
+    first = _seed_trait_preferences(user_id, under=0, over=0, must=("pace",))
+    second = _seed_trait_preferences(user_id, under=2, over=1)
+
+    from app import app
+    from company_evidence_store import create_job_posting
+    from model import db
+
+    with app.app_context():
+        older = create_job_posting(db, user_id, posting_text="We move fast.")
+        newer = create_job_posting(db, user_id, posting_text="Calm, steady team.", title="PM")
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+
+    prefs = payload["trait_preferences"]
+    assert len(prefs) == 12
+    assert [p["sitting_id"] for p in prefs] == [first] * 6 + [second] * 6
+    assert {(p["under_steps"], p["over_steps"]) for p in prefs[:6]} == {(0, 0)}
+    assert [p["dimension"] for p in prefs[:6] if p["must_have"]] == ["pace"]
+    assert {(p["under_steps"], p["over_steps"]) for p in prefs[6:]} == {(2, 1)}
+
+    postings = payload["job_postings"]
+    assert [p["id"] for p in postings] == [newer.id, older.id]
+    assert [p["posting_text"] for p in postings] == ["Calm, steady team.", "We move fast."]
+    assert postings[0]["title"] == "PM" and postings[0]["status"] == "pending"
+    assert postings[0]["created_at"]
+    assert "Not yours." not in res.get_data(as_text=True)
+    # The user's own paste and its bookkeeping -- nothing the pipeline derived from it.
+    assert set(postings[0]) == {"id", "company_id", "title", "posting_text", "status", "created_at"}
+
+
+def test_export_carries_empty_lists_when_neither_table_has_rows(client, monkeypatch):
+    _register_and_login(client, monkeypatch, email="c3-export-empty@example.com")
+
+    payload = client.get("/api/v1/me/export").get_json()
+    assert payload["trait_preferences"] == []
+    assert payload["job_postings"] == []
+
+
+def test_delete_retains_trait_preferences_behind_the_tombstone(client, monkeypatch):
+    """The core assessment's reconciliation, applied to C1: no free text and no
+    `ondelete`, so the sittings survive, de-identified, on the tombstoned user id."""
+    csrf, user_id = _register_and_login(client, monkeypatch, email="c1-delete@example.com")
+    _seed_trait_preferences(user_id, under=1, over=2, must=("pace", "autonomy"))
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    surviving = _person_side(user_id)["trait_preferences"]
+    assert len(surviving) == 6
+    assert {(p["under_steps"], p["over_steps"]) for p in surviving} == {(1, 2)}
+
+    from app import app
+    from model import User, db
+
+    with app.app_context():
+        assert db.session.get(User, user_id).email == f"deleted-{user_id}@tombstone.invalid"
+
+
+def test_delete_destroys_job_postings_and_everything_derived_from_them(client, monkeypatch):
+    """D-7b: the paste is free text, so it is destroyed, and so is every row the
+    pipeline derived from it. A bystander's posting chain is untouched."""
+    _, bystander_id = _register_and_login(client, monkeypatch, email="c3-delete-bystander@example.com")
+    bystander_posting, bystander_record = _seed_scored_posting(bystander_id, "bystander-co")
+
+    csrf, user_id = _register_and_login(client, monkeypatch, email="c3-delete@example.com")
+    posting_id, record_id = _seed_scored_posting(user_id, "user-co")
+    assert _posting_trace(posting_id, record_id) == {
+        "posting": 1, "items": 1, "scores": 1, "records": 1, "links": 1,
+    }
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    assert _posting_trace(posting_id, record_id) == {
+        "posting": 0, "items": 0, "scores": 0, "records": 0, "links": 0,
+    }
+    from app import app
+    from model import JobPostingSubmission
+
+    with app.app_context():
+        assert JobPostingSubmission.query.filter_by(user_id=user_id).count() == 0
+
+    assert _posting_trace(bystander_posting, bystander_record) == {
+        "posting": 1, "items": 1, "scores": 1, "records": 1, "links": 1,
+    }
+
+
+def test_posting_destruction_waits_for_the_deletions_own_commit(client, monkeypatch):
+    """`delete_personal_rows` does not commit, and the posting store's per-call commit
+    must not sneak one in: if the deletion fails before its commit, the account is
+    still live and so are its postings. Fails if the store is called with the real
+    session, whose commit would land the posting deletes on their own."""
+    _, user_id = _register_and_login(client, monkeypatch, email="c3-atomic@example.com")
+    posting_id, record_id = _seed_scored_posting(user_id, "atomic-co")
+
+    from app import app
+    from model import db
+    from solverah.repositories import account_repository
+
+    with app.app_context():
+        account_repository.delete_personal_rows(user_id, [])
+        db.session.rollback()
+
+    assert _posting_trace(posting_id, record_id) == {
+        "posting": 1, "items": 1, "scores": 1, "records": 1, "links": 1,
+    }
+
+    with app.app_context():
+        account_repository.delete_personal_rows(user_id, [])
+        db.session.commit()
+
+    assert _posting_trace(posting_id, record_id)["posting"] == 0
+
+
+# ── C6: "I took this job" links ──────────────────────────────────────────────
+
+
+def _seed_company_link(user_id, slug, started_on, ended_on=None):
+    """A company and one link to it, through company_evidence_store's own write.
+    Returns the link id."""
+    from app import app
+    from company_evidence_store import create_company_link
+    from model import Company, UserCompanyLink, db
+
+    with app.app_context():
+        company = Company.query.filter_by(slug=slug).first()
+        if company is None:
+            company = Company(name=slug.title(), slug=slug, profile_json={})
+            db.session.add(company)
+            db.session.commit()
+        link = create_company_link(db, user_id, company_id=company.id, started_on=started_on)
+        if ended_on is not None:
+            # The store has no "end a link" write yet; the column is the user's own
+            # date, so setting it here builds nothing the real path could not.
+            db.session.get(UserCompanyLink, link.id).ended_on = ended_on
+            db.session.commit()
+        return link.id
+
+
+def _seed_pulse_checkin(user_id):
+    """One check-in through pulse_store's write, which attaches the active link."""
+    from app import app
+    from model import db
+    from pulse_store import write_pulse_checkin
+    from work_pulse.pulse_items import dimensions_for_checkin
+
+    with app.app_context():
+        checkin_id = write_pulse_checkin(
+            db, user_id, sequence=0,
+            item_scores={dim: 4 for dim in dimensions_for_checkin(user_id, 0)},
+            experienced=3, version="pulse-v1-test",
+        )
+        db.session.commit()
+        return checkin_id
+
+
+def test_export_includes_company_links(client, monkeypatch):
+    """Every link the user made, newest start first, with the dates they gave. A
+    bystander's link is not in it, and the check-in filed under the active link
+    carries its id -- validated against the published schema, which forbids keys it
+    does not declare."""
+    import datetime
+
+    from solverah.schemas.account import AccountExportResponse
+
+    today = datetime.date.today()
+    _, bystander_id = _register_and_login(client, monkeypatch, email="c6-export-bystander@example.com")
+    bystander_link = _seed_company_link(bystander_id, "c6-bystander-co", today)
+
+    _, user_id = _register_and_login(client, monkeypatch, email="c6-export@example.com")
+    older = _seed_company_link(
+        user_id, "c6-old-co", today - datetime.timedelta(days=400),
+        ended_on=today - datetime.timedelta(days=30),
+    )
+    newer = _seed_company_link(user_id, "c6-new-co", today - datetime.timedelta(days=10))
+    checkin_id = _seed_pulse_checkin(user_id)
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+    AccountExportResponse.model_validate(payload)
+
+    links = payload["company_links"]
+    assert [link["id"] for link in links] == [newer, older]
+    assert links[0]["started_on"] == (today - datetime.timedelta(days=10)).isoformat()
+    assert links[0]["ended_on"] is None
+    assert links[1]["ended_on"] == (today - datetime.timedelta(days=30)).isoformat()
+    assert links[0]["created_at"]
+    assert set(links[0]) == {"id", "company_id", "started_on", "ended_on", "created_at"}
+    assert bystander_link not in {link["id"] for link in links}
+
+    (checkin,) = payload["pulse_checkins"]
+    assert checkin["id"] == checkin_id
+    assert checkin["company_link_id"] == newer
+
+
+def test_export_carries_an_empty_company_links_list(client, monkeypatch):
+    _register_and_login(client, monkeypatch, email="c6-export-empty@example.com")
+
+    payload = client.get("/api/v1/me/export").get_json()
+    assert payload["company_links"] == []
+
+
+def test_delete_retains_company_links_and_the_checkins_keep_their_anchor(client, monkeypatch):
+    """C6 rides the tombstone, the precedent `environment_reports.employer_name_normalized`
+    sets for an employer identity tied to a person: no free text, and a research reader
+    (the check-ins tied to the CompanyLens read). The links survive on the tombstoned
+    user id, the check-ins keep pointing at them, and a bystander is untouched. Fails if
+    deletion destroys the links -- the check-ins' `company_link_id` would go NULL."""
+    import datetime
+
+    today = datetime.date.today()
+    _, bystander_id = _register_and_login(client, monkeypatch, email="c6-delete-bystander@example.com")
+    bystander_link = _seed_company_link(bystander_id, "c6-del-bystander-co", today)
+    bystander_checkin = _seed_pulse_checkin(bystander_id)
+
+    csrf, user_id = _register_and_login(client, monkeypatch, email="c6-delete@example.com")
+    link_id = _seed_company_link(user_id, "c6-del-co", today - datetime.timedelta(days=5))
+    checkin_id = _seed_pulse_checkin(user_id)
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    from app import app
+    from model import PulseCheckin, User, UserCompanyLink, db
+
+    with app.app_context():
+        assert db.session.get(User, user_id).email == f"deleted-{user_id}@tombstone.invalid"
+
+        surviving = UserCompanyLink.query.filter_by(user_id=user_id).all()
+        assert [row.id for row in surviving] == [link_id]
+        assert surviving[0].started_on == today - datetime.timedelta(days=5)
+        assert db.session.get(PulseCheckin, checkin_id).company_link_id == link_id
+
+        assert [row.id for row in UserCompanyLink.query.filter_by(user_id=bystander_id)] == [
+            bystander_link
+        ]
+        assert db.session.get(PulseCheckin, bystander_checkin).company_link_id == bystander_link

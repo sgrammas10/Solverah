@@ -20,9 +20,11 @@ __all__ = [
     "AccountDeleteResponse",
     "AccountExportResponse",
     "ExportedAccount",
+    "ExportedCompanyLink",
     "ExportedEnvironmentReport",
     "ExportedExperiment",
     "ExportedIntakeSubmission",
+    "ExportedJobPosting",
     "ExportedJobRecommendation",
     "ExportedLegacyQuiz",
     "ExportedManagerProfile",
@@ -30,6 +32,7 @@ __all__ = [
     "ExportedPulseEvent",
     "ExportedResumeCorrection",
     "ExportedSituationReportPin",
+    "ExportedTraitPreference",
 ]
 
 
@@ -109,6 +112,13 @@ class ExportedEnvironmentReport(SolverahModel):
         description="Industry level key, or null: 'not sure' or, before env-v2, never asked.",
     )
     experienced_outcome: int
+    # Exploratory outcomes (env-v3, 2026-10-13): optional 1..5, null = skipped or
+    # filed before env-v3 asked them.
+    outcome_satisfaction: Optional[int] = None
+    outcome_performance: Optional[int] = None
+    outcome_engagement: Optional[int] = None
+    outcome_sustainability: Optional[int] = None
+    outcome_retention_intention: Optional[int] = None
     career_status: str = Field(
         description="The user's career status when they filed -- on a 'past' report, not the past job's."
     )
@@ -164,6 +174,13 @@ class ExportedPulseCheckin(SolverahModel):
     item_scores: Dict[str, int] = Field(default_factory=dict)
     experienced: int
     version: str
+    company_link_id: Optional[int] = Field(
+        default=None,
+        description=(
+            "The id of the company link (company_links) that was active when this "
+            "check-in was filed, or null when none was (C8)."
+        ),
+    )
 
 
 class ExportedPulseEvent(SolverahModel):
@@ -225,6 +242,45 @@ class ExportedResumeCorrection(SolverahModel):
     updated_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
 
 
+class ExportedTraitPreference(SolverahModel):
+    """One trait's row from one sitting of the trait-preference form (C1).
+
+    A sitting is six rows sharing ``sitting_id``; every sitting is exported, oldest
+    first, because earlier sittings are kept rather than overwritten.
+    """
+
+    sitting_id: str
+    dimension: str
+    under_steps: int
+    over_steps: int
+    must_have: bool
+    form_version: str
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
+class ExportedJobPosting(SolverahModel):
+    """One job posting the user pasted (C3). ``posting_text`` is their own text."""
+
+    id: int
+    company_id: Optional[int] = None
+    title: Optional[str] = None
+    posting_text: str
+    status: str
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
+class ExportedCompanyLink(SolverahModel):
+    """One "I took this job" link the user made (C6): which company, and when."""
+
+    id: int
+    company_id: int
+    started_on: str = Field(description="ISO 8601 date the user said they started.")
+    ended_on: Optional[str] = Field(
+        default=None, description="ISO 8601 date the job ended, or null while it is current."
+    )
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
 class AccountExportResponse(SolverahModel):
     """Every identified data class held for the authenticated user.
 
@@ -251,6 +307,18 @@ class AccountExportResponse(SolverahModel):
         ),
     )
     dimension_scores: List[Dict[str, Any]] = Field(default_factory=list)
+    trait_preferences: List[ExportedTraitPreference] = Field(
+        default_factory=list,
+        description="Every sitting of the trait-preference form, oldest first (append-only).",
+    )
+    job_postings: List[ExportedJobPosting] = Field(
+        default_factory=list,
+        description="Every job posting the user pasted, newest first.",
+    )
+    company_links: List[ExportedCompanyLink] = Field(
+        default_factory=list,
+        description="Every \"I took this job\" link the user made, newest start first.",
+    )
     pulse_checkins: List[ExportedPulseCheckin] = Field(
         default_factory=list,
         description="Every completed Pulse check-in, newest first (append-only, D-16).",
