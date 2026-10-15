@@ -83,12 +83,14 @@ AGENT_MAX_COMPLETION_TOKENS = 1500
 #: and is answered as a generic 500, so this errs high rather than tight.
 QUIZ_INSIGHT_MAX_COMPLETION_TOKENS = 4000
 
-#: CompanyLens research model. ``claude-opus-5`` is the exact, fixed model id
-#: (Anthropic's current ids carry no date suffix; this is not an alias).
-#: ``SOLVERAH_RESEARCH_MODEL`` overrides it per call. Any other model is a cost
-#: decision for Sebastian first, and ``research.RESEARCH_PRICES_USD_PER_MTOK``
-#: needs its row or cost estimates come back ``None``.
-DEFAULT_RESEARCH_MODEL = "claude-opus-5"
+#: CompanyLens research model. ``claude-opus-5-5`` (Claude Opus 5.5) is the exact,
+#: fixed model id (Anthropic's current ids carry no date suffix; this is not an
+#: alias). Sebastian ruled 2026-10-14 to replace ``claude-opus-5`` with it ($4 /
+#: $20 per MTok). ``SOLVERAH_RESEARCH_MODEL`` overrides it per call. Any other
+#: model is a cost decision for Sebastian first, and
+#: ``research.RESEARCH_PRICES_USD_PER_MTOK`` needs its row or cost estimates come
+#: back ``None``.
+DEFAULT_RESEARCH_MODEL = "claude-opus-5-5"
 
 #: CompanyLens scoring model: the dated snapshot ``causal_graph/scorer_pipeline.py``
 #: validated the v3.1 anchors on. Pinned, never an alias -- an alias would move

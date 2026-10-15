@@ -73,6 +73,7 @@ from solverah.services.company_research.constants import (
     RESEARCH_MAX_FETCHES,
     RESEARCH_MAX_SEARCHES,
     RESEARCH_MAX_TOKENS,
+    RESEARCH_EFFORT,
     SOURCE_YIELD_TARGETS,
 )
 from solverah.services.company_research.prompts import (
@@ -502,6 +503,7 @@ def run_research(
         system=RESEARCH_SYSTEM,
         model=model,
         max_tokens=RESEARCH_MAX_TOKENS,
+        effort=RESEARCH_EFFORT,
         max_searches=RESEARCH_MAX_SEARCHES,
         max_fetches=RESEARCH_MAX_FETCHES,
         blocked_domains=blocked,

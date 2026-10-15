@@ -175,6 +175,24 @@ edits) but ignored by v1 math. Per-outcome penalties stay expert defaults.
   it is public** (output is paraphrase-only per GAP-14; collection is a separate
   question, cf. ZenSearch paused 2026-08-20).
 
+**Follow-up rulings (Sebastian, 2026-10-14, after the build).**
+- **Weights are Julie's alone**, so Sebastian is eligible as a blind fit-pair rater
+  (alongside 1–2 people he recruits). Because he knows the model's design, the
+  fit-pair analysis also reports every result with his ratings excluded.
+- **Tolerance follows D-15:** a change to tolerance reaches the Situation Report at
+  the next fixed sitting, not immediately.
+- **Employer identity is kept on deletion, deliberately:** the Environment Report's
+  `employer_name_normalized` and the "I took this job" links stay de-identified under
+  the tombstone. This is a stated exception to D-7b's free-text rule: both are the
+  join key for the outcome data (the aggregation lane, ⚑6, and the 90-day Pulse
+  link) that is the only route to ever showing a probability.
+- **`Solverah_IP/` is excluded from the Docker image** (`.dockerignore`); the scorer
+  ships its own frozen anchors copy.
+- **Research model: Claude Opus 5.5**, replacing Opus 5 (cheaper, and Sebastian's
+  judgement is that it is better). The packets were validated on Opus 5, so the first
+  live run is also the first look at 5.5 on this method.
+- **The pilot Google Form has not been sent**; it waits for Julie's verification.
+
 **What changes the weights, cheapest first.** (1) versioned table with why +
 date; (2) sensitivity test — nudge each weight, see whether rankings move
 (synthetic people × round-2 scored companies; a weight "matters" if top-5

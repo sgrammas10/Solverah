@@ -320,7 +320,7 @@ envVarGroups:
       # Optional overrides, read per call; leave unset. Each defaults to a
       # pinned value in solverah/infra/llm. Any other model is a cost and
       # quality change, so set one only on purpose.
-      #   SOLVERAH_RESEARCH_MODEL        (default claude-opus-5)
+      #   SOLVERAH_RESEARCH_MODEL        (default claude-opus-5-5)
       #   SOLVERAH_SCORER_MODEL          (default gpt-5.5-2026-04-23)
       #   SOLVERAH_RESEARCH_SEARCH_TOOL / SOLVERAH_RESEARCH_FETCH_TOOL
       # SOLVERAH_MODEL_WEIGHTS_SOURCE stays UNSET in production: unset reads

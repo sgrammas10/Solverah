@@ -98,7 +98,7 @@ WEB_SEARCH_TOOL_TYPE = DEFAULT_WEB_SEARCH_TOOL_TYPE
 WEB_FETCH_TOOL_TYPE = DEFAULT_WEB_FETCH_TOOL_TYPE
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
-#: Output ceiling for one research turn. On Claude Opus 5 thinking is on by
+#: Output ceiling for one research turn. On Claude Opus 5.5 thinking is on by
 #: default and ``max_tokens`` caps thinking *plus* the answer, so this is
 #: generous. The call streams (``DEFAULT_MAX_TOKENS`` this large would
 #: otherwise risk an HTTP timeout), so a large ceiling cannot trip one.
@@ -113,10 +113,16 @@ DEFAULT_MAX_FETCH_CONTENT_TOKENS = 25_000
 MAX_CONTINUATIONS = 5
 
 #: USD per million tokens, from platform.claude.com/docs/en/about-claude/pricing
-#: (read 2026-10-13). ``claude-opus-4-8`` is here because it is where
-#: ``fallbacks: "default"`` sends cyber-category refusals. Global routing (no
-#: ``inference_geo``); a US-only geo would be 1.1x.
+#: (read 2026-10-13; Opus 5.5 row re-read 2026-10-14: $4 in, $5 5m write, $8 1h
+#: write, $0.20 cache hit, $20 out). ``claude-opus-5`` is kept so runs recorded
+#: before the 2026-10-14 switch still cost correctly. ``claude-opus-4-8`` is here
+#: because it is where ``fallbacks: "default"`` sends cyber-category refusals
+#: (documented for Opus 5; the routing per model is server-side and unpublished).
+#: Global routing (no ``inference_geo``); a US-only geo would be 1.1x.
 RESEARCH_PRICES_USD_PER_MTOK: Mapping[str, Mapping[str, float]] = {
+    "claude-opus-5-5": {
+        "input": 4.00, "output": 20.00, "cache_write_5m": 5.00, "cache_read": 0.20,
+    },
     "claude-opus-5": {
         "input": 5.00, "output": 25.00, "cache_write_5m": 6.25, "cache_read": 0.50,
     },
@@ -314,7 +320,7 @@ def run_research_call(
         model: defaults to :func:`solverah.infra.llm.default_research_model`.
         max_tokens: output ceiling per request (thinking plus answer).
         effort: ``"low"`` .. ``"max"``; ``None`` leaves the API default
-            (``high`` on Claude Opus 5).
+            (``medium`` on Claude Opus 5.5; it was ``high`` on Claude Opus 5).
         max_searches / max_fetches: per-request caps on each server tool.
         max_fetch_content_tokens: truncation point for one fetched page.
         blocked_domains: bare hostnames neither tool may use (e.g. a review

@@ -138,7 +138,7 @@ def _usage(searches=3):
 
 def _message(content, *, stop_reason="end_turn", usage=None):
     return BetaMessage.model_validate({
-        "id": "msg_test", "type": "message", "role": "assistant", "model": "claude-opus-5",
+        "id": "msg_test", "type": "message", "role": "assistant", "model": "claude-opus-5-5",
         "content": content, "stop_reason": stop_reason, "stop_sequence": None,
         "stop_details": None, "usage": usage or _usage(),
     })
@@ -312,7 +312,7 @@ def test_research_job_writes_verified_items_scores_and_six_records(ctx, no_keys,
 
     run = store.latest_research_run(db, queued.company_id)
     assert run.id == queued.id and run.status == "done", run.error
-    assert run.cost_usd == Decimal("0.075")  # 3 searches + 5000 in + 800 out at list price
+    assert run.cost_usd == Decimal("0.066")  # 3 searches ($0.03) + 5000 in ($0.02) + 800 out ($0.016), Opus 5.5 list price
 
     # The research client saw the company name and nothing else of substance, and the
     # turn was given the larger output ceiling (review F3b).
@@ -395,7 +395,7 @@ def test_research_job_writes_verified_items_scores_and_six_records(ctx, no_keys,
     # E's URL was cited (by B and D), so E fails on coverage, not on its URL.
     assert card["dropped"]["by_reason"] == {"coverage": 1, "paraphrase_shared_run": 1}
     assert card["citations"] == {"total": 4, "by_kind": {"web_search_result_location": 4}}
-    assert card["served_model"] == "claude-opus-5" and card["fell_back"] is False
+    assert card["served_model"] == "claude-opus-5-5" and card["fell_back"] is False
     assert card["scope_declaration"].startswith("The employee reviews come from")
     assert card["yield"]["employee_review"] == {"kept": 1, "minimum": 12, "maximum": 15, "met": False}
     assert card["yield"]["job_posting"]["distinct_postings"] == 1
@@ -487,7 +487,7 @@ def test_review_f7_a_rerun_aggregates_from_its_own_items_only(ctx, no_keys, monk
 
 def test_a_failed_research_call_records_its_cost_and_a_fixed_error(ctx, no_keys, monkeypatch):
     db = ctx
-    spent = ResearchUsage(by_model={"claude-opus-5": TokenUsage(input_tokens=20_000, output_tokens=0)},
+    spent = ResearchUsage(by_model={"claude-opus-5-5": TokenUsage(input_tokens=20_000, output_tokens=0)},
                           web_search_requests=4, api_requests=1)
     research_fake = FakeResearchClient(
         ResearchProviderError("HTTP 529", spent, retryable=True, status_code=529)
@@ -499,7 +499,7 @@ def test_a_failed_research_call_records_its_cost_and_a_fixed_error(ctx, no_keys,
     run = store.latest_research_run(db, queued.company_id)
     assert run.status == "failed"
     assert run.error == service.ERROR_PROVIDER
-    assert run.cost_usd == Decimal("0.14")  # 4 searches ($0.04) + 20k input tokens ($0.10)
+    assert run.cost_usd == Decimal("0.12")  # 4 searches ($0.04) + 20k input tokens ($0.08, Opus 5.5)
     assert scorer_fake.requests == []
     assert store.trait_records(db, queued.company_id) == []
 
@@ -514,7 +514,7 @@ def test_an_unparseable_record_is_a_failed_run_with_its_cost_and_its_text(ctx, n
     queued = service.request_research(db, company_name="Initech", trigger="on_demand")
     run = store.latest_research_run(db, queued.company_id)
     assert run.status == "failed" and run.error == service.ERROR_UNPARSEABLE
-    assert run.cost_usd == Decimal("0.075")
+    assert run.cost_usd == Decimal("0.066")
     card = _internal(db.session.get(CompanyResearchRun, run.id))
     assert card["parsed"] is False and card["candidates"] == 0
     assert "could not find enough" in card["raw_text"]
@@ -533,7 +533,7 @@ def test_review_f2_no_verified_evidence_fails_the_run_as_research_unverified(ctx
     queued = service.request_research(db, company_name="Hooli", trigger="on_demand")
     run = store.latest_research_run(db, queued.company_id)
     assert run.status == "failed" and run.error == service.ERROR_UNVERIFIED == "research_unverified"
-    assert run.cost_usd == Decimal("0.075")
+    assert run.cost_usd == Decimal("0.066")
     assert store.trait_records(db, queued.company_id) == []
     card = _internal(db.session.get(CompanyResearchRun, run.id))
     assert card["candidates"] == 1 and card["kept"] == 0 and card["citations"]["total"] == 0
@@ -1229,7 +1229,7 @@ def test_a_reaped_run_keeps_its_verdict_and_the_late_result_writes_nothing(ctx, 
     assert store.trait_records(db, queued.company_id) == []
     card = _internal(db.session.get(CompanyResearchRun, queued.id))
     (late,) = card["late_finish"]
-    assert late["attempted_status"] == "done" and late["cost_usd"] == 0.075
+    assert late["attempted_status"] == "done" and late["cost_usd"] == 0.066
     assert late["items_discarded"] == 0 and late["row_error"] == service.ERROR_TIMED_OUT
 
 
@@ -1264,7 +1264,7 @@ def test_a_run_reaped_after_its_writes_is_discarded_and_the_shared_read_restored
     assert db.session.query(CompanyEvidenceItem).filter_by(research_run_id=first.id).count() == 3
     card = _internal(db.session.get(CompanyResearchRun, second.id))
     (late,) = card["late_finish"]
-    assert late["items_discarded"] == 3 and late["cost_usd"] == 0.075
+    assert late["items_discarded"] == 3 and late["cost_usd"] == 0.066
     # The shared read is a fresh generation built from the FIRST run only.
     after = {r.dimension_key: r for r in store.trait_records(db, first.company_id)}
     assert after["pace"].evidence_count == 3
@@ -1302,6 +1302,20 @@ def test_the_switch_gates_new_runs_only(ctx, no_keys, monkeypatch):
     for value in ("0", "false", "", "off"):
         monkeypatch.setenv(service.RESEARCH_ENABLED_VAR, value)
         assert service.research_enabled() is False
+
+
+def test_research_asks_for_high_effort_and_the_opus_5_5_default(ctx, no_keys, monkeypatch):
+    """Regression (2026-10-14): Opus 5.5 defaults to effort "medium" where Opus 5,
+    the model the method was validated on, defaulted to "high". Research must ask
+    for "high" explicitly or it quietly runs at less depth."""
+    db = ctx
+    research_fake = FakeResearchClient(_research_message(), _research_message())
+    _install(monkeypatch, research_fake, FakeScorerClient())
+
+    service.request_research(db, company_name="Effort Co", trigger="on_demand")
+    (request,) = research_fake.requests
+    assert request["output_config"] == {"effort": "high"}
+    assert request["model"] == "claude-opus-5-5"
 
 
 def test_blocked_domains_reach_both_tools_and_the_run_card(ctx, no_keys, monkeypatch):

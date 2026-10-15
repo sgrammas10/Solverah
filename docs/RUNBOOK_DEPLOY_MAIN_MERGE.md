@@ -73,7 +73,7 @@ was measured: stop and look.
 | `ANTHROPIC_API_KEY` | for research | Sebastian creates it on deploy day (`Solverah_IP/compliance/VENDOR_REGISTER.md`, Anthropic row). Unset is safe: `POST /companies/research` answers 503 before anything is written or spent. Setting it does NOT open research by itself (see the switch below). |
 | `SOLVERAH_COMPANYLENS_RESEARCH_ENABLED` | **leave unset (off)** | **The public switch** (C5c, 2026-10-14). Off: `POST /companies/research` answers 503 `research_disabled`, nothing is written, and already-researched companies stay readable. Turn it on only after the attorney review below. The CLI batch prefill needs `--allow-when-disabled` while it is off. |
 | `SOLVERAH_RESEARCH_BLOCKED_DOMAINS` | optional | Comma-separated domains the research tools must not use; the attorney's list goes here. Recorded in each run's internal card. |
-| `SOLVERAH_RESEARCH_MODEL` | optional, leave unset | default `claude-opus-5`. Another model is a cost decision, and it needs a row in `research.RESEARCH_PRICES_USD_PER_MTOK` or costs come back `None`. |
+| `SOLVERAH_RESEARCH_MODEL` | optional, leave unset | default `claude-opus-5-5` (Sebastian, 2026-10-14; research runs at effort `high`). Another model is a cost decision, and it needs a row in `research.RESEARCH_PRICES_USD_PER_MTOK` or costs come back `None`. |
 | `SOLVERAH_SCORER_MODEL` | optional, leave unset | default `gpt-5.5-2026-04-23`, the snapshot the v3.1 anchors were validated on. |
 | `SOLVERAH_RESEARCH_SEARCH_TOOL` / `SOLVERAH_RESEARCH_FETCH_TOOL` | optional, leave unset | override the server-side tool versions. |
 

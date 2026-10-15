@@ -54,7 +54,7 @@ class _FakeClient:
         return _FakeStream(item)
 
 
-def _message(content, *, stop_reason="end_turn", model="claude-opus-5", usage=None,
+def _message(content, *, stop_reason="end_turn", model="claude-opus-5-5", usage=None,
              stop_details=None):
     return BetaMessage.model_validate({
         "id": "msg_test",
@@ -138,7 +138,7 @@ def test_research_client_reads_key_at_call_time_and_sizes_for_long_calls(monkeyp
 
 def test_research_model_default_override_and_blank(monkeypatch):
     monkeypatch.delenv("SOLVERAH_RESEARCH_MODEL", raising=False)
-    assert llm.default_research_model() == "claude-opus-5"
+    assert llm.default_research_model() == "claude-opus-5-5"
     monkeypatch.setenv("SOLVERAH_RESEARCH_MODEL", "  claude-opus-4-8 ")
     assert llm.default_research_model() == "claude-opus-4-8"
     monkeypatch.setenv("SOLVERAH_RESEARCH_MODEL", "  ")
@@ -187,7 +187,7 @@ def test_request_enables_both_web_tools_with_caps_and_fallback(monkeypatch):
     )
 
     (request,) = client.requests
-    assert request["model"] == "claude-opus-5"
+    assert request["model"] == "claude-opus-5-5"
     assert request["system"] == "You research employers."
     assert request["output_config"] == {"effort": "medium"}
     assert request["fallbacks"] == "default"
@@ -245,7 +245,7 @@ def test_happy_path_returns_text_citations_sources_and_usage():
     assert result.text == "Let me look that up. Acme ships weekly and says so."
     assert result.final_text == "Acme ships weekly and says so."
     assert result.stop_reason == "end_turn"
-    assert result.served_model == result.model == "claude-opus-5"
+    assert result.served_model == result.model == "claude-opus-5-5"
     assert result.fell_back is False
     assert result.continuations == 0
 
@@ -260,11 +260,11 @@ def test_happy_path_returns_text_citations_sources_and_usage():
         search_title="Careers at Acme")
     assert (news.url, news.fetched, news.cited) == ("https://news.example/acme", False, False)
 
-    assert result.usage.by_model == {"claude-opus-5": research.TokenUsage(12_000, 1_500)}
+    assert result.usage.by_model == {"claude-opus-5-5": research.TokenUsage(12_000, 1_500)}
     assert (result.usage.web_search_requests, result.usage.web_fetch_requests) == (2, 1)
     assert result.usage.api_requests == 1
-    # 12k in at $5/M = 0.06, 1.5k out at $25/M = 0.0375, 2 searches at $0.01 = 0.02
-    assert research.estimate_research_cost_usd(result.usage) == pytest.approx(0.1175)
+    # Opus 5.5: 12k in at $4/M = 0.048, 1.5k out at $20/M = 0.03, 2 searches at $0.01 = 0.02
+    assert research.estimate_research_cost_usd(result.usage) == pytest.approx(0.098)
 
 
 def test_char_location_resolves_to_the_fetched_url_even_when_search_title_differs():
@@ -392,7 +392,7 @@ def test_fallback_usage_is_split_per_model_from_the_iterations():
              "output_tokens": 800, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0},
         ],
     }
-    fallback_block = {"type": "fallback", "from": {"model": "claude-opus-5"},
+    fallback_block = {"type": "fallback", "from": {"model": "claude-opus-5-5"},
                       "to": {"model": "claude-opus-4-8"}, "trigger": {"type": "refusal"}}
     client = _FakeClient(_message([fallback_block, *ANSWER], model="claude-opus-4-8", usage=usage))
 
@@ -401,7 +401,7 @@ def test_fallback_usage_is_split_per_model_from_the_iterations():
     assert result.fell_back is True
     assert result.served_model == "claude-opus-4-8"
     assert result.usage.by_model == {
-        "claude-opus-5": research.TokenUsage(2_000, 100),
+        "claude-opus-5-5": research.TokenUsage(2_000, 100),
         "claude-opus-4-8": research.TokenUsage(9_000, 800),
     }
     assert result.final_text == "Acme ships weekly and says so."
@@ -411,7 +411,7 @@ def test_continuation_after_a_fallback_drops_what_the_substitute_cannot_take():
     thinking = {"type": "thinking", "thinking": "", "signature": "SIG"}
     unanswered = {"type": "server_tool_use", "id": "srvtoolu_lost", "name": "web_search",
                   "input": {"query": "x"}}
-    fallback_block = {"type": "fallback", "from": {"model": "claude-opus-5"},
+    fallback_block = {"type": "fallback", "from": {"model": "claude-opus-5-5"},
                       "to": {"model": "claude-opus-4-8"}, "trigger": {"type": "refusal"}}
     paused = _message([thinking, SEARCH_USE, SEARCH_RESULT, unanswered, NARRATION,
                        fallback_block, FETCH_USE], stop_reason="pause_turn",
@@ -488,3 +488,27 @@ def test_cost_prices_cache_tokens_and_every_model():
     )
     # 5 + 6.25 + 0.50 (opus-5) + 25 (opus-4-8 output) + 1.00 (100 searches)
     assert research.estimate_research_cost_usd(usage) == pytest.approx(37.75)
+
+
+def test_opus_5_5_is_the_default_and_costs_at_its_own_rates():
+    assert llm.DEFAULT_RESEARCH_MODEL == "claude-opus-5-5"
+    usage = research.ResearchUsage(
+        by_model={"claude-opus-5-5": research.TokenUsage(1_000_000, 1_000_000, 1_000_000, 1_000_000)},
+        web_search_requests=100,
+    )
+    # 4 in + 20 out + 5 cache write (5m) + 0.20 cache read + 1.00 (100 searches)
+    assert research.estimate_research_cost_usd(usage) == pytest.approx(30.20)
+
+
+def test_older_and_fallback_models_keep_their_price_rows():
+    prices = research.RESEARCH_PRICES_USD_PER_MTOK
+    assert prices["claude-opus-5"] == {
+        "input": 5.00, "output": 25.00, "cache_write_5m": 6.25, "cache_read": 0.50}
+    # claude-opus-4-8 is where a refused request can be re-run: it must be priced
+    # or a fallback run's cost comes back None.
+    assert prices["claude-opus-4-8"]["output"] == 25.00
+    usage = research.ResearchUsage(by_model={
+        "claude-opus-5-5": research.TokenUsage(1_000_000, 0),
+        "claude-opus-4-8": research.TokenUsage(1_000_000, 0),
+    })
+    assert research.estimate_research_cost_usd(usage) == pytest.approx(9.00)

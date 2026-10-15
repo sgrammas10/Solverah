@@ -37,6 +37,12 @@ tests
 src
 docs
 *.docx
+# Research and IP corpus (packets with verbatim third-party text, rater data,
+# drafts): never needed at runtime -- the CompanyLens scorer ships its own frozen
+# anchors copy (solverah/services/company_research/anchors_v3_1.json). Excluded
+# 2026-10-14 (Sebastian). If a runtime path ever reads Solverah_IP, it fails in
+# the image, not silently.
+Solverah_IP
 *.xlsx
 *.png
 llm_debug.txt

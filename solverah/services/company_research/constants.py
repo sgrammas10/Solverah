@@ -35,6 +35,7 @@ __all__ = [
     "POSTING_JOB_SOFT_LIMIT_SECONDS",
     "RECENCY_DAYS",
     "RESEARCH_CACHE_DAYS",
+    "RESEARCH_EFFORT",
     "RESEARCH_JOB_HARD_LIMIT_SECONDS",
     "RESEARCH_JOB_SOFT_LIMIT_SECONDS",
     "RESEARCH_MAX_FETCHES",
@@ -183,6 +184,11 @@ RESEARCH_MAX_FETCHES = 20
 #: 30-45 items, each quoted once as a cited line and once inside the JSON; 32k was
 #: measured too tight for that (review F3b).
 RESEARCH_MAX_TOKENS = 64_000
+
+#: Reasoning effort for the research turn, passed explicitly. The method was validated
+#: on Opus 5, whose default is "high"; Opus 5.5 (the default since 2026-10-14) defaults
+#: to "medium", so leaving it unset would quietly research at less depth.
+RESEARCH_EFFORT = "high"
 
 #: Collector v4.11's per-section yield, as (minimum, maximum); None = no maximum. The
 #: run card compares what was kept per source type against these so a thin run is

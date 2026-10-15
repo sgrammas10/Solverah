@@ -565,7 +565,7 @@ def test_companies_research_refuses_while_disabled_unless_told_otherwise(ctx, mo
         ctx, "companies", "research", "--allow-when-disabled", "Prefill Co"
     )
     assert exit_code == 0, result.output
-    assert payload == {"companies": 1, "total_cost_usd": 0.075}
+    assert payload == {"companies": 1, "total_cost_usd": 0.066}  # Opus 5.5 list price
     lines = [json.loads(line) for line in result.output.strip().splitlines()]
     assert lines[0]["company"] == "Prefill Co" and lines[0]["status"] == "done"
     assert len(research_fake.requests) == 1

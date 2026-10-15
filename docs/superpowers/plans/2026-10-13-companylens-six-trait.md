@@ -341,6 +341,13 @@ other than Julie and Sebastian.
   `work_pulse_answers_for_users`.
 
 ### Backlog after this build
+- CompanyLens reads the latest core scores and tolerance UNPINNED, and shows per-trait
+  direction and within_tolerance. Changing tolerance brackets |person - company| per
+  trait. That is a partial D-15 probe, limited because company estimates are not shown.
+  Accepted 2026-10-14 (orchestrator); revisit if estimates are ever exposed or
+  inferable.
+- Tolerance has no re-pin of its own (only Recalibrate after a core retake, and the
+  core retake has no cooldown). Revisit if probing via retakes is ever seen.
 - manager-match (pre-existing, from the e2e tour): `/me/manager-playbook` 409 logs a
   console error before ManagerMatch is taken; `/manager-match/results` hits a 404
   before redirecting. (C7's API notes; each would need a new contract re-baseline, so not now)

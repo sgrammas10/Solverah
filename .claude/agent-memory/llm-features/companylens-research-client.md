@@ -11,10 +11,7 @@ Built 2026-10-13 (orchestrator dispatch, uncommitted): `get_research_client()`,
 tests `tests/test_llm_research_client.py`. `anthropic==1.13.0` pinned (1.x uses httpx2,
 same as openai 3.6.0; resolves clean in solverah-venv311, which is actually Python 3.13).
 
-**Model choice:** research default `claude-opus-5` (the claude-api skill's mandated default;
-exact id, no date suffix exists). Claude Opus 5.5 (`claude-opus-5-5`) IS live in the pricing
-page ($4/$20 vs $5/$25) but the skill says use it only when the user names it — offered to
-Sebastian as a cost decision, not adopted. Scorer default `gpt-5.5-2026-04-23` (the snapshot
+**Model choice:** research default `claude-opus-5-5` (Claude Opus 5.5) since Sebastian's 2026-10-14 ruling; `claude-opus-5` row kept in RESEARCH_PRICES for old runs. Verified 2026-10-14 on the live pricing page: $4 in / $20 out / $5 5m-write / $8 1h-write / $0.20 cache-read. Effort default on 5.5 is `medium` (was `high` on Opus 5); run_research_call passes none. Fallback `"default"` routing is server-side and unpublished per model (docs only name Opus 5 cyber -> Opus 4.8); 4.8 row kept. Scorer default `gpt-5.5-2026-04-23` (the snapshot
 scorer_pipeline validated). Scorer client gets 300 s / 3 retries because get_openai_client's
 60 s is sized for gpt-4o-mini and would time out a reasoning model.
 
