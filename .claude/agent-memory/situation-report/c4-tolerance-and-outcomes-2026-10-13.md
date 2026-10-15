@@ -15,10 +15,8 @@ pins it. Sort key is (severity, must-have, cost, DIMENSIONS order).
 `within_tolerance` = aligned with zones AND not aligned under today's 0.15. Wire adds
 `tolerance_applied` (complete only) and per-dimension `must_have` / `within_tolerance`.
 
-**Why tolerance is not pinned:** it is the user's own statement, read from the latest
-sitting. Open D-15 question: retaking tolerance with 0/1/2 steps exposes boundaries at
-0.15/0.25/0.35/0.5/0.6 instead of 0.15/0.25, which is a probe on the person-side gap.
-Raised to the orchestrator, not decided.
+**Tolerance IS pinned now** (ruling 2026-10-14, superseding the C4 "latest sitting"
+read): see [[tolerance-pin-2026-10-14]].
 
 **Outcome items.** `OUTCOME_ITEMS` and `OUTCOME_COLUMNS` are a separate bank, not inside
 `CONTEXT_ITEMS`. The reason is that the training assembler restates `CONTEXT_COLUMNS` as

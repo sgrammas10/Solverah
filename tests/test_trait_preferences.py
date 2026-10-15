@@ -239,6 +239,90 @@ def test_latest_sitting_wins_and_earlier_sittings_are_kept(client, seed_user):
     assert {row["form_version"] for row in exported} == {"tp-v1-2026-10-13"}
 
 
+def test_as_of_reads_the_sitting_current_at_that_instant(client, seed_user):
+    """`as_of` (the Situation Report's D-15 pin): the latest sitting created at or
+    before the instant; before the first sitting, every trait is unanswered."""
+    import datetime
+
+    from app import app
+    from assessment_store import (
+        export_person_side,
+        get_trait_preferences,
+        save_trait_preferences,
+    )
+    from model import db
+
+    seed_user(8401)
+    with app.app_context():
+        first = save_trait_preferences(db, 8401, _answered(under=0, over=0, must=("pace",)))
+        db.session.commit()
+        second = save_trait_preferences(db, 8401, _answered(under=2, over=1))
+        db.session.commit()
+        # Timestamps through the doorway (D-01: no test reads the table either).
+        stamps = {
+            row["sitting_id"]: datetime.datetime.fromisoformat(row["created_at"])
+            for row in export_person_side(8401)["trait_preferences"]
+        }
+        tick = datetime.timedelta(microseconds=1)
+
+        before_any = get_trait_preferences(db, 8401, as_of=stamps[first] - tick)
+        at_first = get_trait_preferences(db, 8401, as_of=stamps[first])
+        between = get_trait_preferences(db, 8401, as_of=stamps[second] - tick)
+        at_second = get_trait_preferences(db, 8401, as_of=stamps[second])
+        latest = get_trait_preferences(db, 8401)
+
+    assert stamps[first] < stamps[second], "fixture precondition: two transactions"
+    assert flat_zones(before_any) is None
+    assert not any(p.answered for p in before_any.values())
+    for prefs in (at_first, between):
+        assert {(p.under_steps, p.over_steps) for p in prefs.values()} == {(0, 0)}
+        assert must_have_keys(prefs) == {"pace"}
+    assert {(p.under_steps, p.over_steps) for p in at_second.values()} == {(2, 1)}
+    assert at_second == latest
+
+
+def test_first_after_reads_the_first_sitting_inside_the_window(client, seed_user):
+    """`first_trait_preferences_after` (the Situation Report's fallback): the FIRST
+    sitting strictly after `after` and strictly before `before`; none -> unanswered."""
+    import datetime
+
+    from app import app
+    from assessment_store import (
+        export_person_side,
+        first_trait_preferences_after,
+        save_trait_preferences,
+    )
+    from model import db
+
+    seed_user(8501)
+    with app.app_context():
+        first = save_trait_preferences(db, 8501, _answered(under=0, over=0))
+        db.session.commit()
+        second = save_trait_preferences(db, 8501, _answered(under=2, over=1, must=("pace",)))
+        db.session.commit()
+        third = save_trait_preferences(db, 8501, _answered(under=1, over=1))
+        db.session.commit()
+        stamps = {
+            row["sitting_id"]: datetime.datetime.fromisoformat(row["created_at"])
+            for row in export_person_side(8501)["trait_preferences"]
+        }
+
+        def steps(prefs):
+            return {(p.under_steps, p.over_steps) for p in prefs.values()}
+
+        from_start = first_trait_preferences_after(db, 8501, after=stamps[first] - datetime.timedelta(seconds=1))
+        after_first = first_trait_preferences_after(db, 8501, after=stamps[first])
+        closed = first_trait_preferences_after(
+            db, 8501, after=stamps[first], before=stamps[second]
+        )
+        after_last = first_trait_preferences_after(db, 8501, after=stamps[third])
+
+    assert steps(from_start) == {(0, 0)}
+    assert steps(after_first) == {(2, 1)} and must_have_keys(after_first) == {"pace"}
+    assert flat_zones(closed) is None  # `before` is strict
+    assert flat_zones(after_last) is None  # `after` is strict
+
+
 def test_the_store_refuses_three_must_haves_without_writing(client, seed_user):
     from app import app
     from assessment_store import get_trait_preferences, save_trait_preferences

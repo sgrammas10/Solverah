@@ -6,6 +6,7 @@
 import { useNavigate } from "react-router-dom";
 
 import TraitPreferencesStep from "./TraitPreferencesStep";
+import { RETAKE_SITTING_NOTE } from "./traitPreferencesCopy";
 
 export default function TraitPreferencesPage() {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ export default function TraitPreferencesPage() {
           <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-forest-mid">
             Work Pulse
           </p>
+          <p className="mb-4 text-sm text-forest-mid">{RETAKE_SITTING_NOTE}</p>
           <TraitPreferencesStep
             skipLabel="Cancel"
             onFinished={() => navigate("/work-pulse")}

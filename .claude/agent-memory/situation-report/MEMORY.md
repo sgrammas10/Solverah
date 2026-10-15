@@ -3,3 +3,4 @@
 - [F1/F2 wire shape](situation-f1-f2-wire-shape.md) — career_status_changed is complete-only; core_unreadable rides on needs_core (no new state), and why
 - [Default pin rule](default-pin-rule-2026-10-05.md) — 2026-10-05: anchored on first env report, falls forward; model-lane SQL must follow
 - [C4 tolerance + outcomes](c4-tolerance-and-outcomes-2026-10-13.md) — 2026-10-13: zones/must-have in the report, env-v3 outcome items, Skip UI rule, open hand-offs
+- [Tolerance pin](tolerance-pin-2026-10-14.md) — 2026-10-14: tolerance follows D-15; as-of anchor then first-step-after-pinned-sitting fallback; rulings on Qs

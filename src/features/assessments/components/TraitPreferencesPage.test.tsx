@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import TraitPreferencesPage from "./TraitPreferencesPage";
+import { RETAKE_SITTING_NOTE } from "./traitPreferencesCopy";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
@@ -50,6 +51,12 @@ describe("TraitPreferencesPage", () => {
   it("labels the way out 'Cancel', since leaving keeps the earlier answers", () => {
     renderPage();
     expect(mocks.stepProps?.skipLabel).toBe("Cancel");
+  });
+
+  it("tells the user when a change reaches the Situation Report", () => {
+    renderPage();
+    expect(screen.getByText(RETAKE_SITTING_NOTE)).toBeInTheDocument();
+    expect(RETAKE_SITTING_NOTE).toMatch(/Situation Report/);
   });
 
   it("returns to Work Pulse after a save", () => {

@@ -1523,16 +1523,43 @@ def _put_trait_preferences(client, csrf, steps=None, must=()):
     assert resp.status_code == 200, resp.get_json()
 
 
-def _complete_with_every_gap_over_by_point_four(client, monkeypatch, email):
+def _complete_with_every_gap_over_by_point_four(client, monkeypatch, email, tolerance=None):
     """Core answered uniformly (every person score 0.5) and every environment
     item at the `high` pole (0.9): six gaps of +0.4, all OVER, all straining
-    under today's thresholds."""
+    under today's thresholds.
+
+    *tolerance* (kwargs for `_put_trait_preferences`) is answered BETWEEN the core
+    sitting and the Environment Report -- the order the product asks them in -- so
+    it is the sitting the report's tolerance pin reads."""
     csrf = _register_and_login(client, monkeypatch, email=email)
     _set_career_status(client, csrf, "employed")
     _complete_core(client, csrf)
     assert set(_person_scores(email).values()) == {0.5}, "fixture precondition"
+    if tolerance is not None:
+        _put_trait_preferences(client, csrf, **tolerance)
     assert _submit_env(client, csrf, pole="high").status_code == 200
     return csrf
+
+
+def _recalibrate(client, csrf):
+    resp = client.post(
+        "/api/v1/me/situation-report/recalibrate", headers={"X-CSRF-TOKEN": csrf}
+    )
+    assert resp.status_code == 200, resp.get_json()
+    return resp.get_json()["recalibrated"]
+
+
+def _report_with_tolerance_unanswered(client, monkeypatch):
+    """The report as built with the tolerance read hard-coded to "never answered"
+    -- today's (pre-tolerance) report for this user, byte for byte."""
+    from solverah.domain.trait_preferences import unanswered_preferences
+
+    with monkeypatch.context() as patched:
+        patched.setattr(
+            "assessment_store.get_trait_preferences",
+            lambda _db, _user_id, **_kwargs: unanswered_preferences(),
+        )
+        return _get_report(client)
 
 
 def test_unanswered_tolerance_leaves_the_report_as_it_was(client, monkeypatch):
@@ -1555,8 +1582,6 @@ def test_unanswered_report_is_byte_identical_to_one_built_without_the_tolerance_
     """The service's tolerance read changes nothing for a user who never
     answered: the same response as a run where the read is replaced by a
     hard-coded "unanswered"."""
-    from solverah.domain.trait_preferences import unanswered_preferences
-
     email = "c4_unanswered_bytes@example.com"
     csrf = _register_and_login(client, monkeypatch, email=email)
     _set_career_status(client, csrf, "employed")
@@ -1564,22 +1589,19 @@ def test_unanswered_report_is_byte_identical_to_one_built_without_the_tolerance_
     _submit_env_by_dimension(client, csrf, {"autonomy": "high", "pace": "low", "decision": "leaning_low"})
 
     live = _get_report(client)
-    with monkeypatch.context() as patched:
-        patched.setattr(
-            "assessment_store.get_trait_preferences",
-            lambda _db, _user_id: unanswered_preferences(),
-        )
-        forced = _get_report(client)
+    forced = _report_with_tolerance_unanswered(client, monkeypatch)
 
     assert live.status_code == forced.status_code == 200
     assert live.get_data() == forced.get_data()
 
 
 def test_a_two_step_over_tolerance_puts_a_point_four_gap_in_aligned(client, monkeypatch):
-    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_zone@example.com")
     # Two steps MORE pace is fine (over zone 0.5); two steps LESS autonomy is
     # fine, which says nothing about an OVER gap (over zone stays 0.15).
-    _put_trait_preferences(client, csrf, steps={"pace": (0, 2), "autonomy": (2, 0)})
+    _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "c4_zone@example.com",
+        tolerance={"steps": {"pace": (0, 2), "autonomy": (2, 0)}},
+    )
 
     body = _get_report(client).get_json()
     by_dim = {d["dimension"]: d for d in body["dimensions"]}
@@ -1596,12 +1618,21 @@ def test_a_two_step_over_tolerance_puts_a_point_four_gap_in_aligned(client, monk
 
 
 def test_a_must_have_ranks_first_within_its_tier(client, monkeypatch):
-    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_must@example.com")
+    """Also the re-pin path: a must-have added after filing (a SECOND answer -- the
+    first, all zero steps, came before it) waits for Recalibrate (which needs a newer
+    core sitting), then ranks its trait first."""
+    csrf = _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "c4_must@example.com", tolerance={}
+    )
 
-    before = [d["dimension"] for d in _get_report(client).get_json()["dimensions"]]
+    filed = _get_report(client).get_json()
+    before = [d["dimension"] for d in filed["dimensions"]]
     last = before[-1]
     _put_trait_preferences(client, csrf, must=(last,))
+    assert _get_report(client).get_json() == filed
 
+    _complete_core(client, csrf)  # same answers, same person scores
+    assert _recalibrate(client, csrf) is True
     body = _get_report(client).get_json()
     after = [d["dimension"] for d in body["dimensions"]]
 
@@ -1613,11 +1644,14 @@ def test_a_must_have_ranks_first_within_its_tier(client, monkeypatch):
 
 def test_tolerance_report_still_carries_no_person_side_number(client, monkeypatch):
     """D-15 holds with tolerance on: the new fields are booleans, nothing else."""
-    csrf = _complete_with_every_gap_over_by_point_four(client, monkeypatch, "c4_d15@example.com")
-    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)}, must=("feedback",))
+    _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "c4_d15@example.com",
+        tolerance={"steps": {"pace": (0, 2)}, "must": ("feedback",)},
+    )
 
     body = _get_report(client).get_json()
 
+    assert body["tolerance_applied"] is True, "fixture precondition"
     for key, value in _walk(body):
         assert "person" not in key.lower()
         assert "gap" not in key.lower()
@@ -1635,8 +1669,8 @@ def test_needs_forward_report_with_tolerance_still_drops_aligned_rows(client, mo
     csrf = _register_and_login(client, monkeypatch, email=email)
     _set_career_status(client, csrf, "between_jobs")
     _complete_core(client, csrf)
-    assert _submit_env(client, csrf, pole="high").status_code == 200
     _put_trait_preferences(client, csrf, steps={"pace": (0, 2)}, must=("decision",))
+    assert _submit_env(client, csrf, pole="high").status_code == 200
 
     body = _get_report(client).get_json()
 
@@ -1645,6 +1679,144 @@ def test_needs_forward_report_with_tolerance_still_drops_aligned_rows(client, mo
     assert "pace" not in dims
     assert dims[0] == "decision"
     assert body["dimensions"][0]["must_have"] is True
+
+
+# ── The tolerance pin (Sebastian, 2026-10-14: "tolerance follows D-15") ───────
+#
+# The report reads the tolerance sitting current when it came into being: the later
+# of the first current Environment Report and the person-side pin (the explicit
+# override's `pinned_at`, else the default sitting's `completed_at`). A change after
+# that waits for the next re-pin.
+
+
+def test_a_tolerance_change_after_filing_leaves_the_report_byte_identical(client, monkeypatch):
+    """The probe the pin closes: re-answering tolerance and re-reading must not move
+    a single bucket. Re-filing the Environment Report does not re-anchor it either."""
+    csrf = _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "pin_tol_change@example.com",
+        tolerance={"steps": {"pace": (0, 2)}},
+    )
+    filed = _get_report(client)
+    assert filed.get_json()["tolerance_applied"] is True, "fixture precondition"
+
+    _put_trait_preferences(client, csrf, steps={"autonomy": (0, 2)}, must=("decision",))
+    assert _get_report(client).get_data() == filed.get_data()
+
+    assert _submit_env(client, csrf, pole="high").status_code == 200
+    by_dim = {d["dimension"]: d for d in _get_report(client).get_json()["dimensions"]}
+    assert by_dim["pace"]["bucket"] == "aligned"
+    assert by_dim["autonomy"]["bucket"] == "straining"
+    assert not any(d["must_have"] for d in by_dim.values())
+
+
+def test_after_a_repin_the_latest_tolerance_applies_and_is_pinned_again(client, monkeypatch):
+    csrf = _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "pin_tol_repin@example.com",
+        tolerance={"steps": {"pace": (0, 2)}},
+    )
+    _put_trait_preferences(client, csrf, steps={"autonomy": (0, 2)})
+
+    # Recalibrate with no newer core sitting is a no-op, tolerance and all.
+    assert _recalibrate(client, csrf) is False
+    by_dim = {d["dimension"]: d for d in _get_report(client).get_json()["dimensions"]}
+    assert (by_dim["pace"]["bucket"], by_dim["autonomy"]["bucket"]) == ("aligned", "straining")
+
+    _complete_core(client, csrf)  # same answers, same person scores
+    assert _recalibrate(client, csrf) is True
+    repinned = _get_report(client)
+    by_dim = {d["dimension"]: d for d in repinned.get_json()["dimensions"]}
+    assert (by_dim["pace"]["bucket"], by_dim["autonomy"]["bucket"]) == ("straining", "aligned")
+
+    # The explicit pin's own moment is the new anchor: a change after it waits too.
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)})
+    assert _get_report(client).get_data() == repinned.get_data()
+
+
+def test_a_first_answer_after_filing_applies_once_and_a_second_waits_for_a_repin(
+    client, monkeypatch
+):
+    """No tolerance sitting by the anchor: the FIRST sitting after the pinned core
+    sitting is the step that belongs to it, so a user who skipped it and answers later
+    gets that answer once (one first answer is not a probe). A second change is."""
+    csrf = _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "pin_tol_late@example.com"
+    )
+    filed = _get_report(client)
+    assert filed.get_json()["tolerance_applied"] is False, "fixture precondition"
+    assert filed.get_data() == _report_with_tolerance_unanswered(client, monkeypatch).get_data()
+
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)}, must=("decision",))
+    first = _get_report(client)
+    body = first.get_json()
+    by_dim = {d["dimension"]: d for d in body["dimensions"]}
+    assert body["tolerance_applied"] is True
+    assert by_dim["pace"]["bucket"] == "aligned"
+    assert body["dimensions"][0]["dimension"] == "decision"
+
+    _put_trait_preferences(client, csrf, steps={"autonomy": (0, 2)})
+    assert _get_report(client).get_data() == first.get_data()
+
+    _complete_core(client, csrf)  # same answers, same person scores
+    assert _recalibrate(client, csrf) is True
+    by_dim = {d["dimension"]: d for d in _get_report(client).get_json()["dimensions"]}
+    assert (by_dim["pace"]["bucket"], by_dim["autonomy"]["bucket"]) == ("straining", "aligned")
+
+
+def test_a_first_answer_after_a_later_core_retake_belongs_to_the_retake(client, monkeypatch):
+    """The first-step window closes at the next core sitting: an answer given after a
+    retake the report is not pinned to waits for Recalibrate onto that retake."""
+    csrf = _complete_with_every_gap_over_by_point_four(
+        client, monkeypatch, "pin_tol_after_retake@example.com"
+    )
+    filed = _get_report(client)
+
+    _complete_core(client, csrf)  # a retake, not recalibrated onto
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)})
+    assert _get_report(client).get_data() == filed.get_data()
+
+    assert _recalibrate(client, csrf) is True
+    body = _get_report(client).get_json()
+    assert body["tolerance_applied"] is True
+    assert {d["dimension"]: d["bucket"] for d in body["dimensions"]}["pace"] == "aligned"
+
+
+def test_env_first_tolerance_answered_after_the_completing_sitting_applies(
+    client, monkeypatch
+):
+    """Report filed before core: the report comes into being when its core sitting
+    completes, and the tolerance step right after that sitting belongs to it, so it
+    applies -- and a second change waits for a re-pin."""
+    email = "pin_tol_env_first@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf, pole="high").status_code == 200
+    _complete_core(client, csrf)
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)})
+
+    applied = _get_report(client)
+    body = applied.get_json()
+    assert body["state"] == "complete"
+    assert body["tolerance_applied"] is True
+    assert {d["dimension"]: d["bucket"] for d in body["dimensions"]}["pace"] == "aligned"
+
+    _put_trait_preferences(client, csrf, steps={"autonomy": (0, 2)})
+    assert _get_report(client).get_data() == applied.get_data()
+
+
+def test_env_first_tolerance_answered_before_the_completing_sitting_applies(
+    client, monkeypatch
+):
+    email = "pin_tol_env_first_before@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _set_career_status(client, csrf, "employed")
+    assert _submit_env(client, csrf, pole="high").status_code == 200
+    _put_trait_preferences(client, csrf, steps={"pace": (0, 2)})
+    _complete_core(client, csrf)
+
+    body = _get_report(client).get_json()
+    by_dim = {d["dimension"]: d for d in body["dimensions"]}
+    assert body["tolerance_applied"] is True
+    assert by_dim["pace"]["bucket"] == "aligned"
 
 
 # ── The five optional exploratory outcomes (PRODUCT_DECISIONS.md §2, 2026-10-13) ──

@@ -4,3 +4,4 @@
 - [FocusType after fix wave 2026-10-02](focustype-scene-defects-2026-10-02.md) — fixes landed; touch-action is manipulation ON PURPOSE; 3000ms rule dead (Julie); spec missing
 - [Trait preferences (C1)](trait-preferences-c1.md) — tolerance + must-have step built 2026-10-13; 400 vs 422 split; D-15 position question open
 - [CompanyLens teaser live](companylens-teaser-live.md) — legacy results page links /company-lens; D-15 no-links pin is completion-card only
+- [Retake-page sitting note](trait-prefs-retake-note.md) — D-15 line on /trait-preferences only; keep off the first-time step

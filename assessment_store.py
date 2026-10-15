@@ -67,6 +67,7 @@ __all__ = [
     "dimension_scores_for_submission",
     "export_person_side",
     "first_completed_core_submission_id",
+    "first_trait_preferences_after",
     "get_dimension_confidences",
     "get_dimension_scores",
     "get_trait_preferences",
@@ -428,37 +429,86 @@ def latest_core_completed_at(user_id: int):
     return row[0] if row is not None else None
 
 
-def get_trait_preferences(db, user_id: int) -> dict[str, TraitPreference]:
-    """The user's per-trait tolerance and must-have flags, from their LATEST sitting.
+def get_trait_preferences(
+    db, user_id: int, *, as_of: datetime | None = None
+) -> dict[str, TraitPreference]:
+    """The user's per-trait tolerance and must-have flags, from their LATEST sitting --
+    or, with *as_of*, from the latest sitting created at or before that instant.
 
     THE sanctioned read for the six-trait match model's person-side preferences
     (PRODUCT_DECISIONS.md §2, 2026-10-13): the Situation Report and the match service
     read tolerance through here, never through the table.
+
+    *as_of* (an aware datetime) is the Situation Report's D-15 pin (Sebastian,
+    2026-10-14: "tolerance follows D-15"): the report reads the sitting that was current
+    when its pin took hold, so a later tolerance change does nothing until the next
+    re-pin. A user whose first sitting is newer than *as_of* reads as UNANSWERED here;
+    the report then asks `first_trait_preferences_after` for the step that followed its
+    pinned core sitting. Sittings are append-only, so the answer for a fixed
+    *as_of* never changes. The match service passes no *as_of* and reads the latest.
 
     Always all six keys. A user with no sitting gets every trait UNANSWERED
     (steps None, must_have False, answered False) -- which means "today's behaviour"
     downstream, never a default tolerance. `solverah.domain.trait_preferences.flat_zones`
     turns the result into zones, or None for an unanswered user.
 
-    One statement: the latest sitting is the one holding the user's highest row id,
-    found by a scalar subquery on `ix_ptpref_user_latest`.
+    One statement: the latest sitting is the one holding the user's highest row id
+    (among rows created at or before *as_of*, when given), found by a scalar subquery
+    on `ix_ptpref_user_latest`. A sitting's six rows share one `created_at` (one
+    flush, one transaction's `now()`), so the cut never splits a sitting.
     """
+    from sqlalchemy import select
+
+    from model import PersonTraitPreference as Pref
+
+    latest_sitting = select(Pref.sitting_id).where(Pref.user_id == user_id)
+    if as_of is not None:
+        latest_sitting = latest_sitting.where(Pref.created_at <= as_of)
+    latest_sitting = latest_sitting.order_by(Pref.id.desc()).limit(1).scalar_subquery()
+    return _trait_preferences_of_sitting(db, user_id, latest_sitting)
+
+
+def first_trait_preferences_after(
+    db, user_id: int, *, after: datetime, before: datetime | None = None
+) -> dict[str, TraitPreference]:
+    """The user's FIRST tolerance sitting created strictly after *after* (and strictly
+    before *before*, when given), in `get_trait_preferences`' shape -- every trait
+    UNANSWERED when there is none in that window.
+
+    The Situation Report's fallback for its D-15 tolerance pin (orchestrator ruling
+    2026-10-14): a user with no sitting by the report's anchor gets the tolerance step
+    that followed the pinned core sitting -- *after* is that sitting's `completed_at`,
+    *before* the next core sitting's, if any. "First", not "latest": the step belongs
+    to that core sitting, and a later change waits for a re-pin. Append-only rows, so
+    once a sitting exists in the window this answer never changes.
+
+    Same single statement as `get_trait_preferences`, lowest row id instead of highest.
+    """
+    from sqlalchemy import select
+
+    from model import PersonTraitPreference as Pref
+
+    first_sitting = select(Pref.sitting_id).where(
+        Pref.user_id == user_id, Pref.created_at > after
+    )
+    if before is not None:
+        first_sitting = first_sitting.where(Pref.created_at < before)
+    first_sitting = first_sitting.order_by(Pref.id.asc()).limit(1).scalar_subquery()
+    return _trait_preferences_of_sitting(db, user_id, first_sitting)
+
+
+def _trait_preferences_of_sitting(db, user_id: int, sitting_subquery) -> dict[str, TraitPreference]:
+    """All six traits of the one sitting *sitting_subquery* selects; unanswered when it
+    selects none."""
     from sqlalchemy import select
 
     from model import PersonTraitPreference as Pref
     from solverah.domain.trait_preferences import unanswered_preferences
 
-    latest_sitting = (
-        select(Pref.sitting_id)
-        .where(Pref.user_id == user_id)
-        .order_by(Pref.id.desc())
-        .limit(1)
-        .scalar_subquery()
-    )
     rows = db.session.execute(
         select(
             Pref.dimension_key, Pref.under_steps, Pref.over_steps, Pref.must_have
-        ).where(Pref.user_id == user_id, Pref.sitting_id == latest_sitting)
+        ).where(Pref.user_id == user_id, Pref.sitting_id == sitting_subquery)
     ).all()
 
     prefs = unanswered_preferences()

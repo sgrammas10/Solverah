@@ -39,3 +39,7 @@ export const TOLERANCE_OPTIONS: { steps: ToleranceSteps; label: string }[] = [
   { steps: 1, label: "A little is fine" },
   { steps: 2, label: "A lot is fine" },
 ];
+
+/** Shown on the retake page only: the first-time step counts for its own sitting. */
+export const RETAKE_SITTING_NOTE =
+  "Changes show up in CompanyLens right away. Your Situation Report picks them up the next time you re-read it against a new Work Pulse.";

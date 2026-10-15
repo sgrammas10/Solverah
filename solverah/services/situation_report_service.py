@@ -48,9 +48,33 @@ TOLERANCE AND MUST-HAVES (PRODUCT_DECISIONS.md §2, "The six-trait match model")
 --------------------------------------------------------------------------------
 The `complete` read also fetches the user's per-trait tolerance and must-have flags
 (`assessment_store.get_trait_preferences`, the D-01 doorway) and hands the flat
-zones to `work_pulse.situation`. Unlike the person-side scores these are NOT
-pinned: they are the user's own statement of what is fine, read from the latest
-sitting. A user who never answered gets `zones=None` and today's report.
+zones to `work_pulse.situation`. A user who never answered gets `zones=None` and
+today's report.
+
+THE TOLERANCE PIN (Sebastian, 2026-10-14: "tolerance follows D-15"). Tolerance is
+pinned with the person side, for the same reason: a user who could change it and
+re-read at will would watch buckets flip at 0.15/0.25/0.35/0.5/0.6 and back out
+their own gap. The sitting the report reads (`_pinned_trait_preferences`):
+
+1. the latest tolerance sitting created at or before the moment the pinned report
+   came into being (`_tolerance_as_of`) -- the LATER of the user's first current
+   Environment Report (the default pin's anchor) and the moment the person-side pin
+   took hold (the explicit override's `pinned_at`, or, on the default, the resolved
+   sitting's `completed_at`: later than the report only when the report was filed
+   before core, or fell forward); or, if there is none,
+2. the FIRST tolerance sitting created after the pinned core sitting's
+   `completed_at` and before the next core sitting's, if any -- the step that
+   follows the assessment belongs to that sitting (orchestrator ruling,
+   2026-10-14). This is what lets a user who filed the Environment Report before
+   core, or skipped the step and answered it later, have that first answer apply
+   once: a single first answer is not a probe;
+3. otherwise unanswered: `zones=None`, today's report bit for bit.
+
+Either way the choice is fixed once made (append-only rows, fixed bounds), so a
+SECOND change does nothing until Recalibrate moves the pin, which needs a newer
+core sitting (Recalibrate is idempotent otherwise; Sebastian's "next fixed sitting"
+-- there is no tolerance-only re-pin). A re-filed Environment Report re-anchors
+nothing, and a tolerance answer after a later core retake belongs to that retake.
 
 PAST-JOB REPORTS (PRODUCT_DECISIONS.md §2, Sebastian, 2026-10-01)
 -----------------------------------------------------------------
@@ -132,48 +156,117 @@ def _live_career_status(user_id: int) -> Optional[str]:
     return status
 
 
-def _default_pin(user_id: int) -> tuple[Optional[str], Optional[dict]]:
-    """(submission_id, person_scores) for a user with no explicit override -- the
-    rule in the module docstring. (None, None) when no core sitting row exists;
-    (anchor_id, None) when neither the anchor nor any later sitting is readable.
+#: `_default_pin`'s "anchor not read yet" marker -- None already means "no
+#: Environment Report", so it cannot double as "not looked up".
+_UNREAD = object()
+
+
+def _default_pin(
+    user_id: int, anchor_at: Any = _UNREAD
+) -> tuple[Optional[str], Optional[dict], Optional[datetime.datetime]]:
+    """(submission_id, person_scores, completed_at) for a user with no explicit
+    override -- the rule in the module docstring; `completed_at` is the resolved
+    sitting's. (None, None, None) when no core sitting row exists; (anchor_id, None,
+    its completed_at) when neither the anchor nor any later sitting is readable.
 
     A single sitting needs no anchor: it is the only answer, so the Environment
-    Report timestamp is read only once there is a choice to make."""
+    Report timestamp is read only once there is a choice to make. A caller that has
+    already read it (`_situation_report` needs it for the tolerance pin) passes it as
+    *anchor_at* so it is not read twice."""
     import assessment_store
     import environment_report_store
 
     sittings = assessment_store.completed_core_sittings(user_id)
     if not sittings:
-        return None, None
+        return None, None, None
 
     start = len(sittings) - 1
     if len(sittings) > 1:
-        anchor_at = environment_report_store.first_environment_report_submitted_at(user_id)
+        if anchor_at is _UNREAD:
+            anchor_at = environment_report_store.first_environment_report_submitted_at(user_id)
         if anchor_at is not None:
             at_or_before = [
                 i for i, (_, completed_at) in enumerate(sittings) if completed_at <= anchor_at
             ]
             start = at_or_before[-1] if at_or_before else 0
 
-    for submission_id, _completed_at in sittings[start:]:
+    for submission_id, completed_at in sittings[start:]:
         scores = assessment_store.dimension_scores_for_submission(submission_id)
         if scores is not None:
-            return submission_id, scores
-    return sittings[start][0], None
+            return submission_id, scores, completed_at
+    return sittings[start][0], None, sittings[start][1]
 
 
-def _pinned_sitting(user_id: int) -> tuple[Optional[str], Optional[dict]]:
-    """(submission_id, person_scores) the Situation Report reads: the explicit
-    recalibrate override if one was ever written (never fallen forward from), else
-    `_default_pin`. Scores are None when the resolved sitting cannot be read."""
+def _resolve_pin(
+    user_id: int, anchor_at: Any = _UNREAD
+) -> tuple[Optional[str], Optional[dict], Optional[datetime.datetime]]:
+    """(submission_id, person_scores, pinned_at): `_pinned_sitting` plus the moment
+    the pin took hold on the person side -- the explicit override's `pinned_at` (when
+    Recalibrate last moved it), else the default's resolved sitting's `completed_at`.
+    `_tolerance_as_of` turns that into the tolerance pin."""
     import assessment_store
     import situation_report_pin_store
 
     override = situation_report_pin_store.explicit_pin(user_id)
     if override is not None:
         submission_id = override["submission_id"]
-        return submission_id, assessment_store.dimension_scores_for_submission(submission_id)
-    return _default_pin(user_id)
+        return (
+            submission_id,
+            assessment_store.dimension_scores_for_submission(submission_id),
+            datetime.datetime.fromisoformat(override["pinned_at"]),
+        )
+    return _default_pin(user_id, anchor_at)
+
+
+def _pinned_sitting(user_id: int) -> tuple[Optional[str], Optional[dict]]:
+    """(submission_id, person_scores) the Situation Report reads: the explicit
+    recalibrate override if one was ever written (never fallen forward from), else
+    `_default_pin`. Scores are None when the resolved sitting cannot be read.
+
+    Kept at two values: `causal_graph/v1_model/devfit/explain_user.py` unpacks it."""
+    submission_id, scores, _pinned_at = _resolve_pin(user_id)
+    return submission_id, scores
+
+
+def _tolerance_as_of(
+    first_report_at: datetime.datetime, pinned_at: datetime.datetime
+) -> datetime.datetime:
+    """The instant the report reads tolerance AS OF -- the TOLERANCE PIN in the module
+    docstring: when the pinned report came into being, the later of the user's first
+    current Environment Report and the moment the person-side pin took hold
+    (`_resolve_pin`'s third value). Both inputs are fixed facts, so this never moves
+    until Recalibrate moves `pinned_at`."""
+    return max(first_report_at, pinned_at)
+
+
+def _pinned_trait_preferences(
+    user_id: int, submission_id: str, as_of: datetime.datetime
+) -> dict:
+    """The tolerance sitting the report reads -- the TOLERANCE PIN in the module
+    docstring: the latest sitting at or before *as_of*; failing that, the FIRST sitting
+    after the pinned core sitting completed and before the next core sitting (the step
+    that belongs to it); failing that, every trait unanswered.
+
+    The fallback costs two more reads, and only for a user with no sitting by the
+    anchor. A pinned sitting not in `completed_core_sittings` (no completion time)
+    has no window and reads as unanswered."""
+    import assessment_store
+    from solverah.domain import trait_preferences
+
+    prefs = assessment_store.get_trait_preferences(db, user_id, as_of=as_of)
+    if trait_preferences.flat_zones(prefs) is not None:
+        return prefs
+
+    sittings = assessment_store.completed_core_sittings(user_id)
+    ids = [sid for sid, _completed_at in sittings]
+    if submission_id not in ids:
+        return prefs
+    index = ids.index(submission_id)
+    after = sittings[index][1]
+    before = sittings[index + 1][1] if index + 1 < len(sittings) else None
+    return assessment_store.first_trait_preferences_after(
+        db, user_id, after=after, before=before
+    )
 
 
 def _pinned_submission_id(user_id: int) -> Optional[str]:
@@ -580,7 +673,10 @@ def _situation_report(user: User) -> SituationReportResult:
             },
         )
 
-    _submission_id, person_scores = _pinned_sitting(user.id)
+    # Read once here: the default pin needs it to pick a sitting, and the tolerance
+    # pin needs it whatever kind of pin is in force.
+    first_report_at = environment_report_store.first_environment_report_submitted_at(user.id)
+    submission_id, person_scores, pinned_at = _resolve_pin(user.id, first_report_at)
     if person_scores is None:
         # `has_completed_assessment` said a current-instrument sitting exists, but
         # the pinned one has no readable scores: no core submission row behind the
@@ -594,10 +690,13 @@ def _situation_report(user: User) -> SituationReportResult:
         return SituationReportResult(status=200, body=body)
 
     # The user's stated tolerance and must-haves, read through the D-01 doorway
-    # (PRODUCT_DECISIONS.md §2, "The six-trait match model"). Latest sitting, not
-    # pinned: it is the user's own statement of what is fine, not a measurement.
-    # Never answered -> zones None, no must-haves -> today's report exactly.
-    trait_prefs = assessment_store.get_trait_preferences(db, user.id)
+    # (PRODUCT_DECISIONS.md §2, "The six-trait match model"), PINNED with the person
+    # side (Sebastian, 2026-10-14): the sitting current when the report came into
+    # being, else the first step after the pinned core sitting; a later change waits
+    # for the next re-pin. Neither -> zones None, no must-haves -> today's report.
+    trait_prefs = _pinned_trait_preferences(
+        user.id, submission_id, _tolerance_as_of(first_report_at, pinned_at)
+    )
     zones = trait_preferences.flat_zones(trait_prefs)
     must_haves = trait_preferences.must_have_keys(trait_prefs)
 
