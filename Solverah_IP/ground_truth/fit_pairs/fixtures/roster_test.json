@@ -1,8 +1,10 @@
 {
-  "_note": "TEST ONLY. Z is a fictional eligible rater used by the page and analysis tests; A and D mirror the real roster's exclusions.",
+  "_note": "TEST ONLY. W, X, Y, Z are fictional eligible raters used by the page and analysis tests; A and D mirror the real roster (A sets the weights and is refused; D is eligible but knows the model's design, so the twin report drops him); E is an unnamed reserved slot.",
   "raters": [
-    {"rater_id": "A", "name": "Julie", "eligible": false, "sets_weights": true, "why_excluded": "set the weights"},
-    {"rater_id": "D", "name": "Sebastian", "eligible": false, "sets_weights": true, "why_excluded": "reference rater, may set the weights"},
+    {"rater_id": "A", "name": "Julie", "eligible": false, "sets_weights": true, "knows_model_design": true, "why_excluded": "set the weights"},
+    {"rater_id": "D", "name": "Sebastian", "eligible": true, "sets_weights": false, "knows_model_design": true, "why_excluded": null},
+    {"rater_id": "E", "name": null, "eligible": false, "sets_weights": false, "knows_model_design": false, "why_excluded": "reserved slot"},
+    {"rater_id": "W", "name": "test rater W", "eligible": true, "sets_weights": false},
     {"rater_id": "X", "name": "test rater X", "eligible": true, "sets_weights": false},
     {"rater_id": "Y", "name": "test rater Y", "eligible": true, "sets_weights": false},
     {"rater_id": "Z", "name": "test rater Z", "eligible": true, "sets_weights": false}

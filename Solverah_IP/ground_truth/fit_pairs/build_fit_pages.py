@@ -8,7 +8,9 @@ browser blocks saving.
     python build_fit_pages.py --rater E            # out/fit_pairs_raterE.html
     python build_fit_pages.py --preview            # out/fit_pairs_PREVIEW.html (analysis refuses it)
 
-Refuses any rater who is not in roster.json, is not eligible, or set the weights. Also
+Refuses any rater who is not in roster.json, is not eligible, has no name yet (a reserved
+slot), or set the weights (Julie, A). Sebastian (D) is eligible since the 2026-10-14
+amendment: the weights are Julie's alone. Also
 (re)writes pair_specs.json, the hook matching-model scores, so the page and the hook can
 never come from different designs: the page carries the spec's sha256 and the analysis
 refuses a return whose sha does not match.
@@ -52,6 +54,9 @@ def check_rater(rater: str, roster_path: Path) -> None:
     if not entry.get("eligible"):
         raise RosterError("rater %r (%s) is not eligible: %s"
                           % (rater, entry.get("name"), entry.get("why_excluded")))
+    if not entry.get("name"):
+        raise RosterError("rater %r has no name in %s: fill the slot with the real person first"
+                          % (rater, roster_path.name))
 
 
 # ---------------------------------------------------------------------------

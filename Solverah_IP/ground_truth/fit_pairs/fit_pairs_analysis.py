@@ -13,11 +13,18 @@ Order of operations (prereg section 5), each step able to stop the run:
   0. Cross-check the model's flags against the spec's weight-free gate restatement. A
      mismatch is a claim about the spec or the model, not about raters: stop and report.
   1. Eligibility. A return from a rater who set the weights is REFUSED (raises), never
-     silently dropped: Julie (A) and Sebastian (D) are excluded by rule.
+     silently dropped: Julie (A) is excluded by rule. Sebastian (D) is ELIGIBLE (amendment
+     2026-10-14: the weights are Julie's alone) but knows the model's design, so roster.json
+     marks him `knows_model_design`.
   2. Agreement between raters, first. Below the gate, no conclusion about the model.
   3. Raters vs the model: stratified Kendall tau-b inside blocks, per rater and for the
      consensus (median rating).
   4. Pre-registered contrasts and repeats.
+
+Twin report (amendment 2026-10-14, section b): steps 1-4 run twice, on all eligible raters
+and with every `knows_model_design` rater (D) excluded. Where the two disagree on any verdict
+(the overall verdict, the agreement gate, the consensus band, or any contrast), the
+excluding-D result GOVERNS and the disagreement is reported.
 
 Stdlib only. Every print is ASCII (cp1252 console).
 """
@@ -49,6 +56,7 @@ DEFAULTS_STAND_TAU = 0.50      # consensus tau-b at or above: defaults stand
 REVIEW_TAU = 0.20              # consensus tau-b below: open a weights review
 MIN_RATERS_PER_PAIR = 2        # non-abstaining ratings for a pair to enter the consensus
 Z_TIE = 1e-9                   # model z values closer than this are a tie
+KNOWS_DESIGN_FLAG = "knows_model_design"   # roster flag: rated, but reported twice (D)
 
 
 class AnalysisError(Exception):
@@ -82,6 +90,10 @@ def load_roster(path: Path) -> dict[str, dict[str, Any]]:
 
 def is_eligible(entry: dict[str, Any]) -> bool:
     return bool(entry.get("eligible")) and not entry.get("sets_weights")
+
+
+def knows_design(entry: dict[str, Any]) -> bool:
+    return bool(entry.get(KNOWS_DESIGN_FLAG))
 
 
 @dataclass
@@ -344,13 +356,17 @@ class Report:
     verdict: str
     lines: list[str] = field(default_factory=list)
     numbers: dict[str, Any] = field(default_factory=dict)
+    # Machine-readable verdict, compared across the twin report: STOP, DESCRIPTIVE_ONLY,
+    # NO_CONCLUSION_DISAGREE, NO_CONCLUSION_NO_CONSENSUS, WEIGHTS_REVIEW, EXAMINE, DEFAULTS_STAND.
+    code: str = ""
 
 
 def analyse(spec, spec_sha, model, returns: Sequence[RaterReturn]) -> Report:
     problems = cross_check_model(spec, model)
     if problems:
         return Report("0-cross-check", "STOP: the model's output disagrees with the spec's gate "
-                      "rules. Fix the spec or the adapter before reading any rater.", problems)
+                      "rules. Fix the spec or the adapter before reading any rater.", problems,
+                      code="STOP")
 
     counted = [r for r in returns if complete_blocks(spec, r) >= MIN_BLOCKS_PER_RATER]
     rep = Report("1-eligibility", "", numbers={"raters_returned": len(returns),
@@ -363,6 +379,8 @@ def analyse(spec, spec_sha, model, returns: Sequence[RaterReturn]) -> Report:
     if len(counted) < MIN_RATERS:
         rep.verdict = ("DESCRIPTIVE ONLY: %d rater(s) with >= %d complete blocks; the rules need %d."
                        % (len(counted), MIN_BLOCKS_PER_RATER, MIN_RATERS))
+        rep.code = "DESCRIPTIVE_ONLY"
+        _describe(spec, model, counted, rep)
         return rep
 
     pairwise = [tau_between(spec, a.first(), b.first()) for a, b in combinations(counted, 2)]
@@ -373,6 +391,7 @@ def analyse(spec, spec_sha, model, returns: Sequence[RaterReturn]) -> Report:
     if inter is None or inter < GATE_INTER_RATER_TAU:
         rep.verdict = ("NO CONCLUSION ABOUT THE MODEL: raters do not agree with each other "
                        "(gate %.2f). Defaults stand by default, not by evidence." % GATE_INTER_RATER_TAU)
+        rep.code = "NO_CONCLUSION_DISAGREE"
         return rep
 
     rep.stage = "3-model"
@@ -405,16 +424,115 @@ def analyse(spec, spec_sha, model, returns: Sequence[RaterReturn]) -> Report:
 
     if T is None:
         rep.verdict = "NO CONCLUSION: no rankable pairs with a consensus."
+        rep.code = "NO_CONCLUSION_NO_CONSENSUS"
     elif T < REVIEW_TAU:
         rep.verdict = ("OPEN A WEIGHTS REVIEW: consensus tau-b %.2f < %.2f. Pre-registration "
                        "conversation with matching-model and Sebastian before anything changes." % (T, REVIEW_TAU))
+        rep.code = "WEIGHTS_REVIEW"
     elif T < DEFAULTS_STAND_TAU or failed:
         rep.verdict = ("EXAMINE THE FAILED CONTRASTS: consensus tau-b %.2f; failing: %s. Each failure "
                        "proposes a change to the named default, through the pre-registration route."
                        % (T, ", ".join(c["contrast_id"] for c in failed) or "none"))
+        rep.code = "EXAMINE"
     else:
         rep.verdict = "DEFAULTS STAND: consensus tau-b %.2f >= %.2f and no contrast fails." % (T, DEFAULTS_STAND_TAU)
+        rep.code = "DEFAULTS_STAND"
     return rep
+
+
+# ---------------------------------------------------------------------------
+# The twin report (amendment 2026-10-14, section b)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class TwinReport:
+    all_raters: Report
+    excluding: Report               # without every knows_model_design rater
+    excluded_ids: list[str]         # which returns were dropped for `excluding` (e.g. ["D"])
+    disagreements: list[str]
+
+    @property
+    def governing(self) -> Report:
+        """The excluding-D report always governs: when the two agree it says the same thing,
+        and when they disagree the amendment makes it the one that counts."""
+        return self.excluding
+
+
+def _gate(rep: Report) -> str:
+    """The agreement gate's outcome: pass, fail, or not reached (cross-check or rater count)."""
+    inter = rep.numbers.get("inter_rater_tau_mean", "missing")
+    if inter == "missing":
+        return "not reached"
+    return "pass" if inter is not None and inter >= GATE_INTER_RATER_TAU else "fail"
+
+
+def _band(rep: Report) -> str:
+    t = rep.numbers.get("consensus_tau", "missing")
+    if t == "missing":
+        return "not reached"
+    if t is None:
+        return "no consensus"
+    return "review" if t < REVIEW_TAU else "examine" if t < DEFAULTS_STAND_TAU else "stand"
+
+
+def _contrast_states(rep: Report, spec) -> dict[str, str]:
+    if "contrasts_failed" not in rep.numbers:
+        return {c["contrast_id"]: "not reached" for c in spec["contrasts"]}
+    failed = set(rep.numbers["contrasts_failed"])
+    return {c["contrast_id"]: ("fails" if c["contrast_id"] in failed else "holds") for c in spec["contrasts"]}
+
+
+def compare_reports(spec, a: Report, b: Report) -> list[str]:
+    """Every verdict on which the two reports differ, in the prereg's order: the agreement
+    gate first, then the consensus band, then each contrast, then the overall verdict."""
+    out = []
+    if _gate(a) != _gate(b):
+        out.append("agreement gate: all raters %s, excluding D %s" % (_gate(a), _gate(b)))
+    if _band(a) != _band(b):
+        out.append("consensus tau-b band: all raters %s, excluding D %s" % (_band(a), _band(b)))
+    ca, cb = _contrast_states(a, spec), _contrast_states(b, spec)
+    for cid in ca:
+        if ca[cid] != cb[cid]:
+            out.append("%s: all raters %s, excluding D %s" % (cid, ca[cid], cb[cid]))
+    if a.code != b.code:
+        out.append("overall verdict: all raters %s, excluding D %s" % (a.code, b.code))
+    return out
+
+
+def analyse_twin(spec, spec_sha, model, returns: Sequence[RaterReturn],
+                 roster: dict[str, dict[str, Any]]) -> TwinReport:
+    flagged = [r.rater for r in returns if knows_design(roster.get(r.rater, {}))]
+    kept = [r for r in returns if r.rater not in flagged]
+    a = analyse(spec, spec_sha, model, returns)
+    b = analyse(spec, spec_sha, model, kept)
+    return TwinReport(a, b, flagged, compare_reports(spec, a, b))
+
+
+def _describe(spec, model, counted: Sequence[RaterReturn], rep: Report) -> None:
+    """Prereg section 6, "DESCRIPTIVE ONLY: report numbers, decide nothing". The same
+    statistics, kept under numbers["descriptive"] so no verdict comparison reads them as a
+    gate or a band. Inter-rater agreement needs 2 counted raters (one pair); so do the
+    consensus and the contrasts (MIN_RATERS_PER_PAIR)."""
+    desc: dict[str, Any] = {}
+    if len(counted) >= 2:
+        pairwise = [t for t in (tau_between(spec, a.first(), b.first())
+                                for a, b in combinations(counted, 2)) if t is not None]
+        desc["inter_rater_tau_mean"] = statistics.mean(pairwise) if pairwise else None
+        rep.lines.append("descriptive: inter-rater tau-b, mean of %d pairs: %s"
+                         % (len(pairwise), _f(desc["inter_rater_tau_mean"])))
+    for r in counted:
+        desc["tau_%s" % r.rater] = tau_vs_model(spec, model, r.first())
+        rep.lines.append("descriptive: rater %s vs model: tau-b %s; repeats %s"
+                         % (r.rater, _f(desc["tau_%s" % r.rater]), json.dumps(repeat_consistency(r))))
+    if len(counted) >= 2:
+        cons = consensus(spec, counted)
+        desc["consensus_tau"] = tau_vs_model(spec, model, cons)
+        results = [contrast_result(c, model, counted, cons) for c in spec["contrasts"]]
+        desc["contrasts_against_model"] = [c["contrast_id"] for c in results if c["fails"]]
+        rep.lines.append("descriptive: consensus vs model: tau-b %s; contrasts the raters read "
+                         "against the model: %s" % (_f(desc["consensus_tau"]),
+                                                    ", ".join(desc["contrasts_against_model"]) or "none"))
+    rep.numbers["descriptive"] = desc
 
 
 def _f(v: Optional[float]) -> str:
@@ -432,11 +550,22 @@ def main(argv: Optional[list[str]] = None) -> int:
     roster = load_roster(a.roster)
     returns = load_returns(a.returns, spec, sha, roster)
     model = load_model_scores(a.model, spec, sha)
-    rep = analyse(spec, sha, model, returns)
-    print("stage: %s" % rep.stage)
-    for line in rep.lines:
-        print("  " + line)
-    print("VERDICT: " + rep.verdict)
+    twin = analyse_twin(spec, sha, model, returns, roster)
+    for title, rep in (("ALL ELIGIBLE RATERS", twin.all_raters),
+                       ("EXCLUDING %s (knows the model's design)" % (", ".join(twin.excluded_ids) or "nobody: no such return"),
+                        twin.excluding)):
+        print("== %s ==" % title)
+        print("stage: %s" % rep.stage)
+        for line in rep.lines:
+            print("  " + line)
+        print("verdict: " + rep.verdict)
+    if twin.disagreements:
+        print("== THE TWO DISAGREE (amendment 2026-10-14: excluding-D governs) ==")
+        for line in twin.disagreements:
+            print("  " + line)
+    else:
+        print("== the two agree on every verdict ==")
+    print("VERDICT (governing, excluding D): " + twin.governing.verdict)
     return 0
 
 

@@ -331,3 +331,104 @@ python fit_pairs_analysis.py
 ## Addenda
 
 *(none yet)*
+
+### Amendment 1 (2026-10-14): Sebastian (D) rates, and every verdict is reported twice
+
+**Written 2026-10-14, before any page has gone out and before any rating exists.** No
+rater page has been sent, `returned/` does not exist, and no return has been read. D's page
+is built in the same change as this amendment. Commit both together, before the page is
+opened. The text above this heading is unchanged. `pair_specs.json` (sha256 `5ad05452...`)
+and `pair_model_scores.json` are unchanged by this amendment, and the model scores still
+reference that sha.
+
+**The ruling.** Sebastian, 2026-10-14, in `docs/PRODUCT_DECISIONS.md` section 2, the
+six-trait entry, under "Follow-up rulings": *"Weights are Julie's alone, so Sebastian is
+eligible as a blind fit-pair rater (alongside 1-2 people he recruits). Because he knows the
+model's design, the fit-pair analysis also reports every result with his ratings excluded."*
+
+**(a) Who may not rate.** In section 1, the rule "anyone who set or may set the weights"
+becomes **"anyone who set the weights"**. That is Julie (A) and nobody else.
+
+- **D is eligible.** Section 1 excluded him because he "may help set weights". The ruling
+  removes that: the penalty weights are Julie's alone. `roster.json` now records D as
+  `eligible: true, sets_weights: false, knows_model_design: true`.
+- **A is still refused** everywhere. `build_fit_pages.py` will not build her a page, and
+  `fit_pairs_analysis.py` raises `ExcludedRaterError` on a return from her. B and C stay
+  `eligible: false` (unavailable). E and F are reserved slots with no name. They are filled
+  in only when Sebastian names a real person, and the builder refuses an unnamed slot.
+- The conditions in section 1 for new raters still apply from E onward: unpaid; has not seen
+  `priors.yaml`, the anchors, this plan or 06; does not compare notes until finished.
+- Where earlier text says "refuses A and D" (sections 1, 5 step 1 and 10), read "refuses A".
+  Where it says "Today no eligible rater exists", D is now eligible.
+- D has seen all of those things by construction, and that is why (b) exists. He is asked,
+  without any way to check, not to open `pair_specs.json`, `pair_model_scores.json` or
+  `design.py` while rating, and to finish rating before any recruit's return is read.
+
+**(b) The sensitivity check (pre-registered).** Section 5, steps 0-4, runs **twice**:
+
+1. on all eligible raters, and
+2. **excluding D**, meaning every rater marked `knows_model_design` in the roster.
+
+The two runs are compared verdict by verdict, in the plan's order:
+
+1. the inter-rater agreement gate (pass / fail / not reached);
+2. the consensus tau-b band (stand >= 0.50, examine 0.20-0.50, review < 0.20);
+3. each contrast, K1 to K11 (fails / holds / not reached);
+4. the overall section 6 verdict.
+
+**If the two runs disagree on any of these, the excluding-D result governs, and every
+disagreement is reported next to it.** When they agree, the excluding-D result is the same
+verdict. D's own tau-b against the model appears as a line in the all-raters run. The
+section 7 repeat sensitivity runs inside each twin. `fit_pairs_analysis.analyse_twin`
+implements this, and `main()` prints both reports, the disagreements and the governing
+verdict.
+
+Clarification, not a new rule: the section 6 row "DESCRIPTIVE ONLY: report numbers, decide
+nothing" was implemented as "decide nothing" alone, and no numbers were printed. The run now
+prints the same statistics under a `descriptive` heading: inter-rater tau-b, each rater
+against the model, the consensus tau-b, and the contrasts the raters read against the model.
+No verdict reads those numbers.
+
+**(c) What 2-3 raters can and cannot conclude.** The floor in section 6 is **unchanged**:
+the rules need 3 counted raters (4+ complete blocks each). The inter-rater agreement
+statistic needs **at least 2** counted raters, because it is the mean over pairs of raters.
+The same is true of the consensus (`MIN_RATERS_PER_PAIR = 2`) and the contrasts. Applied to
+the roster Sebastian expects:
+
+| who returns (4+ blocks) | all eligible raters | excluding D (governs) |
+|---|---|---|
+| D only | descriptive; no inter-rater statistic | nothing to report |
+| D + 1 recruit | descriptive; inter-rater tau-b is one pair, D vs the recruit | descriptive; one rater against the model, no agreement statistic |
+| D + 2 recruits | a full verdict (3 raters) | **DESCRIPTIVE ONLY** (2 raters). This governs, and the all-raters verdict is reported as a disagreement, not as a conclusion |
+| D + 3 recruits | a full verdict | a full verdict |
+
+**A governing verdict needs three counted raters other than D.** With 1-2 recruits, this
+study yields numbers, not a decision.
+
+What `power_sim.py` says (re-run 2026-10-14 with the same seed; it reproduces the section 6
+table). Rater noise is sigma 0.5 unless stated.
+
+- **The statistics behave almost as well at 2 raters as at 3**, but the rules do not let a
+  2-rater run decide anything.
+  - At 8-10 blocks with R = 2: the gate passes 0.97-0.99 of the time. With rho 0.9, the
+    model stands 0.95-0.98 of the time and goes to review 0.00. With rho 0.3, it stands
+    0.01-0.04 and goes to review 0.44-0.46.
+  - The R = 3 rows are 0.97-0.98 / 0.00 and 0.01-0.02 / 0.46-0.50.
+  - At 4 blocks with R = 2, rho 0.9 stands 0.87 of the time, and rho 0.3 stands 0.10 (0.06
+    at R = 3).
+  - With noisier raters (sigma 0.8) and R = 2, the gate passes only 0.64-0.77 of the time,
+    and rho 0.9 stands 0.58-0.70.
+  - Read the R = 2 rows as what the excluding-D numbers would mean if they were allowed to
+    decide. This amendment does not lower the floor.
+- **The gate tests rater noise, not the model.** In the simulation the raters share one
+  truth, so the gate passes at about the same rate for every rho (inter-rater tau-b is about
+  0.65 at sigma 0.5). Two raters who agree with each other and both disagree with the model
+  pass the gate. Catching that is the job of the consensus tau-b and the contrasts.
+- **With 2 raters the gate is a single tau-b.** It is one pair, not a mean over pairs. The
+  consensus is the median of two ratings, which is their mean (half-points are possible).
+  A pair enters the consensus only if **both** raters rated it, so either rater's abstention
+  drops it. A contrast "majority" means both raters.
+- **The simulation does not model a rater who knows the design.** If D's ratings track the
+  model more closely than an outsider's would, the all-raters run inflates the gate and the
+  consensus tau-b. That bias points toward "defaults stand", which is why the excluding-D
+  run governs.

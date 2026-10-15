@@ -1,0 +1,18 @@
+Hi,
+
+Thank you for saying you'd help. Here is what it involves.
+
+What you'll do: the attached page shows a made-up person and a made-up company, one pair per screen. You'll see what the person wants from a job and what we found out about the company. Each time you answer one question: if this person took a job here, how well would it work for them?
+
+How long it takes: about an hour in all, split into 10 parts of 6 to 8 minutes each. You don't have to do it in one sitting. Your answers save in your browser as you go, so you can close the page and come back to it later. Four parts is enough for your answers to count, and anything past that is a bonus.
+
+There are no right answers, and nobody is checking you against anything. Go with your own judgement. If a screen doesn't give you enough to go on, choose "Can't say from what's here". That is a real answer, so use it whenever it's true.
+
+A few small asks: judge only from what's on the page, don't look anything up, and please don't talk about it with anyone else who is doing it until you've both finished.
+
+This is unpaid. I'm very grateful for your time.
+
+How to send it back: open the attached page in Chrome, Edge, Firefox or Safari on a computer. When you're done for now, press "Download my answers" at the bottom of the page. That saves a small file ending in .json. Email that file back to me. If you do more later, send the new file and I'll use the latest one.
+
+Thanks again,
+Sebastian

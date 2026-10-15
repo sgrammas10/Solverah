@@ -262,17 +262,41 @@ def test_hook_schema_fields_matching_model_needs():
             assert ("low_end" in rec and "high_end" in rec) == (rec["status"] == "mixed")
 
 
-@pytest.mark.parametrize("rater,msg", [("A", "set the weights"), ("D", "set the weights"),
-                                        ("Q", "not in"), ])
-def test_builder_refuses_weight_setters_and_strangers(rater, msg):
-    with pytest.raises(bfp.RosterError, match=msg if rater != "D" else "weights"):
+@pytest.mark.parametrize("rater,msg", [("A", "set the weights"), ("Q", "not in"),
+                                        ("E", "not eligible")])
+def test_builder_refuses_weight_setters_strangers_and_empty_slots(rater, msg):
+    with pytest.raises(bfp.RosterError, match=msg):
         bfp.check_rater(rater, TEST_ROSTER)
 
 
-def test_real_roster_excludes_julie_and_sebastian_and_has_no_eligible_rater_yet():
+@pytest.mark.parametrize("roster_path", [TEST_ROSTER, HERE / "roster.json"])
+def test_builder_accepts_sebastian_and_refuses_the_rest_of_the_round1_roster(roster_path):
+    """Amendment 1 (2026-10-14): the weights are Julie's alone, so D may rate."""
+    bfp.check_rater("D", roster_path)
+    for rater in ("A",) + (("B", "C", "E", "F") if roster_path.name == "roster.json" else ()):
+        with pytest.raises(bfp.RosterError):
+            bfp.check_rater(rater, roster_path)
+
+
+def test_builder_refuses_an_unnamed_slot_even_if_switched_on(tmp_path):
+    doc = json.loads((HERE / "roster.json").read_text(encoding="utf-8"))
+    for r in doc["raters"]:
+        if r["rater_id"] == "E":
+            r["eligible"] = True
+    p = tmp_path / "roster.json"
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(bfp.RosterError, match="no name"):
+        bfp.check_rater("E", p)
+
+
+def test_real_roster_after_amendment_1():
     roster = fa.load_roster(HERE / "roster.json")
-    assert roster["A"]["sets_weights"] and roster["D"]["sets_weights"]
-    assert not any(fa.is_eligible(r) for r in roster.values())
+    assert roster["A"]["sets_weights"] and not fa.is_eligible(roster["A"])
+    assert fa.is_eligible(roster["D"]) and not roster["D"]["sets_weights"] and fa.knows_design(roster["D"])
+    assert [k for k, r in roster.items() if fa.is_eligible(r)] == ["D"]
+    for slot in ("E", "F"):          # reserved, never a placeholder name
+        assert roster[slot]["name"] is None and not roster[slot]["eligible"]
+    assert not any(r.get("sets_weights") for k, r in roster.items() if k != "A")
 
 
 def test_builder_writes_a_page_for_an_eligible_rater(tmp_path):
@@ -427,6 +451,140 @@ def test_too_few_raters_is_descriptive_only(tmp_path):
     _write_return(tmp_path / "ret", "Z", sha, _agreeing_ratings(model))
     rep = fa.analyse(SPEC, sha, model, fa.load_returns(tmp_path / "ret", SPEC, sha, fa.load_roster(TEST_ROSTER)))
     assert rep.verdict.startswith("DESCRIPTIVE ONLY")
+
+
+def test_descriptive_only_still_reports_the_numbers(tmp_path):
+    """Prereg section 6: "report numbers, decide nothing". Two raters are enough for the
+    inter-rater statistic, the consensus and the contrasts; no verdict reads them."""
+    sha = design.spec_sha256(SPEC)
+    model = fa.load_model_scores(_write_model(tmp_path, sha, _model_rows()), SPEC, sha)
+    for r in ("Y", "Z"):
+        _write_return(tmp_path / "ret", r, sha, _agreeing_ratings(model))
+    rep = fa.analyse(SPEC, sha, model, fa.load_returns(tmp_path / "ret", SPEC, sha, fa.load_roster(TEST_ROSTER)))
+    assert rep.code == "DESCRIPTIVE_ONLY"
+    d = rep.numbers["descriptive"]
+    assert d["inter_rater_tau_mean"] == pytest.approx(1.0) and d["consensus_tau"] == pytest.approx(1.0)
+    assert d["contrasts_against_model"] == [] and "inter_rater_tau_mean" not in rep.numbers
+
+
+# ---------------------------------------------------------------------------
+# Amendment 1 (2026-10-14): D rates; every verdict is reported twice
+# ---------------------------------------------------------------------------
+
+def _reversed(ratings):
+    return {pid: (None if v is None else 6 - v) for pid, v in ratings.items()}
+
+
+def _twin(tmp_path, by_rater):
+    sha = design.spec_sha256(SPEC)
+    model = fa.load_model_scores(_write_model(tmp_path, sha, _model_rows()), SPEC, sha)
+    for rater, make in by_rater.items():
+        _write_return(tmp_path / "ret", rater, sha, make(_agreeing_ratings(model)))
+    roster = fa.load_roster(TEST_ROSTER)
+    returns = fa.load_returns(tmp_path / "ret", SPEC, sha, roster)
+    return fa.analyse_twin(SPEC, sha, model, returns, roster)
+
+
+def test_sebastian_return_is_accepted_and_julie_is_still_refused(tmp_path):
+    sha = design.spec_sha256(SPEC)
+    roster = fa.load_roster(TEST_ROSTER)
+    _write_return(tmp_path / "ret", "D", sha, {"B1-C1": 5})
+    assert [r.rater for r in fa.load_returns(tmp_path / "ret", SPEC, sha, roster)] == ["D"]
+    _write_return(tmp_path / "ret", "A", sha, {"B1-C1": 5})
+    with pytest.raises(fa.ExcludedRaterError, match="set the weights"):
+        fa.load_returns(tmp_path / "ret", SPEC, sha, roster)
+    # the real roster refuses A too
+    with pytest.raises(fa.ExcludedRaterError):
+        fa.load_return(tmp_path / "ret" / "A.json", SPEC, sha, fa.load_roster(HERE / "roster.json"))
+
+
+def test_twin_runs_excluding_d_and_agrees_when_d_agrees(tmp_path):
+    same = lambda r: r  # noqa: E731
+    twin = _twin(tmp_path, {"D": same, "X": same, "Y": same, "Z": same})
+    assert twin.excluded_ids == ["D"]
+    assert twin.all_raters.numbers["raters_counted"] == 4 and twin.excluding.numbers["raters_counted"] == 3
+    assert twin.all_raters.code == twin.excluding.code == "DEFAULTS_STAND"
+    assert twin.disagreements == [] and twin.governing is twin.excluding
+
+
+def test_twin_disagreement_is_reported_and_excluding_d_governs(tmp_path):
+    """D reads every block backwards: with him the agreement gate fails; without him the
+    defaults stand. The excluding-D verdict governs and the disagreement is named, gate first."""
+    same = lambda r: r  # noqa: E731
+    twin = _twin(tmp_path, {"D": _reversed, "X": same, "Y": same, "Z": same})
+    assert twin.all_raters.code == "NO_CONCLUSION_DISAGREE"
+    assert twin.governing.code == "DEFAULTS_STAND"
+    assert twin.disagreements[0].startswith("agreement gate: all raters fail, excluding D pass")
+    assert any(d.startswith("overall verdict") for d in twin.disagreements)
+
+
+def test_twin_names_a_contrast_that_only_d_fails(tmp_path):
+    def d_dislikes_unknowns(r):
+        r = dict(r)
+        for pid in ("B1-C4", "B7-C4", "B5-C5"):
+            r[pid] = 3
+        return r
+    same = lambda r: r  # noqa: E731
+    # D and two of four others mark unknowns down: K3 fails with D (3 of 5 against the model),
+    # holds without him (2 of 4 is not a majority)
+    twin = _twin(tmp_path, {"D": d_dislikes_unknowns, "W": d_dislikes_unknowns,
+                            "X": d_dislikes_unknowns, "Y": same, "Z": same})
+    states = {d.split(":")[0] for d in twin.disagreements}
+    assert "K3" in states, twin.disagreements
+    assert "K3" in twin.all_raters.numbers["contrasts_failed"]
+    assert "K3" not in twin.governing.numbers["contrasts_failed"]
+
+
+def test_d_plus_two_recruits_governs_as_descriptive_only(tmp_path):
+    """The consequence the amendment states: D + 2 recruits reach a verdict with D, but the
+    excluding-D run has 2 counted raters, so the governing verdict is DESCRIPTIVE ONLY."""
+    same = lambda r: r  # noqa: E731
+    twin = _twin(tmp_path, {"D": same, "Y": same, "Z": same})
+    assert twin.all_raters.code == "DEFAULTS_STAND"
+    assert twin.governing.code == "DESCRIPTIVE_ONLY"
+    assert twin.governing.numbers["descriptive"]["inter_rater_tau_mean"] == pytest.approx(1.0)
+    assert "overall verdict: all raters DEFAULTS_STAND, excluding D DESCRIPTIVE_ONLY" in twin.disagreements
+
+
+def test_twin_without_a_d_return_is_identical(tmp_path):
+    same = lambda r: r  # noqa: E731
+    twin = _twin(tmp_path, {"X": same, "Y": same, "Z": same})
+    assert twin.excluded_ids == [] and twin.disagreements == []
+    assert twin.all_raters.verdict == twin.excluding.verdict
+
+
+def test_main_prints_both_reports_and_the_governing_verdict(tmp_path, capsys):
+    sha = design.spec_sha256(SPEC)
+    model_path = _write_model(tmp_path, sha, _model_rows())
+    model = fa.load_model_scores(model_path, SPEC, sha)
+    for r in ("D", "Y", "Z"):
+        _write_return(tmp_path / "ret", r, sha, _agreeing_ratings(model))
+    rc = fa.main(["--model", str(model_path), "--roster", str(TEST_ROSTER), "--returns", str(tmp_path / "ret")])
+    out = capsys.readouterr().out
+    assert rc == 0 and out.isascii()
+    assert "== ALL ELIGIBLE RATERS ==" in out and "== EXCLUDING D" in out
+    assert "THE TWO DISAGREE" in out and "VERDICT (governing, excluding D): DESCRIPTIVE ONLY" in out
+
+
+def test_committed_model_scores_still_match_the_committed_spec():
+    """pair_specs.json and pair_model_scores.json are unchanged by Amendment 1."""
+    sha = fa.sha256_file(HERE / "pair_specs.json")
+    assert sha == design.spec_sha256(SPEC)
+    rows = fa.load_model_scores(HERE / "pair_model_scores.json", SPEC, sha)
+    assert len(rows) == len(SPEC["pairs"])
+
+
+def test_recruit_note_is_plain_short_and_keeps_raters_blind():
+    text = (HERE / "RECRUIT_NOTE.txt").read_text(encoding="utf-8")
+    assert text.isascii() and len(text.split()) < 400
+    for sym in ("#", "**", "`", "|", "](", "* ", "_", "\n- "):
+        assert sym not in text, sym
+    low = text.lower()
+    for word in ("model", "weight", "hypothes", "prior", "penalt", "tolerance", "must-have", "predict"):
+        assert word not in low, word
+    for must in ("unpaid", "no right answers", "can't say", "download my answers", ".json",
+                 "four parts", "6 to 8 minutes", "about an hour", "save"):
+        assert must in low, must
 
 
 def test_captured_page_payload_loads_through_the_analysis():
