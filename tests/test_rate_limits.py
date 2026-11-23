@@ -140,6 +140,30 @@ def test_a_refusal_is_json_not_html(enforcing):
     assert resp.get_json()["status"] == 429
 
 
+def test_a_refusal_speaks_to_a_person_not_in_limit_syntax(enforcing):
+    """G33: Flask-Limiter's exception description is the limit itself.
+
+    Until 2026-11-23 the problem document's ``detail`` was that description, so
+    the forgot-password form told a locked-out user "3 per 1 minute" -- and the
+    frontend shows ``detail`` ahead of its own fallback. The limiter's 429 now
+    carries the same sentence ``src/shared/api/apiError.ts`` falls back to, so
+    the two sides say one thing.
+    """
+    from solverah.errors import RATE_LIMITED_DETAIL
+
+    for _ in range(4):
+        resp = enforcing.post(
+            "/api/v1/auth/password/forgot", json={"email": "nobody@example.com"}
+        )
+
+    body = resp.get_json()
+    assert resp.status_code == 429
+    assert body["type"].endswith("/rate_limited")
+    assert body["detail"] == RATE_LIMITED_DETAIL
+    assert RATE_LIMITED_DETAIL == "Too many attempts. Please wait a moment and try again."
+    assert "per 1 minute" not in repr(body)
+
+
 # ── The exemptions are exactly what they claim to be ────────────────────────
 
 

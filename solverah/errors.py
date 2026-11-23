@@ -44,6 +44,7 @@ __all__ = [
     "GoneError",
     "NotFoundError",
     "ProblemDetail",
+    "RATE_LIMITED_DETAIL",
     "RateLimitError",
     "ValidationError",
     "register_error_handlers",
@@ -198,6 +199,14 @@ class GoneError(ApiError):
     code = "gone"
 
 
+#: ``detail`` for a 429 the limiter raises. Flask-Limiter's exception carries
+#: the limit itself as its description ("3 per 1 minute"), which the frontend
+#: would show verbatim (G33). This sentence is the 429 fallback in
+#: ``src/shared/api/apiError.ts`` -- keep the two identical. A ``RateLimitError``
+#: raised with its own detail (CompanyLens's daily allowance) is unaffected.
+RATE_LIMITED_DETAIL = "Too many attempts. Please wait a moment and try again."
+
+
 class RateLimitError(ApiError):
     """The caller exceeded a rate limit."""
 
@@ -248,13 +257,21 @@ def register_error_handlers(app) -> None:
     @app.errorhandler(HTTPException)
     def _handle_http_exception(exc: HTTPException):
         status = exc.code or 500
+        # exc.description is framework text ("The requested URL was not
+        # found..."), never attacker-controlled or internal. A 429 here comes
+        # from the limiter, whose description is the limit string ("3 per 1
+        # minute") -- written for operators, not for the person locked out.
+        if status == 429:
+            detail: Optional[str] = RATE_LIMITED_DETAIL
+        elif status < 500:
+            detail = exc.description
+        else:
+            detail = None
         problem = ProblemDetail(
             status=status,
             title=exc.name or "Error",
             code=_HTTP_CODE_SLUGS.get(status, "http_error"),
-            # exc.description is framework text ("The requested URL was not
-            # found..."), never attacker-controlled or internal.
-            detail=exc.description if status < 500 else None,
+            detail=detail,
         )
         if status >= 500:
             logger.exception("http_exception", extra={"event": "http_exception", "status": status})

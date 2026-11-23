@@ -170,6 +170,38 @@ def test_server_side_http_exception_hides_its_description(app):
     assert "pgbouncer" not in repr(res.get_json())
 
 
+def test_a_framework_429_carries_person_facing_detail_not_the_limit(app):
+    """G33: Flask-Limiter raises an HTTPException whose description is the
+    limit ("3 per 1 minute"). That must not become the problem's ``detail``."""
+    from werkzeug.exceptions import TooManyRequests
+
+    from solverah.errors import RATE_LIMITED_DETAIL
+
+    @app.get("/throttled")
+    def throttled():
+        raise TooManyRequests("3 per 1 minute")
+
+    body = app.test_client().get("/throttled").get_json()
+
+    assert body["status"] == 429
+    assert body["type"].endswith("/rate_limited")
+    assert body["detail"] == RATE_LIMITED_DETAIL
+
+
+def test_a_rate_limit_error_keeps_the_detail_its_raiser_wrote(app):
+    """Only limiter 429s are rewritten. A feature that raises ``RateLimitError``
+    with its own copy (CompanyLens's daily run allowance) keeps that copy."""
+
+    @app.get("/allowance")
+    def allowance():
+        raise RateLimitError("You have started five new company runs today.")
+
+    body = app.test_client().get("/allowance").get_json()
+
+    assert body["status"] == 429
+    assert body["detail"] == "You have started five new company runs today."
+
+
 def test_custom_api_error_subclass_is_handled(app):
     class PaymentRequired(ApiError):
         status = 402
