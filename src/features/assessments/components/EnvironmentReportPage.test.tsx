@@ -59,13 +59,17 @@ const NEEDS_ENV = {
 
 interface ServeOptions {
   careerStatus?: string;
+  /** The whole profile document, overriding `careerStatus`. */
+  profile?: Record<string, unknown>;
   report?: unknown;
   submit?: () => Promise<unknown>;
 }
 
-function serve({ careerStatus = "employed", report = NEEDS_ENV, submit }: ServeOptions = {}) {
+function serve({ careerStatus = "employed", profile, report = NEEDS_ENV, submit }: ServeOptions = {}) {
   mocks.fetchWithAuth.mockImplementation((path: string, init?: { body?: string }) => {
-    if (path === "/me/profile") return Promise.resolve({ profile: { career_status: careerStatus } });
+    if (path === "/me/profile") {
+      return Promise.resolve({ profile: profile ?? { career_status: careerStatus } });
+    }
     if (path === "/me/situation-report") return Promise.resolve(report);
     if (path === "/me/environment-report") {
       return submit
@@ -495,7 +499,8 @@ describe("EnvironmentReportPage", () => {
     });
   });
 
-  it("asks for a career status when the server has none to snapshot", async () => {
+  it("still asks for a career status when the submit is refused for want of one", async () => {
+    // The backstop: the profile read as having a status, the server disagreed.
     serve({
       submit: () =>
         Promise.reject(new ApiError("career_status_not_set", { status: 400 })),
@@ -507,12 +512,83 @@ describe("EnvironmentReportPage", () => {
     expect(
       await screen.findByRole("heading", { name: "One thing first: where are you right now?" }),
     ).toBeInTheDocument();
+    expect(screen.getByText(/your answers so far are saved/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Set your career status/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
       state: {
         showCareerStatusModal: true,
-        returnTo: { path: "/environment-report", label: "your Situation Report" },
+        returnTo: { path: "/environment-report", label: "describing your job" },
+        careerStatusReason: "environment_report",
       },
+    });
+  });
+
+  // G53: the status used to be asked for only after the last question, and
+  // the return dialog then offered "your Situation Report" for this form.
+  describe("career status up front (G53)", () => {
+    const NO_STATUS = {
+      career_status: null,
+      experience: [{ position: "Analyst", endDate: "2024-05" }],
+    };
+
+    it("asks before question 1 when the server could read no status, and returns here", async () => {
+      serve({ profile: NO_STATUS });
+      renderPage();
+
+      expect(
+        await screen.findByRole("heading", { name: "One thing first: where are you right now?" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+      expect(screen.queryByText(/Question 1 of/)).toBeNull();
+      expect(screen.queryByText(/your answers so far are saved/)).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: /Set your career status/ }));
+      expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/profile?tab=experience", {
+        state: {
+          showCareerStatusModal: true,
+          returnTo: { path: "/environment-report", label: "describing your job" },
+          careerStatusReason: "environment_report",
+        },
+      });
+      expect(mocks.fetchWithAuth).not.toHaveBeenCalledWith(
+        "/me/environment-report",
+        expect.anything(),
+      );
+    });
+
+    it("reads a current role as a status, the way the server derives one", async () => {
+      serve({ profile: { experience: [{ position: "Analyst", endDate: "Present" }] } });
+      renderPage();
+
+      expect(
+        await screen.findByRole("heading", { name: "Now the other half — your job" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("One thing first: where are you right now?")).toBeNull();
+    });
+
+    it("holds a saved draft behind the ask instead of resuming it, and keeps it", async () => {
+      const draft = JSON.stringify({
+        answers: {},
+        context: { [ENV_FORM_STEPS[0].item.itemId]: 3 },
+      });
+      sessionStorage.setItem("env_report_answers", draft);
+      serve({ profile: NO_STATUS });
+      renderPage();
+
+      expect(
+        await screen.findByRole("heading", { name: "One thing first: where are you right now?" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Pick up where you left off" })).toBeNull();
+      expect(sessionStorage.getItem("env_report_answers")).toBe(draft);
+    });
+
+    it("never shows the intro while the profile is still loading", () => {
+      mocks.fetchWithAuth.mockImplementation((path: string) =>
+        path === "/me/situation-report" ? Promise.resolve(NEEDS_ENV) : new Promise(() => {}),
+      );
+      renderPage();
+      expect(screen.getByText("Loading…")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
     });
   });
 
@@ -711,6 +787,7 @@ describe("EnvironmentReportPage — past job", () => {
       state: {
         showCareerStatusModal: true,
         returnTo: { path: "/environment-report/past", label: "the form about your earlier job" },
+        careerStatusReason: "environment_report",
       },
     });
   });

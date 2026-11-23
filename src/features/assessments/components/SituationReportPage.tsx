@@ -79,6 +79,7 @@ import type {
   SituationReportEventSinceReport,
 } from "../useSituationReport";
 import { usePulseHistory } from "../usePulse";
+import { useTraitPreferences } from "../useTraitPreferences";
 import type { PulseEventType } from "../usePulse";
 import { useExperiments } from "../useExperiments";
 import PulseSparkline from "./PulseSparkline";
@@ -306,7 +307,7 @@ function ManagerSection({ manager }: { manager: SituationManagerSection }) {
  *  core sitting exists, which means the `no_core_sitting` 409 should be
  *  unreachable -- handled anyway, because "should be unreachable" is not a
  *  reason to render a raw failure at a user. */
-function PinFooter() {
+function PinFooter({ toleranceApplied }: { toleranceApplied: boolean | undefined }) {
   const recalibrate = useRecalibrateSituationReport();
   const moved = recalibrate.data?.recalibrated;
 
@@ -329,6 +330,7 @@ function PinFooter() {
             : "Already reading your most recent Work Pulse sitting — nothing moved."}
         </p>
       )}
+      {recalibrate.isSuccess && !moved && <ToleranceWaitsNote toleranceApplied={toleranceApplied} />}
       {recalibrate.isError && (
         <p className="text-[0.85rem] text-red-700" role="alert">
           {isNoCoreSittingRefusal(recalibrate.error)
@@ -337,6 +339,31 @@ function PinFooter() {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Why "nothing moved" can follow a tolerance change (G54). Tolerance is pinned
+ * with the Work Pulse sitting (D-15, Sebastian 2026-10-14), and there is no
+ * tolerance-only re-pin, so a change made at /trait-preferences waits for the
+ * next Work Pulse sitting and a re-read.
+ *
+ * Mounted only after a "nothing moved" re-read, so the tolerance read is made
+ * only then. The one pending case the client CAN see: tolerance answered now,
+ * but the report built without it (`tolerance_applied: false`). A change to an
+ * answer the report already uses is invisible from here -- neither payload
+ * carries a timestamp -- so every other case gets the quiet general line.
+ */
+function ToleranceWaitsNote({ toleranceApplied }: { toleranceApplied: boolean | undefined }) {
+  const prefs = useTraitPreferences();
+  if (prefs.isLoading) return null;
+  const pending = prefs.data?.answered === true && toleranceApplied === false;
+  return (
+    <p className="text-[0.85rem] text-ink-secondary">
+      {pending
+        ? "Your tolerance answers aren't in this report yet. They're read with the Work Pulse sitting the report is pinned to, so they'll apply after your next Work Pulse sitting and a re-read."
+        : "Changed your tolerance answers? Those wait for your next Work Pulse sitting too, then apply when you re-read."}
+    </p>
   );
 }
 
@@ -355,9 +382,11 @@ function PinFooter() {
 function AboutFooter({
   notice,
   canDescribePastJob,
+  toleranceApplied,
 }: {
   notice: string;
   canDescribePastJob: boolean;
+  toleranceApplied: boolean | undefined;
 }) {
   const p = "text-[0.92rem] leading-[1.65] text-ink-secondary";
   return (
@@ -374,7 +403,7 @@ function AboutFooter({
           change it until you ask.
         </p>
       </div>
-      <PinFooter />
+      <PinFooter toleranceApplied={toleranceApplied} />
       {canDescribePastJob && (
         <p className="print:hidden">
           <Link to="/environment-report/past" className="text-sm font-semibold text-forest-dark hover:underline">
@@ -499,8 +528,8 @@ export default function SituationReportPage() {
           <p className={LEAD}>
             Work Pulse is done, and it holds. The other half is a job to measure it
             against, and you haven't started one yet — so there is nothing to report,
-            and we won't invent one. Once you're in a role, sixteen questions about it
-            bring the report back the same day.
+            and we won't invent one. Once you're in a role, sixteen questions about it,
+            plus five optional ones, bring the report back the same day.
           </p>
           <p className={LEAD}>
             Until then, FocusType and ManagerMatch need no employer, and they're most
@@ -524,9 +553,9 @@ export default function SituationReportPage() {
     return (
       <Gate title="One half to go">
         <p className={LEAD}>
-          Work Pulse told us how you work. Now sixteen questions about your job, in your
-          own words, and five optional ones at the end. About five minutes, and the
-          report comes back straight away.
+          Work Pulse told us how you work. Now sixteen questions about your job, plus
+          five optional ones at the end. About five minutes, and the report comes
+          back straight away.
         </p>
         <div className="pt-2">
           <button type="button" onClick={() => navigate("/environment-report")} className={PRIMARY}>
@@ -671,6 +700,7 @@ function CompleteReport({ report }: { report: SituationComplete }) {
       <AboutFooter
         notice={report.guidance_notice}
         canDescribePastJob={!report.past_job_report_filed}
+        toleranceApplied={report.tolerance_applied}
       />
     </Shell>
   );

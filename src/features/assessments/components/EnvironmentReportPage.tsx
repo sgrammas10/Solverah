@@ -39,6 +39,12 @@
  * error card, never an open form: rendering the intro anyway would let this
  * user reach a form the page never got to confirm they may submit.
  *
+ * CAREER STATUS FIRST (G53, 2026-11-23). The submit refuses
+ * `career_status_not_set` when the server can read no status, and that used to
+ * be the only ask -- after the user had answered all twenty-one steps. The page
+ * now reads the profile the same way the server does and asks before question
+ * 1, returning here; the submit refusal stays as the backstop.
+ *
  * OPTIONAL OUTCOME STEPS (PRODUCT_DECISIONS §2, 2026-10-13). Five exploratory
  * outcome questions follow `experienced`, never precede it. Each can be
  * skipped: `Next` / `Finish` behave as on every other step (disabled until an
@@ -75,6 +81,8 @@ import type { EnvironmentReportSubmission, SituationReport } from "../useSituati
 import { ENV_FORM_STEPS, ENV_ITEMS } from "../data/envQuestions";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
+import { careerStatusNavState } from "../../../shared/lib/careerStatusReturn";
+import type { CareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
 import type { EnvReportDraft, EnvReportSubject } from "../useEnvReport";
 import type { EnvIndustry, EnvOutcomeItemId, EnvStep } from "../data/envQuestions";
@@ -84,6 +92,25 @@ import type { EnvIndustry, EnvOutcomeItemId, EnvStep } from "../data/envQuestion
  *  server's snapshot is what the stored row is labelled with either way. */
 function isPastTense(careerStatus: string | undefined): boolean {
   return careerStatus === "between_jobs" || careerStatus === "first_job";
+}
+
+/**
+ * Can the server read a career status for this user? Mirrors
+ * `situation_report_service._live_career_status`: a stored status, or any
+ * experience entry ending "Present"/"Current" (`derive_career_status` reads
+ * that as employed). The same mirror PathIntelligencePage uses for its own
+ * up-front gate. The submit still enforces the rule server-side
+ * (`career_status_not_set`), so a drift here costs a late ask, never a bad row.
+ */
+function hasReadableCareerStatus(profile: Record<string, unknown> | undefined): boolean {
+  const stored = profile?.career_status;
+  if (typeof stored === "string" && stored.trim()) return true;
+  const experience = profile?.experience;
+  if (!Array.isArray(experience)) return false;
+  return experience.some((entry) => {
+    const end = (entry as { endDate?: unknown } | null)?.endDate;
+    return ["present", "current"].includes(String(end ?? "").trim().toLowerCase());
+  });
 }
 
 type Phase = "intro" | "questions";
@@ -183,12 +210,20 @@ function NoRoleToDescribe({ pastSubject }: { pastSubject: boolean }) {
 
 /**
  * The server snapshots `career_status` itself and refuses when it has none to
- * snapshot. Reached only on submit, because the value can be absent from the
- * profile document and still derivable server-side (`derive_career_status`
- * reads experience), so the client cannot decide this up front without
- * duplicating that derivation.
+ * snapshot. Asked UP FRONT, before question 1, whenever the profile shows no
+ * status the server could read (`hasReadableCareerStatus`; G53 -- it used to
+ * be asked only after the last question). The submit's
+ * `career_status_not_set` refusal is the backstop for a profile that changed
+ * under an open form, or a mirror that drifted; only that late variant has
+ * answers to reassure the user about.
  */
-function CareerStatusNeeded({ returnTo }: { returnTo: { path: string; label: string } }) {
+function CareerStatusNeeded({
+  returnTo,
+  upFront,
+}: {
+  returnTo: CareerStatusReturnTo;
+  upFront: boolean;
+}) {
   const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-cream-base flex items-center justify-center px-6">
@@ -197,22 +232,20 @@ function CareerStatusNeeded({ returnTo }: { returnTo: { path: string; label: str
           One thing first: where are you right now?
         </h1>
         <p className="text-sm text-ink-secondary leading-relaxed">
-          These questions read differently depending on whether you're describing the
-          job you're in or the one you most recently left, and we don't have that on
-          file yet. Set your career status and come straight back — your answers so
-          far are saved.
+          {upFront
+            ? "These questions read differently depending on whether you're describing the job you're in or the one you most recently left, and we don't have that on file yet. Set your career status first — it takes a few seconds — and we'll bring you straight back here."
+            : "These questions read differently depending on whether you're describing the job you're in or the one you most recently left, and we don't have that on file yet. Set your career status and come straight back — your answers so far are saved."}
         </p>
         <button
           type="button"
           onClick={() =>
-            navigate("/job-seeker/profile?tab=experience", {
+            navigate(
+              "/job-seeker/profile?tab=experience",
               // returnTo: the profile page offers to bring the user back here
-              // once the status is saved (shared/lib/careerStatusReturn).
-              state: {
-                showCareerStatusModal: true,
-                returnTo,
-              },
-            })
+              // once the status is saved; the reason picks the modal's
+              // subtitle (shared/lib/careerStatusReturn, G43).
+              { state: careerStatusNavState(returnTo.path, returnTo.label, "environment_report") },
+            )
           }
           className="w-full bg-forest-dark text-white font-semibold py-3 rounded hover:bg-forest-mid transition-colors"
         >
@@ -382,7 +415,7 @@ interface EnvironmentReportPageProps {
 export default function EnvironmentReportPage({ subject = "current" }: EnvironmentReportPageProps) {
   const navigate = useNavigate();
   const pastSubject = subject === "past";
-  const { data: profile } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const reportQuery = useSituationReport();
   const submitMutation = useSubmitEnvironmentReport();
   const { draft, setAnswer, setContext, reset } = useEnvReport(subject);
@@ -435,19 +468,15 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
     return <NoRoleToDescribe pastSubject={pastSubject} />;
   }
 
+  // The label names where the path actually goes back to: this form, in
+  // either mode -- never the Situation Report (audit 2026-10-02, F7, for past
+  // mode; G53 for the current form, which said "your Situation Report").
+  const careerStatusReturnTo: CareerStatusReturnTo = pastSubject
+    ? { path: "/environment-report/past", label: "the form about your earlier job" }
+    : { path: "/environment-report", label: "describing your job" };
+
   if (isCareerStatusNotSet(submitMutation.error)) {
-    return (
-      <CareerStatusNeeded
-        returnTo={
-          // The label names where the path actually goes back to: in past mode
-          // that is this form about the earlier job, not the Situation Report
-          // (which a past report never changes) -- audit 2026-10-02, F7.
-          pastSubject
-            ? { path: "/environment-report/past", label: "the form about your earlier job" }
-            : { path: "/environment-report", label: "your Situation Report" }
-        }
-      />
-    );
+    return <CareerStatusNeeded returnTo={careerStatusReturnTo} upFront={false} />;
   }
 
   if (pastSubject) {
@@ -510,7 +539,14 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
 
   // ── Loading the gate ── `isError && isFetching` covers a retry in flight,
   // so "Try again" below doesn't look dead while it resolves.
-  if (reportQuery.isLoading || (reportQuery.isError && reportQuery.isFetching)) {
+  // The profile is waited for too: the up-front career-status gate below reads
+  // it, and an intro that flipped to that gate a moment later would be worse
+  // than a spinner.
+  if (
+    reportQuery.isLoading ||
+    profileLoading ||
+    (reportQuery.isError && reportQuery.isFetching)
+  ) {
     return (
       <div className="min-h-screen bg-cream-base flex flex-col items-center justify-center gap-4">
         <div className="w-8 h-8 rounded-full border-2 border-forest-light border-t-transparent animate-spin" />
@@ -536,6 +572,14 @@ export default function EnvironmentReportPage({ subject = "current" }: Environme
         </div>
       </div>
     );
+  }
+
+  // ── No career status the server could read: ask BEFORE question 1 (G53) ──
+  // Before the resume prompt too, so a saved draft waits rather than being
+  // walked to the end and refused. The draft lives in session storage and is
+  // untouched by the detour.
+  if (profile && !hasReadableCareerStatus(profile)) {
+    return <CareerStatusNeeded returnTo={careerStatusReturnTo} upFront />;
   }
 
   // ── Submitting ──

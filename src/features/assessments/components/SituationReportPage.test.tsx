@@ -335,6 +335,8 @@ describe("SituationReportPage", () => {
 
       expect(await screen.findByRole("heading", { name: "One half to go" })).toBeInTheDocument();
       expect(screen.getByText(/sixteen questions about your job/)).toBeInTheDocument();
+      // G55: sixteen required plus five optional, not "sixteen" alone.
+      expect(screen.getByText(/plus\s+five optional ones/)).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
       expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
     });
@@ -352,6 +354,8 @@ describe("SituationReportPage", () => {
       expect(screen.queryByText(/Straining|Notable|Aligned/)).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Start FocusType/ })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Start ManagerMatch/ })).toBeInTheDocument();
+      // G55: the count names the optional five too.
+      expect(screen.getByText(/sixteen questions about it,\s+plus five optional ones/)).toBeInTheDocument();
     });
   });
 
@@ -1064,6 +1068,75 @@ describe("SituationReportPage", () => {
         await screen.findByRole("button", { name: /Re-read this against my latest Work Pulse/ }),
       );
       expect(await screen.findByText(/nothing moved/)).toBeInTheDocument();
+    });
+
+    // G54: tolerance is pinned with the sitting (D-15), so a tolerance change
+    // read as "nothing moved" with no word about why.
+    describe("a tolerance change after nothing moved (G54)", () => {
+      function serveWithTolerance(
+        report: SituationComplete,
+        tolerance: () => Promise<unknown>,
+      ) {
+        serve(report, () => Promise.resolve({ recalibrated: false }));
+        const base = mocks.fetchWithAuth.getMockImplementation()!;
+        mocks.fetchWithAuth.mockImplementation((path: string, init?: unknown) =>
+          path === "/me/trait-preferences" ? tolerance() : base(path, init),
+        );
+      }
+
+      const answered = () => Promise.resolve({ answered: true, max_must_haves: 2, traits: [] });
+
+      async function reRead() {
+        fireEvent.click(
+          await screen.findByRole("button", { name: /Re-read this against my latest Work Pulse/ }),
+        );
+        await screen.findByText(/nothing moved/);
+      }
+
+      it("says the answers wait for the next sitting when they are answered but not applied", async () => {
+        serveWithTolerance({ ...COMPLETE, tolerance_applied: false }, answered);
+        renderPage();
+        await reRead();
+
+        expect(
+          await screen.findByText(/Your tolerance answers aren't in this report yet/),
+        ).toBeInTheDocument();
+        expect(screen.getByText(/after your next Work Pulse sitting and a re-read/)).toBeInTheDocument();
+      });
+
+      it("adds only the quiet general line when it cannot tell", async () => {
+        serveWithTolerance({ ...COMPLETE, tolerance_applied: true }, answered);
+        renderPage();
+        await reRead();
+
+        expect(
+          await screen.findByText(/Changed your tolerance answers\? Those wait for your next Work Pulse sitting/),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/aren't in this report yet/)).toBeNull();
+      });
+
+      it("adds the general line when the tolerance read fails", async () => {
+        serveWithTolerance({ ...COMPLETE, tolerance_applied: false }, () =>
+          Promise.reject(new ApiError("forbidden", { status: 403 })),
+        );
+        renderPage();
+        await reRead();
+
+        expect(await screen.findByText(/Changed your tolerance answers\?/)).toBeInTheDocument();
+        expect(screen.queryByText(/aren't in this report yet/)).toBeNull();
+      });
+
+      it("says nothing about tolerance, and never reads it, when the re-pin moved the report", async () => {
+        serve(COMPLETE, () => Promise.resolve({ recalibrated: true }));
+        renderPage();
+        fireEvent.click(
+          await screen.findByRole("button", { name: /Re-read this against my latest Work Pulse/ }),
+        );
+        await screen.findByText(/Re-pinned\./);
+
+        expect(screen.queryByText(/tolerance/i)).toBeNull();
+        expect(mocks.fetchWithAuth).not.toHaveBeenCalledWith("/me/trait-preferences");
+      });
     });
 
     it("explains the 409 rather than showing a raw failure", async () => {

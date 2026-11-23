@@ -4,3 +4,4 @@
 - [Default pin rule](default-pin-rule-2026-10-05.md) — 2026-10-05: anchored on first env report, falls forward; model-lane SQL must follow
 - [C4 tolerance + outcomes](c4-tolerance-and-outcomes-2026-10-13.md) — 2026-10-13: zones/must-have in the report, env-v3 outcome items, Skip UI rule, open hand-offs
 - [Tolerance pin](tolerance-pin-2026-10-14.md) — 2026-10-14: tolerance follows D-15; as-of anchor then first-step-after-pinned-sitting fallback; rulings on Qs
+- [Walk gaps G53/G54/G55](walk-gaps-g53-g54-g55-2026-11-23.md) — 2026-11-23: career status asked up front (client mirror), tolerance-pin hint, 21-step copy; scenarios doc not yet updated
