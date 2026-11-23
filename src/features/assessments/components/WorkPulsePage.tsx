@@ -62,12 +62,13 @@
  * interleave exist to hide (D-15). Whatever is eventually shown has to be designed against
  * that pressure rather than falling out of the submit response.
  */
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 
 import AssessmentStepper from "./AssessmentStepper";
 import TraitPreferencesStep from "./TraitPreferencesStep";
+import { TRAIT_PREFERENCES_SAVED_MESSAGE } from "./traitPreferencesCopy";
 import HeroNetworkAnimation from "../../../shared/ui/HeroNetworkAnimation";
 import ResumePrompt from "../../../shared/ui/ResumePrompt";
 import { firstUnansweredIndex, useResumePrompt } from "../../../shared/lib/resumeDraft";
@@ -85,6 +86,18 @@ export const DASHBOARD_QUERY_KEY = ["dashboard"] as const;
  *  written for developers, and for a stale form it names opaque item tokens. */
 export const SUBMIT_ERROR_MESSAGE =
   "We couldn't save your Work Pulse. Your answers are still here. Reload the questions, then press Finish again.";
+
+/** Router state /work-pulse understands, read once on arrival and then stripped
+ *  from the history entry so a reload does not replay it.
+ *  - `retake: true` (the hub's "Retake Work Pulse"): a completed user lands straight
+ *    in the retake form, as if they had pressed the card's Retake button. The same
+ *    shape FocusTypePage and ManagerMatchPage take. Ignored before completion.
+ *  - `traitPreferencesSaved: true` (/trait-preferences after a Save): shows the
+ *    saved confirmation. Its Cancel passes nothing, so the two are told apart. */
+export interface WorkPulseLocationState {
+  retake?: boolean;
+  traitPreferencesSaved?: boolean;
+}
 
 /** The live form. Mounted only while the current instrument is incomplete or a retake is
  * open, so a completed user's visit does not fetch (and rebuild) a form they did not ask
@@ -228,6 +241,10 @@ function WorkPulseForm({ showLegacyLink, onCompleted, onCancelRetake }: WorkPuls
         </div>
       )}
 
+      {/* A "Try again" in flight lands here too: with no form loaded yet, React
+          Query clears the error when the refetch starts, so the panel gives way
+          to this line for the whole retry (G47 was a misread, pinned in
+          useAssessment.test.tsx). */}
       {!loadError && items === null && (
         <p className="text-sm text-ink-secondary">Loading…</p>
       )}
@@ -264,16 +281,43 @@ type NextStep = "describe_job" | "see_report" | "first_job" | "pending";
 
 export default function WorkPulsePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user, updateProfile } = useAuth();
   const [justCompleted, setJustCompleted] = useState(false);
+  // Router state (WorkPulseLocationState) is read once, on mount, and stripped by
+  // the effect below: router state survives a reload, and replaying it would
+  // reopen a retake, or repeat "saved", that the user did not just ask for.
+  const [arrival] = useState(() => {
+    const state = (location.state as WorkPulseLocationState | null) ?? {};
+    return {
+      retake: state.retake === true,
+      traitPreferencesSaved: state.traitPreferencesSaved === true,
+    };
+  });
   // A second (or later) sitting is open. Local state on purpose: nothing on the
-  // server changes until Finish, so completion holds while this is true.
-  const [retaking, setRetaking] = useState(false);
+  // server changes until Finish, so completion holds while this is true. The
+  // hub's "Retake Work Pulse" arrives with `retake: true` and opens it directly
+  // (G46); before completion there is nothing to retake and the flag is ignored.
+  const [retaking, setRetaking] = useState(
+    () => arrival.retake && Boolean(user?.wp_v2_completed)
+  );
   const [justRetook, setJustRetook] = useState(false);
   // The tolerance step, shown once right after a sitting is saved and before the
   // card's next steps. Closed by saving or skipping.
   const [traitStepOpen, setTraitStepOpen] = useState(false);
+  // The tolerance answers were just saved, here or on /trait-preferences (G48).
+  const [traitPreferencesSaved, setTraitPreferencesSaved] = useState(
+    arrival.traitPreferencesSaved
+  );
+
+  useEffect(() => {
+    if (arrival.retake || arrival.traitPreferencesSaved) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // Mount only: this consumes the state the initializer above already read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isCompleted = justCompleted || Boolean(user?.wp_v2_completed);
   const hasLegacyResults = Boolean(user?.wpl_completed);
@@ -338,12 +382,25 @@ export default function WorkPulsePage() {
           data-testid="work-pulse-panel"
           className="rounded-xl border border-cream-muted bg-cream-base/95 backdrop-blur-sm px-5 py-8 sm:px-8 shadow-sm"
         >
+        {traitPreferencesSaved && !retaking && !traitStepOpen && (
+          <p
+            role="status"
+            className="mb-5 rounded-lg border border-forest-light bg-forest-pale px-4 py-3 text-sm font-medium text-forest-dark"
+          >
+            {TRAIT_PREFERENCES_SAVED_MESSAGE}
+          </p>
+        )}
         {isCompleted && !retaking && traitStepOpen ? (
           <div className="space-y-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-forest-mid">
               ✦ Work Pulse Complete
             </p>
-            <TraitPreferencesStep onFinished={() => setTraitStepOpen(false)} />
+            <TraitPreferencesStep
+              onFinished={(outcome) => {
+                setTraitPreferencesSaved(outcome === "saved");
+                setTraitStepOpen(false);
+              }}
+            />
           </div>
         ) : isCompleted && !retaking ? (
           <div className="space-y-4">
@@ -372,7 +429,7 @@ export default function WorkPulsePage() {
             {nextStep === "describe_job" && (
               <>
                 <p className="text-sm text-ink-primary font-medium">
-                  24 questions about you. Now 16 about your job.
+                  24 questions about you. Now 16 about your job, plus five optional ones.
                 </p>
                 <p className="text-sm text-ink-secondary">
                   Work Pulse is half of your Situation Report. The other half is your own
@@ -419,9 +476,10 @@ export default function WorkPulsePage() {
             )}
             {nextStep === "first_job" && (
               <p className="text-sm text-ink-secondary">
-                When you start a job, sixteen questions about it turn this into your
-                Situation Report. Until then, FocusType and ManagerMatch need no employer,
-                and they're most useful while you're choosing between offers.
+                When you start a job, sixteen questions about the role, plus five
+                optional ones, turn this into your Situation Report. Until then,
+                FocusType and ManagerMatch need no employer, and they're most useful
+                while you're choosing between offers.
               </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -460,6 +518,7 @@ export default function WorkPulsePage() {
                 type="button"
                 onClick={() => {
                   setJustRetook(false);
+                  setTraitPreferencesSaved(false);
                   setRetaking(true);
                 }}
                 className={secondary}

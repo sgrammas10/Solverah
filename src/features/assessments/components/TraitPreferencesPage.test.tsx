@@ -59,15 +59,27 @@ describe("TraitPreferencesPage", () => {
     expect(RETAKE_SITTING_NOTE).toMatch(/Situation Report/);
   });
 
-  it("returns to Work Pulse after a save", () => {
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Save stub" }));
-    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse");
+  it("the note is true for a first answer as well as a later change (G49)", () => {
+    // The tolerance pin (situation_report_service, D-15): a report with no tolerance
+    // answers yet takes the first ones at once; only a LATER change waits for a
+    // retake and the report's Re-read. The old note promised the wait for both.
+    expect(RETAKE_SITTING_NOTE).toMatch(/first answers you save here straight away/);
+    expect(RETAKE_SITTING_NOTE).toMatch(/later change reaches it only after you retake/);
+    expect(RETAKE_SITTING_NOTE).not.toMatch(/picks them up the next time/);
   });
 
-  it("returns to Work Pulse on cancel", () => {
+  it("returns to Work Pulse after a save, flagged so it can say 'saved' (G48)", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Save stub" }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", {
+      state: { traitPreferencesSaved: true },
+    });
+  });
+
+  it("returns to Work Pulse on cancel with no 'saved' flag (G48)", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Cancel stub" }));
+    expect(mocks.navigate).toHaveBeenCalledTimes(1);
     expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse");
   });
 });

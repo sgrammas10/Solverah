@@ -122,6 +122,38 @@ describe("useAssessment", () => {
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 
+  it("clears the load error while a Try again is in flight, so the page shows Loading… (G47)", async () => {
+    // G47 claimed "Try again" shows no sign of activity, as if the error survived
+    // the refetch (WorkPulseResultsPage guards against that). It does not here:
+    // with no form loaded yet, React Query resets a query to pending when a fetch
+    // starts, so `loadError` is null for the whole retry and WorkPulsePage swaps
+    // its error panel for "Loading…". This pins that, so a change to the query
+    // (placeholder data, a library upgrade) cannot quietly bring G47 into being.
+    fetchWithAuth.mockRejectedValueOnce(new ApiError("That could not be found.", { status: 404 }));
+    const { result } = renderAssessment();
+    await waitFor(() => expect(result.current.loadError).not.toBeNull());
+
+    let resolveRetry: (form: AssessmentForm) => void = () => {};
+    fetchWithAuth.mockReturnValueOnce(
+      new Promise<AssessmentForm>((resolve) => {
+        resolveRetry = resolve;
+      })
+    );
+    act(() => {
+      void result.current.reloadForm();
+    });
+    await waitFor(() => expect(fetchWithAuth).toHaveBeenCalledTimes(2));
+    // In flight: no error, no form -- exactly the page's "Loading…" condition.
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.items).toBeNull();
+
+    await act(async () => {
+      resolveRetry(FORM);
+    });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+    expect(result.current.loadError).toBeNull();
+  });
+
   it("retries a retryable load failure through shouldRetry's bounded retries", async () => {
     // The conversion to a query adopts the shared retry policy ON PURPOSE —
     // safe for this GET because Phase 3a removed every commit from GET

@@ -9,6 +9,8 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import WorkPulsePage, { DASHBOARD_QUERY_KEY, SUBMIT_ERROR_MESSAGE } from "./WorkPulsePage";
+import type { WorkPulseLocationState } from "./WorkPulsePage";
+import { TRAIT_PREFERENCES_SAVED_MESSAGE } from "./traitPreferencesCopy";
 import { situationReportKeys } from "../useSituationReport";
 // A deep import on purpose, test-only: `dashboardKeys` is not on the profile
 // slice's public surface, and this test exists to fail if WorkPulsePage's
@@ -116,11 +118,12 @@ beforeEach(() => {
 
 let queryClient: QueryClient;
 
-function renderPage() {
+/** `state` is the router state the page arrives with (WorkPulseLocationState). */
+function renderPage(state?: WorkPulseLocationState) {
   queryClient = new QueryClient();
   render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[{ pathname: "/work-pulse", state: state ?? null }]}>
         <WorkPulsePage />
       </MemoryRouter>
     </QueryClientProvider>
@@ -267,7 +270,7 @@ describe("WorkPulsePage — completion", () => {
     renderPage();
 
     expect(
-      screen.getByText("24 questions about you. Now 16 about your job."),
+      screen.getByText("24 questions about you. Now 16 about your job, plus five optional ones."),
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /describe your job/i }));
     expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
@@ -456,7 +459,7 @@ describe("WorkPulsePage - next step after completion", () => {
     };
     renderPage();
     expect(screen.queryByRole("button", { name: /describe your job/i })).toBeNull();
-    expect(screen.queryByText("24 questions about you. Now 16 about your job.")).toBeNull();
+    expect(screen.queryByText("24 questions about you. Now 16 about your job, plus five optional ones.")).toBeNull();
     const focusType = screen.getByRole("button", { name: /start focustype/i });
     expect(focusType.className).toContain("bg-forest-dark");
     expect(screen.getByRole("button", { name: /start managermatch/i }).className).not.toContain(
@@ -666,5 +669,121 @@ describe("WorkPulsePage - tolerance step after a sitting (six-trait model)", () 
     });
 
     expect(screen.queryByTestId("trait-preferences-step")).toBeNull();
+  });
+});
+
+// ─── Router state on arrival: the hub's retake, the saved confirmation ──────
+
+describe("WorkPulsePage - arriving with { retake: true } (G46)", () => {
+  beforeEach(() => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("a completed user lands straight in the retake form, not on the card", () => {
+    // Regression: the hub's "Retake Work Pulse" landed on the card, so a retake
+    // took a second click. FocusType and ManagerMatch honour the same flag.
+    renderPage({ retake: true });
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+    expect(screen.getByText(/the one you finished before stays stored/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Work Pulse Complete/i)).toBeNull();
+  });
+
+  it("consumes the flag, so a reload mid-retake does not replay it", () => {
+    renderPage({ retake: true });
+    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", { replace: true, state: null });
+  });
+
+  it("'Not now' still returns to the card", () => {
+    renderPage({ retake: true });
+    fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("assessment-stepper")).toBeNull();
+  });
+
+  it("before completion the flag is ignored: the ordinary first sitting", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
+    renderPage({ retake: true });
+    expect(screen.getByTestId("assessment-stepper")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Not now" })).toBeNull();
+  });
+
+  it("without the flag a completed user gets the card, and nothing is stripped", () => {
+    renderPage();
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("WorkPulsePage - saved confirmation for the tolerance answers (G48)", () => {
+  beforeEach(() => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+  });
+
+  it("says 'saved' after a Save on /trait-preferences", () => {
+    renderPage({ traitPreferencesSaved: true });
+    expect(screen.getByRole("status")).toHaveTextContent(TRAIT_PREFERENCES_SAVED_MESSAGE);
+    expect(screen.getByText(/Work Pulse Complete/i)).toBeInTheDocument();
+    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", { replace: true, state: null });
+  });
+
+  it("says nothing after a Cancel, which arrives with no state", () => {
+    renderPage();
+    expect(screen.queryByText(TRAIT_PREFERENCES_SAVED_MESSAGE)).toBeNull();
+  });
+
+  it("says 'saved' after saving the step that follows a sitting, not after skipping", async () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "abc",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save tolerance step" }));
+    expect(screen.getByRole("status")).toHaveTextContent(TRAIT_PREFERENCES_SAVED_MESSAGE);
+  });
+
+  it("skipping the step says nothing", async () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: false };
+    mocks.assessment.submit = vi.fn().mockResolvedValue({
+      submission_id: "abc",
+      scoring_key_version: "v2+mean_pole",
+      dimensions_scored: 6,
+    });
+    renderPage();
+    await act(async () => {
+      await mocks.stepperProps.onComplete();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Skip tolerance step" }));
+    expect(screen.queryByText(TRAIT_PREFERENCES_SAVED_MESSAGE)).toBeNull();
+  });
+
+  it("the confirmation goes away once a retake starts", () => {
+    renderPage({ traitPreferencesSaved: true });
+    fireEvent.click(screen.getByRole("button", { name: "Retake Work Pulse" }));
+    expect(screen.queryByText(TRAIT_PREFERENCES_SAVED_MESSAGE)).toBeNull();
+  });
+});
+
+describe("WorkPulsePage - first_job line counts the optional questions (G55)", () => {
+  it("names the five optional questions beside the sixteen", () => {
+    mocks.user = { name: "Ada", wpl_completed: false, wp_v2_completed: true };
+    mocks.situation = {
+      data: { state: "needs_environment_report", can_submit_environment_report: false },
+      isPending: false,
+      isFetching: false,
+    };
+    renderPage();
+    expect(
+      screen.getByText(/sixteen questions about the role, plus five optional ones/i)
+    ).toBeInTheDocument();
   });
 });
