@@ -40,6 +40,7 @@ import type { SituationReport } from '../../assessments';
 import { nextActionFor } from '../../assessments';
 import { careerStatusNavState } from '../../../shared/lib/careerStatusReturn';
 import { dashboardKeys } from '../dashboardKeys';
+import { isIntakePromptSnoozed, snoozeIntakePrompt } from '../intakePromptSnooze';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -175,10 +176,10 @@ function JobSeekerDashboard() {
   useEffect(() => {
     if (!dashboardData) return;
     const completionPct = parseInt(dashboardData.profileCompletion ?? '0', 10);
-    if (completionPct < 50) {
+    if (completionPct < 50 && !isIntakePromptSnoozed(user?.id)) {
       setIntakeModalOpen(true);
     }
-  }, [dashboardData]);
+  }, [dashboardData, user?.id]);
 
   const cardCls =
     'border border-cream-muted rounded-xl bg-white p-6';
@@ -207,7 +208,7 @@ function JobSeekerDashboard() {
       <IntakePromptModal
         open={intakeModalOpen}
         hasIntakeSubmission={hasIntakeSubmission ?? false}
-        onClose={() => setIntakeModalOpen(false)}
+        onClose={() => { snoozeIntakePrompt(user?.id); setIntakeModalOpen(false); }}
         onSuccess={() => { setIntakeModalOpen(false); navigate('/job-seeker/profile'); }}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

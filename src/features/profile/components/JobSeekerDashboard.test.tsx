@@ -643,6 +643,84 @@ describe("JobSeekerDashboard - intake modal", () => {
   });
 });
 
+// ─── G41: "Maybe later" sticks for 7 days, per user ──────────────────────────
+
+describe("JobSeekerDashboard - intake modal snooze (G41)", () => {
+  const KEY = (id: string) => `solverah.intakePromptSnoozedUntil:${id}`;
+  const DAY = 24 * 60 * 60 * 1000;
+
+  const withCompletion = (profileCompletion: string) =>
+    mocks.fetchWithAuth.mockImplementation((path: string) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      return Promise.resolve({ ...DASHBOARD_DOC, profileCompletion });
+    });
+
+  /** The modal opens in an effect after the dashboard query resolves, so
+   *  "stays closed" needs the document rendered first or it proves nothing. */
+  const settled = () => screen.findByText(/Welcome back/);
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mocks.user = { ...mocks.user, id: "u1" };
+    withCompletion("30%");
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    window.localStorage.clear();
+  });
+
+  it("does not reopen after being dismissed, on a fresh visit", async () => {
+    const first = render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter><JobSeekerDashboard /></MemoryRouter>
+      </QueryClientProvider>
+    );
+    fireEvent.click(await screen.findByText("Close Modal"));
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+    first.unmount();
+
+    renderJobSeekerDashboard();
+    await settled();
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+
+  it("opens again once the 7-day snooze has lapsed", async () => {
+    window.localStorage.setItem(KEY("u1"), String(Date.now() - 1000));
+    renderJobSeekerDashboard();
+    await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());
+  });
+
+  it("stores the snooze as seven days from the dismissal", async () => {
+    renderJobSeekerDashboard();
+    const before = Date.now();
+    fireEvent.click(await screen.findByText("Close Modal"));
+    const until = Number(window.localStorage.getItem(KEY("u1")));
+    expect(until - before).toBeGreaterThanOrEqual(7 * DAY);
+    expect(until - before).toBeLessThan(7 * DAY + 60_000);
+  });
+
+  it("does not snooze a different user on the same browser", async () => {
+    window.localStorage.setItem(KEY("u1"), String(Date.now() + 3 * DAY));
+    mocks.user = { ...mocks.user, id: "u2" };
+    renderJobSeekerDashboard();
+    await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());
+  });
+
+  it("treats an invalid stored value as not snoozed", async () => {
+    window.localStorage.setItem(KEY("u1"), "garbage");
+    renderJobSeekerDashboard();
+    await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());
+  });
+
+  it("never opens at 50% or more, snoozed or not", async () => {
+    withCompletion("60%");
+    renderJobSeekerDashboard();
+    await settled();
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+});
+
 // ─── D-6: the working-life frame ───────────────────────────────────────────────
 
 /**
