@@ -124,6 +124,20 @@ function directionWord(current: number, prior: number): string {
   return "about the same";
 }
 
+/**
+ * What to call the gap between two check-ins. "last week" only when it really
+ * was about a week (4-10 days); otherwise the actual interval, so a check-in
+ * after a month away is not labelled "this week vs. last week" (G57).
+ */
+export function intervalPhrase(priorAt: string | null, currentAt: string): string {
+  if (!priorAt) return "your last check-in";
+  const days = Math.round((Date.parse(currentAt) - Date.parse(priorAt)) / 86_400_000);
+  if (Number.isNaN(days) || days < 4) return "your last check-in";
+  if (days <= 10) return "last week";
+  const weeks = Math.max(2, Math.round(days / 7));
+  return `your last check-in, ${weeks} weeks ago`;
+}
+
 function Confirmation({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
   const { sequenceBefore, history, current } = confirmation;
@@ -140,6 +154,8 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
   // rows to compare against, the page says it saved and no more.
   const tier =
     sequenceBefore === 0 ? "first" : !prior ? "unknown" : sequenceBefore === 1 ? "second" : "later";
+  const since = intervalPhrase(prior?.taken_at ?? null, current.taken_at ?? new Date().toISOString());
+  const isLastWeek = since === "last week";
 
   return (
     <div className="space-y-5">
@@ -162,7 +178,11 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
       ) : (
         <>
           <h1 className="font-display text-2xl font-semibold text-ink-primary">
-            {tier === "second" ? "Two points make a trend" : "This week vs. last week"}
+            {tier === "second"
+              ? "Two points make a trend"
+              : isLastWeek
+                ? "This week vs. last week"
+                : `Now vs. ${since}`}
           </h1>
           <div className="rounded-xl border border-cream-muted bg-white px-5 py-4">
             <PulseSparkline
@@ -173,7 +193,7 @@ function Confirmation({ confirmation }: { confirmation: Confirmation }) {
           </div>
           <p className="text-sm text-ink-secondary leading-relaxed">
             How work's working for you is {directionWord(current.experienced, prior!.experienced)}{" "}
-            {tier === "second" ? "from last time." : "from last week."}
+            {tier === "second" ? "from last time." : `from ${since}.`}
           </p>
         </>
       )}

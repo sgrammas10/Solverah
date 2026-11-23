@@ -140,6 +140,11 @@ export function ExperimentControl({
             Check in now
           </Link>
         </p>
+        {abandon.isError && (
+          <p className="text-[0.85rem] text-red-700 print:hidden" role="alert">
+            We couldn't abandon that just now, so it's still running. Please try again in a moment.
+          </p>
+        )}
       </div>
     );
   }

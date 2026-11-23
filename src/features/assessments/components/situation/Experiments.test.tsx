@@ -125,6 +125,17 @@ describe("ExperimentControl", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't start that just now/);
   });
 
+  it("shows an inline error and keeps the experiment running when abandon fails (G51)", async () => {
+    mocks.fetchWithAuth.mockRejectedValue(new Error("boom"));
+    renderControl({ experiments: [RUNNING] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Abandon" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't abandon that/);
+    expect(screen.getByText(/Running since/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abandon" })).toBeEnabled();
+  });
+
   it("tells a running experiment's owner the readout needs Pulse check-ins, with a link", () => {
     renderControl({ experiments: [RUNNING] });
 

@@ -335,4 +335,21 @@ describe("PulseCheckinPage", () => {
     expect(screen.getByText(/is up from last week\./)).toBeInTheDocument();
     expect(mocks.fetchWithAuth).toHaveBeenCalledWith("/me/pulse/history?limit=11", expect.anything());
   });
+
+  it("names the real gap, not 'last week', when the prior check-in was weeks ago (G57)", async () => {
+    // Prior 2026-09-04, new check-in 2026-09-11 is a week; push the prior back
+    // to 2026-08-07 (35 days = 5 weeks).
+    const old = { ...HISTORY_ONE_PRIOR.checkins[0], taken_at: "2026-08-07T00:00:00Z" };
+    serve({
+      nextCheckin: { ...NEXT_CHECKIN, sequence: 3 },
+      history: { checkins: [old], events: [] },
+    });
+    renderPage();
+    await answerAll(4);
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+
+    expect(await screen.findByText("Now vs. your last check-in, 5 weeks ago")).toBeInTheDocument();
+    expect(screen.queryByText(/last week/)).not.toBeInTheDocument();
+    expect(screen.getByText(/from your last check-in, 5 weeks ago\./)).toBeInTheDocument();
+  });
 });
