@@ -50,6 +50,8 @@ describe("clearUserDrafts", () => {
       localStorage.setItem(key, "{}");
     }
     sessionStorage.setItem("mm_answers:7", "{}");
+    // useMP keys its draft per user since G59 (2026-11-23).
+    sessionStorage.setItem("mp_answers:7", "{}");
     localStorage.setItem("focus_type_draft:7", "{}");
     for (const key of KEPT_KEYS) {
       sessionStorage.setItem(key, "1");
@@ -58,7 +60,7 @@ describe("clearUserDrafts", () => {
 
     clearUserDrafts();
 
-    for (const key of [...DRAFT_KEYS, "mm_answers:7", "focus_type_draft:7"]) {
+    for (const key of [...DRAFT_KEYS, "mm_answers:7", "mp_answers:7", "focus_type_draft:7"]) {
       expect(sessionStorage.getItem(key)).toBeNull();
       expect(localStorage.getItem(key)).toBeNull();
     }

@@ -254,6 +254,130 @@ def test_submit_unauthenticated(client):
     assert res.status_code == 401
 
 
+# ── A resubmission while the job is in flight (G58) ──────────────────────────
+
+def _hold_jobs_in_queue(monkeypatch):
+    """Stop the eager worker so a queued job stays queued, as it does in prod
+    for the seconds the provider call takes. Returns the list of job ids that
+    WOULD have been sent to a worker -- one per provider call paid for."""
+    from solverah.infra import queue
+    from solverah.tasks.scoring_tasks import run_scoring_job
+
+    real_enqueue = queue.enqueue
+    sent = []
+
+    def _enqueue(task, *args, **kwargs):
+        if task is run_scoring_job:
+            sent.append(args[0])
+            return None
+        return real_enqueue(task, *args, **kwargs)  # registration's outbox mail
+
+    monkeypatch.setattr("solverah.infra.queue.enqueue", _enqueue)
+    return sent
+
+
+def _scoring_job_count(email):
+    from app import app
+    from model import ScoringJob, User
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        return ScoringJob.query.filter_by(user_id=user.id, kind="manager_match").count()
+
+
+def test_a_reload_while_scoring_joins_the_job_already_in_flight(client, monkeypatch):
+    """Regression (G58, S14.3a): a reload during scoring re-sends the complete
+    draft, because the result route still 404s. That used to queue a second
+    job -- a second OpenAI call, and the later one overwrote the narrative.
+    The same answers, reordered the way a resumed draft can be, must come back
+    with the first job's handle and send nothing new to a worker.
+    """
+    email = "mm_reload@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _mock_openai(monkeypatch)
+    sent = _hold_jobs_in_queue(monkeypatch)
+
+    first = _queue(client, {"answers": MM_ANSWERS}, csrf)
+    second = _queue(client, {"answers": list(reversed(MM_ANSWERS))}, csrf)
+
+    assert first.status_code == second.status_code == 202
+    assert second.get_json()["job_id"] == first.get_json()["job_id"]
+    assert set(second.get_json()) == {"job_id", "status", "status_url"}
+    assert second.get_json()["status_url"] == first.get_json()["status_url"]
+    assert len(sent) == 1
+    assert _scoring_job_count(email) == 1
+    # The joined handle polls like any other.
+    assert _poll(client, second.get_json()["job_id"]).status_code == 200
+
+
+def test_a_running_job_is_joined_too(client, monkeypatch):
+    """Claimed by a worker (`running`) is still in flight: a reload while the
+    provider call is under way is the common case, not the queued one."""
+    from app import app
+    from model import ScoringJob, db
+
+    email = "mm_running@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _mock_openai(monkeypatch)
+    sent = _hold_jobs_in_queue(monkeypatch)
+
+    first = _queue(client, {"answers": MM_ANSWERS}, csrf)
+    with app.app_context():
+        job = ScoringJob.query.filter_by(kind="manager_match").order_by(ScoringJob.id.desc()).first()
+        job.status = "running"
+        db.session.commit()
+
+    second = _queue(client, {"answers": MM_ANSWERS}, csrf)
+
+    assert second.get_json()["job_id"] == first.get_json()["job_id"]
+    assert len(sent) == 1
+
+
+def test_different_answers_while_a_job_is_in_flight_are_a_new_sitting(client, monkeypatch):
+    email = "mm_changed@example.com"
+    csrf = _register_and_login(client, monkeypatch, email=email)
+    _mock_openai(monkeypatch)
+    sent = _hold_jobs_in_queue(monkeypatch)
+
+    changed = [dict(a) for a in MM_ANSWERS]
+    changed[0]["choice"] = "a" if changed[0]["choice"] == "b" else "b"
+
+    first = _queue(client, {"answers": MM_ANSWERS}, csrf)
+    second = _queue(client, {"answers": changed}, csrf)
+
+    assert second.status_code == 202
+    assert second.get_json()["job_id"] != first.get_json()["job_id"]
+    assert len(sent) == 2
+
+
+def test_a_finished_job_is_never_joined(client, monkeypatch):
+    """A retry after a terminal job -- failed or succeeded -- must still score;
+    the dedupe is for scorings that have not ended, nothing else."""
+    csrf = _register_and_login(client, monkeypatch, email="mm_retry@example.com")
+    _mock_openai(monkeypatch)
+
+    first = _score(client, csrf, MM_ANSWERS)  # eager: terminal on return
+    assert first.get_json()["status"] == "succeeded"
+    second = _queue(client, {"answers": MM_ANSWERS}, csrf)
+
+    assert second.status_code == 202
+    assert second.get_json()["job_id"] != first.get_json()["job_id"]
+
+
+def test_another_users_job_in_flight_is_not_joined(client, monkeypatch):
+    csrf_a = _register_and_login(client, monkeypatch, email="mm_owner_a@example.com")
+    _mock_openai(monkeypatch)
+    sent = _hold_jobs_in_queue(monkeypatch)
+    first = _queue(client, {"answers": MM_ANSWERS}, csrf_a)
+
+    # Signing in as B replaces A's session cookies on this client.
+    csrf_b =_register_and_login(client, monkeypatch, email="mm_owner_b@example.com")
+    second = _queue(client, {"answers": MM_ANSWERS}, csrf_b)
+
+    assert second.status_code == 202
+    assert second.get_json()["job_id"] != first.get_json()["job_id"]
+    assert len(sent) == 2
+
+
 # ── The deleted transport ─────────────────────────────────────────────────────
 
 def test_the_synchronous_submit_is_a_410_tombstone(client):

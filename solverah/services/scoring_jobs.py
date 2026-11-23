@@ -61,6 +61,7 @@ duplicate retention of assessment data with no reader.
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -206,13 +207,69 @@ def create_assessment(
     constraint ``ck_scoring_jobs_owner_required`` is what actually holds that
     line -- an ownerless row of any other kind is rejected by the schema rather
     than by this function remembering to.
+
+    **A resubmission of a sitting still being scored joins that job (G58).**
+    When *user* already has a queued or running job of this kind for the same
+    answers, that row is returned and nothing new is queued: the caller gets the
+    same 202 body it would have got for a fresh row, with the existing handle,
+    and polls the scoring already under way.  Without this, a reload during the
+    ManagerMatch scoring re-sent the draft and paid for a second provider call,
+    and whichever finished later overwrote the stored narrative.  Different
+    answers are a new sitting and still queue; a terminal job is never joined,
+    so a retry after a failure still scores.  Ownerless (``wpll``) jobs are not
+    deduplicated -- there is no owner to match on.
     """
+    if user is not None:
+        in_flight = _in_flight_for(user.id, kind_key, payload or {})
+        if in_flight is not None:
+            return in_flight
     return _create(
         job_type=ASSESSMENT,
         user_id=user.id if user is not None else None,
         kind=kind_key,
         payload=payload or {},
     )
+
+
+def _submission_fingerprint(payload: Dict[str, Any]) -> Any:
+    """*payload* in a form where answer order does not matter.
+
+    The client sends its answers in the order they were given; a resumed sitting
+    rebuilds that list from storage, so the same answers may arrive reordered.
+    Every other key compares as-is.
+    """
+    canonical = dict(payload)
+    answers = canonical.get("answers")
+    if isinstance(answers, list):
+        canonical["answers"] = sorted(
+            json.dumps(item, sort_keys=True, default=str) for item in answers
+        )
+    return canonical
+
+
+def _in_flight_for(
+    user_id: int, kind_key: str, payload: Dict[str, Any]
+) -> Optional[ScoringJob]:
+    """*user_id*'s newest non-terminal *kind_key* job for this payload, or None.
+
+    Only a non-terminal row still holds its payload (``_finish`` empties it), so
+    the comparison can only ever match a scoring that has not ended.
+    """
+    candidates = (
+        ScoringJob.query.filter(
+            ScoringJob.user_id == user_id,
+            ScoringJob.job_type == ASSESSMENT,
+            ScoringJob.kind == kind_key,
+            ScoringJob.status.in_((QUEUED, RUNNING)),
+        )
+        .order_by(ScoringJob.created_at.desc(), ScoringJob.id.desc())
+        .all()
+    )
+    wanted = _submission_fingerprint(payload)
+    for job in candidates:
+        if _submission_fingerprint(job.payload or {}) == wanted:
+            return job
+    return None
 
 
 def create_path_suggestions(user: User) -> ScoringJob:

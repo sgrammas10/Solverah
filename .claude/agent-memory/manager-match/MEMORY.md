@@ -1,1 +1,2 @@
+- [G58/G59 fixes 2026-11-23](g58-g59-dedupe-and-mp-key.md) — in-flight scoring job joined server-side on same answers; mp_answers per user
 - [Audit 2026-10-02 findings](audit-2026-10-02-open-findings.md) — only F1 archetype fallthrough (77% "Operator") open; F2-F6/F8 fixed in fix wave; precheck 400 handed to core-assessments
