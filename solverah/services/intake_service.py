@@ -47,7 +47,6 @@ from solverah.services import (
 __all__ = [
     "IntakeResult",
     "create_account",
-    "early_access_request",
     "finalize",
     "link_account",
     "presign",
@@ -83,50 +82,6 @@ def _error(status: int, message: str) -> IntakeResult:
 # ---------------------------------------------------------------------------
 # Anonymous intake
 # ---------------------------------------------------------------------------
-
-def early_access_request(data: Dict[str, Any]) -> IntakeResult:
-    """Forward the landing-page interest form to info@solverah.com.
-
-    **This used to be the only endpoint in the intake funnel that returned 500
-    on a mail failure, and it was right to.** Nothing was persisted -- the lead
-    existed only as an email -- so swallowing the error lost it outright, and a
-    500 at least told the visitor to try again.
-
-    Phase 3 removes the reason rather than the behaviour. The lead is now written
-    to the outbox before anything is returned, so it is durable the instant this
-    function commits and a worker retries delivery until it lands. There is no
-    longer a failure that loses it, so there is no longer a failure to report:
-    the endpoint answers 200, which is the truth -- the submission was accepted.
-
-    Still not a row in a real table. `outbox` is a queue and `purge_published`
-    deletes delivered rows, so the lead's durable home is still the recipient's
-    inbox. That is a product decision this phase does not get to make; what it
-    fixes is the window in which the lead existed nowhere at all.
-    """
-    first_name = (data.get("firstName") or "").strip()
-    last_name = (data.get("lastName") or "").strip()
-    email = (data.get("email") or "").strip().lower()
-
-    # Basic validation
-    if not first_name or not last_name or not email:
-        return _error(400, "First name, last name, and email are required.")
-
-    entry_id = outbox.enqueue(
-        outbox.TOPIC_EMAIL_EARLY_ACCESS,
-        {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "phone": (data.get("phone") or "").strip(),
-            "preferred_contact": (data.get("preferredContact") or "").strip(),
-            "career_journey": (data.get("careerJourney") or "").strip(),
-        },
-    )
-    db.session.commit()
-    outbox.publish_soon(entry_id)
-
-    return IntakeResult(status=200, body={"ok": True})
-
 
 def presign(mime: str, size: int) -> IntakeResult:
     """Step 1 of 2: mint a submission id and a presigned PUT URL.

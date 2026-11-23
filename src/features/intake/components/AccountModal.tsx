@@ -1,7 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { AccountStep, AccountAction } from "../useIntakeForm";
+
+/**
+ * Where a visitor who just signed in from this modal goes when it closes. The
+ * landing page behind it is for visitors who are signed out, and it must not
+ * go on offering them a sign-up (G29). Same home RedirectIfAuthenticated uses.
+ */
+const SIGNED_IN_HOME = "/job-seeker/dashboard";
 
 const inputCls =
   "w-full rounded border border-cream-muted bg-cream-base px-3 py-2.5 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors";
@@ -11,11 +18,14 @@ interface PasswordFieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Shown under the input and announced with it. */
+  hint?: string;
 }
 
 /** A password input with Register.tsx's show/hide toggle. */
-function PasswordField({ id, label, value, onChange }: PasswordFieldProps) {
+function PasswordField({ id, label, value, onChange, hint }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
+  const hintId = `${id}-hint`;
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="text-sm font-medium text-ink-primary">{label}</label>
@@ -25,6 +35,7 @@ function PasswordField({ id, label, value, onChange }: PasswordFieldProps) {
           type={visible ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          aria-describedby={hint ? hintId : undefined}
           className={`${inputCls} pr-10`}
         />
         <button
@@ -36,6 +47,9 @@ function PasswordField({ id, label, value, onChange }: PasswordFieldProps) {
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
+      {hint && (
+        <p id={hintId} className="text-xs text-ink-tertiary">{hint}</p>
+      )}
     </div>
   );
 }
@@ -61,6 +75,11 @@ type Props = {
   isSigningIn: boolean;
   onCreateAccount: () => void;
   onSignInExisting: () => void;
+  /** The last sign-in was refused because the email is not confirmed (403). */
+  signInNeedsVerification: boolean;
+  /** Sends a fresh verification code; resolves to whether it went. */
+  onResendVerification: () => Promise<boolean>;
+  isResendingVerification: boolean;
 };
 
 export default function AccountModal({
@@ -84,8 +103,32 @@ export default function AccountModal({
   isSigningIn,
   onCreateAccount,
   onSignInExisting,
+  signInNeedsVerification,
+  onResendVerification,
+  isResendingVerification,
 }: Props) {
   const navigate = useNavigate();
+
+  // Every way out of the modal -- Continue, the close button, the backdrop,
+  // Escape -- goes through here, so a visitor who signed in cannot be left on
+  // the signed-out landing page by closing it the "wrong" way.
+  const signedIn = step === "success" && action === "signin";
+  const close = () => (signedIn ? navigate(SIGNED_IN_HOME) : onClose());
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
+  const resendAndVerify = async () => {
+    if (await onResendVerification()) {
+      navigate("/verify-email", { state: { email: signInEmail.trim() } });
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -93,14 +136,14 @@ export default function AccountModal({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto px-4 py-6 sm:py-10">
       <div
         className="absolute inset-0 bg-ink-primary/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={close}
         aria-hidden="true"
       />
       <div className="relative w-full max-w-lg max-h-[calc(100vh-3rem)] overflow-y-auto rounded-xl border border-cream-muted bg-cream-base p-8 shadow-2xl animate-fade-in">
         <button
           type="button"
           aria-label="Close"
-          onClick={onClose}
+          onClick={close}
           className="absolute right-4 top-4 h-8 w-8 flex items-center justify-center rounded border border-cream-muted text-ink-secondary hover:border-forest-pale hover:text-forest-mid transition-colors"
         >
           ✕
@@ -146,6 +189,7 @@ export default function AccountModal({
                 label="Create a password"
                 value={accountPassword}
                 onChange={setAccountPassword}
+                hint="At least 12 characters, with an uppercase letter, a lowercase letter, a number and a symbol."
               />
               <PasswordField
                 id="account-modal-confirm"
@@ -181,8 +225,9 @@ export default function AccountModal({
           <div className="mt-6 space-y-4">
             <div className="grid gap-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-ink-primary">Email</label>
+                <label htmlFor="account-modal-signin-email" className="text-sm font-medium text-ink-primary">Email</label>
                 <input
+                  id="account-modal-signin-email"
                   type="email"
                   value={signInEmail}
                   onChange={(e) => setSignInEmail(e.target.value)}
@@ -197,7 +242,19 @@ export default function AccountModal({
               />
             </div>
             {error && (
-              <p className="rounded bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</p>
+              <div className="rounded bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                <p>{error}</p>
+                {signInNeedsVerification && (
+                  <button
+                    type="button"
+                    onClick={resendAndVerify}
+                    disabled={isResendingVerification}
+                    className="mt-1.5 font-semibold underline underline-offset-2 hover:text-red-900 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isResendingVerification ? "Sending…" : "Resend verification code"}
+                  </button>
+                )}
+              </div>
             )}
             <div className="flex flex-wrap items-center justify-end gap-3">
               <button
@@ -230,7 +287,7 @@ export default function AccountModal({
               {action === "signin" ? (
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={close}
                   className="bg-forest-dark text-white font-semibold text-sm px-6 py-2.5 rounded hover:bg-forest-mid transition-colors"
                 >
                   Continue

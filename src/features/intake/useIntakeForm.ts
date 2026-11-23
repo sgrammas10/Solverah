@@ -21,7 +21,8 @@
 import { FormEvent, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { API_BASE } from "../../shared/api/api";
-import { parseApiError } from "../../shared/api/apiError";
+import { ApiError, parseApiError } from "../../shared/api/apiError";
+import type { SessionResponse, User } from "../auth";
 
 /** Overall submission lifecycle state, derived from the submit mutation. */
 export type SubmissionStatus = "idle" | "submitting" | "success" | "error";
@@ -30,7 +31,82 @@ export type AccountStep = "prompt" | "form" | "signin" | "success";
 /** Whether the user is creating a new account or signing into an existing one. */
 export type AccountAction = "create" | "signin";
 
-export function useIntakeForm() {
+/**
+ * The first rule `password` breaks, or "" when it passes.
+ *
+ * A copy of `validate_password` in validators.py, the rule `/intake/claims`
+ * (register mode) enforces -- same order, same wording. The modal said "at
+ * least 8 characters" until G30, so an 8-to-11 character password passed here
+ * and bounced off the server.
+ */
+export function passwordProblem(password: string): string {
+  if (password.length < 12) return "Password must be at least 12 characters.";
+  if (!/[A-Z]/.test(password)) return "Password must contain an uppercase letter.";
+  if (!/[a-z]/.test(password)) return "Password must contain a lowercase letter.";
+  if (!/[0-9]/.test(password)) return "Password must contain a number.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Password must contain a symbol.";
+  return "";
+}
+
+/** The hosts `is_valid_linkedin_url` (solverah/domain/validation.py) accepts. */
+const LINKEDIN_HOSTS = new Set(["linkedin.com", "www.linkedin.com"]);
+
+/**
+ * Turn what someone typed into an optional link field into the https URL the
+ * server accepts, or null when it cannot be one.
+ *
+ * The form's own placeholders are "linkedin.com/in/you" and "your-site.com",
+ * and the server only takes `https://` (G26): a bare address gets the scheme,
+ * and `http://` is upgraded rather than refused. The result is the parsed
+ * URL's `href`, so the host reaches the server lowercased -- the server
+ * compares it to its allowed set case-sensitively.
+ */
+export function toHttpsUrl(raw: string): URL | null {
+  let value = raw.trim();
+  if (!value) return null;
+  if (/^http:\/\//i.test(value)) value = `https://${value.slice("http://".length)}`;
+  else if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) value = `https://${value}`;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || !url.host || url.username || url.password) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+/** Loose shape check; the server's `is_valid_email` has the final word. */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** What the account modal's sign-in hands the app's auth state (G29). */
+export interface IntakeFormOptions {
+  /**
+   * Called once a `sign_in` claim has opened a session, with the arguments
+   * `AuthContext.loginWithData` takes. The claim sets the session cookies
+   * server-side; until this existed the app never heard about it, and the page
+   * looked signed out until a reload.
+   */
+  onSignedIn?: (user: User, csrfToken: string) => void;
+}
+
+/**
+ * The `User` the app holds, from the session probe.
+ *
+ * The claim's own body carries only the summary user (id, email, name, role),
+ * so handing that to `loginWithData` would leave the completion flags
+ * undefined and the dashboard prompting for instruments already done. The
+ * probe answers them; this mirrors AuthContext's `toUser`.
+ */
+function userFromSession(session: SessionResponse): User {
+  return {
+    ...(session.user as unknown as User),
+    wpl_completed: session.flags.wpl_completed,
+    wpll_completed: session.flags.wpll_completed,
+    wp_v2_completed: session.flags.wp_v2_completed,
+  } as User;
+}
+
+export function useIntakeForm({ onSignedIn }: IntakeFormOptions = {}) {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -58,6 +134,9 @@ export function useIntakeForm() {
   const [accountPassword, setAccountPassword] = useState("");
   const [accountConfirm, setAccountConfirm] = useState("");
   const [accountError, setAccountError] = useState("");
+  // The last sign-in failed on an unconfirmed email (403), so the modal offers
+  // a fresh code rather than a dead end.
+  const [signInNeedsVerification, setSignInNeedsVerification] = useState(false);
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -74,6 +153,7 @@ export function useIntakeForm() {
       email: string;
       state: string;
       linkedinUrl: string;
+      portfolioUrl: string;
       resumeFile: File;
     }) => {
       // Step 1: get presigned upload URL
@@ -125,7 +205,7 @@ export function useIntakeForm() {
           state: input.state,
           phone: formData.phone.trim() || null,
           linkedin_url: input.linkedinUrl || null,
-          portfolio_url: formData.portfolioUrl.trim() || null,
+          portfolio_url: input.portfolioUrl || null,
           privacy_consent: privacyConsent,
           info_opt_in: infoOptIn,
         }),
@@ -161,25 +241,40 @@ export function useIntakeForm() {
     const lastName = formData.lastName.trim();
     const email = formData.email.trim();
     const state = formData.state.trim();
-    const linkedinUrl = formData.linkedinUrl.trim();
+    const linkedinRaw = formData.linkedinUrl.trim();
+    const portfolioRaw = formData.portfolioUrl.trim();
 
+    // The form is noValidate (G26): these messages are the ones people see, so
+    // every rule the browser used to apply first has to be here instead.
     if (!firstName || !lastName) { setValidationError("Please enter your name."); return; }
     if (!email) { setValidationError("Please enter your email."); return; }
+    if (!EMAIL_SHAPE.test(email)) { setValidationError("Please enter a valid email address."); return; }
     if (!state) { setValidationError("Please enter your state / region."); return; }
     if (!privacyConsent) { setValidationError("Please agree to the privacy notice to continue."); return; }
     if (!resumeFile) { setValidationError("Please attach your resume to continue."); return; }
 
-    if (linkedinUrl.length > 0) {
-      try {
-        new URL(linkedinUrl);
-      } catch {
-        setValidationError("Please enter a valid LinkedIn URL.");
+    let linkedinUrl = "";
+    if (linkedinRaw) {
+      const url = toHttpsUrl(linkedinRaw);
+      if (!url || !LINKEDIN_HOSTS.has(url.host)) {
+        setValidationError("Please enter a LinkedIn link, like linkedin.com/in/you.");
         return;
       }
+      linkedinUrl = url.href;
+    }
+
+    let portfolioUrl = "";
+    if (portfolioRaw) {
+      const url = toHttpsUrl(portfolioRaw);
+      if (!url) {
+        setValidationError("Please enter your portfolio's web address, like your-site.com.");
+        return;
+      }
+      portfolioUrl = url.href;
     }
 
     setValidationError("");
-    submitIntake.mutate({ firstName, lastName, email, state, linkedinUrl, resumeFile });
+    submitIntake.mutate({ firstName, lastName, email, state, linkedinUrl, portfolioUrl, resumeFile });
   };
 
   // The lifecycle the components render is the mutation's, with client-side
@@ -247,19 +342,70 @@ export function useIntakeForm() {
         return {};
       });
       if (!response.ok) throw parseApiError(response, data, "Unable to sign in right now.");
+
+      // The claim opened a session (both cookies are set); ask it who we are
+      // so the app gets the full user, flags included. Should the probe fail,
+      // the claim's summary user still beats leaving the app signed out.
+      const claim = data as { user?: User; csrfToken?: string };
+      let user = claim.user as User;
+      let csrfToken = claim.csrfToken ?? "";
+      try {
+        const sessionRes = await fetch(`${API_BASE}/auth/session`, { credentials: "include" });
+        if (sessionRes.ok) {
+          const session = (await sessionRes.json()) as SessionResponse;
+          user = userFromSession(session);
+          csrfToken = session.csrf_token ?? csrfToken;
+        }
+      } catch (e) {
+        console.error("Session probe after intake sign-in failed:", e);
+      }
+      return { user, csrfToken };
     },
-    onSuccess: () => setAccountStep("success"),
-    onError: (error) =>
-      setAccountError(error instanceof Error ? error.message : "Unable to sign in right now."),
+    onSuccess: ({ user, csrfToken }) => {
+      if (user) onSignedIn?.(user, csrfToken);
+      setAccountStep("success");
+    },
+    onError: (error) => {
+      // sign_in answers 403 for one reason only: the email is not confirmed.
+      setSignInNeedsVerification(error instanceof ApiError && error.status === 403);
+      setAccountError(error instanceof Error ? error.message : "Unable to sign in right now.");
+    },
   });
+
+  // Same call Login.tsx's "Resend verification code" makes; the modal moves on
+  // to /verify-email once it lands.
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await fetch(`${API_BASE}/auth/email/verify/resend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw parseApiError(response, data, "Failed to resend code.");
+    },
+    onError: (error) =>
+      setAccountError(error instanceof Error ? error.message : "Failed to resend code."),
+  });
+
+  /** Send a fresh verification code; resolves to whether it was sent. */
+  const resendVerification = async (): Promise<boolean> => {
+    try {
+      await resendVerificationMutation.mutateAsync(signInEmail.trim());
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const handleCreateAccount = () => {
     if (!submissionId) {
       setAccountError("We couldn't find your submission ID. Please resubmit the form.");
       return;
     }
-    if (!accountPassword || accountPassword.length < 8) {
-      setAccountError("Please choose a password with at least 8 characters.");
+    const passwordError = passwordProblem(accountPassword);
+    if (passwordError) {
+      setAccountError(passwordError);
       return;
     }
     if (accountPassword !== accountConfirm) {
@@ -286,6 +432,7 @@ export function useIntakeForm() {
     }
     setAccountAction("signin");
     setAccountError("");
+    setSignInNeedsVerification(false);
     signInExistingMutation.mutate({ email: signInEmail.trim(), password: signInPassword });
   };
 
@@ -323,6 +470,9 @@ export function useIntakeForm() {
     setAccountError,
     isCreatingAccount: createAccountMutation.isPending,
     isSigningIn: signInExistingMutation.isPending,
+    signInNeedsVerification,
+    resendVerification,
+    isResendingVerification: resendVerificationMutation.isPending,
     handleCreateAccount,
     handleSignInExisting,
   };

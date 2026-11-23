@@ -1,9 +1,7 @@
 """Schemas for the public intake funnel and its account-attachment endpoints.
 
-Field naming is inconsistent across this group and is preserved that way:
-``/early-access-request`` takes camelCase (``firstName``), everything else takes
-snake_case (``first_name``).  The frontend sends both today.  Part 5.2's rewrite
-is where that gets settled.
+Every body here is snake_case (``first_name``). The one camelCase body,
+``/intake/early-access``'s, went with that route on 2026-11-23 (G31).
 """
 
 from __future__ import annotations
@@ -21,7 +19,6 @@ __all__ = [
     "CLAIM_REQUIRES_AUTH",
     "CLAIM_REQUESTS",
     "STRICTEST_CLAIM_LIMIT",
-    "EarlyAccessRequest",
     "IntakeClaimEnvelope",
     "IntakeClaimLinkRequest",
     "IntakeClaimRegisterRequest",
@@ -43,24 +40,6 @@ __all__ = [
     "OkResponse",
     "WpllAnswer",
 ]
-
-
-class EarlyAccessRequest(SolverahModel):
-    """Landing-page interest form.
-
-    Not persisted -- the submission exists only as an email to
-    info@solverah.com. A delivery failure loses the lead, which is why this is
-    the one intake endpoint that returns 500 rather than swallowing the error.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    firstName: str
-    lastName: str
-    email: str
-    phone: Optional[str] = None
-    preferredContact: Optional[str] = None
-    careerJourney: Optional[str] = None
 
 
 class IntakePresignRequest(SolverahModel):

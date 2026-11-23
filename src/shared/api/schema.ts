@@ -503,32 +503,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/intake/early-access": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Register interest from the landing-page modal
-         * @description POST /intake/early-access - early-access interest form (no resume).
-         *
-         *     Writes the lead to the transactional outbox and returns 200; a worker
-         *     delivers it to info@solverah.com. This answered 500 on a mail failure until
-         *     Phase 3, because the lead existed only as an email and a swallowed error lost
-         *     it. The row is durable before this returns, so there is nothing left to lose
-         *     and nothing left to report.
-         */
-        post: operations["post_intake_intake_early_access"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/intake/quiz-preview/insights": {
         parameters: {
             query?: never;
@@ -2198,39 +2172,6 @@ export interface components {
             recentActivity?: components["schemas"]["DashboardActivity"][];
             /** Recommendations */
             recommendations?: components["schemas"]["DashboardRecommendation"][];
-        };
-        /**
-         * EarlyAccessRequest
-         * @description Landing-page interest form.
-         *
-         *     Not persisted -- the submission exists only as an email to
-         *     info@solverah.com. A delivery failure loses the lead, which is why this is
-         *     the one intake endpoint that returns 500 rather than swallowing the error.
-         */
-        EarlyAccessRequest: {
-            /**
-             * Careerjourney
-             * @default null
-             */
-            careerJourney: string | null;
-            /** Email */
-            email: string;
-            /** Firstname */
-            firstName: string;
-            /** Lastname */
-            lastName: string;
-            /**
-             * Phone
-             * @default null
-             */
-            phone: string | null;
-            /**
-             * Preferredcontact
-             * @default null
-             */
-            preferredContact: string | null;
-        } & {
-            [key: string]: unknown;
         };
         /** EnvironmentReportSubmitRequest */
         EnvironmentReportSubmitRequest: {
@@ -6929,48 +6870,6 @@ export interface operations {
             };
             /** @description Response */
             423: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyError"];
-                };
-            };
-            /** @description Unexpected error (RFC 9457 problem document) */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
-                };
-            };
-        };
-    };
-    post_intake_intake_early_access: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EarlyAccessRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["OkResponse"];
-                };
-            };
-            /** @description Bad request */
-            400: {
                 headers: {
                     [name: string]: unknown;
                 };

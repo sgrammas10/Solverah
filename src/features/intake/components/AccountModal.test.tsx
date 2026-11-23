@@ -50,6 +50,9 @@ function renderModal(overrides: Partial<Props> = {}) {
     isSigningIn: false,
     onCreateAccount: vi.fn(),
     onSignInExisting: vi.fn(),
+    signInNeedsVerification: false,
+    onResendVerification: vi.fn().mockResolvedValue(true),
+    isResendingVerification: false,
     ...overrides,
   };
   return render(
@@ -117,19 +120,94 @@ describe("AccountModal success step, create action", () => {
   });
 });
 
-describe("AccountModal success step, signin action", () => {
+/**
+ * G29. A sign-in from this modal opens a real session (the claim sets both
+ * cookies), so the visitor is signed in. This button used to just close the
+ * modal, which left a signed-in visitor on the signed-out landing page -- its
+ * sign-up calls to action and all -- until a reload. Every way out of the
+ * success step now goes home instead; none of them goes to /verify-email,
+ * because an account that can sign in is already verified.
+ */
+describe("AccountModal success step, signin action (G29)", () => {
   beforeEach(() => {
     mocks.navigate.mockClear();
   });
 
-  it("closes instead of navigating -- an existing account is already verified", () => {
+  it("Continue goes to the dashboard rather than back to the landing page", () => {
     const onClose = vi.fn();
     renderModal({ action: "signin" as AccountAction, onClose });
 
     clickTheActionButton();
 
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the close button", () => fireEvent.click(screen.getByRole("button", { name: "Close" }))],
+    ["Escape", () => fireEvent.keyDown(window, { key: "Escape" })],
+  ])("%s goes to the dashboard too", (_how, leave) => {
+    const onClose = vi.fn();
+    renderModal({ action: "signin" as AccountAction, onClose });
+
+    leave();
+
+    expect(mocks.navigate).toHaveBeenCalledWith("/job-seeker/dashboard");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("before the sign-in succeeds, Escape just closes", () => {
+    const onClose = vi.fn();
+    renderModal({ step: "signin" as AccountStep, action: "signin" as AccountAction, onClose });
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
     expect(onClose).toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("AccountModal sign-in refused for an unconfirmed email (G29)", () => {
+  beforeEach(() => {
+    mocks.navigate.mockClear();
+  });
+
+  const unconfirmed = {
+    step: "signin" as AccountStep,
+    signInEmail: SUBMISSION_EMAIL,
+    error: "Email not confirmed. Please confirm your email before signing in.",
+    signInNeedsVerification: true,
+  };
+
+  it("offers a fresh code, and takes the visitor to enter it once it is sent", async () => {
+    const onResendVerification = vi.fn().mockResolvedValue(true);
+    renderModal({ ...unconfirmed, onResendVerification });
+
+    fireEvent.click(screen.getByRole("button", { name: "Resend verification code" }));
+
+    expect(onResendVerification).toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith("/verify-email", {
+        state: { email: SUBMISSION_EMAIL },
+      })
+    );
+  });
+
+  it("stays put when the resend fails, so its error can show", async () => {
+    const onResendVerification = vi.fn().mockResolvedValue(false);
+    renderModal({ ...unconfirmed, onResendVerification });
+
+    fireEvent.click(screen.getByRole("button", { name: "Resend verification code" }));
+
+    await vi.waitFor(() => expect(onResendVerification).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("other sign-in errors do not offer a code", () => {
+    renderModal({ ...unconfirmed, error: "Invalid credentials", signInNeedsVerification: false });
+
+    expect(screen.queryByRole("button", { name: "Resend verification code" })).toBeNull();
   });
 });
 

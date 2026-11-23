@@ -64,7 +64,12 @@ export default function IntakeForm({
           Your resume goes to private storage and we keep only what you choose to share. A person reads it before anything comes back to you.
         </p>
 
-        <form className="space-y-5" onSubmit={onSubmit}>
+        {/* noValidate (G26): with browser validation on, its "Please fill out
+            this field." bubble pre-empted the messages useIntakeForm writes,
+            the hidden file input swallowed a submit with no message at all
+            (Chrome cannot focus a display:none control to point at it), and
+            type=url refused the placeholders' own scheme-less format. */}
+        <form className="space-y-5" onSubmit={onSubmit} noValidate>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label htmlFor={firstNameId} className="text-sm font-medium text-ink-primary">First name</label>
@@ -145,7 +150,9 @@ export default function IntakeForm({
               </label>
               <input
                 id={linkedinId}
-                type="url"
+                type="text"
+                inputMode="url"
+                autoComplete="off"
                 placeholder="linkedin.com/in/you"
                 value={formData.linkedinUrl}
                 onChange={(e) => onInputChange("linkedinUrl", e.target.value)}
@@ -158,7 +165,9 @@ export default function IntakeForm({
               </label>
               <input
                 id={portfolioId}
-                type="url"
+                type="text"
+                inputMode="url"
+                autoComplete="url"
                 placeholder="your-site.com"
                 value={formData.portfolioUrl}
                 onChange={(e) => onInputChange("portfolioUrl", e.target.value)}
@@ -200,7 +209,6 @@ export default function IntakeForm({
                     type="file"
                     accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     className="hidden"
-                    required
                     onChange={(e) => {
                       const f = e.target.files?.[0] ?? null;
                       setResumeFile(f);
@@ -257,7 +265,7 @@ export default function IntakeForm({
             </p>
           )}
           {submissionStatus === "error" && (
-            <p className="rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="rounded bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
               {errorMessage || "We couldn't save this right now. Please try again in a moment."}
             </p>
           )}

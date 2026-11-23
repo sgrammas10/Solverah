@@ -1,8 +1,15 @@
 import { render, screen, fireEvent, within, configure } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
 import LandingPage from "./LandingPage";
 import { createQueryClient } from "../../../shared/api/queryClient";
+import { mock } from "../../../../tests/msw/contract";
+import { server, useApiMocks } from "../../../../tests/msw/server";
+
+// One test below walks the hero form into the account modal over the wire;
+// the rest issue no requests, and an unexpected one fails whichever made it.
+useApiMocks();
 
 // The ecosystem section is a lazy chunk. The first test to render it pays
 // its cold import, which under a full-suite run can
@@ -14,6 +21,13 @@ vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-router-dom")>();
   return { ...actual, useNavigate: () => mockNavigate };
 });
+
+// The page hands the account modal's sign-in to AuthContext (G29); the
+// provider itself is not under test here.
+const mockLoginWithData = vi.fn();
+vi.mock("../../auth/useAuth", () => ({
+  useAuth: () => ({ loginWithData: mockLoginWithData, user: null }),
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -190,5 +204,58 @@ describe("account deletion confirmation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
 
     expect(screen.queryByText(/Your account has been deleted\./)).toBeNull();
+  });
+});
+
+/**
+ * G29, end to end on the page: the modal's sign-in opens a session server-side,
+ * and the page has to pass it to AuthContext -- the hook alone cannot, it has
+ * no auth of its own. Without this wiring the visitor stays "signed out" in the
+ * app until a reload.
+ */
+describe("hero form sign-in reaches the app's auth state (G29)", () => {
+  const UPLOAD_URL = "https://uploads.example.com/intake-resume-1";
+  const USER = { id: "u1", email: "ada@example.com", name: "Ada Lovelace", role: "job-seeker" as const };
+
+  it("signing in from the account modal hands the session to loginWithData", async () => {
+    server.use(
+      mock("post", "/api/v1/intake/resume-tickets").resolve(() =>
+        HttpResponse.json({ submission_id: "sub-1", object_key: "intake/resume-1.pdf", upload_url: UPLOAD_URL })
+      ),
+      http.put(UPLOAD_URL, () => new HttpResponse(null, { status: 200 })),
+      mock("post", "/api/v1/intake/submissions").resolve(() => HttpResponse.json({ ok: true })),
+      mock("post", "/api/v1/intake/claims").resolve(() =>
+        HttpResponse.json({ message: "signed in", csrfToken: "csrf-1", user: USER })
+      ),
+      mock("get", "/api/v1/auth/session").resolve(() =>
+        HttpResponse.json({
+          user: USER,
+          csrf_token: "csrf-1",
+          flags: { email_confirmed: true, wpl_completed: false, wpll_completed: false, wp_v2_completed: true },
+        })
+      )
+    );
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText("First name"), { target: { value: "Ada" } });
+    fireEvent.change(screen.getByLabelText("Last name"), { target: { value: "Lovelace" } });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } });
+    fireEvent.change(screen.getByLabelText("State / region"), { target: { value: "NY" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /I consent to Solverah/ }));
+    fireEvent.change(screen.getByLabelText(/Resume/), {
+      target: { files: [new File(["%PDF-1.4"], "resume.pdf", { type: "application/pdf" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Begin setting up my account" }));
+
+    const modal = (await screen.findByRole("heading", { name: "Save your profile?" })).parentElement!.parentElement!;
+    fireEvent.click(within(modal).getByRole("button", { name: "Sign in" }));
+    fireEvent.change(within(modal).getByLabelText("Password"), { target: { value: "Correct-horse-1" } });
+    fireEvent.click(within(modal).getByRole("button", { name: "Sign in" }));
+
+    await screen.findByText(/Signed in!/);
+    expect(mockLoginWithData).toHaveBeenCalledWith(
+      expect.objectContaining({ ...USER, wp_v2_completed: true }),
+      "csrf-1"
+    );
   });
 });

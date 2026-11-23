@@ -1,6 +1,7 @@
 import { ReactNode, Suspense, lazy, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IntakeForm, AccountModal, useIntakeForm } from "../../intake";
+import { useAuth } from "../../auth";
 import ScrollStory from "./hero/ScrollStory";
 import { CONTAINER, PAGE_H1, PRIMARY, SECONDARY } from "../../../shared/ui/publicStyles";
 import "./landing.css";
@@ -522,7 +523,10 @@ function Footer() {
 
 function LandingPage() {
   const navigate = useNavigate();
-  const intake = useIntakeForm();
+  // The account modal's "Sign in" opens a server session; this is how the app
+  // hears about it without a reload (G29).
+  const { loginWithData } = useAuth();
+  const intake = useIntakeForm({ onSignedIn: loginWithData });
 
   // Account-deletion confirmation, handed over in router state by
   // AccountSettingsPage on its way out. Router state and nothing else: the
@@ -535,16 +539,6 @@ function LandingPage() {
     | null;
   const [deletionDismissed, setDeletionDismissed] = useState(false);
   const showDeletionNote = Boolean(deletion?.accountDeleted) && !deletionDismissed;
-
-  // Close the account modal on Escape
-  useEffect(() => {
-    if (!intake.accountModalOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") intake.setAccountModalOpen(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [intake.accountModalOpen]);
 
   return (
     <div className="landing min-h-screen bg-cream-base font-body text-ink-primary antialiased">
@@ -643,28 +637,38 @@ function LandingPage() {
 
       <Footer />
 
-      <AccountModal
-        isOpen={intake.accountModalOpen}
-        onClose={() => intake.setAccountModalOpen(false)}
-        submissionEmail={intake.submissionEmail}
-        step={intake.accountStep}
-        setStep={intake.setAccountStep}
-        action={intake.accountAction}
-        signInEmail={intake.signInEmail}
-        setSignInEmail={intake.setSignInEmail}
-        signInPassword={intake.signInPassword}
-        setSignInPassword={intake.setSignInPassword}
-        accountPassword={intake.accountPassword}
-        setAccountPassword={intake.setAccountPassword}
-        accountConfirm={intake.accountConfirm}
-        setAccountConfirm={intake.setAccountConfirm}
-        error={intake.accountError}
-        setError={intake.setAccountError}
-        isCreatingAccount={intake.isCreatingAccount}
-        isSigningIn={intake.isSigningIn}
-        onCreateAccount={intake.handleCreateAccount}
-        onSignInExisting={intake.handleSignInExisting}
-      />
+      {/* A lazy chunk: it only ever opens after a successful submit, so it
+          has no business in the entry chunk's 101 kB budget. Mounted only
+          while open, which is also when its Escape listener should exist. */}
+      {intake.accountModalOpen && (
+        <Suspense fallback={null}>
+          <AccountModal
+            isOpen={intake.accountModalOpen}
+            onClose={() => intake.setAccountModalOpen(false)}
+            submissionEmail={intake.submissionEmail}
+            step={intake.accountStep}
+            setStep={intake.setAccountStep}
+            action={intake.accountAction}
+            signInEmail={intake.signInEmail}
+            setSignInEmail={intake.setSignInEmail}
+            signInPassword={intake.signInPassword}
+            setSignInPassword={intake.setSignInPassword}
+            accountPassword={intake.accountPassword}
+            setAccountPassword={intake.setAccountPassword}
+            accountConfirm={intake.accountConfirm}
+            setAccountConfirm={intake.setAccountConfirm}
+            error={intake.accountError}
+            setError={intake.setAccountError}
+            isCreatingAccount={intake.isCreatingAccount}
+            isSigningIn={intake.isSigningIn}
+            onCreateAccount={intake.handleCreateAccount}
+            onSignInExisting={intake.handleSignInExisting}
+            signInNeedsVerification={intake.signInNeedsVerification}
+            onResendVerification={intake.resendVerification}
+            isResendingVerification={intake.isResendingVerification}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

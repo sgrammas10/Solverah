@@ -1223,67 +1223,6 @@
         "title": "DashboardResponse",
         "type": "object"
       },
-      "EarlyAccessRequest": {
-        "additionalProperties": true,
-        "description": "Landing-page interest form.\n\nNot persisted -- the submission exists only as an email to\ninfo@solverah.com. A delivery failure loses the lead, which is why this is\nthe one intake endpoint that returns 500 rather than swallowing the error.",
-        "properties": {
-          "careerJourney": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Careerjourney"
-          },
-          "email": {
-            "title": "Email",
-            "type": "string"
-          },
-          "firstName": {
-            "title": "Firstname",
-            "type": "string"
-          },
-          "lastName": {
-            "title": "Lastname",
-            "type": "string"
-          },
-          "phone": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Phone"
-          },
-          "preferredContact": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Preferredcontact"
-          }
-        },
-        "required": [
-          "firstName",
-          "lastName",
-          "email"
-        ],
-        "title": "EarlyAccessRequest",
-        "type": "object"
-      },
       "EnvironmentReportSubmitRequest": {
         "additionalProperties": false,
         "properties": {
@@ -9219,59 +9158,6 @@
         },
         "security": [],
         "summary": "Attach an anonymous submission or quiz session to an account",
-        "tags": [
-          "intake"
-        ]
-      }
-    },
-    "/api/v1/intake/early-access": {
-      "post": {
-        "description": "POST /intake/early-access - early-access interest form (no resume).\n\nWrites the lead to the transactional outbox and returns 200; a worker\ndelivers it to info@solverah.com. This answered 500 on a mail failure until\nPhase 3, because the lead existed only as an email and a swallowed error lost\nit. The row is durable before this returns, so there is nothing left to lose\nand nothing left to report.",
-        "operationId": "post_intake_intake_early_access",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EarlyAccessRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OkResponse"
-                }
-              }
-            },
-            "description": "OK"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LegacyError"
-                }
-              }
-            },
-            "description": "Bad request"
-          },
-          "default": {
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetailResponse"
-                }
-              }
-            },
-            "description": "Unexpected error (RFC 9457 problem document)"
-          }
-        },
-        "security": [],
-        "summary": "Register interest from the landing-page modal",
         "tags": [
           "intake"
         ]

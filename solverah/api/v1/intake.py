@@ -1,11 +1,14 @@
 """Public intake endpoints and the four ways to attach a submission to an account.
 
-Paths are unchanged: ``/early-access-request``, ``/intake/presign``,
-``/intake/finalize``, ``/intake/create-account``, ``/intake/sign-in``,
-``/intake/save-to-account``, ``/intake/link-account`` -- now served under
-``/api/v1`` with an ``/api`` alias.
+Served under ``/api/v1`` with an ``/api`` alias: the resume ticket and the
+submission (the anonymous hero form), the claims endpoint that attaches either
+to an account, and the guest quiz preview.
 
-The first four are unauthenticated and are the most exposed surface in the
+``POST /intake/early-access`` was removed 2026-11-23 (G31): its only caller,
+the landing page's ``EarlyAccessModal``, was deleted 2026-09-28 and the route
+had sat live and unused since.
+
+The anonymous ones are unauthenticated and are the most exposed surface in the
 application, which is why they carry the tightest rate limits.  Those limits
 were inert before Phase 1 (see ``security._skip_when_testing`` for the decorator
 ordering bug) and now enforce.
@@ -36,7 +39,6 @@ from solverah.schemas.intake import (
     CLAIM_REQUESTS,
     CLAIM_REQUIRES_AUTH,
     STRICTEST_CLAIM_LIMIT,
-    EarlyAccessRequest,
     IntakeClaimEnvelope,
     IntakeClaimRequest,
     IntakeClaimResponse,
@@ -146,29 +148,6 @@ def _claim_limit() -> str:
     able to probe faster than one that can.
     """
     return CLAIM_LIMITS.get(_claim_mode(), STRICTEST_CLAIM_LIMIT)
-
-
-@document(
-    "Register interest from the landing-page modal",
-    tags=["intake"],
-    request=EarlyAccessRequest,
-    responses={200: OkResponse, 400: LegacyError},
-    security=[],
-    enforce=True,
-)
-@intake_bp.route("/intake/early-access", methods=["POST"])
-def intake_early_access():
-    """POST /intake/early-access - early-access interest form (no resume).
-
-    Writes the lead to the transactional outbox and returns 200; a worker
-    delivers it to info@solverah.com. This answered 500 on a mail failure until
-    Phase 3, because the lead existed only as an email and a swallowed error lost
-    it. The row is durable before this returns, so there is nothing left to lose
-    and nothing left to report.
-    """
-    return _respond(
-        intake_service.early_access_request(request.get_json(silent=True) or {})
-    )
 
 
 @document(
