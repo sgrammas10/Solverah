@@ -12,13 +12,27 @@ import { useManagerPlaybook } from "../../assessments";
 import { useSituationReport } from "../../assessments";
 import { ApiError } from "../../../shared/api/apiError";
 
-const ECOSYSTEM_STEPS = [
-  { label: "Work Pulse Lite" },
-  { label: "Work Pulse" },
-  { label: "FocusType" },
-  { label: "ManagerMatch" },
-  { label: "CompanyLens" },
-  { label: "Future Path" },
+/**
+ * The step strip (G39). Two kinds of step, drawn differently on purpose:
+ *
+ * - An instrument you finish ticks when its result exists.
+ * - A tool you open any time (`to`) has no "done", so it is drawn as a link
+ *   with an arrow. It used to be an empty circle that never ticked, which read
+ *   as "not done" even after the user had used it.
+ *
+ * "Work Pulse Lite" is gone: the 12-question quiz it named was retired, so it
+ * ticked only for legacy completers and sat unticked for everyone else.
+ */
+type EcosystemStep =
+  | { label: string; done: "workPulse" | "focusType" | "managerMatch" }
+  | { label: string; to: string };
+
+const ECOSYSTEM_STEPS: EcosystemStep[] = [
+  { label: "Work Pulse", done: "workPulse" },
+  { label: "FocusType", done: "focusType" },
+  { label: "ManagerMatch", done: "managerMatch" },
+  { label: "CompanyLens", to: "/company-lens" },
+  { label: "Path Intelligence", to: "/intelligence/paths" },
 ];
 
 export default function IntelligencePage() {
@@ -166,6 +180,31 @@ export default function IntelligencePage() {
   // conditional instead, and the rest of the hub (progress, FocusType,
   // ManagerMatch) never depended on `result` at all.
 
+  // G46: once Work Pulse is complete, this card is the way back to it. The
+  // retake (and the tolerance step it ends on) lives on /work-pulse, and before
+  // this nothing linked there once the instrument was done. Quiet text buttons:
+  // a retake is for when something has changed, not a score to chase.
+  const workPulseRetakeLinks = (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+      <button
+        type="button"
+        // `{ retake: true }` opens the retake form directly (WorkPulsePage
+        // honours it once, like FocusType and ManagerMatch).
+        onClick={() => navigate("/work-pulse", { state: { retake: true } })}
+        className="text-xs font-semibold text-forest-dark hover:underline"
+      >
+        Retake Work Pulse →
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate("/trait-preferences")}
+        className="text-xs text-ink-secondary hover:underline"
+      >
+        Change how much give you have on each area →
+      </button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-cream-base">
       <div className="mx-auto max-w-3xl px-6 pt-12 pb-20 space-y-8">
@@ -185,16 +224,30 @@ export default function IntelligencePage() {
 
         {/* Progress indicator */}
         <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto pb-1">
-          {ECOSYSTEM_STEPS.map((step, i) => {
-            // `i < 2` used to hard-code the first two steps as done, which put a
-            // tick next to "Work Pulse Lite" for users who have never taken it --
-            // the retired instrument nothing mounts any more. Step 1 now reflects
-            // the flag it names.
+          {ECOSYSTEM_STEPS.map((step) => {
+            if ("to" in step) {
+              return (
+                <Link
+                  key={step.label}
+                  to={step.to}
+                  className="group flex flex-col items-center gap-1.5 min-w-[56px]"
+                >
+                  <div
+                    aria-hidden="true"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border border-forest-light text-forest-dark bg-white group-hover:bg-forest-pale"
+                  >
+                    →
+                  </div>
+                  <span className="text-xs text-ink-secondary text-center leading-tight group-hover:underline">
+                    {step.label}
+                  </span>
+                </Link>
+              );
+            }
             const complete =
-              (i === 0 && !!user?.wpl_completed) ||
-              (i === 1 && !!user?.wp_v2_completed) ||
-              (i === 2 && !!focusTypeResult) ||
-              (i === 3 && !!managerMatchResult);
+              (step.done === "workPulse" && !!user?.wp_v2_completed) ||
+              (step.done === "focusType" && !!focusTypeResult) ||
+              (step.done === "managerMatch" && !!managerMatchResult);
             return (
               <div key={step.label} className="flex flex-col items-center gap-1.5 min-w-[56px]">
                 <div
@@ -234,6 +287,7 @@ export default function IntelligencePage() {
               check and nothing to optimise — what it learned about how you work
               is already shaping which environments we put in front of you.
             </p>
+            {workPulseRetakeLinks}
           </div>
         ) : (
         <div className="rounded-xl border border-forest-light bg-forest-pale px-6 py-6 space-y-4">
@@ -270,6 +324,7 @@ export default function IntelligencePage() {
           >
             View full Work Pulse analysis →
           </button>
+          {workPulseRetakeLinks}
         </div>
         )}
 
@@ -312,8 +367,9 @@ export default function IntelligencePage() {
             </p>
             <p className="text-sm text-ink-primary leading-relaxed">
               Work Pulse knows how you work. What it can’t tell you on its own is how
-              far your current job sits from that. Sixteen questions about the role
-              close the gap and turn the two halves into your Situation Report.
+              far your current job sits from that. Sixteen questions about the role,
+              plus five optional ones, close the gap and turn the two halves into
+              your Situation Report.
             </p>
             <button
               type="button"

@@ -3,7 +3,11 @@ import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { User, Briefcase, GraduationCap, X } from "lucide-react";
 import { useProfileForm } from "../useProfileForm";
-import { readCareerStatusReturnTo } from "../../../shared/lib/careerStatusReturn";
+import {
+  readCareerStatusReason,
+  readCareerStatusReturnTo,
+  type CareerStatusReason,
+} from "../../../shared/lib/careerStatusReturn";
 import CareerStatusReturnDialog from "./CareerStatusReturnDialog";
 import { invalidateProfileDependents, useSetCareerStatus } from "./useSetCareerStatus";
 import PersonalInfoTab from "./PersonalInfoTab";
@@ -29,13 +33,23 @@ function knownTab(value: unknown): string | null {
 // Career Status Modal
 // ---------------------------------------------------------------------------
 
+/** The modal's subtitle, by where the user was sent from (G43). */
+const CAREER_STATUS_SUBTITLE: Record<CareerStatusReason, string> = {
+  path_suggestions: "We need this to generate your path suggestions.",
+  dashboard: "It shapes the next steps we suggest on your dashboard.",
+  environment_report:
+    "Your job questions read differently depending on whether you're in the role or have left it.",
+};
+
 interface CareerStatusModalProps {
   onDismiss: () => void;
   /** Runs after the status is saved. */
   onSaved: () => void;
+  /** Why the user is here; picks the subtitle. Defaults to the path wording. */
+  reason?: CareerStatusReason;
 }
 
-function CareerStatusModal({ onDismiss, onSaved }: CareerStatusModalProps) {
+function CareerStatusModal({ onDismiss, onSaved, reason = "path_suggestions" }: CareerStatusModalProps) {
   // The same write as the Experience tab's control: it puts the status in the
   // cached profile document (the page the user goes back to reads it there,
   // and a stale copy would put the same prompt straight back in front of
@@ -59,7 +73,7 @@ function CareerStatusModal({ onDismiss, onSaved }: CareerStatusModalProps) {
               Where are you in your career?
             </p>
             <p className="text-sm text-ink-secondary mt-0.5">
-              We need this to generate your path suggestions.
+              {CAREER_STATUS_SUBTITLE[reason]}
             </p>
           </div>
           <button
@@ -142,6 +156,7 @@ function JobSeekerProfile() {
   // Where the user was sent from to set a career status, if anywhere. Cleared
   // once they have answered the "go back?" dialog, so later saves don't ask.
   const [returnTo, setReturnTo] = useState(() => readCareerStatusReturnTo(location.state));
+  const [careerStatusReason] = useState(() => readCareerStatusReason(location.state));
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const navigate = useNavigate();
 
@@ -304,6 +319,7 @@ function JobSeekerProfile() {
         <CareerStatusModal
           onDismiss={() => setShowCareerStatusModal(false)}
           onSaved={handleCareerStatusSaved}
+          reason={careerStatusReason}
         />
       )}
 

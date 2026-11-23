@@ -130,7 +130,7 @@ function JobSeekerDashboard() {
     if (rec.id === 'career_status') {
       navigate(
         { pathname: '/job-seeker/profile', search: '?tab=experience' },
-        { state: careerStatusNavState('/job-seeker/dashboard', 'your dashboard') },
+        { state: careerStatusNavState('/job-seeker/dashboard', 'your dashboard', 'dashboard') },
       );
     } else if (rec.href?.startsWith('/') && !rec.href.startsWith('/job-seeker/profile')) {
       navigate(rec.href);

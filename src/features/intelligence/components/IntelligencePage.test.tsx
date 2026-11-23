@@ -232,6 +232,8 @@ describe("IntelligencePage - completed without a narrative", () => {
     renderIntelligencePage();
 
     expect(screen.getByText(/sixteen questions about the role/i)).toBeInTheDocument();
+    // G55: the form is sixteen required steps plus five optional ones.
+    expect(screen.getByText(/plus five optional ones/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Describe your job/ }));
     expect(mocks.navigate).toHaveBeenCalledWith("/environment-report");
   });
@@ -351,11 +353,46 @@ describe("IntelligencePage - completed without a narrative", () => {
     ).toHaveAttribute("href", "/trust");
   });
 
-  it("does not tick Work Pulse Lite for someone who never took it", () => {
-    // The progress row hard-coded its first two steps as complete.
+  // ── Step strip (G39) ──
+
+  it("no longer lists the retired Work Pulse Lite", () => {
     renderIntelligencePage();
-    const wplStep = screen.getByText("Work Pulse Lite").previousElementSibling;
-    expect(wplStep?.textContent).not.toContain("✓");
+    expect(screen.queryByText("Work Pulse Lite")).toBeNull();
+  });
+
+  it("ticks Work Pulse for someone who finished the current instrument", () => {
+    renderIntelligencePage();
+    const wpStep = screen.getByText("Work Pulse").previousElementSibling;
+    expect(wpStep?.textContent).toContain("✓");
+  });
+
+  it("draws CompanyLens and Path Intelligence as links, not as never-ticking steps", () => {
+    // They are tools you open any time, with no "done". As empty circles they
+    // read as "not done" even after the user had used them.
+    renderIntelligencePage();
+    expect(screen.getByRole("link", { name: /^→?\s*CompanyLens$/ })).toHaveAttribute(
+      "href",
+      "/company-lens",
+    );
+    expect(screen.getByRole("link", { name: /^→?\s*Path Intelligence$/ })).toHaveAttribute(
+      "href",
+      "/intelligence/paths",
+    );
+    expect(screen.queryByText("Future Path")).toBeNull();
+  });
+
+  // ── Work Pulse retake entry point (G46) ──
+
+  it("links back to Work Pulse for a retake once it is complete", () => {
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /retake work pulse/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", { state: { retake: true } });
+  });
+
+  it("links to the tolerance step from the Work Pulse card", () => {
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /change how much give you have/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/trait-preferences");
   });
 });
 
@@ -432,6 +469,14 @@ describe("IntelligencePage - happy path with cached result", () => {
     renderIntelligencePage();
     fireEvent.click(screen.getByText(/View full Work Pulse analysis/i));
     expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse/results");
+  });
+
+  it("offers the retake on the legacy-narrative card too (G46)", () => {
+    mocks.user = { wpl_completed: true, wp_v2_completed: true };
+    mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
+    renderIntelligencePage();
+    fireEvent.click(screen.getByRole("button", { name: /retake work pulse/i }));
+    expect(mocks.navigate).toHaveBeenCalledWith("/work-pulse", { state: { retake: true } });
   });
 });
 
@@ -511,17 +556,17 @@ describe("IntelligencePage - ManagerMatch card", () => {
     };
     mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
     renderIntelligencePage();
-    // Steps 0, 1 are always complete (i < 2); step 3 is complete when managerMatchResult exists.
-    // With no focusTypeResult, we get 3 checkmarks total.
-    expect(screen.getAllByText("✓")).toHaveLength(3);
+    // Work Pulse and ManagerMatch tick; FocusType has no result. CompanyLens
+    // and Path Intelligence are links and never tick.
+    expect(screen.getAllByText("✓")).toHaveLength(2);
   });
 
   it("ManagerMatch ecosystem step dot is incomplete when result is absent", () => {
     mocks.user = { wpl_completed: true, wp_v2_completed: true };
     mocks.wpState = { answers: [], cachedResult: MOCK_WP_RESULT };
     renderIntelligencePage();
-    // Only steps 0 and 1 are complete.
-    expect(screen.getAllByText("✓")).toHaveLength(2);
+    // Only Work Pulse ticks.
+    expect(screen.getAllByText("✓")).toHaveLength(1);
   });
 
   it("shows completed state when result is in useMM cache (fresh submission path)", () => {

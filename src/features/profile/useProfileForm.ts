@@ -62,6 +62,13 @@ export function isReadableResume(file: File): boolean {
 export const UNREADABLE_RESUME_MESSAGE =
   "We can only read PDF and DOCX files. Save your resume as one of those and upload it again.";
 
+/** The two resume failures that used to be browser `alert()`s (G42). They now
+ *  land in `resumeFileError`, the red line under the drop zone. */
+export const RESUME_UPLOAD_FAILED_MESSAGE =
+  "We couldn't upload your resume just now. Try again in a moment.";
+export const RESUME_VIEW_FAILED_MESSAGE =
+  "We couldn't open your resume just now. Try again in a moment.";
+
 /** Thrown when the profile PATCH landed and the follow-up `PATCH /me` (the
  *  account name) did not -- a different message, because the rest is saved. */
 class IdentitySaveError extends Error {}
@@ -296,11 +303,18 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
         method: "POST",
         body: JSON.stringify({ mime: file.type, size: file.size }),
       });
-      await fetch(ticket.upload_url, {
+      const put = await fetch(ticket.upload_url, {
         method: "PUT",
         headers: { "Content-Type": file.type },
         body: file,
       });
+      // fetch resolves on any HTTP status. A storage 4xx/5xx used to count as
+      // uploaded, enqueue a parse of an object that was never written, and
+      // surface later as a misleading parse failure. Throwing here lands in
+      // onError: inline message, no parse job.
+      if (!put.ok) {
+        throw new Error(`Resume upload failed with status ${put.status}`);
+      }
       return ticket;
     },
     onSuccess: (ticket, file) => {
@@ -322,7 +336,7 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
     },
     onError: (err) => {
       console.error(err);
-      alert("Unable to process resume right now.");
+      setResumeFileError(RESUME_UPLOAD_FAILED_MESSAGE);
     },
     onSettled: () => {
       setUploadedResume(null);
@@ -682,12 +696,13 @@ export function useProfileForm(options: UseProfileFormOptions = {}) {
   };
 
   const handleViewResume = async () => {
+    setResumeFileError(null);
     try {
       const data = await fetchWithAuth<{ url: string }>("/me/resumes/current/download-url", { method: "GET" });
       if (data?.url) window.open(data.url, "_blank", "noopener,noreferrer");
     } catch (err) {
       console.error(err);
-      alert("Unable to open resume right now.");
+      setResumeFileError(RESUME_VIEW_FAILED_MESSAGE);
     }
   };
 

@@ -441,6 +441,9 @@ describe("JobSeekerDashboard - real activity and recommendations", () => {
         state: {
           showCareerStatusModal: true,
           returnTo: { path: "/job-seeker/dashboard", label: "your dashboard" },
+          // G43: the modal's subtitle says why the dashboard sent them, not
+          // "path suggestions".
+          careerStatusReason: "dashboard",
         },
       },
     );

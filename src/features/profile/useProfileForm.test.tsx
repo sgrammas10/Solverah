@@ -7,6 +7,8 @@ import {
   normalizeProfileData,
   useProfileForm,
   NAME_SAVE_FAILED_MESSAGE,
+  RESUME_UPLOAD_FAILED_MESSAGE,
+  RESUME_VIEW_FAILED_MESSAGE,
   SAVE_FAILED_MESSAGE,
   UNREADABLE_RESUME_MESSAGE,
 } from "./useProfileForm";
@@ -463,7 +465,7 @@ describe("useProfileForm - resume parse job", () => {
     expect(result.current.resumeParseStatus).toEqual({ phase: "idle" });
   });
 
-  it("a 4xx on the resume ticket alerts, ends the upload, and never starts a parse job", async () => {
+  it("a 4xx on the resume ticket shows an inline error, ends the upload, and never starts a parse job", async () => {
     // 4xx means fail: a bad file stays bad, and mutations never retry — the
     // ticket request is issued exactly once and the chain stops there.
     mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("Unsupported file type"));
@@ -474,7 +476,11 @@ describe("useProfileForm - resume parse job", () => {
       result.current.handleResumeUpload({ target: { files: [uploadedFile()] } } as any);
     });
 
-    expect(alertSpy).toHaveBeenCalledWith("Unable to process resume right now.");
+    // G42: the page's inline error line, not a browser alert().
+    await waitFor(() =>
+      expect(result.current.resumeFileError).toBe(RESUME_UPLOAD_FAILED_MESSAGE),
+    );
+    expect(alertSpy).not.toHaveBeenCalled();
     expect(mockAuth.fetchWithAuth).toHaveBeenCalledTimes(1);
     expect(mockStartResumeParseJob.mutate).not.toHaveBeenCalled();
     // The mutation settled, so the pending state — and the simulated progress
@@ -482,6 +488,56 @@ describe("useProfileForm - resume parse job", () => {
     expect(result.current.isUploadingResume).toBe(false);
     expect(result.current.resumeUploaded).toBe(false);
     alertSpy.mockRestore();
+  });
+
+  it("a non-ok storage PUT is a failed upload: inline error, no parse job", async () => {
+    // fetch resolves on a 403/500, so without an ok check the upload counted
+    // as done and a parse was enqueued for an object that was never written.
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({
+      resume_id: "resume-9",
+      upload_url: "https://uploads.example.com/resume-9",
+      max_bytes: 10_000_000,
+    });
+    mockUploadFetch.mockResolvedValueOnce({ ok: false, status: 403 });
+    const result = await setup();
+
+    await act(async () => {
+      result.current.handleResumeUpload({ target: { files: [uploadedFile()] } } as any);
+    });
+
+    await waitFor(() =>
+      expect(result.current.resumeFileError).toBe(RESUME_UPLOAD_FAILED_MESSAGE),
+    );
+    expect(mockUploadFetch).toHaveBeenCalledTimes(1);
+    expect(mockStartResumeParseJob.mutate).not.toHaveBeenCalled();
+    expect(result.current.resumeUploaded).toBe(false);
+    expect(result.current.pendingResume).toBeNull();
+    expect(result.current.isUploadingResume).toBe(false);
+  });
+
+  it("a failed View Resume shows an inline error instead of a browser alert (G42)", async () => {
+    mockAuth.fetchWithAuth.mockRejectedValueOnce(new Error("boom"));
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    const result = await setup();
+
+    await act(async () => {
+      await result.current.handleViewResume();
+    });
+
+    expect(result.current.resumeFileError).toBe(RESUME_VIEW_FAILED_MESSAGE);
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(openSpy).not.toHaveBeenCalled();
+
+    // A later attempt that works clears the line.
+    mockAuth.fetchWithAuth.mockResolvedValueOnce({ url: "https://files.example.com/r.pdf" });
+    await act(async () => {
+      await result.current.handleViewResume();
+    });
+    expect(result.current.resumeFileError).toBeNull();
+    expect(openSpy).toHaveBeenCalledWith("https://files.example.com/r.pdf", "_blank", "noopener,noreferrer");
+    alertSpy.mockRestore();
+    openSpy.mockRestore();
   });
 
   it("handleSubmit no longer touches the old alert/try-catch resume-complete path", async () => {

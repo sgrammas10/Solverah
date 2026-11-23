@@ -317,6 +317,30 @@ describe("JobSeekerProfile - career status modal (G13)", () => {
   });
 });
 
+describe("JobSeekerProfile - career status modal subtitle (G43)", () => {
+  it("keeps the path wording when no reason is given", () => {
+    renderWithCareerStatusModal({ showCareerStatusModal: true });
+    expect(screen.getByText("We need this to generate your path suggestions.")).toBeInTheDocument();
+  });
+
+  it("says why when the dashboard sent the user", () => {
+    renderWithCareerStatusModal({ showCareerStatusModal: true, careerStatusReason: "dashboard" });
+    expect(screen.getByText(/next steps we suggest on your dashboard/i)).toBeInTheDocument();
+    expect(screen.queryByText(/path suggestions/i)).toBeNull();
+  });
+
+  it("says why when the Environment Report sent the user", () => {
+    renderWithCareerStatusModal({ showCareerStatusModal: true, careerStatusReason: "environment_report" });
+    expect(screen.getByText(/job questions read differently/i)).toBeInTheDocument();
+    expect(screen.queryByText(/path suggestions/i)).toBeNull();
+  });
+
+  it("falls back to the path wording for a forged reason", () => {
+    renderWithCareerStatusModal({ showCareerStatusModal: true, careerStatusReason: "<script>" });
+    expect(screen.getByText("We need this to generate your path suggestions.")).toBeInTheDocument();
+  });
+});
+
 // ─── career status: offer the way back ────────────────────────────────────────
 
 const RETURN_STATE = {

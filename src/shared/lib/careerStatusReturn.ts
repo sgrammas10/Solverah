@@ -21,15 +21,41 @@ export interface CareerStatusReturnTo {
   label: string;
 }
 
+/**
+ * Why the user was sent to set their status, which picks the modal's subtitle
+ * (G43). It said "path suggestions" to everyone, including a user sent from the
+ * dashboard or the Environment Report. Absent or unknown reads as
+ * "path_suggestions", the original wording.
+ */
+export const CAREER_STATUS_REASONS = ["path_suggestions", "dashboard", "environment_report"] as const;
+export type CareerStatusReason = (typeof CAREER_STATUS_REASONS)[number];
+
 export interface CareerStatusNavState {
   showCareerStatusModal: true;
   returnTo: CareerStatusReturnTo;
+  careerStatusReason?: CareerStatusReason;
 }
 
 const MAX_LABEL = 80;
 
-export function careerStatusNavState(path: string, label: string): CareerStatusNavState {
-  return { showCareerStatusModal: true, returnTo: { path, label } };
+export function careerStatusNavState(
+  path: string,
+  label: string,
+  reason?: CareerStatusReason,
+): CareerStatusNavState {
+  const state: CareerStatusNavState = { showCareerStatusModal: true, returnTo: { path, label } };
+  if (reason) state.careerStatusReason = reason;
+  return state;
+}
+
+/** The reason in router state, or "path_suggestions" for anything else. Router
+ *  state is client-forgeable, so only the closed set is honoured. */
+export function readCareerStatusReason(state: unknown): CareerStatusReason {
+  if (typeof state !== "object" || state === null) return "path_suggestions";
+  const reason = (state as { careerStatusReason?: unknown }).careerStatusReason;
+  return (CAREER_STATUS_REASONS as readonly unknown[]).includes(reason)
+    ? (reason as CareerStatusReason)
+    : "path_suggestions";
 }
 
 export function readCareerStatusReturnTo(state: unknown): CareerStatusReturnTo | null {

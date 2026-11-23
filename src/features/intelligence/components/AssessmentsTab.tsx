@@ -106,8 +106,13 @@ export default function AssessmentsTab({ formData }: Props) {
           <Brain className="h-5 w-5 text-amber-600 shrink-0" />
           <div className="flex-1">
             <h3 className="font-semibold text-amber-900">Complete Your Assessments</h3>
+            {/* G40: this used to promise better matching and that you would
+                "stand out to employers". Neither is true: the quizzes feed
+                View Insights, not the match, and /trust says employers do not
+                see your answers. */}
             <p className="text-sm text-amber-800 mt-0.5">
-              Taking these quizzes will improve your personalized job matching accuracy and help you stand out to employers.
+              Each quiz you finish adds a written read under View Insights. Your answers
+              are for you: employers never see them.
             </p>
           </div>
         </div>
