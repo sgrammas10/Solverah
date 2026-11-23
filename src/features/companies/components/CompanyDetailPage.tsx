@@ -34,6 +34,7 @@ import {
   flagCountLines,
   type PollTiming,
 } from "../../matching";
+import { ApiError } from "../../../shared/api/apiError";
 import { PAGE_H1, PRIMARY } from "../../../shared/ui/publicStyles";
 import {
   useCompanyProfile,
@@ -149,6 +150,25 @@ export default function CompanyDetailPage({ pollTiming }: CompanyDetailPageProps
         <div className="flex flex-col items-center gap-4 pt-16" role="status">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-forest-light border-t-transparent motion-reduce:animate-none" />
           <p className={BODY_MUTED}>Loading your read...</p>
+        </div>
+      </Shell>
+    );
+  }
+
+  // A 404 is permanent (the company id is wrong or gone): retrying cannot help.
+  if (readQuery.error instanceof ApiError && readQuery.error.status === 404) {
+    return (
+      <Shell>
+        <BackLink />
+        <div className={`${PANEL} mx-auto max-w-sm px-5 py-4`} role="alert">
+          <p className="mb-1 font-semibold">We couldn't find this company.</p>
+          <p className="text-[0.88rem]">
+            It may have been removed, or the link may be out of date.{" "}
+            <Link to="/company-lens" className={TEXT_LINK}>
+              Go back to CompanyLens
+            </Link>
+            .
+          </p>
         </div>
       </Shell>
     );

@@ -152,21 +152,35 @@ describe("CompanyDetailPage - the read", () => {
     expect(await screen.findByRole("link", { name: "Tell us how much give you have" })).toHaveAttribute("href", "/trait-preferences");
   });
 
-  it("shows an error with a working retry", async () => {
+  it("a 404 shows a not-found state with a way back and no retry", async () => {
+    server.use(
+      ...baseHandlers(),
+      mock("get", "/api/v1/companies/{company_id}/read").resolve(() =>
+        HttpResponse.json({ error: "Company not found" }, { status: 404 }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText("We couldn't find this company.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+    fireEvent.click(screen.getByRole("link", { name: "Go back to CompanyLens" }));
+    expect(await screen.findByText("CompanyLens page")).toBeInTheDocument();
+  });
+
+  it("a transient failure shows an error with a working retry", async () => {
     let call = 0;
     server.use(
       ...baseHandlers(),
       mock("get", "/api/v1/companies/{company_id}/read").resolve(() => {
         call += 1;
-        return call === 1
-          ? HttpResponse.json({ error: "Company not found" }, { status: 404 })
+        return call <= 3
+          ? HttpResponse.json({ error: "Unavailable" }, { status: 503 })
           : HttpResponse.json(readBody(), { status: 200 });
       }),
     );
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Try again" }, { timeout: 10000 }));
     expect(await screen.findByRole("region", { name: "Your read" })).toBeInTheDocument();
-  });
+  }, 20000);
 });
 
 describe("CompanyDetailPage - other states", () => {

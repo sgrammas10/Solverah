@@ -251,40 +251,40 @@ finder's estimate.
 | **G23** | S1.2, S1.5, S2.6 | **The landing page and the account gate describe a Work Pulse that no longer exists**: "Answer twelve questions.", "12 questions · free · account required", "A full narrative insight, your primary work archetype…", "Your full 12-question Work Pulse assessment". The shipping instrument is 24 questions with deliberately no results screen. Factual claims, not tone — take the facts to Julie. Prod. | High (first thing a visitor reads) |
 | **G24** | S2 | **`/start` is an unlinked, half-retired route.** Nothing links to it, yet it still mounts the 5-question WPLL, calls an LLM endpoint anonymously, and `Login.tsx` still claims `solverah_intake`. Delete it or link it again. Prod. | Medium |
 | **G25** | S2.1a | `LandingNav` on `/start` has four dead links (`#features`, `#about`, `#faq`, and "Get Started" → `/start` itself). Prod. | Low |
-| **G26** | S3.2–S3.3a | **Browser validation pre-empts the intake form's own messages**, and the hidden `required` file input can swallow a submit with no message at all; the `type=url` fields reject the form's own placeholder text. Confirm in Chrome. Prod. | Medium |
+| **G26** | S3.2–S3.3a | **FIXED on the branch 2026-11-23, not yet walked.** **Browser validation pre-empts the intake form's own messages**, and the hidden `required` file input can swallow a submit with no message at all; the `type=url` fields reject the form's own placeholder text. Confirm in Chrome. Prod. | Medium |
 | **G27** | S1.2, S1.4a, S1.6 | **"Checked by a person" / "Every reading is reviewed by someone before it reaches you."** No code path has a person review a reading before the user sees it. A decision for Sebastian and Julie, not a copy tweak. Prod. | High (an unmet promise on the first page) |
 | **G28** | S4.7 | The guest-quiz lockout is cosmetic: the quiz URLs never check it. Prod. | Low |
-| **G29** | S3.5a | The hero modal's "Sign in" opens a server session the app doesn't notice; the page still looks signed out until a reload. Its 403 offers no resend link. Prod. | Low–medium |
-| **G30** | S3.6 | Account-modal password check says "at least 8 characters"; the server requires 12 plus character classes. Prod. | Low |
-| **G31** | S3.7 | `POST /intake/early-access` is still live with no UI caller and no visible rate limit. Ops tidy-up. Prod. | Low |
+| **G29** | S3.5a | **FIXED on the branch 2026-11-23, not yet walked.** The hero modal's "Sign in" opens a server session the app doesn't notice; the page still looks signed out until a reload. Its 403 offers no resend link. Prod. | Low–medium |
+| **G30** | S3.6 | **FIXED on the branch 2026-11-23, not yet walked.** Account-modal password check says "at least 8 characters"; the server requires 12 plus character classes. Prod. | Low |
+| **G31** | S3.7 | **FIXED on the branch 2026-11-23, not yet walked.** `POST /intake/early-access` is still live with no UI caller and no visible rate limit. Ops tidy-up. Prod. | Low |
 | **G32** | S1.9 | `/how-matching-works` describes company matching as live. Prod. | Low–medium |
-| **G33** | S5.3a, S5.5, S6.6, S18.7 | **Rate-limit 429s show Flask-Limiter's raw description** ("3 per 1 minute", "5 per 1 minute", "30 per 1 minute") on register, verify, forgot-password and the agent. `/login` hides it behind the generic line; Path Intelligence and CompanyLens branch on 429 and escape it. One-place fix. Prod. | Medium |
-| **G34** | S6.4a | "Resend code" on `/forgot-password/verify` ignores `res.ok`, so a 429 still says "New code sent! Check your inbox.". Prod. | Low–medium |
-| **G35** | S5.5a | `/verify-email` opened without router state (a new tab) shows "your email" and a misleading error. Prod. | Low |
+| **G33** | S5.3a, S5.5, S6.6, S18.7 | **FIXED on the branch 2026-11-23, not yet walked.** **Rate-limit 429s show Flask-Limiter's raw description** ("3 per 1 minute", "5 per 1 minute", "30 per 1 minute") on register, verify, forgot-password and the agent. `/login` hides it behind the generic line; Path Intelligence and CompanyLens branch on 429 and escape it. One-place fix. Prod. | Medium |
+| **G34** | S6.4a | **FIXED on the branch 2026-11-23, not yet walked.** "Resend code" on `/forgot-password/verify` ignores `res.ok`, so a 429 still says "New code sent! Check your inbox.". Prod. | Low–medium |
+| **G35** | S5.5a | **FIXED on the branch 2026-11-23, not yet walked.** `/verify-email` opened without router state (a new tab) shows "your email" and a misleading error. Prod. | Low |
 | **G36** | S20.3 | **Branch — decision before merge:** account deletion keeps company links (they name the user's employer and dates) under the tombstone; the settings copy does not say so. | Medium (trust copy) |
-| **G37** | S6.1 | "Forgot your password?" leads to a page titled "Sign in with a code" (passwordless; there is no reset). Copy. Prod. | Low |
+| **G37** | S6.1 | **FIXED on the branch 2026-11-23, not yet walked.** "Forgot your password?" leads to a page titled "Sign in with a code" (passwordless; there is no reset). Copy. Prod. | Low |
 | **G38** | S7.9c | Possible desktop-nav overflow at 768–860px with a long name. Arithmetic only — walk before filing. Prod. | Low |
-| **G39** | S16.2a | The hub step strip lists the retired "Work Pulse Lite" and never ticks CompanyLens or Future Path. Prod. | Low |
-| **G40** | S16.7a | The hub quizzes strip says "…help you stand out to employers", contradicting `/trust`. Copy. Prod. | Low |
+| **G39** | S16.2a | **FIXED on the branch 2026-11-23, not yet walked.** The hub step strip lists the retired "Work Pulse Lite" and never ticks CompanyLens or Future Path. Prod. | Low |
+| **G40** | S16.7a | **FIXED on the branch 2026-11-23, not yet walked.** The hub quizzes strip says "…help you stand out to employers", contradicting `/trust`. Copy. Prod. | Low |
 | **G41** | S7.2 | `IntakePromptModal` reopens on every dashboard visit while the profile is under 50%; "Maybe later" does not persist. Decide if intended. Prod. | Low |
-| **G42** | S16.14, S19.6a | Two `alert()` calls survive on the profile page (resume upload and View Resume failures). Prod. | Medium (polish) |
-| **G43** | S19.7 | The career-status modal says "We need this to generate your path suggestions." even when you arrive from the dashboard or the Environment Report. Prod. | Low |
+| **G42** | S16.14, S19.6a | **FIXED on the branch 2026-11-23, not yet walked.** Two `alert()` calls survive on the profile page (resume upload and View Resume failures). Prod. | Medium (polish) |
+| **G43** | S19.7 | **FIXED on the branch 2026-11-23, not yet walked.** The career-status modal says "We need this to generate your path suggestions." even when you arrive from the dashboard or the Environment Report. Prod. | Low |
 | **G44** | S19.11 | Possible profile tab-strip overflow at 390px. Arithmetic only. Prod. | Low |
 | **G45** | S24 | **Branch:** trait preferences has no hub or dashboard entry. | Info |
-| **G46** | S8.8, S24 | **Once Work Pulse is complete, nothing links to `/work-pulse`**, so "Retake Work Pulse" (and, on the branch, the card's way into `/trait-preferences`) is reachable only by typing the URL. The retake shipped with no entry point. Prod. | Medium |
-| **G47** | S8.10 | Work Pulse's "Try again" shows no sign of activity while it retries; `WorkPulseResultsPage` already handles this. Prod. | Low |
-| **G48** | S24.6, S24.8 | **Branch:** saving tolerance gives no confirmation, and on `/trait-preferences` Save and Cancel land on the same screen. | Low |
-| **G49** | S24.8, S24.11 | **Branch:** the note "picks them up the next time you re-read it against a new Work Pulse" is wrong for a first answer, which applies straight away (tested). | Low |
+| **G46** | S8.8, S24 | **FIXED on the branch 2026-11-23, not yet walked.** **Once Work Pulse is complete, nothing links to `/work-pulse`**, so "Retake Work Pulse" (and, on the branch, the card's way into `/trait-preferences`) is reachable only by typing the URL. The retake shipped with no entry point. Prod. | Medium |
+| **G47** | S8.10 | **NOT A BUG (2026-11-23):** React Query resets a no-data query to pending on refetch, so the page already shows "Loading..." during Try again; pinned by useAssessment.test.tsx. Walk to confirm, then close. Work Pulse's "Try again" shows no sign of activity while it retries; `WorkPulseResultsPage` already handles this. Prod. | Low |
+| **G48** | S24.6, S24.8 | **FIXED on the branch 2026-11-23, not yet walked.** **Branch:** saving tolerance gives no confirmation, and on `/trait-preferences` Save and Cancel land on the same screen. | Low |
+| **G49** | S24.8, S24.11 | **FIXED on the branch 2026-11-23, not yet walked.** **Branch:** the note "picks them up the next time you re-read it against a new Work Pulse" is wrong for a first answer, which applies straight away (tested). | Low |
 | **G50** | S24.12 | **Branch:** `/trait-preferences` has no Work Pulse precondition on client or server. Needs a ruling. | Low |
-| **G51** | S12.5 | A failed experiment abandon is silent. Prod. | Low |
+| **G51** | S12.5 | **FIXED on the branch 2026-11-23, not yet walked.** A failed experiment abandon is silent. Prod. | Low |
 | **G52** | S22.3, S22.6a | **The forward-facing (between_jobs) report carries present-tense copy**: every row headline, the "What staying costs" tab, and "Profile your manager" for a job the user has left. The form itself is clean. Content is Julie's; a `needs_forward` headline per cell is the structural fix. Prod. | Medium |
-| **G53** | S9.10a | **Career status is asked for only after the last Environment Report question**, by a modal subtitled for path suggestions whose return dialog names the wrong page. The first trap a new user hits. Prod. | Medium |
-| **G54** | S11.6 | **Branch:** the tolerance pin is invisible — after a tolerance change, Re-read says "nothing moved" with no hint that it waits for the next Work Pulse sitting. | Low–medium |
-| **G55** | S9 | **Branch:** the hub card and Work Pulse card still say "16 questions" while the branch form has 21 steps (16 required). | Low |
+| **G53** | S9.10a | **FIXED on the branch 2026-11-23, not yet walked.** **Career status is asked for only after the last Environment Report question**, by a modal subtitled for path suggestions whose return dialog names the wrong page. The first trap a new user hits. Prod. | Medium |
+| **G54** | S11.6 | **FIXED on the branch 2026-11-23, not yet walked.** **Branch:** the tolerance pin is invisible — after a tolerance change, Re-read says "nothing moved" with no hint that it waits for the next Work Pulse sitting. | Low–medium |
+| **G55** | S9 | **FIXED on the branch 2026-11-23, not yet walked.** **Branch:** the hub card and Work Pulse card still say "16 questions" while the branch form has 21 steps (16 required). | Low |
 | **G56** | S14.4 | **"The Operator" is the ManagerMatch catch-all archetype**: about 77% of answer patterns get it, including strongly autonomous respondents. Needs Julie's archetype rules, a `SCORING_KEY` bump and a backfill. Prod. | High (content) |
-| **G57** | S13.6 | The Pulse confirmation says "This week vs. last week" whatever the real gap. Prod. | Low |
-| **G58** | S14.3a | Reloading during ManagerMatch scoring enqueues a second job (two OpenAI calls; the later wins). Prod. | Low |
-| **G59** | S14.7 | `mp_answers` is not per-user (unlike `mm_answers:{userId}`); after a silent session expiry a complete draft auto-submits as the next user on that tab. Prod. | Medium–low |
+| **G57** | S13.6 | **FIXED on the branch 2026-11-23, not yet walked.** The Pulse confirmation says "This week vs. last week" whatever the real gap. Prod. | Low |
+| **G58** | S14.3a | **FIXED on the branch 2026-11-23, not yet walked.** Reloading during ManagerMatch scoring enqueues a second job (two OpenAI calls; the later wins). Prod. | Low |
+| **G59** | S14.7 | **FIXED on the branch 2026-11-23, not yet walked.** `mp_answers` is not per-user (unlike `mm_answers:{userId}`); after a silent session expiry a complete draft auto-submits as the next user on that tab. Prod. | Medium–low |
 | **G60** | S13.7a | Logged changes don't annotate the trend line at one check-in. Probably intended. Prod. | Info |
 | **G61** | S18.5 | **The agent doesn't know the product.** Its context carries the user's data and a list of legacy company rows, but no description of Work Pulse, the Situation Report, the Decoder or Path Intelligence, so answers about them are invented. Prod. | Medium |
 | **G62** | S17.6a | **Branch, merge-day:** after the merge the hub, `/trust` and the Work Pulse teaser all say CompanyLens is live, but the page shows "No companies yet" and research answers "isn't available right now" because the switch defaults off. Prefill a starter set or hold the copy. | Medium |
@@ -293,7 +293,8 @@ finder's estimate.
 | **G65** | S16.10a | The skills gate's way back is wrong ("Status saved." after adding skills) or missing (`between_jobs`). Prod. | Low |
 | **G66** | S17.6f | **Branch:** "Your companies" is every company anyone has researched; a user can see what others looked up. Decision for Sebastian. | Low–medium |
 | **G67** | S17.7 | Prod only: an account with a stored legacy `culture_preferences` key may still see "{n}% match". Existence unverified; the merge removes the path. | Low |
-| **G68** | S17.7a | **Branch:** a permanent 404 on `/companies/{id}` offers a "Try again" that can never work. | Low |
+| **G68** | S17.7a | **FIXED on the branch 2026-11-23, not yet walked.** **Branch:** a permanent 404 on `/companies/{id}` offers a "Try again" that can never work. | Low |
+| **G69** | S6.4a | **FIXED on the branch 2026-11-23, not yet walked.** `/forgot-password/verify` opened in a new tab (no router state) said "your email", resent to nobody and submitted an empty address. Now asks for the email, like `/verify-email` (G35). Found by auth-accounts while fixing G34. | Low |
 
 ---
 
