@@ -56,10 +56,11 @@ export default function ForgotPassword() {
 
         <div className="border border-cream-muted rounded-xl bg-white p-8">
           <div className="mb-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Forgot password</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Forgot your password?</p>
             <h1 className="font-display text-3xl font-bold text-ink-primary">Sign in with a code</h1>
             <p className="mt-2 text-sm text-ink-secondary">
-              Enter your email and we'll send a one-time code you can use to sign in.
+              Enter your email and we'll send a one-time code you can use to sign in
+              instead. Your password stays as it is.
             </p>
           </div>
 

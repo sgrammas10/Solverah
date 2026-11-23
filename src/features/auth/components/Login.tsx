@@ -310,7 +310,9 @@ function Login() {
                 to="/forgot-password"
                 className="text-sm text-ink-tertiary hover:text-forest-mid transition-colors"
               >
-                Forgot your password?
+                {/* G37: the flow behind this link is a one-time sign-in code, not a
+                    password reset, so the link says so. Best-guess copy; Julie revises. */}
+                Forgot your password? Sign in with a code
               </Link>
             </div>
           </form>

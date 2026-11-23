@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
-import { parseApiError } from '../../../shared/api/apiError';
+import { ApiError, parseApiError } from '../../../shared/api/apiError';
 import { otpErrorMessage } from '../otpErrorCopy';
 
 const REDIRECT_DELAY_MS = 2000;
@@ -11,11 +11,19 @@ import HeroNetworkAnimation from '../../../shared/ui/HeroNetworkAnimation';
 export default function ConfirmEmail() {
   const location = useLocation();
   const navigate = useNavigate();
-  const email =
+  const routedEmail: string =
     (location.state as any)?.email ||
     new URLSearchParams(location.search).get('email') ||
     '';
   const fromParam: string | undefined = (location.state as any)?.from;
+
+  // G35: opened in a new tab there is no router state and no ?email=, and the
+  // page used to post an empty address, which the server's "email and code are
+  // required" turned into "Please enter the 6-digit code" -- wrong about what
+  // was missing. With no routed address the page asks for it instead.
+  const askForEmail = !routedEmail;
+  const [typedEmail, setTypedEmail] = useState('');
+  const email = routedEmail || typedEmail.trim().toLowerCase();
 
   const [code, setCode] = useState('');
   // Client-side validation only; each request's own failure lives on its mutation.
@@ -55,6 +63,10 @@ export default function ConfirmEmail() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) {
+      setCodeValidationMsg('Please enter the email address you signed up with.');
+      return;
+    }
     const trimmed = code.trim();
     if (trimmed.length !== 6 || !/^\d{6}$/.test(trimmed)) {
       setCodeValidationMsg('Please enter the 6-digit code from your email.');
@@ -66,7 +78,7 @@ export default function ConfirmEmail() {
 
   const handleResend = () => {
     if (!email) {
-      setResendValidationMsg('No email available.');
+      setResendValidationMsg('Enter your email address above, then press Resend code.');
       return;
     }
     setResendValidationMsg('');
@@ -85,9 +97,9 @@ export default function ConfirmEmail() {
   const resendMsg =
     resendValidationMsg ||
     (resendMutation.isError
-      ? resendMutation.error instanceof Error
-        ? resendMutation.error.message || 'Network error.'
-        : 'Network error.'
+      ? resendMutation.error instanceof ApiError
+        ? resendMutation.error.message
+        : 'Network error. Please try again.'
       : resendMutation.isSuccess
       ? 'New code sent! Check your inbox.'
       : '');
@@ -110,15 +122,38 @@ export default function ConfirmEmail() {
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Verify your email</p>
             <h1 className="font-display text-3xl font-bold text-ink-primary">Check your inbox</h1>
-            <p className="mt-2 text-sm text-ink-secondary">
-              We sent a 6-digit code to{' '}
-              <strong className="text-forest-mid">{email || 'your email'}</strong>.{' '}
-              Enter it below to activate your account.
-            </p>
+            {askForEmail ? (
+              <p className="mt-2 text-sm text-ink-secondary">
+                Enter the email you signed up with and the 6-digit code we sent to it.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-ink-secondary">
+                We sent a 6-digit code to{' '}
+                <strong className="text-forest-mid">{routedEmail}</strong>.{' '}
+                Enter it below to activate your account.
+              </p>
+            )}
           </div>
 
           {!verified && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {askForEmail && (
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="verify-email-address" className="text-sm font-medium text-ink-primary">
+                    Email address
+                  </label>
+                  <input
+                    id="verify-email-address"
+                    type="email"
+                    autoComplete="email"
+                    value={typedEmail}
+                    onChange={e => setTypedEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors"
+                    autoFocus
+                  />
+                </div>
+              )}
               <input
                 type="text"
                 inputMode="numeric"
@@ -126,8 +161,9 @@ export default function ConfirmEmail() {
                 value={code}
                 onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
+                aria-label="6-digit code"
                 className="w-full text-center text-3xl tracking-[0.5em] rounded border border-cream-muted bg-cream-base px-4 py-3 text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors"
-                autoFocus
+                autoFocus={!askForEmail}
               />
 
               {verifyErrorMsg && (

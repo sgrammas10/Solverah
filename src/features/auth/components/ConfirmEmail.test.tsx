@@ -72,9 +72,9 @@ describe("ConfirmEmail - initial render", () => {
     expect(screen.getByText("query@example.com")).toBeInTheDocument();
   });
 
-  it("shows 'your email' fallback when no email provided", () => {
-    renderConfirmEmail();
-    expect(screen.getByText("your email")).toBeInTheDocument();
+  it("does not ask for the email when router state supplies it", () => {
+    renderConfirmEmail({ email: "user@example.com" });
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument();
   });
 
   it("submit button is disabled when code is empty", () => {
@@ -251,12 +251,92 @@ describe("ConfirmEmail - resend", () => {
     expect(requests).toEqual([RESEND]);
   });
 
-  it("shows error when no email available for resend", async () => {
+  it("shows a network-error sentence, not the runtime's raw text, when resend never reaches the server", async () => {
+    // A transport failure rejects with the runtime's wording ("Failed to fetch"
+    // under undici), which this used to print as-is.
+    server.use(
+      mock("post", "/api/v1/auth/email/verify/resend").resolve(() => HttpResponse.error()),
+    );
+    renderConfirmEmail({ email: "user@example.com" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+    expect(await screen.findByText("Network error. Please try again.")).toBeInTheDocument();
+    expect(screen.queryByText(/failed to fetch/i)).not.toBeInTheDocument();
+  });
+
+  it("asks for the email before resending when none is known", async () => {
     renderConfirmEmail();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
     });
-    expect(screen.getByText(/No email available/i)).toBeInTheDocument();
+    expect(screen.getByText(/Enter your email address above/i)).toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+});
+
+// ─── no routed email (G35) ────────────────────────────────────────────────────
+
+/**
+ * G35: `/verify-email` opened in a new tab has no router state and no
+ * `?email=`. The page used to read "We sent a 6-digit code to your email",
+ * post an empty address, and render the server's "email and code are
+ * required" as "Please enter the 6-digit code" -- the code was fine; the
+ * address was what was missing. It now asks for the address.
+ */
+describe("ConfirmEmail - no email in state or query (G35)", () => {
+  it("asks for the email instead of claiming a code went to 'your email'", () => {
+    renderConfirmEmail();
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+    expect(screen.queryByText("your email")).not.toBeInTheDocument();
+  });
+
+  it("says the email is missing, not the code, and sends nothing", async () => {
+    renderConfirmEmail();
+    await submitCode("123456");
+    expect(
+      screen.getByText("Please enter the email address you signed up with."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/6-digit code from your email/i)).not.toBeInTheDocument();
+    expect(requests).toEqual([]);
+  });
+
+  it("verifies with the typed email, trimmed and lower-cased", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/email/verify").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Email verified" });
+      }),
+    );
+    renderConfirmEmail();
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: "  New.Tab@Example.com " },
+    });
+    await submitCode("654321");
+
+    expect(requests).toEqual([VERIFY]);
+    expect(sent).toEqual({ email: "new.tab@example.com", code: "654321" });
+    expect(await screen.findByText(/Email verified!/i)).toBeInTheDocument();
+  });
+
+  it("resends to the typed email", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/email/verify/resend").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "New code sent" });
+      }),
+    );
+    renderConfirmEmail();
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: "new.tab@example.com" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+    expect(await screen.findByText(/New code sent!/i)).toBeInTheDocument();
+    expect(requests).toEqual([RESEND]);
+    expect(sent).toEqual({ email: "new.tab@example.com" });
   });
 });

@@ -81,9 +81,9 @@ describe("ForgotPasswordVerify - initial render", () => {
     expect(screen.getByText("user@example.com")).toBeInTheDocument();
   });
 
-  it("shows 'your email' when no email in state", () => {
-    renderForgotPasswordVerify("");
-    expect(screen.getByText("your email")).toBeInTheDocument();
+  it("does not ask for the email when router state supplies it", () => {
+    renderForgotPasswordVerify("user@example.com");
+    expect(screen.queryByLabelText(/email address/i)).not.toBeInTheDocument();
   });
 
   it("sign in button is disabled while code is fewer than 6 digits", () => {
@@ -234,12 +234,131 @@ describe("ForgotPasswordVerify - resend", () => {
     expect(requests).toEqual([RESEND]);
   });
 
-  it("shows error when no email available for resend", async () => {
+  // G34: the resend used to be a bare fetch whose response was never read, so
+  // a 429 from `/auth/password/forgot`'s 3/minute limit still said "New code
+  // sent!" and no email arrived.
+  it("shows the server's 429 detail instead of claiming a code was sent (G34)", async () => {
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(() =>
+        HttpResponse.json(
+          {
+            title: "Too Many Requests",
+            status: 429,
+            detail: "Too many attempts. Please wait a moment and try again.",
+          },
+          { status: 429 },
+        ),
+      ),
+    );
+    renderForgotPasswordVerify("user@example.com");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+    expect(
+      await screen.findByText("Too many attempts. Please wait a moment and try again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/New code sent!/i)).not.toBeInTheDocument();
+    // Not stuck on "Sent!": the person can try again once the window passes.
+    expect(screen.getByRole("button", { name: /resend code/i })).toBeEnabled();
+  });
+
+  it("falls back to apiError's status wording when the failure has no body (G34)", async () => {
+    // Off-contract on purpose: a body-less failure is what this branch is for.
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(
+        () => new HttpResponse(null, { status: 503 }),
+      ),
+    );
+    renderForgotPasswordVerify("user@example.com");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+    expect(await screen.findByText(/temporarily unavailable/i)).toBeInTheDocument();
+    expect(screen.queryByText(/New code sent!/i)).not.toBeInTheDocument();
+  });
+
+  it("asks for the email before resending when none is known", async () => {
     renderForgotPasswordVerify("");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
     });
-    expect(screen.getByText(/No email available/i)).toBeInTheDocument();
+    expect(screen.getByText(/Enter your email address above/i)).toBeInTheDocument();
     expect(requests).toEqual([]);
+  });
+});
+
+// ─── no routed email (new tab) ────────────────────────────────────────────────
+
+/**
+ * The /forgot-password/verify twin of /verify-email's G35. Opened in a new tab
+ * there is no router state: the page read "We sent a 6-digit code to your
+ * email", posted an empty address on submit (which the server's "email and code
+ * are required" turned into "Please enter the 6-digit code"), and the resend
+ * said "No email available". It now asks for the address.
+ */
+describe("ForgotPasswordVerify - no email in state or query", () => {
+  function renderWithoutState() {
+    render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter initialEntries={["/forgot-password/verify"]}>
+          <ForgotPasswordVerify />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+  }
+
+  it("asks for the email instead of claiming a code went to 'your email'", () => {
+    renderWithoutState();
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
+    expect(screen.queryByText("your email")).not.toBeInTheDocument();
+  });
+
+  it("says the email is missing, not the code, and sends nothing", async () => {
+    renderWithoutState();
+    await submitCode("123456");
+    expect(
+      screen.getByText("Please enter the email address you asked for a code with."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/6-digit code from your email/i)).not.toBeInTheDocument();
+    expect(requests).toEqual([]);
+  });
+
+  it("signs in with the typed email, trimmed and lower-cased", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/password/reset").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "Signed in", csrfToken: "tok", user: TEST_USER });
+      }),
+    );
+    renderWithoutState();
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: "  New.Tab@Example.com " },
+    });
+    await submitCode("654321");
+
+    expect(requests).toEqual([RESET]);
+    expect(sent).toEqual({ email: "new.tab@example.com", code: "654321" });
+    expect(mocks.loginWithData).toHaveBeenCalledWith(TEST_USER, "tok");
+  });
+
+  it("resends to the typed email", async () => {
+    let sent: Record<string, unknown> | undefined;
+    server.use(
+      mock("post", "/api/v1/auth/password/forgot").resolve(async ({ request }) => {
+        sent = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ message: "reset_sent" });
+      }),
+    );
+    renderWithoutState();
+    fireEvent.change(screen.getByLabelText(/email address/i), {
+      target: { value: "new.tab@example.com" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /resend code/i }));
+    });
+    expect(await screen.findByText(/New code sent!/i)).toBeInTheDocument();
+    expect(requests).toEqual([RESEND]);
+    expect(sent).toEqual({ email: "new.tab@example.com" });
   });
 });

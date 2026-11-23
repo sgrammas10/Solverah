@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE } from '../../../shared/api/api';
-import { parseApiError } from '../../../shared/api/apiError';
+import { ApiError, parseApiError } from '../../../shared/api/apiError';
 import { otpErrorMessage } from '../otpErrorCopy';
 import { useAuth } from '../useAuth';
 import { User } from '../authContext';
@@ -13,7 +13,16 @@ export default function ForgotPasswordVerify() {
   const navigate = useNavigate();
   const { loginWithData } = useAuth();
 
-  const email = (location.state as any)?.email || '';
+  const routedEmail: string =
+    (location.state as any)?.email ||
+    new URLSearchParams(location.search).get('email') ||
+    '';
+  // Same fix as /verify-email's G35: opened in a new tab there is no router
+  // state, and the page used to post an empty address and resend to nobody.
+  // With no routed address it asks for one.
+  const askForEmail = !routedEmail;
+  const [typedEmail, setTypedEmail] = useState('');
+  const email = routedEmail || typedEmail.trim().toLowerCase();
 
   const [code, setCode] = useState('');
   // Client-side validation only; each request's own failure lives on its mutation.
@@ -40,18 +49,28 @@ export default function ForgotPasswordVerify() {
   });
 
   const resendMutation = useMutation({
-    // Fire-and-forget, as it always was: only a network failure reports here.
+    // G34: this used to ignore the response, so a 429 from the 3/minute limit
+    // still read "New code sent!". The server's own wording is shown instead;
+    // with no usable body, parseApiError's status fallback applies.
     mutationFn: async (targetEmail: string) => {
-      await fetch(`${API_BASE}/auth/password/forgot`, {
+      const res = await fetch(`${API_BASE}/auth/password/forgot`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: targetEmail }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw parseApiError(res, data);
+      }
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) {
+      setCodeValidationMsg('Please enter the email address you asked for a code with.');
+      return;
+    }
     const trimmed = code.trim();
     if (trimmed.length !== 6 || !/^\d{6}$/.test(trimmed)) {
       setCodeValidationMsg('Please enter the 6-digit code from your email.');
@@ -63,7 +82,7 @@ export default function ForgotPasswordVerify() {
 
   const handleResend = () => {
     if (!email) {
-      setResendValidationMsg('No email available. Please go back and enter your email.');
+      setResendValidationMsg('Enter your email address above, then press Resend code.');
       return;
     }
     setResendValidationMsg('');
@@ -83,7 +102,9 @@ export default function ForgotPasswordVerify() {
   const resendMsg =
     resendValidationMsg ||
     (resendMutation.isError
-      ? 'Network error. Please try again.'
+      ? resendMutation.error instanceof ApiError
+        ? resendMutation.error.message
+        : 'Network error. Please try again.'
       : resendMutation.isSuccess
       ? 'New code sent! Check your inbox.'
       : '');
@@ -106,15 +127,38 @@ export default function ForgotPasswordVerify() {
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-forest-light mb-2">Check your inbox</p>
             <h1 className="font-display text-3xl font-bold text-ink-primary">Enter your code</h1>
-            <p className="mt-2 text-sm text-ink-secondary">
-              We sent a 6-digit code to{' '}
-              <strong className="text-forest-mid">{email || 'your email'}</strong>.{' '}
-              Enter it below to sign in.
-            </p>
+            {askForEmail ? (
+              <p className="mt-2 text-sm text-ink-secondary">
+                Enter your email and the 6-digit code we sent to it to sign in.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-ink-secondary">
+                We sent a 6-digit code to{' '}
+                <strong className="text-forest-mid">{routedEmail}</strong>.{' '}
+                Enter it below to sign in.
+              </p>
+            )}
           </div>
 
           {!resetMutation.isSuccess && (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {askForEmail && (
+                <div className="space-y-1.5 text-left">
+                  <label htmlFor="reset-code-email-address" className="text-sm font-medium text-ink-primary">
+                    Email address
+                  </label>
+                  <input
+                    id="reset-code-email-address"
+                    type="email"
+                    autoComplete="email"
+                    value={typedEmail}
+                    onChange={e => setTypedEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full rounded border border-cream-muted bg-cream-base px-4 py-3 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors"
+                    autoFocus
+                  />
+                </div>
+              )}
               <input
                 type="text"
                 inputMode="numeric"
@@ -122,8 +166,9 @@ export default function ForgotPasswordVerify() {
                 value={code}
                 onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="000000"
+                aria-label="6-digit code"
                 className="w-full text-center text-3xl tracking-[0.5em] rounded border border-cream-muted bg-cream-base px-4 py-3 text-ink-primary placeholder:text-ink-tertiary focus:border-forest-light focus:outline-none focus:ring-2 focus:ring-forest-pale transition-colors"
-                autoFocus
+                autoFocus={!askForEmail}
               />
 
               {showMessage && (

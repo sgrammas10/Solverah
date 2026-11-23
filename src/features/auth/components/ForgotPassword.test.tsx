@@ -76,20 +76,30 @@ describe("ForgotPassword - error handling", () => {
   // unknown address -- a 404 there was a user-enumeration oracle -- so it is no
   // longer a documented response and `reply` will not type-check it. The branch
   // under test is the generic "show the server's wording" one, and the limiter
-  // (`3 per minute`) is what actually reaches it now, so `resolve` is used the
+  // (`3 per minute`) is what actually reaches it now -- as problem+json, with
+  // the friendly detail G33 gave it, so `resolve` is used the
   // same way the fallback test below uses it: off the typed response map on
   // purpose, because that is where a 429 lives.
   // findByText, not getByText: the mutation's error re-render is notified via
   // notifyManager's setTimeout(0), so it can land after act() returns.
   it("shows server error message when response is not ok", async () => {
     server.use(
-      mock("post", "/api/v1/auth/password/forgot").resolve(
-        () => HttpResponse.json({ error: "3 per 1 minute" }, { status: 429 }),
+      mock("post", "/api/v1/auth/password/forgot").resolve(() =>
+        HttpResponse.json(
+          {
+            title: "Too Many Requests",
+            status: 429,
+            detail: "Too many attempts. Please wait a moment and try again.",
+          },
+          { status: 429 },
+        ),
       ),
     );
     renderForgotPassword();
     await submitEmail();
-    expect(await screen.findByText(/3 per 1 minute/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText("Too many attempts. Please wait a moment and try again."),
+    ).toBeInTheDocument();
   });
 
   it("navigates to the code screen for an unknown address, like a known one", async () => {
@@ -173,6 +183,14 @@ describe("ForgotPassword - initial render", () => {
     renderForgotPassword();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send code/i })).toBeInTheDocument();
+  });
+
+  it("says it signs you in with a code and leaves the password alone (G37)", () => {
+    // Reached from "Forgot your password? Sign in with a code" on /login. There
+    // is no reset anywhere in the app, so the page must not read as one.
+    renderForgotPassword();
+    expect(screen.getByRole("heading", { name: /sign in with a code/i })).toBeInTheDocument();
+    expect(screen.getByText(/your password stays as it is/i)).toBeInTheDocument();
   });
 
   it("posts to the password-forgot endpoint and nothing else", async () => {

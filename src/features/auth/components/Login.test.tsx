@@ -74,6 +74,18 @@ async function submitForm(email = "ada@example.com", password = "pass") {
   });
 }
 
+// ─── forgot-password link (G37) ───────────────────────────────────────────────
+
+describe("Login - forgot-password link", () => {
+  it("names the one-time-code sign-in the page actually offers (G37)", () => {
+    // The link read only "Forgot your password?" and promised a reset; the page
+    // behind it is "Sign in with a code" and there is no new-password form.
+    renderLogin();
+    const link = screen.getByRole("link", { name: /sign in with a code/i });
+    expect(link).toHaveAttribute("href", "/forgot-password");
+  });
+});
+
 // ─── error states ─────────────────────────────────────────────────────────────
 
 describe("Login - error handling", () => {
