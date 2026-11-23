@@ -341,7 +341,7 @@ Three example result cards: a Work Pulse reading ("The Autonomist"), a Situation
 A ledger row has a title column (Archivo 700, 1.35rem) with an optional ink-secondary meta line beneath it, a body column (0.97rem, ink-secondary), and an optional action column at the end. Rows are padded 24–32px vertically between cream-muted rules. A row for something unavailable (Work Pulse Pro) drops its title to ink-secondary and ends in a 600-weight "Not yet available" label instead of a button.
 
 ### Inputs / Fields
-The landing page defines no inputs of its own. The intake band hosts the shared `IntakeForm` and `AccountModal` from `src/features/intake/components/`, which `/start` also uses. They use the same cream/forest colours, so there is no colour seam. There is a **type and shape seam**, though: the form's heading is Playfair Display (`font-display`, 600, 1.75rem) and its card is a white panel with a 12px radius, 32px padding and a cream-muted border. Both differ from this route's Archivo headings and 4px/square shapes. The seam is known, and the components are shared, so don't restyle them from this route.
+The landing page defines no inputs of its own. The intake band hosts the shared `IntakeForm` and `AccountModal` from `src/features/intake/components/`. They use the same cream/forest colours, so there is no colour seam. There is a **type and shape seam**, though: the form's heading is Playfair Display (`font-display`, 600, 1.75rem) and its card is a white panel with a 12px radius, 32px padding and a cream-muted border. Both differ from this route's Archivo headings and 4px/square shapes. The seam is known, and the components are shared, so don't restyle them from this route.
 
 ### Navigation
 - **Style:** 64px sticky bar with a 1px cream-muted bottom edge. It is transparent at the top and switches to cream-base after 24px of scroll (300ms). The wordmark sits at left (Archivo 800, 1.35rem, ink-primary). Three anchor links and "Sign in" follow in Public Sans 500 0.9rem ink-secondary, 32px apart, turning forest-mid on hover. The forest-dark "Get started" sits at the far right. The story stage pins directly beneath the bar.
@@ -400,4 +400,4 @@ The `fadeUp`/`fadeIn` animations in `tailwind.config.js` belong to other routes 
 - **Don't** add eyebrows, kickers, uppercase tags or letterspaced labels above headings.
 - **Don't** use Playfair Display, DM Sans or the `fade-up` animations in this route's own markup; they belong to other routes.
 - **Don't** round anything beyond 4px except the step dots.
-- **Don't** restyle `IntakeForm` or `AccountModal` from this route; they are shared with `/start`.
+- **Don't** restyle `IntakeForm` or `AccountModal` from this route; they belong to the intake slice.

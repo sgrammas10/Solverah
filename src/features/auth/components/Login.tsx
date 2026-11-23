@@ -7,19 +7,6 @@ import { API_BASE } from "../../../shared/api/api";
 import { parseApiError } from "../../../shared/api/apiError";
 import { profileKeys } from "../../profile";
 
-const INTAKE_STORAGE_KEY = 'solverah_intake';
-
-function getPendingIntakeSave() {
-  try {
-    const raw = sessionStorage.getItem(INTAKE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed?.wpllAnswers?.length) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
 /**
  * The location RequireAuth intercepted, reduced to a same-app path — or null.
  *
@@ -117,32 +104,6 @@ function Login() {
     // the whole sequence, exactly as the hand-rolled flag did.
     onSuccess: async (loggedInUser) => {
       let redirectPath = '/job-seeker/dashboard';
-
-      const pendingIntake = getPendingIntakeSave();
-      if (pendingIntake && loggedInUser.role === 'job-seeker' && fetchWithAuth) {
-        try {
-          // One `claim` replaces the four account-attachment endpoints; `mode`
-          // selects which. This is the anonymous quiz session held in
-          // sessionStorage being adopted onto the account just signed in to.
-          await fetchWithAuth('/intake/claims', {
-            method: 'POST',
-            body: JSON.stringify({
-              mode: 'session',
-              selected_statement_ids: pendingIntake.selectedStatementIds,
-              wpll_answers: pendingIntake.wpllAnswers.map(
-                (a: { questionId: string; optionId: string }) => ({
-                  question_id: a.questionId,
-                  option_id: a.optionId,
-                })
-              ),
-              wpll_insight_text: pendingIntake.wpllInsightText ?? '',
-            }),
-          });
-          sessionStorage.removeItem(INTAKE_STORAGE_KEY);
-        } catch (intakeErr) {
-          console.error('Failed to save intake data:', intakeErr);
-        }
-      }
 
       // getPendingQuizSave() returns only a usable save (answers + a request
       // with items) and drops an empty one, so a failed guest attempt can no

@@ -373,6 +373,12 @@ def confirm_email(*, email: str, code: str) -> AuthResult:
     user.status = "active"
     user.confirmation_token = None
     user.confirmation_sent_at = None
+    # A hero-form submission whose sign-in claim stopped at "email not
+    # confirmed" was parked for this account; this is the moment it was waiting
+    # for. Imported here because intake_service imports this module.
+    from solverah.services import intake_service
+
+    intake_service.apply_pending_claims(user)
     db.session.commit()
 
     return AuthResult(status=200, body={"message": "email confirmed"}, user=user)

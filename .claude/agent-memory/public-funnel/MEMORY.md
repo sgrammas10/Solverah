@@ -1,2 +1,4 @@
-- [Size-gate headroom](size-gate-headroom.md) — entry 99.72/101 kB on 2026-11-23 after making AccountModal lazy via the intake barrel
-- [Hero form gaps G26/G29/G30/G31](hero-form-gaps-g26-g31.md) — fixed 2026-11-23, uncommitted; decisions, copy awaiting Julie, 403-path submission-not-attached gap
+- [Size-gate headroom](size-gate-headroom.md) — entry 99.44/101 kB, CSS 10.23/11 on 2026-11-23; AccountModal is lazy via the intake barrel
+- [Hero form gaps G26/G29/G30/G31](hero-form-gaps-g26-g31.md) — fixed 2026-11-23; decisions and copy awaiting Julie
+- [Pending claim on unconfirmed sign-in](pending-claim-on-unconfirmed-sign-in.md) — 403 parks `claim_pending:<user_id>` in status; confirm_email attaches it; no client storage
+- [/start removed](start-route-removed.md) — G24 2026-11-23: wizard + LandingNav deleted; leftovers in other lanes listed; lane file is stale on these

@@ -20,6 +20,7 @@ mean "a resume of this size and type exists at this key".
 from __future__ import annotations
 
 import datetime
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -46,14 +47,18 @@ from solverah.services import (
 
 __all__ = [
     "IntakeResult",
+    "apply_pending_claims",
     "create_account",
     "finalize",
     "link_account",
+    "pending_claim_status",
     "presign",
     "save_to_account",
     "sign_in",
     "verify_upload",
 ]
+
+logger = logging.getLogger(__name__)
 
 PRESIGN_TTL_SECONDS = 10 * 60
 
@@ -325,10 +330,36 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
     auth_service.clear_failed_logins(user)
 
     if not email_confirmed:
+        # Everything the claim needs is proved by here -- the submission id, its
+        # email, and this account's password -- and only the confirmation is
+        # missing. So the claim is parked against this account, and
+        # `apply_pending_claims` completes it when the address is confirmed.
+        # Until 2026-11-23 the 403 simply dropped it: the visitor verified,
+        # signed in on /login, and their submission was never attached.
+        intake.status = pending_claim_status(user.id)
+        db.session.commit()
         return _error(
             403, "Email not confirmed. Please confirm your email before signing in."
         )
 
+    _attach(user, intake)
+    # Before the commit, for the reason given in create_account.
+    body = {
+        "message": "signed in",
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+        },
+    }
+    db.session.commit()
+
+    return IntakeResult(status=200, body=body, user=user, issue_token=True)
+
+
+def _attach(user: User, intake: IntakeSubmission) -> None:
+    """Merge one submission into the account's profile. Does not commit."""
     intake_profile = resume_service.build_profile_from_intake(intake)
     profile_repository.update_document(
         user.id, lambda existing: {**existing, **intake_profile}
@@ -345,19 +376,38 @@ def sign_in(data: Dict[str, Any], *, check_password) -> IntakeResult:
         resource="intake",
         metadata={"submission_id": intake.id, "user_id": user.id},
     )
-    # Before the commit, for the reason given in create_account.
-    body = {
-        "message": "signed in",
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role,
-        },
-    }
-    db.session.commit()
 
-    return IntakeResult(status=200, body=body, user=user, issue_token=True)
+
+def pending_claim_status(user_id: int) -> str:
+    """The ``status`` of a submission waiting on this account's confirmation.
+
+    The account id is in the value, so a parked claim can only ever complete on
+    the account whose password parked it -- not on whichever account holds the
+    submission's email by the time someone confirms.
+    """
+    return "claim_pending:%d" % user_id
+
+
+def apply_pending_claims(user: User) -> int:
+    """Attach every submission ``sign_in`` parked for this account.
+
+    Called by ``auth_service.confirm_email`` inside its transaction, so the
+    confirmation and the attachment land together. Does not commit. Each
+    submission runs in a savepoint: one that cannot be merged stays parked and
+    is logged, and never costs the visitor their email confirmation.
+
+    Returns:
+        How many submissions were attached.
+    """
+    attached = 0
+    for intake in intake_repository.find_pending_claims(pending_claim_status(user.id)):
+        try:
+            with db.session.begin_nested():
+                _attach(user, intake)
+            attached += 1
+        except Exception:  # noqa: BLE001 -- see the docstring
+            logger.exception("Pending intake claim %s could not be attached", intake.id)
+    return attached
 
 
 def link_account(user: User, current_email: str, data: Dict[str, Any]) -> IntakeResult:

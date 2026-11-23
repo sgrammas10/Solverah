@@ -376,126 +376,26 @@ describe("Login - password visibility", () => {
   });
 });
 
-// ─── from=wpll intake save ────────────────────────────────────────────────────
+// ─── the removed /start replay ────────────────────────────────────────────────
 
-describe("Login - from=wpll intake save", () => {
-  function renderLoginWithParam(search = "?from=wpll") {
-    render(
-      <QueryClientProvider client={createQueryClient()}>
-        <MemoryRouter initialEntries={[`/login${search}`]}>
-          <Login />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-  }
-
-  beforeEach(() => {
-    sessionStorage.clear();
-  });
-
-  it("calls fetchWithAuth with intake save payload when from=wpll and sessionStorage has data", async () => {
+describe("Login - leftover /start draft", () => {
+  it("does not replay a solverah_intake draft: /start is gone (G24)", async () => {
     sessionStorage.setItem(
       "solverah_intake",
       JSON.stringify({
-        step: 4,
-        selectedStatementIds: ["dir-1", "sus-1"],
+        selectedStatementIds: ["dir-1"],
         wpllAnswers: [{ questionId: "wpll-q1", optionId: "wpll-q1-c" }],
         wpllInsightText: "Test insight.",
       })
     );
     mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
-    mockFetchWithAuth.mockResolvedValueOnce({ message: "Intake saved" });
 
-    renderLoginWithParam();
-    await submitForm();
-
-    expect(mockFetchWithAuth).toHaveBeenCalledWith(
-      "/intake/claims",
-      expect.objectContaining({ method: "POST" })
-    );
-    const callArgs = mockFetchWithAuth.mock.calls[0][1];
-    const body = JSON.parse(callArgs.body);
-    // `mode` is the discriminator that picks which of the four collapsed
-    // account-attachment operations this is. Without it the request is a 422.
-    expect(body.mode).toBe("session");
-    expect(body.selected_statement_ids).toEqual(["dir-1", "sus-1"]);
-    expect(body.wpll_answers[0].question_id).toBe("wpll-q1");
-    expect(body.wpll_answers[0].option_id).toBe("wpll-q1-c");
-  });
-
-  it("clears solverah_intake from sessionStorage after successful save", async () => {
-    sessionStorage.setItem(
-      "solverah_intake",
-      JSON.stringify({
-        selectedStatementIds: ["dir-1"],
-        wpllAnswers: [{ questionId: "wpll-q1", optionId: "wpll-q1-b" }],
-        wpllInsightText: "",
-      })
-    );
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
-    mockFetchWithAuth.mockResolvedValueOnce({});
-
-    renderLoginWithParam();
-    await submitForm();
-
-    expect(sessionStorage.getItem("solverah_intake")).toBeNull();
-  });
-
-  it("still navigates to dashboard if intake save fails (non-fatal)", async () => {
-    sessionStorage.setItem(
-      "solverah_intake",
-      JSON.stringify({
-        selectedStatementIds: ["dir-1"],
-        wpllAnswers: [{ questionId: "wpll-q1", optionId: "wpll-q1-b" }],
-        wpllInsightText: "",
-      })
-    );
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
-    mockFetchWithAuth.mockRejectedValueOnce(new Error("network error"));
-
-    renderLoginWithParam();
+    renderLogin();
     await submitForm();
 
     expect(mockNavigate).toHaveBeenCalledWith("/job-seeker/dashboard");
-  });
-
-  it("does not call intake save when sessionStorage has no wpll answers", async () => {
-    sessionStorage.setItem(
-      "solverah_intake",
-      JSON.stringify({
-        selectedStatementIds: [],
-        wpllAnswers: [],
-        wpllInsightText: "",
-      })
-    );
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
-
-    renderLoginWithParam();
-    await submitForm();
-
-    expect(mockFetchWithAuth).not.toHaveBeenCalledWith(
-      "/intake/claims",
-      expect.anything()
-    );
-  });
-
-  it("does not call intake save when sessionStorage has no intake data", async () => {
-    // No solverah_intake key — user navigated directly to /login without going through intake
-    mockLogin.mockResolvedValueOnce({ role: "job-seeker", id: "1", email: "a@b.com", name: "A" });
-
-    render(
-      <QueryClientProvider client={createQueryClient()}>
-        <MemoryRouter initialEntries={["/login"]}>
-          <Login />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
-    await submitForm();
-
-    expect(mockFetchWithAuth).not.toHaveBeenCalledWith(
-      "/intake/claims",
-      expect.anything()
-    );
+    expect(mockFetchWithAuth).not.toHaveBeenCalledWith("/intake/claims", expect.anything());
+    sessionStorage.removeItem("solverah_intake");
   });
 });
 

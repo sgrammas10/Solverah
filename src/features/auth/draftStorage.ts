@@ -41,7 +41,7 @@ export const USER_DRAFT_KEY_PREFIXES: readonly string[] = [
   "mp_answers",                  // Manager Profile — useMP
   "mm_answers",                  // Manager Match — useMM
   "solverah_wp",                 // legacy 12-question Work Pulse — useWP
-  "solverah_intake",             // /start wizard: statements + WPLL answers — useCareerIntake
+  "solverah_intake",             // the /start wizard, removed 2026-11-23 (G24); kept so a browser still holding one is swept
   "focus_type_draft",            // FocusType — FocusTypePage
   "pendingQuizSave",             // guest quiz answers held for replay — guestQuiz.ts
 ];

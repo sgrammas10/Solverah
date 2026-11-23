@@ -285,6 +285,106 @@ def test_sign_in_refuses_a_wrong_password(client):
     assert resp.status_code == 401
 
 
+def _register_unconfirmed(client, email=SUBMITTER, name="Existing User") -> str:
+    """An account that has not confirmed its email yet; returns its code."""
+    client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": PASSWORD, "name": name,
+              "role": "job-seeker", "terms_accepted": True},
+    )
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=email).first().confirmation_token
+
+
+def _submission_status_and_account_name(submission_id, email=SUBMITTER):
+    from app import app
+    from model import IntakeSubmission, User, db
+
+    with app.app_context():
+        return (
+            db.session.get(IntakeSubmission, submission_id).status,
+            User.query.filter_by(email=email).first().name,
+        )
+
+
+def test_sign_in_on_an_unconfirmed_account_attaches_once_the_email_is_confirmed(client):
+    """The 403 parks the claim; confirming the address completes it.
+
+    Regression (2026-11-23): the 403 used to drop the claim, and nothing after
+    it -- /verify-email, then a normal /login -- knew about the submission, so
+    it was never attached to the account.
+    """
+    submission_id = _seed_submission()
+    code = _register_unconfirmed(client)
+
+    resp = _claim(client, {
+        "mode": "sign_in", "submission_id": submission_id,
+        "email": SUBMITTER, "password": PASSWORD,
+    })
+    assert resp.status_code == 403
+    # Not attached yet: the address is still unproved.
+    assert _submission_status_and_account_name(submission_id)[1] == "Existing User"
+
+    resp = client.post(
+        "/api/v1/auth/email/verify", json={"email": SUBMITTER, "code": code}
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+    assert _submission_status_and_account_name(submission_id) == (
+        "account_linked", "Claim Tester",
+    )
+
+
+def test_a_wrong_password_parks_nothing_for_the_confirmation_to_attach(client):
+    """Knowing the email and the submission id is not enough: the password is the proof."""
+    submission_id = _seed_submission()
+    code = _register_unconfirmed(client)
+
+    resp = _claim(client, {
+        "mode": "sign_in", "submission_id": submission_id,
+        "email": SUBMITTER, "password": "WrongPassword1!",
+    })
+    assert resp.status_code == 401
+
+    client.post("/api/v1/auth/email/verify", json={"email": SUBMITTER, "code": code})
+
+    assert _submission_status_and_account_name(submission_id) == (
+        "uploaded", "Existing User",
+    )
+
+
+def test_a_parked_claim_completes_only_on_the_account_that_parked_it(client):
+    """The parked status names the account, so another one confirming adopts nothing."""
+    from app import app
+    from model import IntakeSubmission, User, db
+    from solverah.services import intake_service
+
+    submission_id = _seed_submission()
+    _register_unconfirmed(client)
+    other_code = _register_unconfirmed(client, email="other-account@example.com")
+    _claim(client, {
+        "mode": "sign_in", "submission_id": submission_id,
+        "email": SUBMITTER, "password": PASSWORD,
+    })
+
+    client.post(
+        "/api/v1/auth/email/verify",
+        json={"email": "other-account@example.com", "code": other_code},
+    )
+
+    with app.app_context():
+        owner = User.query.filter_by(email=SUBMITTER).first()
+        assert db.session.get(IntakeSubmission, submission_id).status == (
+            intake_service.pending_claim_status(owner.id)
+        )
+    assert _submission_status_and_account_name(
+        submission_id, email="other-account@example.com"
+    )[1] == "Existing User"
+
+
 # ── mode: session ───────────────────────────────────────────────────────────
 
 

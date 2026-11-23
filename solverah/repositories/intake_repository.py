@@ -32,6 +32,7 @@ from sqlalchemy.orm import load_only
 from model import IntakeSubmission, UserIntake, db
 
 __all__ = [
+    "find_pending_claims",
     "find_submission",
     "find_user_intake",
     "insert_submission",
@@ -42,6 +43,19 @@ __all__ = [
 def find_submission(submission_id: str) -> Optional[IntakeSubmission]:
     """Return the intake submission with this id, or None."""
     return IntakeSubmission.query.filter_by(id=submission_id).first()
+
+
+def find_pending_claims(status: str) -> List[IntakeSubmission]:
+    """Submissions parked under one account's pending-claim status, oldest first.
+
+    ``status`` is ``intake_service.pending_claim_status(user_id)``: it names the
+    account, so this matches only what that account's own password parked.
+    """
+    return (
+        IntakeSubmission.query.filter_by(status=status)
+        .order_by(IntakeSubmission.created_at)
+        .all()
+    )
 
 
 def insert_submission(fields, email: str, status: str) -> IntakeSubmission:

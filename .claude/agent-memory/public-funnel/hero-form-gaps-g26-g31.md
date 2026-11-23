@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-The four gaps were fixed in code on 2026-11-23 and left UNCOMMITTED for the orchestrator. All four were confirmed against source before the fix. G26 was also confirmed in jsdom, which applies constraint validation: an empty submit on HEAD never reached handleSubmit.
+The four gaps were fixed in code on 2026-11-23. All four were confirmed against source before the fix. G26 was also confirmed in jsdom, which applies constraint validation: an empty submit on HEAD never reached handleSubmit.
 
 Decisions (best-guess, not ruled by Sebastian):
 - G26: the form is `noValidate`. The link fields are `type=text inputMode=url`. A bare or `http://` link is upgraded to `https://` and sent as the parsed `href`, so the host goes out lowercased because the server compares LinkedIn hosts exactly. A client-side email shape check replaces the browser's check.
@@ -15,4 +15,4 @@ Decisions (best-guess, not ruled by Sebastian):
 
 **Why:** see [[size-gate-headroom]] for the lazy-modal side effect of this work.
 
-**How to apply:** copy awaiting Julie: "Resend verification code", the password hint, "Please enter a valid email address.", and the LinkedIn and portfolio link messages. One gap is still open: after the 403 path's verify, ConfirmEmail sends the visitor to /login, and their hero submission is NEVER attached to the account.
+**How to apply:** copy awaiting Julie: "Resend verification code", the password hint, "Please enter a valid email address.", and the LinkedIn and portfolio link messages. The 403-path gap (submission never attached after verify) is closed: see [[pending-claim-on-unconfirmed-sign-in]].

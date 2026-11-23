@@ -91,7 +91,6 @@ const NextChapterYourWayQuiz = lazy(() => import("../features/intelligence/compo
 // ── Lazy: public pages behind an in-app navigation ──────────────────────────
 const GuestQuizPreview = lazy(() => import("../features/intelligence/components/GuestQuizPreview"));
 const GuestQuizInsights = lazy(() => import("../features/intelligence/components/GuestQuizInsights"));
-const CareerIntakePage = lazy(() => import("../features/intake/components/CareerIntakePage"));
 const LegalPage = lazy(() => import("../features/landing/components/LegalPage"));
 const HowMatchingWorksPage = lazy(() => import("../features/landing/components/HowMatchingWorksPage"));
 
@@ -124,7 +123,7 @@ const PathIntelligencePage = lazy(() => import("../features/intelligence/compone
 const TrustPage = lazy(() => import("../features/intelligence/components/TrustPage"));
 
 // Routes that render their own full navigation bar (hide the global Header).
-const ROUTES_WITHOUT_HEADER = new Set(["/", "/start"]);
+const ROUTES_WITHOUT_HEADER = new Set(["/"]);
 
 // Routes that include their own footer (suppress the global footer to avoid duplication).
 const ROUTES_WITHOUT_FOOTER = new Set(["/"]);
@@ -228,7 +227,6 @@ function App() {
               {/* Public routes */}
               <Route path="/quiz-preview" element={<GuestQuizPreview />} />
               <Route path="/quiz-preview/insights" element={<GuestQuizInsights />} />
-              <Route path="/start" element={<CareerIntakePage />} />
               {/* Legal + transparency (public) */}
               <Route path="/privacy" element={<LegalPage doc="privacy" />} />
               <Route path="/terms" element={<LegalPage doc="terms" />} />

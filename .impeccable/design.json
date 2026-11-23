@@ -580,7 +580,7 @@
       "**Don't** add eyebrows, kickers, uppercase tags or letterspaced labels above headings.",
       "**Don't** use Playfair Display, DM Sans or the `fade-up` animations in this route's own markup; they belong to other routes.",
       "**Don't** round anything beyond 4px except the step dots.",
-      "**Don't** restyle `IntakeForm` or `AccountModal` from this route; they are shared with `/start`."
+      "**Don't** restyle `IntakeForm` or `AccountModal` from this route; they belong to the intake slice."
     ]
   }
 }
