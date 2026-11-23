@@ -1,3 +1,4 @@
-- [Pending: six-trait migrations](pending-six-trait-migrations.md) — five uncommitted 20261013_* revisions, all reviewed; chain + round trip proven; blocked on auth-accounts' user_company_link coverage
+- [Pending: G66 user_company_lookup](pending-g66-user-company-lookup.md) — uncommitted 20261123 revision, reviewed + approved; waits on auth-accounts export/delete
+- [users FK ondelete convention](user-fk-ondelete-convention.md) — mixed CASCADE/none; tombstone deletion means it rarely matters; delete_user_by_email.sql is stale
 - [experiments table drift](experiments-table-drift.md) — FK name + status default drift is pre-existing noise, not a pending revision's fault
 - [Flask-Migrate swallows RuntimeError](flask-migrate-swallows-runtimeerror.md) — a refusing downgrade exits 1 silently; check alembic_version, not output

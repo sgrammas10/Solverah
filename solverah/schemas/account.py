@@ -21,6 +21,7 @@ __all__ = [
     "AccountExportResponse",
     "ExportedAccount",
     "ExportedCompanyLink",
+    "ExportedCompanyLookup",
     "ExportedEnvironmentReport",
     "ExportedExperiment",
     "ExportedIntakeSubmission",
@@ -281,6 +282,13 @@ class ExportedCompanyLink(SolverahModel):
     created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
 
 
+class ExportedCompanyLookup(SolverahModel):
+    """One company the user asked CompanyLens to research (G66): which, and when."""
+
+    company_id: int
+    created_at: Optional[str] = Field(default=None, description="ISO 8601 timestamp.")
+
+
 class AccountExportResponse(SolverahModel):
     """Every identified data class held for the authenticated user.
 
@@ -318,6 +326,10 @@ class AccountExportResponse(SolverahModel):
     company_links: List[ExportedCompanyLink] = Field(
         default_factory=list,
         description="Every \"I took this job\" link the user made, newest start first.",
+    )
+    company_lookups: List[ExportedCompanyLookup] = Field(
+        default_factory=list,
+        description="Every company the user looked up in CompanyLens, oldest first.",
     )
     pulse_checkins: List[ExportedPulseCheckin] = Field(
         default_factory=list,

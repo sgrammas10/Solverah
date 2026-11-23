@@ -203,6 +203,18 @@ COVERED: dict[str, str] = {
         "tests/test_account_lifecycle.py::"
         "test_delete_retains_company_links_and_the_checkins_keep_their_anchor."
     ),
+    "user_company_lookup": (
+        "G66's D-7 wiring (2026-11-23). export: account_service.export_account_data's "
+        "company_lookups key (company_evidence_store.company_lookups_for_user) -- which "
+        "companies the user asked CompanyLens about, and when. deletion: "
+        "account_repository.delete_personal_rows DESTROYS it through "
+        "company_evidence_store.delete_company_lookups_for_user, inside the deletion's own "
+        "transaction. No column is free text, but unlike user_company_link nothing reads it "
+        "except that one user's own CompanyLens list, so a retained row would be retention "
+        "with no reader -- the path_wants answer. Shared research is untouched. "
+        "tests/test_account_lifecycle.py::"
+        "test_delete_destroys_company_lookups_and_leaves_the_shared_research."
+    ),
     "profiles": (
         "export: profile_repository.load_document's profile key. deletion: "
         "account_repository.tombstone_user rewrites it to {'deleted_at': ...} via "

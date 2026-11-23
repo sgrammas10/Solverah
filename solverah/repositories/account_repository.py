@@ -20,7 +20,10 @@ from typing import List
 
 from sqlalchemy import delete, func
 
-from company_evidence_store import delete_job_postings_for_user
+from company_evidence_store import (
+    delete_company_lookups_for_user,
+    delete_job_postings_for_user,
+)
 from model import (
     IntakeSubmission,
     JobRecommendation,
@@ -204,6 +207,15 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # tombstone, or a deletion that fails at the tombstone leaves an account still live
     # with its postings already gone.
     delete_job_postings_for_user(db, user_id, commit=False)
+    # G66's "I looked this company up" rows (`user_company_lookup`). Destroyed, not
+    # retained: a lookup is a user id, a company id and a timestamp -- no free text, so
+    # the D-7b spelling rule alone would keep it -- but nothing reads it except that one
+    # user's own CompanyLens list. Unlike C6's links below it has no research reader, so
+    # a retained row would be retention with no reader: the `path_wants` answer. Shared
+    # research is untouched; it belongs to the company. Same `commit=False` reason as
+    # the postings above. Explicit rather than by `ON DELETE CASCADE`: deletion
+    # tombstones the user row, so the cascade never fires.
+    delete_company_lookups_for_user(db, user_id, commit=False)
     #
     # C6's "I took this job" links are deliberately NOT here, and neither is the store's
     # `delete_company_links_for_user`. A link is a company id and two dates -- no free

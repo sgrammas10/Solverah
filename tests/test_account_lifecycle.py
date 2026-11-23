@@ -1245,3 +1245,111 @@ def test_delete_retains_company_links_and_the_checkins_keep_their_anchor(client,
             bystander_link
         ]
         assert db.session.get(PulseCheckin, bystander_checkin).company_link_id == bystander_link
+
+
+# ── G66: "I looked this company up" ─────────────────────────────────────────
+
+
+def _seed_company_lookup(user_id, slug):
+    """A company and one lookup of it, through company_evidence_store's own write.
+    Returns the company id."""
+    from app import app
+    from company_evidence_store import record_company_lookup
+    from model import Company, db
+
+    with app.app_context():
+        company = Company.query.filter_by(slug=slug).first()
+        if company is None:
+            company = Company(name=slug.title(), slug=slug, profile_json={})
+            db.session.add(company)
+            db.session.commit()
+        record_company_lookup(db, user_id, company.id)
+        return company.id
+
+
+def _lookup_company_ids(user_id):
+    from app import app
+    from model import UserCompanyLookup
+
+    with app.app_context():
+        return sorted(
+            row.company_id for row in UserCompanyLookup.query.filter_by(user_id=user_id)
+        )
+
+
+def test_export_includes_company_lookups(client, monkeypatch):
+    """Every company the user looked up, oldest first, as company id and timestamp --
+    validated against the published schema, which forbids keys it does not declare. A
+    bystander's lookup is not in it."""
+    from solverah.schemas.account import AccountExportResponse
+
+    _, bystander_id = _register_and_login(client, monkeypatch, email="g66-export-bystander@example.com")
+    bystander_company = _seed_company_lookup(bystander_id, "g66-bystander-co")
+
+    _, user_id = _register_and_login(client, monkeypatch, email="g66-export@example.com")
+    first = _seed_company_lookup(user_id, "g66-first-co")
+    second = _seed_company_lookup(user_id, "g66-second-co")
+
+    res = client.get("/api/v1/me/export")
+    assert res.status_code == 200
+    payload = res.get_json()
+    AccountExportResponse.model_validate(payload)
+
+    lookups = payload["company_lookups"]
+    assert [lookup["company_id"] for lookup in lookups] == [first, second]
+    assert set(lookups[0]) == {"company_id", "created_at"}
+    assert lookups[0]["created_at"]
+    assert bystander_company not in {lookup["company_id"] for lookup in lookups}
+
+
+def test_export_carries_an_empty_company_lookups_list(client, monkeypatch):
+    _register_and_login(client, monkeypatch, email="g66-export-empty@example.com")
+
+    payload = client.get("/api/v1/me/export").get_json()
+    assert payload["company_lookups"] == []
+
+
+def test_delete_destroys_company_lookups_and_leaves_the_shared_research(client, monkeypatch):
+    """G66's lookups are destroyed: no research reader, so a retained row would be
+    retention with no reader. The company itself (shared research) survives, and so does
+    a bystander's lookup of the same company. Fails if deletion leaves the lookup on the
+    tombstoned user id."""
+    _, bystander_id = _register_and_login(client, monkeypatch, email="g66-delete-bystander@example.com")
+    shared_company = _seed_company_lookup(bystander_id, "g66-shared-co")
+
+    csrf, user_id = _register_and_login(client, monkeypatch, email="g66-delete@example.com")
+    _seed_company_lookup(user_id, "g66-shared-co")
+    _seed_company_lookup(user_id, "g66-own-co")
+    assert len(_lookup_company_ids(user_id)) == 2
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    from app import app
+    from model import Company, User, db
+
+    with app.app_context():
+        assert db.session.get(User, user_id).email == f"deleted-{user_id}@tombstone.invalid"
+        assert db.session.get(Company, shared_company) is not None
+
+    assert _lookup_company_ids(user_id) == []
+    assert _lookup_company_ids(bystander_id) == [shared_company]
+
+
+def test_lookup_delete_rides_the_deletion_transaction(client, monkeypatch):
+    """`delete_personal_rows` must not commit: a rollback after it leaves the lookup in
+    place, so a deletion that fails at the tombstone never leaves a live account with its
+    lookups already gone."""
+    _, user_id = _register_and_login(client, monkeypatch, email="g66-atomic@example.com")
+    company_id = _seed_company_lookup(user_id, "g66-atomic-co")
+
+    from app import app
+    from model import db
+    from solverah.repositories import account_repository
+
+    with app.app_context():
+        account_repository.delete_personal_rows(user_id, [])
+        db.session.rollback()
+
+    assert _lookup_company_ids(user_id) == [company_id]

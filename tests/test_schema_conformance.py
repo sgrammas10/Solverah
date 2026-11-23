@@ -68,9 +68,11 @@ def _researched_company(name, slug):
     """A company `GET /me/matches` lists: one shared trait record is enough to be
     listed (`not_enough_evidence`, after the ranked ones). Written through the
     store, the way the research pipeline writes, so a rewrite of that path that
-    stopped listing such a company fails here. Inside an app context."""
+    stopped listing such a company fails here. The conformance user is recorded as
+    having looked it up -- what `POST /companies/research` writes, and since G66 the
+    list's scope. Inside an app context."""
     import company_evidence_store as store
-    from model import Company, db
+    from model import Company, User, db
 
     company = Company(name=name, slug=slug, profile_json={"overview": {}})
     db.session.add(company)
@@ -85,6 +87,7 @@ def _researched_company(name, slug):
         aggregation_version="agg-test",
     )
     store.finish_research_run(db, run.id, status="done", cost_usd=0)
+    store.record_company_lookup(db, User.query.filter_by(email=EMAIL).one().id, company.id)
     return company.id
 
 

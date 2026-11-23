@@ -182,21 +182,25 @@ def company_list():
 # ---------------------------------------------------------------------------
 
 @document(
-    "Rank researched companies for the authenticated user on the six traits",
+    "Rank the companies the authenticated user looked up on the six traits",
     tags=["companies"],
     query=MatchesQuery,
     responses={200: MatchesResponse, 404: LegacyError, 422: PROBLEM_RESPONSE_MODEL},
     security=_AUTHENTICATED,
     enforce=True,
     description=(
-        "Every company with shared research records, ordered by the causal model's "
+        "Every company the authenticated user has looked up through "
+        "`POST /companies/research` (a cached or in-flight run counts) that has shared "
+        "research records -- never companies only other users looked up -- ordered by "
+        "the causal model's "
         "ranking for this user with the gate layer on top: a company with a must-have "
         "broken on a known trait is flagged and sorted last, never hidden; a company "
         "read on fewer than 3 of 6 traits is `not_enough_evidence`, has no rank and is "
         "listed after the ranked ones. No probability, score or percentage is carried: "
         "the order is the output.\n\n"
         "`state` is `core_required` when the user has no current core sitting and "
-        "`no_companies` when nothing has been researched yet; both are 200s."
+        "`no_companies` when none of the user's lookups has been researched yet; both "
+        "are 200s."
     ),
 )
 @companies_bp.route("/me/matches", methods=["GET"])
@@ -300,6 +304,10 @@ def research_company():
         run = research_service.request_research(
             db, company_id=company.id, trigger="on_demand"
         )
+        # G66: the request was accepted (new, cached or in-flight run), so the company
+        # is now one of THIS user's -- the only thing that puts it in their
+        # /me/matches list. A refused request above never reaches this line.
+        store.record_company_lookup(db, user.id, company.id)
     except research_service.ResearchDisabled:
         current_app.logger.info("company_research_disabled", extra={"user_id": user.id})
         raise ResearchDisabledError(

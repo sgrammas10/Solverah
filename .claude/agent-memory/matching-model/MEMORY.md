@@ -9,4 +9,5 @@
 - [CompanyLens frontend](project_companylens_frontend_c7.md) — 2026-10-14 UNCOMMITTED (C7): slice layout, copy choices, no-probability guard, contract-scan "?" trap, stale copy elsewhere
 - [Fit-pairs scorer C10](project_fit_pairs_scorer_c10.md) — 2026-10-14 UNCOMMITTED: score_fit_pairs.py via cms functions; 50 pairs, 0 design_check mismatches
 - [Research switch + atomic claim C5c](project_research_switch_and_claim_c5c.md) — 2026-10-14 UNCOMMITTED: SOLVERAH_COMPANYLENS_RESEARCH_ENABLED default OFF (503 research_disabled), claim-once, finish-only-from-running + late discard, blocked domains, tests need the switch ON
+- [G66 lookup scoping](project_g66_lookup_scoping.md) — 2026-11-23 UNCOMMITTED: /me/matches = own lookups only; user_company_lookup + migration; export/delete + contract seed hand-offs
 - [Probability guard tightened](project_probability_guard_tightened.md) — 2026-10-14 UNCOMMITTED: decimals/ratings rejected; backspace-in-regex heredoc trap

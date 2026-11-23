@@ -105,6 +105,11 @@ __all__ = [
     "end_company_link",
     "research_run",
     "shared_records_by_company",
+    # G66 additions
+    "CompanyLookupView",
+    "company_lookups_for_user",
+    "delete_company_lookups_for_user",
+    "record_company_lookup",
 ]
 
 
@@ -1196,19 +1201,25 @@ def set_company_size(
 # Bulk reads for the match service (C6)
 # ---------------------------------------------------------------------------
 
-def companies_with_shared_records(db) -> list[int]:
+def companies_with_shared_records(db, *, looked_up_by: Optional[int] = None) -> list[int]:
     """Ids of every company that has at least one SHARED (research-derived) trait
-    record, in id order. What `/me/matches` ranks: a company nobody has researched has
-    nothing to read."""
-    from model import CompanyTraitRecord
+    record, in id order: a company nobody has researched has nothing to read.
 
-    rows = (
-        db.session.query(CompanyTraitRecord.company_id)
-        .filter(CompanyTraitRecord.job_posting_id.is_(None))
-        .distinct()
-        .order_by(CompanyTraitRecord.company_id)
-        .all()
+    With *looked_up_by* (a user id), only the companies that user looked up
+    (`user_company_lookup`) -- what `/me/matches` ranks (G66: a user's list never
+    shows what other users looked up). Without it, every researched company."""
+    from model import CompanyTraitRecord, UserCompanyLookup
+
+    query = db.session.query(CompanyTraitRecord.company_id).filter(
+        CompanyTraitRecord.job_posting_id.is_(None)
     )
+    if looked_up_by is not None:
+        query = query.join(
+            UserCompanyLookup,
+            (UserCompanyLookup.company_id == CompanyTraitRecord.company_id)
+            & (UserCompanyLookup.user_id == looked_up_by),
+        )
+    rows = query.distinct().order_by(CompanyTraitRecord.company_id).all()
     return [company_id for (company_id,) in rows]
 
 
@@ -1385,6 +1396,68 @@ def delete_company_links_for_user(db, user_id: int, *, commit: bool = True) -> i
     removed = (
         db.session.query(UserCompanyLink)
         .filter(UserCompanyLink.user_id == user_id)
+        .delete(synchronize_session=False)
+    )
+    if commit:
+        db.session.commit()
+    return removed
+
+
+# ---------------------------------------------------------------------------
+# "I looked this company up" (G66)
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class CompanyLookupView:
+    user_id: int
+    company_id: int
+    created_at: datetime.datetime
+
+
+def record_company_lookup(db, user_id: int, company_id: int, *, commit: bool = True) -> None:
+    """Record that *user_id* asked CompanyLens about *company_id*. Idempotent: a repeat
+    (or a race between two requests) is a no-op, never an error. Called by
+    `POST /companies/research` once a request is accepted -- a new run, a cached one or
+    one already in flight all count, so the second user to ask about a company sees it
+    in their own list."""
+    from sqlalchemy.dialects.postgresql import insert
+
+    from model import UserCompanyLookup
+
+    db.session.execute(
+        insert(UserCompanyLookup)
+        .values(user_id=user_id, company_id=company_id)
+        .on_conflict_do_nothing(constraint="uq_user_company_lookup")
+    )
+    if commit:
+        db.session.commit()
+
+
+def company_lookups_for_user(db, user_id: int) -> list[CompanyLookupView]:
+    """Every company the user looked up, oldest first. The /me/export read."""
+    from model import UserCompanyLookup
+
+    rows = (
+        db.session.query(UserCompanyLookup)
+        .filter(UserCompanyLookup.user_id == user_id)
+        .order_by(UserCompanyLookup.created_at, UserCompanyLookup.id)
+        .all()
+    )
+    return [
+        CompanyLookupView(user_id=r.user_id, company_id=r.company_id, created_at=r.created_at)
+        for r in rows
+    ]
+
+
+def delete_company_lookups_for_user(db, user_id: int, *, commit: bool = True) -> int:
+    """Destroy every lookup the user made. For account deletion (auth-accounts wires
+    it), same `commit=False` convention as `delete_job_postings_for_user`. Shared
+    research is untouched: it belongs to the company, not to whoever asked first."""
+    from model import UserCompanyLookup
+
+    removed = (
+        db.session.query(UserCompanyLookup)
+        .filter(UserCompanyLookup.user_id == user_id)
         .delete(synchronize_session=False)
     )
     if commit:

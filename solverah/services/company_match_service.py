@@ -741,10 +741,12 @@ def _evaluate(company_ids: Sequence[int], person: _Person) -> List[_CompanyEval]
 # ---------------------------------------------------------------------------
 
 def matches(user: User, *, cursor: Optional[str], limit: Any) -> MatchingResult:
-    """Every company with shared records, ranked for this user, one page at a time.
+    """Every company THIS user looked up that has shared records, ranked for this
+    user, one page at a time. G66: the list never shows what other users looked up;
+    a lookup is recorded by `POST /companies/research`, cache hit or not.
 
     `core_required` when the user has no current core sitting; `no_companies` when
-    nothing has been researched yet. The cursor carries the company id and its position
+    none of the user's lookups has been researched yet. The cursor carries the company id and its position
     in the ranking (an integer index, never a score); a ranking that shifts between
     pages continues from the position, which terminates.
     """
@@ -758,7 +760,7 @@ def matches(user: User, *, cursor: Optional[str], limit: Any) -> MatchingResult:
             "total_companies": 0, "preferences_answered": False,
         })
 
-    company_ids = store.companies_with_shared_records(db)
+    company_ids = store.companies_with_shared_records(db, looked_up_by=user.id)
     if not company_ids:
         return MatchingResult(status=200, body={
             "state": STATE_NO_COMPANIES, "data": [], "next_cursor": None,

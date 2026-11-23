@@ -153,16 +153,29 @@ def _scorer_run(db):
     return run.id
 
 
-def _records(company_id, spec, *, split=None):
+#: `_records`' default: every user registered so far looked the company up.
+_EVERY_USER = "every-user"
+
+
+def _records(company_id, spec, *, split=None, looked_up_by=_EVERY_USER):
     """Shared company-scope records for *company_id* from *spec*:
     ``{dim: ("known", estimate) | ("mixed", low, high) | ("unknown",)}``. Traits not
     named get NO record at all. Each known trait gets three dated items at the
     estimate; each mixed trait two items per side; each unknown trait one abstention.
-    Returns the research run id."""
+    Returns the research run id.
+
+    G66: `/me/matches` lists only companies the user looked up, so by default every
+    user registered so far is recorded as having looked this one up (what
+    `POST /companies/research` would have written). Pass ``looked_up_by=()`` -- or a
+    list of user ids -- to say otherwise."""
     from app import app
-    from model import EvidenceItemScore, db
+    from model import EvidenceItemScore, User, db
 
     with app.app_context():
+        lookers = ([u.id for u in User.query.all()] if looked_up_by == _EVERY_USER
+                   else list(looked_up_by))
+        for user_id in lookers:
+            store.record_company_lookup(db, user_id, company_id)
         run = store.start_research_run(
             db, company_id, trigger="on_demand", provider="anthropic",
             model="claude-test", prompt_version="r1",
@@ -843,6 +856,73 @@ def test_research_answers_202_runs_inline_and_a_repeat_is_a_free_cached_hit(clie
     assert again.status_code == 202
     assert again.get_json()["cached"] is True
     assert again.get_json()["run"]["run_id"] == run_id
+
+
+def test_the_list_holds_only_the_companies_this_user_looked_up(client, monkeypatch):
+    """G66 (Sebastian's ruling 2026-11-23): "Your companies" lists only the companies
+    the signed-in user looked up -- never one another user researched. A second user
+    who asks about the same company is a free cached hit, and that records the lookup
+    so it appears in their list too. An in-flight run counts the same way."""
+    from app import app
+    from model import UserCompanyLookup, db
+
+    _place_person(monkeypatch, {})
+    _install_fakes(monkeypatch)
+    csrf_a, user_a = _register_and_login(client, monkeypatch, email="a@example.com")
+    resp = client.post("/api/v1/companies/research", json={"name": "Acme Corp"},
+                       headers={"X-CSRF-TOKEN": csrf_a})
+    assert resp.status_code == 202 and resp.get_json()["run"]["status"] == "done"
+    acme = resp.get_json()["run"]["company"]["id"]
+    assert [e["id"] for e in _matches(client)["data"]] == [acme]
+
+    client.post("/api/v1/auth/logout")
+    csrf_b, user_b = _register_and_login(client, monkeypatch, email="b@example.com")
+    body = _matches(client)
+    assert body["state"] == "no_companies"
+    assert body["data"] == [] and body["total_companies"] == 0
+
+    resp = client.post("/api/v1/companies/research", json={"name": "Acme Corp"},
+                       headers={"X-CSRF-TOKEN": csrf_b})
+    assert resp.status_code == 202 and resp.get_json()["cached"] is True
+    assert [e["id"] for e in _matches(client)["data"]] == [acme]
+
+    # B asking about a company whose run is still in flight records the lookup too;
+    # it joins B's list as soon as the run has records.
+    with app.app_context():
+        flight = _company("In Flight Co")
+        store.start_research_run(
+            db, flight, trigger="on_demand", provider="anthropic", model="m",
+            prompt_version="v", status="queued",
+        )
+    resp = client.post("/api/v1/companies/research", json={"name": "In Flight Co"},
+                       headers={"X-CSRF-TOKEN": csrf_b})
+    assert resp.status_code == 202 and resp.get_json()["run"]["status"] == "queued"
+    with app.app_context():
+        assert [v.company_id for v in store.company_lookups_for_user(db, user_b)] == [
+            acme, flight,
+        ]
+        assert [v.company_id for v in store.company_lookups_for_user(db, user_a)] == [acme]
+        # A repeat lookup is a no-op, never a second row or an error.
+        store.record_company_lookup(db, user_b, acme)
+        assert UserCompanyLookup.query.filter_by(user_id=user_b).count() == 2
+
+    # Records written for a company with no lookup by this user stay out of the list.
+    _records(_company("Someone Else Co"), _THREE_KNOWN_FLAT, looked_up_by=[user_a])
+    assert [e["id"] for e in _matches(client)["data"]] == [acme]
+
+
+def test_a_refused_research_request_records_no_lookup(client, monkeypatch):
+    """The switch off and nothing cached: a 503, and the user's list gains nothing."""
+    csrf, _ = _register_and_login(client, monkeypatch)
+    monkeypatch.delenv("SOLVERAH_COMPANYLENS_RESEARCH_ENABLED")
+    resp = client.post("/api/v1/companies/research", json={"name": "Fresh Co"},
+                       headers={"X-CSRF-TOKEN": csrf})
+    _assert_problem(resp, 503, "research_disabled")
+    from app import app
+    from model import UserCompanyLookup
+
+    with app.app_context():
+        assert UserCompanyLookup.query.count() == 0
 
 
 @pytest.fixture()

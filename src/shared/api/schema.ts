@@ -885,10 +885,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Rank researched companies for the authenticated user on the six traits
-         * @description Every company with shared research records, ordered by the causal model's ranking for this user with the gate layer on top: a company with a must-have broken on a known trait is flagged and sorted last, never hidden; a company read on fewer than 3 of 6 traits is `not_enough_evidence`, has no rank and is listed after the ranked ones. No probability, score or percentage is carried: the order is the output.
+         * Rank the companies the authenticated user looked up on the six traits
+         * @description Every company the authenticated user has looked up through `POST /companies/research` (a cached or in-flight run counts) that has shared research records -- never companies only other users looked up -- ordered by the causal model's ranking for this user with the gate layer on top: a company with a must-have broken on a known trait is flagged and sorted last, never hidden; a company read on fewer than 3 of 6 traits is `not_enough_evidence`, has no rank and is listed after the ranked ones. No probability, score or percentage is carried: the order is the output.
          *
-         *     `state` is `core_required` when the user has no current core sitting and `no_companies` when nothing has been researched yet; both are 200s.
+         *     `state` is `core_required` when the user has no current core sitting and `no_companies` when none of the user's lookups has been researched yet; both are 200s.
          */
         get: operations["get_companies_my_matches"];
         put?: never;
@@ -1583,6 +1583,11 @@ export interface components {
              * @description Every "I took this job" link the user made, newest start first.
              */
             company_links?: components["schemas"]["ExportedCompanyLink"][];
+            /**
+             * Company Lookups
+             * @description Every company the user looked up in CompanyLens, oldest first.
+             */
+            company_lookups?: components["schemas"]["ExportedCompanyLookup"][];
             /** Dimension Scores */
             dimension_scores?: {
                 [key: string]: unknown;
@@ -2569,6 +2574,20 @@ export interface components {
              * @description ISO 8601 date the user said they started.
              */
             started_on: string;
+        };
+        /**
+         * ExportedCompanyLookup
+         * @description One company the user asked CompanyLens to research (G66): which, and when.
+         */
+        ExportedCompanyLookup: {
+            /** Company Id */
+            company_id: number;
+            /**
+             * Created At
+             * @description ISO 8601 timestamp.
+             * @default null
+             */
+            created_at: string | null;
         };
         /**
          * ExportedEnvironmentReport

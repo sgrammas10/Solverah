@@ -1592,6 +1592,43 @@ class UserCompanyLink(db.Model):
     company = db.relationship("Company", backref="user_links")
 
 
+class UserCompanyLookup(db.Model):
+    """"I looked this company up": one row per (user, company) the user asked
+    CompanyLens to research.
+
+    G66 (2026-11-23, Sebastian's ruling): the CompanyLens list ("Your companies") shows
+    only the companies THIS user looked up, never every company anyone researched.
+    Research itself stays shared -- one run per company serves every user, and a
+    request that lands on a cached or in-flight run still records the lookup here, so
+    the second user to ask about a company sees it in their own list too.
+
+    Written only by `POST /companies/research` after the request is accepted (a
+    refused request -- switch off, no provider, over budget, bad name -- writes nothing,
+    as before). Idempotent: `uq_user_company_lookup` plus an ON CONFLICT DO NOTHING
+    insert in `company_evidence_store.record_company_lookup`. No free text, no score:
+    a user id, a company id and when.
+
+    User-keyed, so /me/export and account deletion must reach it; that wiring is
+    auth-accounts' (`company_lookups_for_user`, `delete_company_lookups_for_user`).
+    """
+
+    __tablename__ = "user_company_lookup"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(
+        db.BigInteger, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    company_id = db.Column(db.Integer, db.ForeignKey("company.id"), nullable=False)
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=db.func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        # One row per pair; leading user_id is also the per-user list's index.
+        db.UniqueConstraint("user_id", "company_id", name="uq_user_company_lookup"),
+    )
+
+
 class ModelRun(db.Model):
     """One training run of the Bayesian model: reproducibility record + the version key
     every served prediction points back to."""

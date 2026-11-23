@@ -367,6 +367,24 @@ Not captured: the research and posting pipelines themselves (provider-backed; th
 unit tests stub them), and the schema-level 422s on `?posting_id=abc` and a
 non-date `started_on`, which `enforce=True` answers before the handler runs.
 After the recapture: 0 differences across 156.
+
+**Re-baselined for per-user company lookups (G66, 2026-11-23).** A deliberate
+change, and A34 (docs/ARCHITECTURE.md) is the ledger. `GET /me/matches` now lists
+only the companies the caller looked up through `POST /companies/research`
+(table `user_company_lookup`), and `GET /me/export` gains `company_lookups`.
+Verified before any edit to this script, on the standing baseline: exactly 4
+differences, all body-only -- `export` and `export-after-companylens`
+(`company_lookups` added) and `matches-ranked` / `matches-ranked-with-
+preferences`, which collapsed to `no_companies` because `_seed_company_records`
+wrote the research without the lookup the research door records. The seed now
+records it for EMAIL (through `company_evidence_store.record_company_lookup`,
+the call the route makes), so both ranked reads keep exercising the ranked path;
+the lookup is written there and not by a research POST because the door's steps
+are appended last and must stay so. The sign-in claim change in the same batch
+(an unconfirmed claimer's 403 parks the submission for `confirm_email`) moved no
+step: the scenario never calls the intake sign-in door -- its one claim is
+`POST /intake/claims`, the anonymous WPLL session -- so the parked claim is
+pinned by unit tests alone. After the recapture: 0 differences across 156.
 """
 
 from __future__ import annotations
@@ -881,20 +899,27 @@ def _score_ids_for(db, item_ids) -> list:
     return [row.id for row in rows]
 
 
-def _seed_company_records(app, company_id: int) -> int:
-    """Give *company_id* a done research run with shared trait records (A33).
+def _seed_company_records(app, email: str, company_id: int) -> int:
+    """Give *company_id* a done research run with shared trait records (A33),
+    looked up by *email* (A34).
 
     Written through `company_evidence_store`, the same writes the research
     pipeline makes, in the same order: the run, its items, their scores under a
     scorer run, the records linked to those scores, and the run closed as done.
     No provider is involved: the pipeline's two calls are the only paid calls in
-    the app and this script must never make one. Returns the run id, which the
-    research poll step asks after.
+    the app and this script must never make one. Then the lookup
+    `POST /companies/research` records once it accepts a request (G66): since
+    then `GET /me/matches` lists only the companies the caller looked up, so
+    without it both ranked reads are `no_companies`. Returns the run id, which
+    the research poll step asks after.
     """
     import company_evidence_store as store
-    from model import db
+    from model import User, db
 
     with app.app_context():
+        user_id = db.session.execute(
+            db.select(User.id).where(User.email == email)
+        ).scalar_one()
         run = store.start_research_run(
             db, company_id, trigger="on_demand", provider="anthropic",
             model="contract-fixture", prompt_version="contract-fixture",
@@ -956,6 +981,7 @@ def _seed_company_records(app, company_id: int) -> int:
             db, company_id, inputs, aggregation_version="contract-fixture"
         )
         store.finish_research_run(db, run.id, status="done", cost_usd=0.1)
+        store.record_company_lookup(db, user_id, company_id)
         return run.id
 
 
@@ -2175,7 +2201,7 @@ def run_scenario() -> List[Dict[str, Any]]:
     )
     call("job-posting-missing", "GET", "/api/v1/me/job-postings/424242")
 
-    research_run_id = _seed_company_records(app, 1)
+    research_run_id = _seed_company_records(app, EMAIL, 1)
     posting_id = _seed_job_posting(app, EMAIL, 1)
 
     call("research-run-status", "GET", "/api/v1/companies/research/%d" % research_run_id)

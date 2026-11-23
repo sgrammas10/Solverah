@@ -1,12 +1,12 @@
 ---
 name: rebaseline-a33-companylens
-description: A33 re-baseline (six-trait CompanyLens + C5c research switch, 2026-10-14) DONE uncommitted, 156 steps; both provider keys and the research switch are popped at the top of run_scenario; LLM-route (agent/quiz-insight) steps still absent
+description: A33 re-baseline (six-trait CompanyLens + C5c research switch, 2026-10-14) COMMITTED 140e027, 156 steps; both provider keys and the research switch are popped at the top of run_scenario; LLM-route (agent/quiz-insight) steps still absent
 metadata:
   type: project
 ---
 
-A33 (docs/ARCHITECTURE.md) re-baselined docs/contract_baseline.json on 2026-10-14, uncommitted on
-causal_bayesian_model. Pre-change verify against A32: exactly 7 differences, all body-only, all additive
+A33 (docs/ARCHITECTURE.md) re-baselined docs/contract_baseline.json on 2026-10-14; committed in 140e027. Superseded as
+the standing baseline by [[rebaseline-a34-g66-lookups]]. Pre-change verify against A32: exactly 7 differences, all body-only, all additive
 (`pulse-history`, both `submit-*environment-report`, the three `situation-report-*`, `export`). 40 steps
 appended (116 -> 156): 36 CompanyLens steps, then 4 `research-company-*` steps appended last because C5c
 (the `SOLVERAH_COMPANYLENS_RESEARCH_ENABLED` switch, default OFF) landed after the first 36 were recorded.

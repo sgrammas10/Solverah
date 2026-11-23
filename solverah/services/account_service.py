@@ -44,7 +44,10 @@ migration:
     * Everything else containing personal content is destroyed, including
       ``pulse_events`` (``note`` is free text, so D-7b puts it on the other side of
       that same line), the user's pasted job postings with everything derived from
-      them (C3; ``posting_text`` is free text), and every resume object in R2.
+      them (C3; ``posting_text`` is free text), every company the user looked up
+      in CompanyLens (G66's ``user_company_lookup``: no free text, but no reader
+      other than that user's own list, so keeping it would be retention with no
+      reader), and every resume object in R2.
     * ``AuditLog`` event rows are kept (they now point at the tombstone); their
       IP/user-agent columns age out separately via retention_cleanup.py. This is also
       where ``situation_report_recalibrate`` events end up -- an ordinary
@@ -64,7 +67,11 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from assessment_store import export_person_side
-from company_evidence_store import company_links_for_user, job_postings_for_user
+from company_evidence_store import (
+    company_links_for_user,
+    company_lookups_for_user,
+    job_postings_for_user,
+)
 from environment_report_store import environment_report_history
 from experiment_store import experiments_for_user
 from manager_profile_store import manager_profile_history
@@ -253,6 +260,17 @@ def _exported_company_link(link: Any) -> Dict[str, Any]:
     }
 
 
+def _exported_company_lookup(lookup: Any) -> Dict[str, Any]:
+    """One ``CompanyLookupView`` as the export carries it: the company and when.
+
+    Mirrors :func:`_exported_company_link`: no ``user_id``, no company name.
+    """
+    return {
+        "company_id": lookup.company_id,
+        "created_at": lookup.created_at.isoformat() if lookup.created_at else None,
+    }
+
+
 def export_account_data(user: User) -> AccountResult:
     """One JSON document of every identified data class held for this user."""
     intakes = account_repository.find_intakes_for_email(user.email)
@@ -372,6 +390,12 @@ def export_account_data(user: User) -> AccountResult:
         # module docstring.
         "company_links": [
             _exported_company_link(link) for link in company_links_for_user(db, user.id)
+        ],
+        # G66: every company the user asked CompanyLens about, oldest first. It is
+        # DESTROYED on deletion -- see account_repository.delete_personal_rows.
+        "company_lookups": [
+            _exported_company_lookup(lookup)
+            for lookup in company_lookups_for_user(db, user.id)
         ],
         "focus_type_answers": (
             focus_type_submission.answers if focus_type_submission is not None else None

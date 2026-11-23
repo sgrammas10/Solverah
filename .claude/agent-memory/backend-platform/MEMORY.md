@@ -1,4 +1,5 @@
-- [A33 CompanyLens re-baseline](rebaseline-a33-companylens.md) — DONE uncommitted, 156 steps incl. C5c research switch; keys+switch popped in run_scenario; LLM-route steps still absent
+- [A34 G66 lookups re-baseline](rebaseline-a34-g66-lookups.md) — DONE uncommitted; company seed must record the lookup or ranked reads go no_companies
+- [A33 CompanyLens re-baseline](rebaseline-a33-companylens.md) — committed 140e027, 156 steps incl. C5c switch; keys+switch popped in run_scenario; no LLM-route steps
 - [Contract seeds a legacy work_pulse row](contract-seeds-legacy-work-pulse.md) — sitting + culture_preferences LITERAL seeded; removing either moves legacy-read steps
 - [Solverah_IP in the image](dockerignore-solverah-ip.md) — nothing runtime reads it since C5b; recommend .dockerignore exclusion, causal_graph stays
 - [G33 limiter 429 detail](g33-limiter-429-detail.md) — limiter 429s say RATE_LIMITED_DETAIL, must match apiError.ts fallback; baseline has no 429 step
