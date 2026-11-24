@@ -189,11 +189,8 @@ with it. This landed runnable and green locally. Promoting it is a later,
 separate change, and should arrive with a decision about caching the browser in
 the runner and a retry policy.
 
-## Known issue found while writing this, deliberately not fixed
+## Known issue found while writing this (resolved 2026-11-23)
 
-`LandingNav` hardcodes two `<a href="/register">` CTAs and ignores the
-`onRequestEarlyAccess` callback the prelaunch page passes it. "Get Started"
-therefore goes to `/register` where `/start` was intended, and both are anchors
-rather than `<Link>`, so they force a full page reload. Two callers disagree
-about the intent, so it needs a product decision rather than a patch. The smoke
-path enters at `/register` directly and does not depend on it either way.
+`LandingNav` hardcoded two CTAs whose intent its callers disagreed about. It was
+deleted on 2026-11-23 together with `/start` (its only remaining caller), so the
+issue no longer exists. The smoke path enters at `/register` directly.

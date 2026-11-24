@@ -3,7 +3,7 @@
  * RequireAuth for the three screens a signed-in user has no business on:
  * "/", /login and /register.
  *
- * Why it exists. The landing page renders its own LandingNav and reads no auth
+ * Why it exists. The landing page renders its own navigation bar and reads no auth
  * state at all, and /login and /register never asked who was visiting. A
  * returning user whose session the boot probe had just restored therefore saw
  * a signed-out landing page, clicked "Sign In", and got a sign-in form under a

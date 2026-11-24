@@ -5,7 +5,7 @@
  * That catch-all is correct for genuine 404s, but it also means a mistyped
  * internal path fails *silently*: React Router matches nothing, the catch-all
  * fires, and the user lands on the public landing page. Because `/` renders its
- * own `LandingNav` and the global `Header` is suppressed there, the result looks
+ * own navigation bar and the global `Header` is suppressed there, the result looks
  * exactly like being signed out — even though the session is untouched.
  *
  * That is not hypothetical. `WorkPulsePage` navigated to `/dashboard`; the route
