@@ -41,11 +41,6 @@ const POLL_INTERVAL_MS = 20;
 const pollsFor = (kind: ScoringJobKind) =>
   requests.filter((r) => r.startsWith(`GET /api/v1/assessments/${kind}/scoring-jobs`));
 
-const WPLL_RESULT: ScoringJobResult<"wpll"> = {
-  insight_text: "You show strong signs of career misalignment.",
-  locked_sections: ["Environmental Friction Score", "Work Rhythm Pattern"],
-};
-
 const MANAGER_MATCH_RESULT: ScoringJobResult<"manager_match"> = {
   archetype: "Autonomy Seeker",
   archetype_description: "You do your best work with room to move.",
@@ -57,48 +52,27 @@ const MANAGER_MATCH_RESULT: ScoringJobResult<"manager_match"> = {
 
 // ── The narrowing, asserted at type-check time ──────────────────────────────
 //
-// This is the assertion A12 is really about, and it is checked by
-// `npm run type-check` rather than by a runtime expectation: `src` is in
-// tsconfig.app.json's `include`, so a `@ts-expect-error` here that stops being
-// an error fails the build. That is what makes it a gate. A runtime
-// `expect(...)` could not see any of this — the shapes are structurally
-// different but all valid JSON, and the whole risk is that a caller reads
-// `result` as the wrong instrument's model.
-//
-// If the hook ever went back to returning
-// `WpllScoringJobStatus | ManagerMatchScoringJobStatus`,
-// every line below would stop erroring and this block would fail.
+// Checked by `npm run type-check` rather than by a runtime expectation: `src` is
+// in tsconfig.app.json's `include`, so a `@ts-expect-error` here that stops being
+// an error fails the build. ManagerMatch is the only job-scored kind since
+// `wpll` was retired with `/start` (2026-11-23); the two retired kinds are not
+// kinds of this hook at all.
 
-// @ts-expect-error a wpll result is not a manager_match result
-export const _wpllIsNotManagerMatch: ScoringJobResult<"manager_match"> = WPLL_RESULT;
 // The retired work_pulse has no scoring job any more (2026-10-02).
 // @ts-expect-error work_pulse is not a scoring-job kind
 export const _workPulseIsNotAKind: ScoringJobKind = "work_pulse";
-// @ts-expect-error a manager_match result is not a wpll result
-export const _managerMatchIsNotWpll: ScoringJobResult<"wpll"> = MANAGER_MATCH_RESULT;
+// Nor does the retired anonymous teaser (2026-11-23).
+// @ts-expect-error wpll is not a scoring-job kind
+export const _wpllIsNotAKind: ScoringJobKind = "wpll";
 
-/**
- * And the narrowing survives the hook: `data` is that kind's model, not the union.
- *
- * Asserted by assignment rather than by reading a field of the wrong model.
- * Every one of these schemas carries an `[key: string]: unknown` index signature
- * (the API documents them as open), so `wpll.data.result.archetype` type-checks
- * as `unknown` and proves nothing. Assignability is where the three shapes
- * actually separate.
- */
+/** `data` is that kind's own model, and its `result` that kind's result. */
 export function NarrowingAtTheCallSite() {
-  const wpll = useScoringJobStatus("wpll", "job-1");
   const mm = useScoringJobStatus("manager_match", "job-1");
+  const _typed: ScoringJobStatusByKind["manager_match"] | undefined = mm.data;
+  const _result: ScoringJobResult<"manager_match"> | null | undefined = mm.data?.result;
 
-  // @ts-expect-error the hook returns wpll's model here, not manager_match's
-  const _crossed: ScoringJobStatusByKind["manager_match"] | undefined = wpll.data;
-  // @ts-expect-error and the result inside it is that kind's own model
-  const _crossedResult: ScoringJobResult<"wpll"> | null | undefined = mm.data?.result;
-
-  // Assigned to a value the compiler can see, so `noUnusedLocals` does not
-  // remove the two declarations the directives above are attached to.
-  void _crossed;
-  void _crossedResult;
+  void _typed;
+  void _result;
   return null;
 }
 
@@ -134,7 +108,7 @@ function MutationHarness({ kind }: { kind: ScoringJobKind }) {
     <div>
       <button
         type="button"
-        onClick={() => start.mutate({ answers: [{ question_id: "q1", option_id: "a" }] })}
+        onClick={() => start.mutate({ answers: [{ question_id: "mm-q1", choice: "a" }] })}
       >
         start
       </button>
@@ -232,25 +206,10 @@ describe("useScoringJobStatus", () => {
     expect(pollsFor("manager_match")).toEqual([]);
   });
 
-  it("polls wpll with no session, because the handle is the whole authorisation", async () => {
-    // No `signedIn()`: the default session probe 401s, so `user` is null. The
-    // other kind is gated on a user; wpll is the anonymous teaser and is
-    // not, which is the branch this covers.
-    server.use(
-      scoringJobProgresses("wpll", "wpll-1", [
-        { status: "queued" },
-        { status: "succeeded", result: WPLL_RESULT },
-      ])
-    );
-
-    mountStatus("wpll", "wpll-1");
-    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("succeeded"));
-    expect(pollsFor("wpll")).toHaveLength(2);
-  });
-
   it("does not poll a signed-out user's manager_match job", async () => {
-    // Mirror of the test above: the same absent session that is fine for wpll
-    // holds the authenticated kind's poll closed.
+    // No `signedIn()`: the default session probe 401s, so `user` is null and
+    // the poll stays closed. (`wpll`, retired 2026-11-23, was the one kind that
+    // polled without a session.)
     mountStatus("manager_match", "mm-3");
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS * 6));
 
@@ -288,20 +247,8 @@ describe("useStartScoringJob", () => {
 
     expect(capturedKind).toBe("manager_match");
     // The enqueue's body is the synchronous submit's body, unchanged (A19).
-    expect(capturedBody).toEqual({ answers: [{ question_id: "q1", option_id: "a" }] });
+    expect(capturedBody).toEqual({ answers: [{ question_id: "mm-q1", choice: "a" }] });
     expect(requests).toContain("POST /api/v1/assessments/manager_match/scoring-jobs");
-  });
-
-  it("enqueues wpll with no session", async () => {
-    server.use(scoringJobAccepted("wpll", "wpll-5"));
-
-    mountMutation("wpll");
-    fireEvent.click(await screen.findByRole("button"));
-    await waitFor(() =>
-      expect(screen.getByTestId("mutation-status")).toHaveTextContent("wpll-5")
-    );
-
-    expect(requests).toContain("POST /api/v1/assessments/wpll/scoring-jobs");
   });
 
   it("reports 202 acceptance via scoringJobAccepted for reuse in other suites", async () => {

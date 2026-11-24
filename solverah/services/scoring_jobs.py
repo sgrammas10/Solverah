@@ -22,12 +22,13 @@ nothing on a miss.
 **Not every instrument moves, and the split is on what the scoring actually
 does.**  ``assessment_service.AssessmentKind.scored_by`` already records it:
 
-* ``wpll`` and ``manager_match`` are ``llm``.  Each makes a blocking OpenAI
-  call of seconds-to-tens-of-seconds, and each is why the timeout is 120.
-  These move.  ``work_pulse`` was the third until it was retired on
-  2026-10-02; it is ``llm`` in the registry still, but it has no job endpoint
-  any more -- both of its job routes answer 410 -- and a job of that kind
-  queued before the retirement fails without a provider call.
+* ``manager_match`` is ``llm``.  It makes a blocking OpenAI call of
+  seconds-to-tens-of-seconds, and it is why the timeout was 120.  It moves.
+  ``work_pulse`` (retired 2026-10-02) and ``wpll`` (the anonymous teaser,
+  retired 2026-11-23 with ``/start``) are ``llm`` in the registry still, but
+  neither has a job endpoint any more -- their job routes answer 410 -- and a
+  job of either kind queued before its retirement fails without a provider
+  call.
 * ``core`` and ``focus_type`` are ``rules``.  They score in-process from
   deterministic tables -- no socket is opened -- and the contract capture
   measures them at 211 ms and 40 ms including the database writes and the HTTP
@@ -83,7 +84,6 @@ __all__ = [
     "SUCCEEDED",
     "create_assessment",
     "create_path_suggestions",
-    "find_anonymous",
     "find_for_user",
     "is_job_eligible",
     "pending",
@@ -111,7 +111,7 @@ PATH_SUGGESTIONS = "path_suggestions"
 #: deliberate decision here about whether it blocks on a provider, not an
 #: automatic consequence of a field somebody set for the catalogue's benefit.
 #: ``tests/test_scoring_jobs.py`` asserts the two stay consistent.
-JOB_ELIGIBLE_KINDS = ("wpll", "manager_match")
+JOB_ELIGIBLE_KINDS = ("manager_match",)
 
 #: How long a job may sit in a non-terminal state before the sweep fails it.
 #:
@@ -128,8 +128,6 @@ STALL_MINUTES = 30
 #: their real result to ``assessment_submissions`` and path suggestions writes
 #: to the cache.  What is left here after a week is a result blob nobody will
 #: poll for again, so the purge is what stops this table growing without bound.
-#: ``wpll`` is the one whose result exists *only* here -- it is the anonymous
-#: teaser and persists nothing -- and a week is far past the teaser's session.
 PURGE_DAYS = 7
 
 #: The only failure text a client is shown for an unhandled exception.
@@ -198,15 +196,11 @@ def _create(
     return job
 
 
-def create_assessment(
-    kind_key: str, user: Optional[User], payload: Dict[str, Any]
-) -> ScoringJob:
-    """Queue one assessment scoring.
+def create_assessment(kind_key: str, user: User, payload: Dict[str, Any]) -> ScoringJob:
+    """Queue one assessment scoring for *user*.
 
-    *user* is None only for ``wpll``, the anonymous teaser.  The database check
-    constraint ``ck_scoring_jobs_owner_required`` is what actually holds that
-    line -- an ownerless row of any other kind is rejected by the schema rather
-    than by this function remembering to.
+    Every job has an owner since the anonymous ``wpll`` enqueue was removed
+    (2026-11-23).
 
     **A resubmission of a sitting still being scored joins that job (G58).**
     When *user* already has a queued or running job of this kind for the same
@@ -216,16 +210,14 @@ def create_assessment(
     ManagerMatch scoring re-sent the draft and paid for a second provider call,
     and whichever finished later overwrote the stored narrative.  Different
     answers are a new sitting and still queue; a terminal job is never joined,
-    so a retry after a failure still scores.  Ownerless (``wpll``) jobs are not
-    deduplicated -- there is no owner to match on.
+    so a retry after a failure still scores.
     """
-    if user is not None:
-        in_flight = _in_flight_for(user.id, kind_key, payload or {})
-        if in_flight is not None:
-            return in_flight
+    in_flight = _in_flight_for(user.id, kind_key, payload or {})
+    if in_flight is not None:
+        return in_flight
     return _create(
         job_type=ASSESSMENT,
-        user_id=user.id if user is not None else None,
+        user_id=user.id,
         kind=kind_key,
         payload=payload or {},
     )
@@ -360,14 +352,20 @@ def _score_assessment(
     if kind is None:
         return FAILED, None, GENERIC_FAILURE
 
+    # A retired kind fails here with its retirement text and no provider call,
+    # before the owner is looked up: an ownerless ``wpll`` row queued before the
+    # anonymous door closed still reaches this, and must not score.
+    if kind.retired:
+        return FAILED, None, assessment_service.retired_message(kind)
+
     user = None
     if claimed["user_id"] is not None:
         user = user_repository.find_by_id(claimed["user_id"])
-        if user is None:
-            # The account went away between enqueue and pickup. Nothing to score
-            # and nobody to serve it to; the row goes terminal so the reaper does
-            # not spend the stall window on it.
-            return FAILED, None, GENERIC_FAILURE
+    if user is None:
+        # The account went away between enqueue and pickup (or the row never
+        # had one). Nothing to score and nobody to serve it to; the row goes
+        # terminal so the reaper does not spend the stall window on it.
+        return FAILED, None, GENERIC_FAILURE
 
     outcome = assessment_service.submit(kind, user, claimed["payload"], logger)
     if outcome.status == 200:
@@ -545,31 +543,6 @@ def find_for_user(
     return query.first()
 
 
-def find_anonymous(public_id: str, *, kind: str) -> Optional[ScoringJob]:
-    """An ownerless job by its handle -- ``wpll`` only.
-
-    ``wpll`` has no account, so the handle is the capability: holding it is the
-    whole of the authorisation, which is why ``user_id IS NULL`` is part of the
-    filter rather than assumed.  Without it this would serve any user's job of
-    that kind to an unauthenticated caller who guessed a handle.
-
-    Safe only because the instrument is the anonymous teaser and its result is a
-    single generated sentence with no account behind it.  The check constraint
-    ``ck_scoring_jobs_owner_required`` is what stops any other kind reaching this
-    function with a row to find.
-    """
-    parsed = _parse_handle(public_id)
-    if parsed is None:
-        return None
-
-    return ScoringJob.query.filter(
-        ScoringJob.public_id == parsed,
-        ScoringJob.user_id.is_(None),
-        ScoringJob.job_type == ASSESSMENT,
-        ScoringJob.kind == kind,
-    ).first()
-
-
 def status_for(job: ScoringJob) -> Dict[str, Any]:
     """The status payload for one job.
 
@@ -648,8 +621,9 @@ def purge_terminal(older_than_days: int = PURGE_DAYS) -> int:
     """Delete terminal rows past their retention window.
 
     Without this the table grows with every scoring forever, holding result blobs
-    nobody will poll for again -- and for ``wpll`` those rows have no account
-    behind them, so no account deletion ever removes them.
+    nobody will poll for again.  (It is also what removes any ownerless ``wpll``
+    row left from before that anonymous door closed on 2026-11-23: no account
+    deletion reaches those.)
     """
     cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
         days=older_than_days

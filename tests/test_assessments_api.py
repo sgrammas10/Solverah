@@ -10,19 +10,20 @@ that could have been quietly lost in it:
 * **The rate-limit buckets stay separate.** Five handlers at 5/min each became
   one handler, and one handler is one bucket unless something is done about it.
   Finishing Work Pulse must not spend FocusType's allowance.
-* **Auth is still required where it was.** Four of five kinds need a JWT and the
-  fifth deliberately does not, so `@jwt_required()` had to come off the route
-  and move inside it. That is exactly the sort of change that drops CSRF
-  protection without anything failing.
+* **Auth is still required.** The check runs inside the route, after `{kind}`
+  is resolved, so an unknown kind is a 404 and a retired one a 410 for any
+  caller. (It moved inside when `wpll` was the one anonymous kind; that door
+  closed when `wpll` was retired on 2026-11-23.) That is exactly the sort of
+  change that drops CSRF protection without anything failing.
 
 Phase 3c split the route down the middle, and the per-kind submit tests below
 are the statement of the split: `core` and `focus_type` still submit here (they
-score in-process, A19, and keep this door permanently), while `wpll` and
-`manager_match` are refused with a 410 pointing at `POST
-/assessments/{kind}/scoring-jobs`. Two accept, two refuse -- a blanket gate
-that 410'd all of them, or a route that quietly accepted a moved kind again,
-each fail exactly one half of the pair. The retired `work_pulse` (2026-10-02)
-is a 410 of its own, with no pointer: its tests are in test_work_pulse_submit.py.
+score in-process, A19, and keep this door permanently), while `manager_match` is
+refused with a 410 pointing at `POST /assessments/{kind}/scoring-jobs`. A
+blanket gate that 410'd all of them, or a route that quietly accepted a moved
+kind again, each fail one half of the split. The two retired kinds are 410s of
+their own, with no pointer: `work_pulse` (2026-10-02) in
+test_work_pulse_submit.py, `wpll` (2026-11-23) in test_wpll_result.py.
 
 `core` is retakeable since 2026-10-02 (Sebastian's ruling: no cooldown for
 now). The retake tests at the bottom pin what a second sitting does to the
@@ -241,33 +242,25 @@ def test_manager_match_synchronous_submit_is_refused_with_a_pointer(
     )
 
 
-def test_wpll_synchronous_submit_is_refused_even_anonymously(client):
-    """Refuse #2. `wpll` needs no JWT, so the tombstone must not either."""
-    _assert_refused(
-        _submit(client, "wpll", {"answers": [{"question_id": "q1", "option_id": "a"}]}),
-        "wpll",
-    )
-
-
 def test_the_result_shapes_are_still_not_interchangeable(client, auth, monkeypatch):
     """The hazard the collapse creates: one route inviting one payload.
 
-    A WPLL result carries a teaser sentence and locked section titles; a
-    FocusType result carries dimension scores and recommendations. If a future
-    refactor harmonised them into a shared envelope this is the test that
-    notices. WPLL's body arrives through its only door, the scoring job. (It
-    was Work Pulse's narrative here until that instrument was retired.)
+    A ManagerMatch result carries a narrative and interview probes; a FocusType
+    result carries recommendations. If a future refactor harmonised them into a
+    shared envelope this is the test that notices. ManagerMatch's body arrives
+    through its only door, the scoring job. (It was Work Pulse's narrative here
+    until that instrument was retired, then WPLL's teaser until that was.)
     """
-    _mock_openai(monkeypatch, {"insight_text": "You do your sharpest thinking in quiet blocks."})
+    _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
-    wpll_answers = [
-        {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i} for i in range(1, 6)
-    ]
-    wpll = _job_result(client, "wpll", _queue(client, "wpll", {"answers": wpll_answers}))
+    mm = _job_result(
+        client, "manager_match", _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth)
+    )
     focus_type = _submit(client, "focus_type", FOCUS_TYPE_PAYLOAD, auth).get_json()
 
-    assert "insight_text" in wpll and "insight_text" not in focus_type
-    assert "dimension_scores" in focus_type and "dimension_scores" not in wpll
+    assert "narrative" in mm and "narrative" not in focus_type
+    assert "what_to_look_for" in mm and "what_to_look_for" not in focus_type
+    assert "recommendations" in focus_type and "recommendations" not in mm
 
 
 # ── `core` withholds its scores, through every door ─────────────────────────

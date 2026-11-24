@@ -1,13 +1,16 @@
-"""``POST /intake/claims`` -- the four account-attachment endpoints, collapsed.
+"""``POST /intake/claims`` -- the account-attachment endpoints, collapsed.
 
-The four were `/intake/create-account`, `/intake/sign-in`, `/intake/link-account`
-and `/intake/save-to-account`. What has to survive the collapse:
+There were four: `/intake/create-account`, `/intake/sign-in`,
+`/intake/link-account` and `/intake/save-to-account`. The last became mode
+`session`, which was removed 2026-11-23 with its only caller (the `/start`
+replay in `Login.tsx`, ruling C). What has to survive the collapse:
 
 * each mode still does what its endpoint did, and returns what it returned;
-* two modes stay public and two stay authenticated, since `@jwt_required()` had
-  to come off the route to allow the first pair -- exactly the kind of change
-  that drops CSRF protection silently;
-* the four rate-limit buckets stay four, and keep their two different numbers.
+* two modes stay public and `link` stays authenticated, since `@jwt_required()`
+  had to come off the route to allow the first pair -- exactly the kind of
+  change that drops CSRF protection silently;
+* the rate-limit buckets stay one per mode;
+* `session` is refused like any other unknown mode, and writes nothing.
 
 The security property worth stating out loud: a submission id is the *only*
 thing protecting an anonymous submission, so the modes that consume one must not
@@ -385,51 +388,6 @@ def test_a_parked_claim_completes_only_on_the_account_that_parked_it(client):
     )[1] == "Existing User"
 
 
-# ── mode: session ───────────────────────────────────────────────────────────
-
-
-SESSION_BODY = {
-    "mode": "session",
-    "selected_statement_ids": ["dir-1", "sus-2"],
-    "wpll_answers": [
-        {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i}
-        for i in range(1, 6)
-    ],
-    "wpll_insight_text": "Test insight text.",
-}
-
-
-def test_session_adopts_an_anonymous_quiz_session(client):
-    """The mode with no submission behind it at all."""
-    csrf = _register_and_login(client, "session-claim@example.com")
-
-    resp = _claim(client, SESSION_BODY, csrf)
-
-    assert resp.status_code == 200
-    assert resp.get_json()["wpll_completed"] is True
-
-
-def test_session_requires_a_jwt(client):
-    assert _claim(client, SESSION_BODY).status_code == 401
-
-
-def test_session_requires_csrf(client):
-    """`verify_jwt_in_request()` does the check `@jwt_required()` used to."""
-    _register_and_login(client, "session-csrf@example.com")
-
-    assert _claim(client, SESSION_BODY).status_code == 401
-
-
-def test_session_caps_the_number_of_answers(client):
-    csrf = _register_and_login(client, "session-cap@example.com")
-    body = dict(SESSION_BODY)
-    body["wpll_answers"] = [
-        {"question_id": "q%d" % i, "option_id": "a"} for i in range(9)
-    ]
-
-    assert _claim(client, body, csrf).status_code == 400
-
-
 # ── The discriminator ───────────────────────────────────────────────────────
 
 
@@ -441,7 +399,7 @@ def test_a_missing_mode_names_the_field_it_is_missing(client):
 
 
 def test_an_unrecognised_mode_names_the_alternatives(client):
-    """The reason an envelope model is the fallback rather than one of the four.
+    """The reason an envelope model is the fallback rather than one of the modes.
 
     Validating an unknown mode against a concrete mode's model would report
     every field of an arbitrarily chosen shape as missing, which tells the
@@ -463,7 +421,66 @@ def test_the_body_is_enforced_against_the_mode_not_the_union(client):
     assert "submission_id" in {e["field"] for e in resp.get_json()["errors"]}
 
 
-# ── Rate limiting: one route, still four budgets ────────────────────────────
+# The body the deleted `/start` replay used to send.
+REMOVED_SESSION_BODY = {
+    "mode": "session",
+    "selected_statement_ids": ["dir-1", "sus-2"],
+    "wpll_answers": [
+        {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i}
+        for i in range(1, 6)
+    ],
+    "wpll_insight_text": "Test insight text.",
+}
+
+
+def _assert_refused_as_an_unknown_mode(resp):
+    assert resp.status_code == 422
+    error = resp.get_json()["errors"][0]
+    assert error["field"] == "mode"
+    assert error["code"] == "literal_error"
+
+
+def test_session_mode_is_refused_like_any_unknown_mode(client):
+    """Ruling C, 2026-11-23: mode `session` went with `/start`, its only caller.
+
+    It must answer exactly what `teleport` answers -- a 422 on `mode` -- rather
+    than a 401 for a missing JWT, which would imply the mode still exists
+    behind authentication.
+    """
+    _assert_refused_as_an_unknown_mode(_claim(client, REMOVED_SESSION_BODY))
+    _assert_refused_as_an_unknown_mode(_claim(client, {"mode": "teleport"}))
+
+
+def test_session_mode_writes_nothing_for_a_signed_in_user(client):
+    """Signed in with a valid CSRF token, the old body still adopts nothing."""
+    csrf = _register_and_login(client, "session-gone@example.com")
+
+    _assert_refused_as_an_unknown_mode(_claim(client, REMOVED_SESSION_BODY, csrf))
+
+    from app import app
+    from model import AssessmentSubmission, User, UserIntake
+
+    with app.app_context():
+        user = User.query.filter_by(email="session-gone@example.com").one()
+        assert UserIntake.query.filter_by(user_id=user.id).count() == 0
+        assert AssessmentSubmission.query.filter_by(
+            user_id=user.id, kind="wpll"
+        ).count() == 0
+
+
+def test_session_is_no_longer_a_mode_the_route_knows(client):
+    from solverah.schemas.intake import (
+        CLAIM_LIMITS,
+        CLAIM_REQUESTS,
+        CLAIM_REQUIRES_AUTH,
+    )
+
+    assert set(CLAIM_REQUESTS) == {"register", "sign_in", "link"}
+    assert set(CLAIM_REQUIRES_AUTH) == set(CLAIM_REQUESTS)
+    assert set(CLAIM_LIMITS) == set(CLAIM_REQUESTS)
+
+
+# ── Rate limiting: one route, still one budget per mode ─────────────────────
 
 
 @pytest.fixture()
@@ -509,7 +526,7 @@ def test_an_unrecognised_mode_declares_the_strictest_limit(enforcing):
     stranger on a shared NAT gateway spend a real user's allowance with garbage.
 
     What is asserted here is the fallback itself: a mode nobody recognises is
-    mapped to the strictest of the four rather than to no limit at all, so the
+    mapped to the strictest of the modes rather than to no limit at all, so the
     day a malformed request does reach the bucket it lands in the tightest one.
     """
     from solverah.api.v1.intake import _claim_limit

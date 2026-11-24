@@ -16,13 +16,13 @@
  *
  * ── WHY A NON-MATCHING KIND FALLS THROUGH RATHER THAN 404-ING ───────────────
  *
- * `/assessments/{kind}/scoring-jobs` is one route for two instruments, so a
- * handler bound to that path matches both and has to check `params.kind`
- * itself. When the kind is not the one the builder was made for, the resolver
+ * `/assessments/{kind}/scoring-jobs` is one route for every job-scored
+ * instrument (one today, `manager_match`), so a handler bound to that path
+ * matches all of them and has to check `params.kind` itself. When the kind is not the one the builder was made for, the resolver
  * returns `undefined`: MSW then tries the next matching handler and, if there
  * is none, `onUnhandledRequest: "error"` fails the test. Answering 404 instead
- * would let a test that stubbed `wpll` silently absorb a call the code made to
- * `manager_match` — which is precisely the drift `server.ts` set that option to
+ * would let a test that stubbed one kind silently absorb a call the code made
+ * to another — which is precisely the drift `server.ts` set that option to
  * catch.
  */
 import { HttpResponse } from "msw";
@@ -38,9 +38,9 @@ type PathSuggestionsResponse = components["schemas"]["PathSuggestionsResponse"];
 /**
  * One step of a job's progression.
  *
- * `result` is that kind's own result model — a `WpllResultResponse` cannot be
- * handed to a `manager_match` builder, for the same reason the hook narrows per
- * kind (A12). The doubles enforce the contract they exist to describe.
+ * `result` is that kind's own result model — another instrument's result
+ * cannot be handed to a `manager_match` builder, for the same reason the hook
+ * narrows per kind (A12). The doubles enforce the contract they exist to describe.
  */
 export interface ScoringJobStep<K extends ScoringJobKind> {
   status: string;

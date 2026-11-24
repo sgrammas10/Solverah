@@ -1,6 +1,6 @@
 ---
 name: rebaseline-a34-g66-lookups
-description: A34 re-baseline (G66 per-user company lookups, 2026-11-23) DONE uncommitted, still 156 steps; the company seed must record the lookup or both ranked /me/matches reads collapse to no_companies
+description: A34 re-baseline (G66 per-user company lookups, 2026-11-23), superseded by A35, 156 steps; the company seed must record the lookup or both ranked /me/matches reads collapse to no_companies
 metadata:
   type: project
 ---

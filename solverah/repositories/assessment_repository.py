@@ -157,9 +157,9 @@ def open_current(user_id: int, kind: str, form_version: str) -> AssessmentSubmis
     """Return the row a submission of *kind* should be written to, creating it.
 
     The caller sets the fields and owns the commit. That is deliberate rather
-    than lazy: the four instruments genuinely disagree about what a resubmission
-    means -- Work Pulse refreshes its completion timestamp, the claimed WPLL
-    session must not -- and a repository that took every field as a keyword
+    than lazy: the instruments have disagreed about what a resubmission means --
+    the retired Work Pulse refreshed its completion timestamp, the retired WPLL
+    claim did not -- and a repository that took every field as a keyword
     argument would have to grow a flag per disagreement. Setting two attributes
     at the call site keeps each instrument's rule where someone reading that
     instrument will find it.
@@ -177,14 +177,14 @@ def open_current(user_id: int, kind: str, form_version: str) -> AssessmentSubmis
     **The insert runs inside a SAVEPOINT, and that is not decoration.**
     ``get_or_create_user_intake`` recovered from the collision with a plain
     ``db.session.rollback()``, which was safe only because it happened to be the
-    first write in its transaction. This function is not: ``save_to_account``
-    writes the statement selections to ``user_intake`` and *then* opens the WPLL
-    submission, so a bare rollback on the losing request would silently discard
-    the selections the same request had just made, and go on to commit the
-    submission without them. ``begin_nested`` unwinds the failed INSERT and
-    nothing else, which makes the recovery correct regardless of what the caller
-    wrote first -- a property worth having in the repository rather than as an
-    ordering rule every caller has to know.
+    first write in its transaction. This function cannot assume that: a caller
+    that wrote something else first (the intake session claim did, until it was
+    removed on 2026-11-23) would have that write silently discarded by a bare
+    rollback on the losing request, and go on to commit the submission without
+    it. ``begin_nested`` unwinds the failed INSERT and nothing else, which makes
+    the recovery correct regardless of what the caller wrote first -- a property
+    worth having in the repository rather than as an ordering rule every caller
+    has to know. ``tests/test_assessment_storage.py`` holds it at this seam.
 
     Raises:
         ValueError: If *kind* appends rather than having a current row. A

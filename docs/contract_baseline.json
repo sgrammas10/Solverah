@@ -163,7 +163,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"data\":[{\"completed\":false,\"has_form\":true,\"has_result\":false,\"kind\":\"core\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"Culture Assessment\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"work_pulse\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse\"},{\"completed\":false,\"has_form\":false,\"has_result\":false,\"kind\":\"wpll\",\"requires_auth\":false,\"scored_by\":\"llm\",\"title\":\"Work Pulse Lite-Lite\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"focus_type\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"FocusType\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"manager_match\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"ManagerMatch\"}]}\n"
+    "body": "{\"data\":[{\"completed\":false,\"has_form\":true,\"has_result\":false,\"kind\":\"core\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"Culture Assessment\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"work_pulse\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse\"},{\"completed\":false,\"has_form\":false,\"has_result\":false,\"kind\":\"wpll\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse Lite-Lite\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"focus_type\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"FocusType\"},{\"completed\":false,\"has_form\":false,\"has_result\":true,\"kind\":\"manager_match\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"ManagerMatch\"}]}\n"
   },
   {
     "step": "assessment-form-unknown-kind",
@@ -223,10 +223,10 @@
     "step": "claim-wpll-session",
     "method": "POST",
     "path": "/api/v1/intake/claims",
-    "status": 200,
-    "mimetype": "application/json",
+    "status": 422,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"message\":\"Intake saved\",\"wpll_completed\":true}\n"
+    "body": "{\"detail\":\"mode: Input should be 'register', 'sign_in' or 'link'\",\"errors\":[{\"code\":\"literal_error\",\"detail\":\"Input should be 'register', 'sign_in' or 'link'\",\"field\":\"mode\"}],\"instance\":\"/api/v1/intake/claims\",\"request_id\":\"<RID>\",\"status\":422,\"title\":\"Validation failed\",\"type\":\"https://solverah.com/errors/validation\"}\n"
   },
   {
     "step": "submit-wpll-sync-gone",
@@ -235,25 +235,25 @@
     "status": 410,
     "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"detail\":\"wpll is scored off the request path since Phase 3c. Queue the scoring at POST /assessments/wpll/scoring-jobs and poll the job.\",\"errors\":[{\"code\":\"moved_to_scoring_jobs\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/wpll/submissions\",\"replaced_by\":\"/assessments/wpll/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
+    "body": "{\"detail\":\"Work Pulse Lite-Lite, the pre-signup teaser, was retired on 2026-11-23 and no longer accepts submissions.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/wpll/submissions\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "queue-wpll",
     "method": "POST",
     "path": "/api/v1/assessments/wpll/scoring-jobs",
-    "status": 202,
-    "mimetype": "application/json",
+    "status": 410,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"job_id\":\"<JID>\",\"status\":\"queued\",\"status_url\":\"/assessments/wpll/scoring-jobs/<JID>\"}\n"
+    "body": "{\"detail\":\"Work Pulse Lite-Lite, the pre-signup teaser, was retired on 2026-11-23 and no longer accepts submissions.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/wpll/scoring-jobs\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "poll-wpll-job",
     "method": "GET",
     "path": "/api/v1/assessments/wpll/scoring-jobs/<JID>",
-    "status": 200,
-    "mimetype": "application/json",
+    "status": 410,
+    "mimetype": "application/problem+json",
     "cookies_set": [],
-    "body": "{\"error\":null,\"job_id\":\"<JID>\",\"result\":{\"insight_text\":\"You are drawn to work with a visible finish line.\",\"locked_sections\":[\"Environmental Friction Score\",\"Work Rhythm Pattern\",\"Emerging Archetype Signals\"]},\"status\":\"succeeded\"}\n"
+    "body": "{\"detail\":\"Work Pulse Lite-Lite, the pre-signup teaser, was retired on 2026-11-23 and no longer accepts submissions.\",\"errors\":[{\"code\":\"kind_retired\",\"field\":\"kind\"}],\"instance\":\"/api/v1/assessments/wpll/scoring-jobs/00000000000000000000000000000000\",\"request_id\":\"<RID>\",\"status\":410,\"title\":\"Gone\",\"type\":\"https://solverah.com/errors/gone\"}\n"
   },
   {
     "step": "submit-work-pulse-sync-gone",
@@ -379,7 +379,7 @@
     "status": 200,
     "mimetype": "application/json",
     "cookies_set": [],
-    "body": "{\"data\":[{\"completed\":true,\"has_form\":true,\"has_result\":false,\"kind\":\"core\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"Culture Assessment\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"work_pulse\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse\"},{\"completed\":true,\"has_form\":false,\"has_result\":false,\"kind\":\"wpll\",\"requires_auth\":false,\"scored_by\":\"llm\",\"title\":\"Work Pulse Lite-Lite\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"focus_type\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"FocusType\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"manager_match\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"ManagerMatch\"}]}\n"
+    "body": "{\"data\":[{\"completed\":true,\"has_form\":true,\"has_result\":false,\"kind\":\"core\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"Culture Assessment\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"work_pulse\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse\"},{\"completed\":true,\"has_form\":false,\"has_result\":false,\"kind\":\"wpll\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"Work Pulse Lite-Lite\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"focus_type\",\"requires_auth\":true,\"scored_by\":\"rules\",\"title\":\"FocusType\"},{\"completed\":true,\"has_form\":false,\"has_result\":true,\"kind\":\"manager_match\",\"requires_auth\":true,\"scored_by\":\"llm\",\"title\":\"ManagerMatch\"}]}\n"
   },
   {
     "step": "path-suggestions-miss",

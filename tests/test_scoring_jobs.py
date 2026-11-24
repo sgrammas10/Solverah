@@ -110,8 +110,6 @@ MM_LLM_RESPONSE = {
     "archetype_description": "You do your best work under an explainer.",
 }
 
-WPLL_LLM_RESPONSE = {"insight_text": "You do your sharpest thinking in quiet blocks."}
-
 SCORED_PATHS = [
     ScoredPath(
         onet_code="11-2021.00",
@@ -406,7 +404,7 @@ def test_the_job_result_matches_what_the_service_scorer_returns(
     assert job_result == direct.body
 
 
-@pytest.mark.parametrize("kind", ["wpll", "manager_match"])
+@pytest.mark.parametrize("kind", ["manager_match"])
 def test_the_synchronous_submit_for_a_moved_kind_is_gone(
     client, auth, monkeypatch, kind
 ):
@@ -417,7 +415,7 @@ def test_the_synchronous_submit_for_a_moved_kind_is_gone(
     blocking provider call this phase existed to remove. The problem document
     names the replacement so a client that missed the cutover is told the fix.
     """
-    payload = {"answers": {"wpll": WPLL_ANSWERS, "manager_match": MM_ANSWERS}[kind]}
+    payload = {"answers": MM_ANSWERS}
 
     resp = _submit(client, kind, payload, auth)
 
@@ -470,56 +468,74 @@ def test_a_work_pulse_job_queued_before_the_retirement_fails_without_a_provider_
         )
 
 
-# ── wpll: the anonymous instrument ──────────────────────────────────────────
+# ── wpll: retired 2026-11-23, and its anonymous door with it ────────────────
 
 
-def test_wpll_can_be_queued_and_polled_without_a_jwt(client, monkeypatch):
-    """The one instrument whose job has no owner.
-
-    `wpll` is the pre-launch teaser and has no account to attach to, so the
-    handle is the whole of the authorisation.
-    """
-    _mock_openai(monkeypatch, WPLL_LLM_RESPONSE)
-
-    queued = _queue(client, "wpll", {"answers": WPLL_ANSWERS})
-    assert queued.status_code == 202
-
-    resp = _poll(client, "wpll", queued.get_json()["job_id"])
-
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert body["status"] == "succeeded"
-    SCORING_JOB_RESPONSES["wpll"].model_validate(body)
-    assert body["result"]["insight_text"]
-
-
-def test_an_owned_job_is_not_reachable_through_the_anonymous_lookup(
-    client, auth, monkeypatch
+def test_an_ownerless_wpll_job_queued_before_the_retirement_fails_without_a_provider_call(
+    client, monkeypatch
 ):
-    """`find_anonymous` filters on `user_id IS NULL`, and this is why.
+    """The anonymous enqueue is gone, but a row it queued before the deploy is not.
 
-    Without that filter an unauthenticated caller holding any handle could read
-    an owned job through the one instrument that needs no JWT.
+    Such a row has no owner and a payload a worker would once have sent to the
+    provider. It must go terminal as `failed` with the retirement text, call no
+    provider, and write no submission.
     """
     from app import app
-    from model import ScoringJob, User, db
+    from model import AssessmentSubmission, ScoringJob, db
+    from solverah.services import assessment_service, scoring_jobs
+
+    provider = _mock_openai(monkeypatch, MM_LLM_RESPONSE)
+
+    with app.app_context():
+        row = ScoringJob(
+            user_id=None,
+            job_type=scoring_jobs.ASSESSMENT,
+            kind="wpll",
+            payload={"answers": WPLL_ANSWERS},
+            status="queued",
+        )
+        db.session.add(row)
+        db.session.commit()
+
+        assert scoring_jobs.run(row.id) == scoring_jobs.FAILED
+        assert provider.chat.completions.create.call_count == 0
+
+        db.session.expire_all()
+        assert (
+            db.session.get(ScoringJob, row.id).error
+            == assessment_service.RETIRED_WPLL_MESSAGE
+        )
+        assert AssessmentSubmission.query.filter_by(kind="wpll").count() == 0
+
+
+def test_an_ownerless_wpll_job_cannot_be_polled_anonymously(client):
+    """The anonymous lookup is deleted, not merely unused.
+
+    An ownerless row left from before the retirement is unreachable: the poll
+    answers 410 for the retired kind before it reads anything.
+    """
+    from app import app
+    from model import ScoringJob, db
     from solverah.services import scoring_jobs
 
     with app.app_context():
-        user = User.query.filter_by(email=EMAIL).first()
         row = ScoringJob(
-            user_id=user.id,
+            user_id=None,
             job_type=scoring_jobs.ASSESSMENT,
             kind="wpll",
             payload={},
             status="succeeded",
-            result={"insight_text": "owned"},
+            result={"insight_text": "left over"},
         )
         db.session.add(row)
         db.session.commit()
         handle = row.public_id.hex
 
-        assert scoring_jobs.find_anonymous(handle, kind="wpll") is None
+    resp = _poll(client, "wpll", handle)
+
+    assert resp.status_code == 410
+    assert "left over" not in resp.get_data(as_text=True)
+    assert not hasattr(scoring_jobs, "find_anonymous")
 
 
 # ── Handles: scoping, and A12 read from the other end ───────────────────────
@@ -552,10 +568,16 @@ def test_a_handle_for_one_instrument_is_a_404_at_anothers_path(
 ):
     """A12's per-discriminator promise, read from the poll side.
 
-    A ManagerMatch job served at the WPLL path would answer under WPLL's
-    response model carrying a ManagerMatch body -- the response model would be
-    a label rather than a contract.
+    A ManagerMatch job served at another instrument's path would answer under
+    that instrument's response model carrying a ManagerMatch body -- the
+    response model would be a label rather than a contract. ManagerMatch is the
+    only job-scored instrument since `wpll` was retired (2026-11-23), so the
+    kind filter is asserted at the lookup the poll uses.
     """
+    from app import app
+    from model import User
+    from solverah.services import scoring_jobs
+
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
     job_id = _queue(client, "manager_match", {"answers": MM_ANSWERS}, auth).get_json()[
@@ -563,15 +585,41 @@ def test_a_handle_for_one_instrument_is_a_404_at_anothers_path(
     ]
 
     assert _poll(client, "manager_match", job_id).status_code == 200
-    assert _poll(client, "wpll", job_id).status_code == 404
+    with app.app_context():
+        user_id = User.query.filter_by(email=EMAIL).first().id
+        for kind in ("manager_match", "wpll", "focus_type"):
+            found = scoring_jobs.find_for_user(
+                user_id, job_id, job_type=scoring_jobs.ASSESSMENT, kind=kind
+            )
+            assert (found is not None) is (kind == "manager_match"), kind
 
 
 def test_a_malformed_handle_is_a_404_not_a_500(client, auth):
     assert _poll(client, "manager_match", "not-a-uuid").status_code == 404
 
 
-def test_polling_requires_a_jwt_for_the_authenticated_instruments(client):
+def test_polling_requires_a_jwt(client):
     assert _poll(client, "manager_match", "00000000000000000000000000000000").status_code == 401
+
+
+def test_queueing_requires_a_jwt_and_writes_nothing_without_one(client, monkeypatch):
+    """Every enqueue needs an account since `wpll`'s anonymous door closed.
+
+    The normal 401, before the body is read and before a row or a provider
+    call -- the anonymous path that used to commit a row and pay for a scoring
+    is gone.
+    """
+    from app import app
+    from model import ScoringJob
+
+    provider = _mock_openai(monkeypatch, MM_LLM_RESPONSE)
+
+    resp = _queue(client, "manager_match", {"answers": MM_ANSWERS})
+
+    assert resp.status_code == 401
+    assert provider.chat.completions.create.call_count == 0
+    with app.app_context():
+        assert ScoringJob.query.count() == 0
 
 
 # ── A9: the budget bounds provider spend, so it gates the enqueue ───────────
@@ -660,11 +708,13 @@ def test_submitting_then_queueing_spends_the_same_budget(enforcing, auth, monkey
 def test_each_instrument_keeps_its_own_budget_on_the_job_path(
     enforcing, auth, monkeypatch
 ):
-    """Exhausting ManagerMatch must not spend WPLL's allowance.
+    """Exhausting ManagerMatch must not spend another instrument's allowance.
 
     The property A9 preserved when five handlers became one, asserted again for
-    the operation that could have lost it a second time. (Work Pulse was the
-    first instrument here until it was retired.)
+    the operation that could have lost it a second time. ManagerMatch is the
+    only job-scored instrument since `wpll` was retired (2026-11-23), so the
+    other instrument is FocusType on its shared submit bucket: the enqueue's
+    `shared_limit` keys on `{kind}`, and a wrong key would spend it too.
     """
     _mock_openai(monkeypatch, MM_LLM_RESPONSE)
 
@@ -672,10 +722,9 @@ def test_each_instrument_keeps_its_own_budget_on_the_job_path(
         spent = _queue(enforcing, "manager_match", {"answers": MM_ANSWERS}, auth)
     assert spent.status_code == 429
 
-    _mock_openai(monkeypatch, WPLL_LLM_RESPONSE)
-    other = _queue(enforcing, "wpll", {"answers": WPLL_ANSWERS})
+    other = _submit(enforcing, "focus_type", FOCUS_TYPE_PAYLOAD, auth)
 
-    assert other.status_code != 429
+    assert other.status_code == 200
 
 
 def test_the_path_suggestion_enqueue_is_rate_limited(enforcing, auth, monkeypatch):
@@ -717,9 +766,6 @@ def test_the_path_suggestion_enqueue_is_rate_limited(enforcing, auth, monkeypatc
                 + [{"question_id": "mm-q99", "choice": "a"}]
             },
         ),
-        ("wpll", {"answers": []}),
-        # A null option_id: the rules engine cannot read one (2026-10-02, F10).
-        ("wpll", {"answers": [{"question_id": "wpll-q1", "option_id": None}]}),
     ],
 )
 def test_a_malformed_body_is_refused_before_the_enqueue_with_the_scorers_error(
@@ -747,7 +793,7 @@ def test_a_malformed_body_is_refused_before_the_enqueue_with_the_scorers_error(
     with app.app_context():
         user = User.query.filter_by(email=EMAIL).first()
         row = ScoringJob(
-            user_id=None if kind == "wpll" else user.id,
+            user_id=user.id,
             job_type=scoring_jobs.ASSESSMENT,
             kind=kind,
             payload=bad_body,
@@ -930,7 +976,7 @@ def test_the_sweep_runs_jobs_whose_enqueue_was_lost(
 
 
 def test_terminal_jobs_are_purged_past_the_retention_window(client, auth, queued_job):
-    """The table has no account to cascade from for `wpll`, so it needs a purge."""
+    """A job row is a receipt nobody reads after a week, so it is bounded by age."""
     import datetime
 
     from app import app
@@ -970,7 +1016,9 @@ def test_an_ownerless_job_is_rejected_for_every_kind_but_wpll(client):
 
     Anonymity is granted to one instrument by name in the schema rather than
     left to whichever handler happens to set `user_id`. An ownerless row of any
-    other kind is a job nobody can be denied.
+    other kind is a job nobody can be denied. The application stopped writing
+    ownerless `wpll` rows on 2026-11-23; tightening the constraint to refuse
+    them too is a separate migration decision, so `wpll` keeps the grant here.
     """
     import sqlalchemy.exc
 

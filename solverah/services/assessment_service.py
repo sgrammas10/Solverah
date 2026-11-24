@@ -11,6 +11,12 @@ The original 12-question ``work_pulse`` was retired on 2026-10-02: its scorer
 and its two-commit write are gone, every write door answers 410, and only its
 stored result stays readable (see the RETIRED section below).
 
+``wpll``, the anonymous pre-signup teaser, was retired the same way on
+2026-11-23, when ``/start`` (its only client) was deleted. Its LLM scorer went
+with the anonymous scoring-job path that called it, and every write door
+answers 410 ``kind_retired``. Sittings claimed onto an account before then stay
+in ``assessment_submissions`` and still count as completed.
+
 Deliberately unchanged:
 
 * Scoring the person-side assessment returns the submission id and the key
@@ -65,17 +71,16 @@ __all__ = [
     "result",
     "submit",
     "MANAGER_MATCH_ANSWER_COUNT",
-    "WPLL_MAX_ANSWERS",
+    "RETIRED_WPLL_MESSAGE",
     "completed_kinds",
     "get_manager_match_result",
     "get_work_pulse_result",
+    "retired_message",
     "submit_focus_type",
     "submit_manager_match",
-    "wpll_insight",
 ]
 
 MANAGER_MATCH_ANSWER_COUNT = 15
-WPLL_MAX_ANSWERS = 5
 
 #: The form version the four client-rendered instruments submit against.
 #:
@@ -113,8 +118,7 @@ def _chat_json(messages: List[Dict[str, Any]], model_env: str, default_model: st
     """One JSON-mode chat completion, parsed.
 
     Raises whatever the SDK raises -- callers decide what a provider failure
-    means for their endpoint, and they do not all agree (WPLL falls back to the
-    rules engine, Work Pulse returns 500).
+    means for their endpoint.
     """
     client = llm.get_openai_client()
     response = client.chat.completions.create(
@@ -123,76 +127,6 @@ def _chat_json(messages: List[Dict[str, Any]], model_env: str, default_model: st
         response_format={"type": "json_object"},
     )
     return json.loads(response.choices[0].message.content or "{}")
-
-
-# ---------------------------------------------------------------------------
-# Work Pulse Lite-Lite (anonymous teaser)
-# ---------------------------------------------------------------------------
-
-def _wpll_answers_error(answers: Any) -> Optional[str]:
-    """Why a WPLL answers list cannot be scored, or None when it can.
-
-    Shared by :func:`wpll_insight` and :func:`precheck` so the enqueue and the
-    worker refuse the same bodies. The request schema lets ``question_id`` and
-    ``option_id`` be null; the rules engine cannot read a null, so an answer
-    without both strings is a 400 at the door, not a failed job later.
-    """
-    if not isinstance(answers, list):
-        return "answers must be a list"
-    if len(answers) == 0:
-        return "answers is required"
-    if len(answers) > WPLL_MAX_ANSWERS:
-        return "Too many answers"
-    for answer in answers:
-        if not isinstance(answer, dict):
-            return "each answer must be an object"
-        if not isinstance(answer.get("question_id"), str) or not isinstance(
-            answer.get("option_id"), str
-        ):
-            return "each answer needs a question_id and an option_id"
-    return None
-
-
-def wpll_insight(answers: Any) -> AssessmentResult:
-    """Generate the anonymous WPLL teaser insight.
-
-    Falls back silently to the deterministic rules engine when the LLM call
-    fails or returns something unusable. That fallback is the right call here
-    and only here: this is an unauthenticated teaser with no persistence, so a
-    slightly less personal sentence beats an error page. The authenticated
-    instruments return 500 instead, because a narrative they cannot generate is
-    a result they cannot store.
-    """
-    from work_pulse.insight_engine import LOCKED_SECTION_TITLES, generate_result
-
-    refusal = _wpll_answers_error(answers)
-    if refusal is not None:
-        return _error(400, refusal)
-
-    insight_text = None
-    try:
-        system_msg, user_msg = assessment_prompts.build_wpll_insight_prompt(answers)
-        parsed = _chat_json(
-            [
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_msg},
-            ],
-            "OPENAI_WPLL_MODEL",
-            "gpt-4o-mini",
-        )
-        candidate = parsed.get("insight_text")
-        if isinstance(candidate, str) and candidate.strip():
-            insight_text = candidate
-    except Exception:  # noqa: BLE001 -- see docstring; fall back, do not fail
-        pass
-
-    if insight_text is None:
-        return AssessmentResult(status=200, body=generate_result(answers))
-
-    return AssessmentResult(
-        status=200,
-        body={"insight_text": insight_text, "locked_sections": LOCKED_SECTION_TITLES},
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -219,6 +153,23 @@ RETIRED_WORK_PULSE_MESSAGE = (
     "GET /assessments/core/form."
 )
 
+#: The same refusal for ``wpll``, the anonymous teaser, retired 2026-11-23 with
+#: ``/start``. Its scorer and its anonymous scoring-job door are deleted.
+RETIRED_WPLL_MESSAGE = (
+    "Work Pulse Lite-Lite, the pre-signup teaser, was retired on 2026-11-23 and "
+    "no longer accepts submissions."
+)
+
+_RETIRED_MESSAGES = {
+    "work_pulse": RETIRED_WORK_PULSE_MESSAGE,
+    "wpll": RETIRED_WPLL_MESSAGE,
+}
+
+
+def retired_message(kind: "AssessmentKind") -> str:
+    """The problem text every write door gives *kind*, which must be retired."""
+    return _RETIRED_MESSAGES[kind.key]
+
 
 def get_work_pulse_result(user: User) -> AssessmentResult:
     """Return the stored narrative of a retired-instrument sitting, read-only.
@@ -240,8 +191,8 @@ def _store(user_id: int, kind: str, *, answers, result, narrative=None) -> None:
 
     Only for the instruments whose whole result arrives in one request.
     ``core`` does not, because its persistence is behind
-    ``assessment_store``; ``wpll`` does not, because its stored state arrives from
-    an anonymous session being claimed rather than from a submission.
+    ``assessment_store``; the retired ``wpll`` never did, because its stored
+    state arrived from an intake claim rather than from a submission.
 
     Takes the id rather than the user: ``submit_manager_match`` has already
     committed once by the time it gets here, and that commit expired the row.
@@ -493,9 +444,6 @@ class AssessmentKind:
     Attributes:
         key: The ``{kind}`` path segment.
         title: Human-readable name, for the catalogue.
-        requires_auth: Whether a JWT is required. ``wpll`` is the only one that
-            does not: it is the anonymous teaser on the pre-launch funnel and
-            has no account to attach to yet.
         scored_by: ``"rules"`` or ``"llm"``. Carried because it is what decides
             whether a provider outage makes the instrument unavailable, and the
             catalogue is the honest place to say so.
@@ -503,13 +451,16 @@ class AssessmentKind:
             other four are rendered from definitions the client already holds.
         has_result: Whether a completed submission can be re-read later.
         retired: The instrument no longer accepts submissions. Its stored
-            results stay readable; every write door answers 410. Only the
-            original 12-question ``work_pulse`` (retired 2026-10-02).
+            results stay readable; every write door answers 410. The original
+            12-question ``work_pulse`` (retired 2026-10-02) and the anonymous
+            ``wpll`` teaser (retired 2026-11-23 with ``/start``).
+
+    Every instrument requires a JWT. ``wpll`` was the one exception, and its
+    anonymous door closed when it was retired.
     """
 
     key: str
     title: str
-    requires_auth: bool
     scored_by: str
     has_form: bool
     has_result: bool
@@ -517,11 +468,11 @@ class AssessmentKind:
 
 
 ASSESSMENT_KINDS = (
-    AssessmentKind("core", "Culture Assessment", True, "rules", True, False),
-    AssessmentKind("work_pulse", "Work Pulse", True, "llm", False, True, retired=True),
-    AssessmentKind("wpll", "Work Pulse Lite-Lite", False, "llm", False, False),
-    AssessmentKind("focus_type", "FocusType", True, "rules", False, True),
-    AssessmentKind("manager_match", "ManagerMatch", True, "llm", False, True),
+    AssessmentKind("core", "Culture Assessment", "rules", True, False),
+    AssessmentKind("work_pulse", "Work Pulse", "llm", False, True, retired=True),
+    AssessmentKind("wpll", "Work Pulse Lite-Lite", "llm", False, False, retired=True),
+    AssessmentKind("focus_type", "FocusType", "rules", False, True),
+    AssessmentKind("manager_match", "ManagerMatch", "llm", False, True),
 )
 
 KINDS_BY_KEY = {kind.key: kind for kind in ASSESSMENT_KINDS}
@@ -532,18 +483,18 @@ def find_kind(key: str) -> Optional[AssessmentKind]:
     return KINDS_BY_KEY.get(key)
 
 
-def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], logger) -> AssessmentResult:
+def submit(kind: AssessmentKind, user: User, data: Dict[str, Any], logger) -> AssessmentResult:
     """Route a submission to the instrument that scores it.
 
     Dispatch is explicit rather than a callable stashed on the registry entry,
-    because the signatures genuinely differ -- two take a bare answers
-    list, one takes the whole payload, one takes no user -- and a uniform
-    adapter would be five wrappers pretending to be one.
+    because the signatures genuinely differ -- a responses map, a whole
+    payload, a bare answers list -- and a uniform adapter would be three
+    wrappers pretending to be one.
 
     Two callers since 3c, and the split is by ``scored_by``: the synchronous
     submit route reaches this only for ``core`` and ``focus_type`` (it answers
-    the others 410), and the scoring-job worker reaches it only for ``wpll``
-    and ``manager_match``. One dispatcher for both is what guarantees a queued
+    the others 410), and the scoring-job worker reaches it only for
+    ``manager_match``. One dispatcher for both is what guarantees a queued
     scoring and the synchronous one it replaced produce the same body.
 
     A retired kind is refused here too, not only at the routes: a job queued
@@ -551,11 +502,9 @@ def submit(kind: AssessmentKind, user: Optional[User], data: Dict[str, Any], log
     must fail without a provider call.
     """
     if kind.retired:
-        return _error(410, RETIRED_WORK_PULSE_MESSAGE)
+        return _error(410, retired_message(kind))
     if kind.key == "core":
         return submit_person_side(user, data.get("responses"))
-    if kind.key == "wpll":
-        return wpll_insight(data.get("answers", []))
     if kind.key == "focus_type":
         return submit_focus_type(user, data)
     if kind.key == "manager_match":
@@ -581,10 +530,8 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
     is held honest by ``tests/test_scoring_jobs.py``, which sends the same
     malformed body through the enqueue's precheck and through a directly-run
     job and asserts the two report the same error -- so the copy cannot drift
-    without a test failing. (Two since the retired ``work_pulse`` lost its
-    scorer.) WPLL's guard is the exception: its per-answer
-    check grew past a length test, so both callers share
-    :func:`_wpll_answers_error` rather than carry two copies of it.
+    without a test failing. (One since the retired ``work_pulse`` and ``wpll``
+    lost their scorers.)
 
     Returns None when there is nothing to object to.  A None here is not a
     promise the scoring will succeed: the provider can still fail, and that is
@@ -604,10 +551,6 @@ def precheck(kind: AssessmentKind, data: Dict[str, Any]) -> Optional[AssessmentR
         except ValueError as exc:
             return _error(400, str(exc))
         return None
-
-    if kind.key == "wpll":
-        refusal = _wpll_answers_error(data.get("answers", []))
-        return None if refusal is None else _error(400, refusal)
 
     return None
 
@@ -660,7 +603,9 @@ def catalogue(user: User) -> AssessmentResult:
                 {
                     "kind": kind.key,
                     "title": kind.title,
-                    "requires_auth": kind.requires_auth,
+                    # Every instrument needs a JWT since `wpll`'s anonymous
+                    # door closed (2026-11-23); kept so the entry's shape holds.
+                    "requires_auth": True,
                     "scored_by": kind.scored_by,
                     "has_form": kind.has_form,
                     "has_result": kind.has_result,

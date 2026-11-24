@@ -113,7 +113,7 @@ export interface paths {
          * Queue an assessment scoring and return a job handle
          * @description The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.
          *
-         *     Only the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.
+         *     Only the provider-scored `manager_match` has this operation. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The two retired kinds, `work_pulse` and `wpll`, answer `410` with error code `kind_retired`: they accept no submissions and call no provider. Every other caller needs a JWT; `wpll`'s anonymous enqueue closed when it was retired (2026-11-23).
          *
          *     **This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.
          */
@@ -135,7 +135,7 @@ export interface paths {
          * Report the state of a queued assessment scoring
          * @description `{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).
          *
-         *     `wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.
+         *     The handle is scoped to the authenticated user. The two retired kinds, `work_pulse` and `wpll`, answer `410`; `wpll`'s anonymous poll closed when it was retired (2026-11-23).
          */
         get: operations["get_assessments_assessment_kind_scoring_job_status"];
         put?: never;
@@ -161,7 +161,7 @@ export interface paths {
          *
          *     `core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.
          *
-         *     The two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.
+         *     The provider-scored `manager_match` answers `410 Gone` here since Phase 3c: its scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The two retired kinds -- `work_pulse` (the original 12-question instrument, retired 2026-10-02) and `wpll` (the anonymous pre-signup teaser, retired 2026-11-23) -- answer `410` with error code `kind_retired` and no `replaced_by`.
          */
         post: operations["post_assessments_assessment_kind_submit"];
         delete?: never;
@@ -489,12 +489,14 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Attach an anonymous submission or quiz session to an account
+         * Attach an anonymous intake submission to an account
          * @description Replaces `/intake/create-account`, `/intake/sign-in`, `/intake/link-account`, and `/intake/save-to-account`. All four answer the same question -- *this browser holds something anonymous, attach it to an account* -- and differ in which account and where the anonymous thing came from. `mode` is the discriminator and selects the request body, the response body, whether a JWT is required, and which rate-limit bucket the call lands in.
          *
-         *     `register` and `sign_in` are public: they are how a visitor *gets* a session, so requiring one would be circular. `link` and `session` require a JWT and the CSRF header with it.
+         *     `register` and `sign_in` are public: they are how a visitor *gets* a session, so requiring one would be circular. `link` requires a JWT and the CSRF header with it.
          *
-         *     This is `/intake/claims`, not Part 5.2's `/intake/submissions/{id}/claim`, because two of the four modes have no submission id -- `link` files a new submission rather than claiming an existing one, and `session` adopts a quiz session that was never a submission at all.
+         *     This is `/intake/claims`, not Part 5.2's `/intake/submissions/{id}/claim`, because `link` has no submission id -- it files a new submission rather than claiming an existing one.
+         *
+         *     Mode `session`, `/intake/save-to-account`'s replacement, was removed 2026-11-23 with its only caller; it now gets the same 422 as any unknown mode.
          */
         post: operations["post_intake_intake_claim"];
         delete?: never;
@@ -1723,7 +1725,7 @@ export interface components {
             kind: string;
             /**
              * Requires Auth
-             * @description False only for the anonymous wpll teaser.
+             * @description Always true since the anonymous wpll teaser was retired (2026-11-23). Kept so the entry's shape does not change.
              */
             requires_auth: boolean;
             /**
@@ -1767,14 +1769,17 @@ export interface components {
         };
         /**
          * AssessmentScoringJobStatus
-         * @description Documentation-only union of the two poll responses.
+         * @description Documentation-only union of the poll responses -- one member since the
+         *     ``wpll`` teaser was retired (2026-11-23).
          *
          *     Which member comes back is determined by ``{kind}`` in the path, not by
          *     anything in the body -- the same reason ``AssessmentSubmissionResponse``
          *     cannot be an OpenAPI discriminated union.  Do not validate against this;
-         *     validate against :data:`SCORING_JOB_RESPONSES`.
+         *     validate against :data:`SCORING_JOB_RESPONSES`. Kept as a root model rather
+         *     than collapsed to its one member so a second job-scored instrument is an
+         *     added line, not a renamed schema.
          */
-        AssessmentScoringJobStatus: components["schemas"]["WpllScoringJobStatus"] | components["schemas"]["ManagerMatchScoringJobStatus"];
+        AssessmentScoringJobStatus: components["schemas"]["ManagerMatchScoringJobStatus"];
         /**
          * AssessmentSubmissionRequest
          * @description Documentation-only union of the five submission bodies.
@@ -1784,7 +1789,7 @@ export interface components {
          *     that fits -- which is precisely why the route enforces
          *     :data:`SUBMISSION_REQUESTS` per kind rather than this.
          */
-        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["WpllSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
+        AssessmentSubmissionRequest: components["schemas"]["AssessmentSubmitRequest"] | components["schemas"]["FocusTypeSubmitRequest"] | components["schemas"]["ManagerMatchSubmitRequest"];
         /**
          * AssessmentSubmissionResponse
          * @description Documentation-only union of the five submission results.
@@ -1795,7 +1800,7 @@ export interface components {
          *     discriminator here is the URL. The union is the honest encoding of "one of
          *     these five, and the path tells you which".
          */
-        AssessmentSubmissionResponse: components["schemas"]["AssessmentSubmitResponse"] | components["schemas"]["WorkPulseResult"] | components["schemas"]["WpllResultResponse"] | components["schemas"]["FocusTypeResult"] | components["schemas"]["ManagerMatchResult"];
+        AssessmentSubmissionResponse: components["schemas"]["AssessmentSubmitResponse"] | components["schemas"]["WorkPulseResult"] | components["schemas"]["FocusTypeResult"] | components["schemas"]["ManagerMatchResult"];
         /** AssessmentSubmitRequest */
         AssessmentSubmitRequest: {
             /**
@@ -3260,50 +3265,24 @@ export interface components {
         };
         /**
          * IntakeClaimRequest
-         * @description Documentation-only union of the four claim bodies.
+         * @description Documentation-only union of the three claim bodies.
          *
          *     Do not validate against this; the route enforces :data:`CLAIM_REQUESTS` per
          *     mode. Unlike the assessment union, this one *is* discriminated on a property
          *     of the payload, so a generated client can narrow it.
          */
-        IntakeClaimRequest: components["schemas"]["IntakeClaimRegisterRequest"] | components["schemas"]["IntakeClaimSignInRequest"] | components["schemas"]["IntakeClaimLinkRequest"] | components["schemas"]["IntakeClaimSessionRequest"];
+        IntakeClaimRequest: components["schemas"]["IntakeClaimRegisterRequest"] | components["schemas"]["IntakeClaimSignInRequest"] | components["schemas"]["IntakeClaimLinkRequest"];
         /**
          * IntakeClaimResponse
-         * @description Documentation-only union of the four claim results.
+         * @description Documentation-only union of the three claim results.
          *
          *     ``register`` answers 201 and the rest answer 200, and the bodies differ:
-         *     two carry a session (a JWT cookie plus a CSRF token), one carries the
-         *     quiz-completion flag, one is a bare acknowledgement. Unifying the request
-         *     did not unify these, for the same reason it did not unify the five
-         *     assessment results.
+         *     ``register`` and ``sign_in`` carry a session (a JWT cookie plus a CSRF
+         *     token), ``link`` is a bare acknowledgement. Unifying the request did not
+         *     unify these, for the same reason it did not unify the five assessment
+         *     results.
          */
-        IntakeClaimResponse: components["schemas"]["IntakeCreateAccountResponse"] | components["schemas"]["IntakeSignInResponse"] | components["schemas"]["IntakeSaveToAccountResponse"] | components["schemas"]["OkResponse"];
-        /**
-         * IntakeClaimSessionRequest
-         * @description ``mode: "session"`` -- adopt an anonymous Work Pulse Lite-Lite session.
-         *
-         *     The one mode with no submission behind it. Called right after login when
-         *     ``sessionStorage`` still holds answers from the ``/start`` flow.
-         */
-        IntakeClaimSessionRequest: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            mode: "session";
-            /** Selected Statement Ids */
-            selected_statement_ids?: unknown[];
-            /**
-             * Wpll Answers
-             * @description At most 5 items.
-             */
-            wpll_answers?: components["schemas"]["WpllAnswer"][];
-            /**
-             * Wpll Insight Text
-             * @default null
-             */
-            wpll_insight_text: string | null;
-        };
+        IntakeClaimResponse: components["schemas"]["IntakeCreateAccountResponse"] | components["schemas"]["IntakeSignInResponse"] | components["schemas"]["OkResponse"];
         /**
          * IntakeClaimSignInRequest
          * @description ``mode: "sign_in"`` -- attach a submission to an existing account.
@@ -3415,13 +3394,6 @@ export interface components {
              * @description Presigned PUT URL, valid for 10 minutes.
              */
             upload_url: string;
-        };
-        /** IntakeSaveToAccountResponse */
-        IntakeSaveToAccountResponse: {
-            /** Message */
-            message: string;
-            /** Wpll Completed */
-            wpll_completed: boolean;
         };
         /**
          * IntakeSignInResponse
@@ -5656,21 +5628,6 @@ export interface components {
              */
             within_tolerance: boolean | null;
         };
-        /** WorkPulseAnswer */
-        WorkPulseAnswer: {
-            /**
-             * Option Id
-             * @default null
-             */
-            option_id: string | null;
-            /**
-             * Question Id
-             * @default null
-             */
-            question_id: string | null;
-        } & {
-            [key: string]: unknown;
-        };
         /**
          * WorkPulseResult
          * @description The retired original Work Pulse's narrative result.
@@ -5695,81 +5652,6 @@ export interface components {
             narrative: string;
         } & {
             [key: string]: unknown;
-        };
-        /** WpllAnswer */
-        WpllAnswer: {
-            /**
-             * Option Id
-             * @default null
-             */
-            option_id: string | null;
-            /**
-             * Question Id
-             * @default null
-             */
-            question_id: string | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * WpllResultResponse
-         * @description The teaser insight plus the titles of the sections still locked.
-         *
-         *     Two shapes can come back on a 200: the LLM-generated one below, and the
-         *     deterministic rules-engine fallback when the provider call fails. Both carry
-         *     ``insight_text`` and ``locked_sections``, which is why the fallback is
-         *     invisible to the client -- and why it is safe here and nowhere else.
-         */
-        WpllResultResponse: {
-            /** Insight Text */
-            insight_text: string;
-            /** Locked Sections */
-            locked_sections: string[];
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * WpllScoringJobStatus
-         * @description ``GET /assessments/wpll/scoring-jobs/{job_id}``.
-         *
-         *     The one poll that needs no JWT, because the instrument it belongs to needs
-         *     none: ``wpll`` is the anonymous pre-launch teaser and has no account to
-         *     scope a handle to.  The handle *is* the authorisation -- see
-         *     ``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere
-         *     else.
-         */
-        WpllScoringJobStatus: {
-            /**
-             * Error
-             * @description Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.
-             * @default null
-             */
-            error: string | null;
-            /** Job Id */
-            job_id: string;
-            /**
-             * @description Present only on 'succeeded'.
-             * @default null
-             */
-            result: components["schemas"]["WpllResultResponse"] | null;
-            /**
-             * Status
-             * @description queued, running, succeeded or failed. The last two are terminal.
-             */
-            status: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * WpllSubmitRequest
-         * @description Anonymous Work Pulse Lite-Lite teaser.
-         */
-        WpllSubmitRequest: {
-            /**
-             * Answers
-             * @description 1-5 answers.
-             */
-            answers: components["schemas"]["WorkPulseAnswer"][];
         };
     };
     responses: never;

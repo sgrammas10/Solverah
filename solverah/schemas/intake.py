@@ -6,7 +6,7 @@ Every body here is snake_case (``first_name``). The one camelCase body,
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, Literal, Optional, Union
 
 from pydantic import ConfigDict, Field, RootModel
 
@@ -24,7 +24,6 @@ __all__ = [
     "IntakeClaimRegisterRequest",
     "IntakeClaimRequest",
     "IntakeClaimResponse",
-    "IntakeClaimSessionRequest",
     "IntakeClaimSignInRequest",
     "QuizPreviewInsightsResponse",
     "IntakeCreateAccountRequest",
@@ -33,12 +32,9 @@ __all__ = [
     "IntakeLinkAccountRequest",
     "IntakePresignRequest",
     "IntakePresignResponse",
-    "IntakeSaveToAccountRequest",
-    "IntakeSaveToAccountResponse",
     "IntakeSignInRequest",
     "IntakeSignInResponse",
     "OkResponse",
-    "WpllAnswer",
 ]
 
 
@@ -140,32 +136,6 @@ class IntakeLinkAccountRequest(IntakeFinalizeRequest):
     info_opt_in: Optional[bool] = None
 
 
-class WpllAnswer(SolverahModel):
-    model_config = ConfigDict(extra="allow")
-
-    question_id: Optional[str] = None
-    option_id: Optional[str] = None
-
-
-class IntakeSaveToAccountRequest(SolverahModel):
-    """Persist an anonymous Work Pulse Lite-Lite session onto the account.
-
-    Called right after login when sessionStorage still holds data from the
-    ``/start`` flow.
-    """
-
-    selected_statement_ids: List[Any] = Field(default_factory=list)
-    wpll_answers: List[WpllAnswer] = Field(
-        default_factory=list, description="At most 5 items."
-    )
-    wpll_insight_text: Optional[str] = None
-
-
-class IntakeSaveToAccountResponse(SolverahModel):
-    message: str
-    wpll_completed: bool
-
-
 # ===========================================================================
 # Phase 1b -- POST /intake/claims
 # ===========================================================================
@@ -177,15 +147,19 @@ class IntakeSaveToAccountResponse(SolverahModel):
 # something anonymous -- attach it to an account.*  What differed was which
 # account and where the anonymous thing came from.
 #
-# One thing the doc's framing understates and the code makes plain: the four
-# are less symmetric than "four copies of one branch" suggests.  ``link`` files
-# a *new* submission for someone already signed in rather than claiming an
-# existing one, and ``session`` has no submission at all -- it adopts an
-# anonymous Work Pulse Lite-Lite session held in ``sessionStorage``.  That is
-# why the route is ``POST /intake/claims`` and not Part 5.2's
-# ``/intake/submissions/{id}/claim``: two of the four modes have no submission
-# id to put in the path, and inventing one would mean either a fabricated id or
+# One thing the doc's framing understates and the code makes plain: the modes
+# are less symmetric than "copies of one branch" suggests.  ``link`` files a
+# *new* submission for someone already signed in rather than claiming an
+# existing one.  That is why the route is ``POST /intake/claims`` and not
+# Part 5.2's ``/intake/submissions/{id}/claim``: ``link`` has no submission id
+# to put in the path, and inventing one would mean either a fabricated id or
 # two endpoints again.
+#
+# There were four modes until 2026-11-23.  The fourth, ``session``, adopted an
+# anonymous Work Pulse Lite-Lite session from ``sessionStorage`` after login;
+# its only caller was the ``/start`` replay in ``Login.tsx``, deleted with
+# ``/start`` (G24), and the mode went with it (ruling C).  A body naming it now
+# gets the same ``literal_error`` on ``mode`` as any other unknown mode.
 #
 # The models below are a discriminated union on ``mode``, so a client gets a
 # real 422 naming the field it got wrong rather than a generic one.
@@ -196,18 +170,18 @@ class IntakeClaimEnvelope(SolverahModel):
 
     Validating an unknown mode against this produces
     ``{"field": "mode", "code": "literal_error"}``, which tells a client what is
-    wrong and what the alternatives are. Validating it against one of the four
+    wrong and what the alternatives are. Validating it against one of the
     concrete models would report every field of an arbitrarily chosen mode as
     missing, which tells them nothing.
     """
 
     model_config = ConfigDict(extra="ignore")
 
-    mode: Literal["register", "sign_in", "link", "session"] = Field(
+    mode: Literal["register", "sign_in", "link"] = Field(
         description=(
             '"register" creates an account from a submission; "sign_in" attaches '
             'one to an existing account; "link" files a submission as an already '
-            'signed-in user; "session" adopts an anonymous quiz session.'
+            'signed-in user.'
         )
     )
 
@@ -260,23 +234,8 @@ class IntakeClaimLinkRequest(IntakeClaimEnvelope, IntakeFinalizeRequest):
     info_opt_in: Optional[bool] = None
 
 
-class IntakeClaimSessionRequest(IntakeClaimEnvelope):
-    """``mode: "session"`` -- adopt an anonymous Work Pulse Lite-Lite session.
-
-    The one mode with no submission behind it. Called right after login when
-    ``sessionStorage`` still holds answers from the ``/start`` flow.
-    """
-
-    mode: Literal["session"] = "session"
-    selected_statement_ids: List[Any] = Field(default_factory=list)
-    wpll_answers: List[WpllAnswer] = Field(
-        default_factory=list, description="At most 5 items."
-    )
-    wpll_insight_text: Optional[str] = None
-
-
 class IntakeClaimRequest(RootModel):
-    """Documentation-only union of the four claim bodies.
+    """Documentation-only union of the three claim bodies.
 
     Do not validate against this; the route enforces :data:`CLAIM_REQUESTS` per
     mode. Unlike the assessment union, this one *is* discriminated on a property
@@ -287,24 +246,22 @@ class IntakeClaimRequest(RootModel):
         IntakeClaimRegisterRequest,
         IntakeClaimSignInRequest,
         IntakeClaimLinkRequest,
-        IntakeClaimSessionRequest,
     ] = Field(discriminator="mode")
 
 
 class IntakeClaimResponse(RootModel):
-    """Documentation-only union of the four claim results.
+    """Documentation-only union of the three claim results.
 
     ``register`` answers 201 and the rest answer 200, and the bodies differ:
-    two carry a session (a JWT cookie plus a CSRF token), one carries the
-    quiz-completion flag, one is a bare acknowledgement. Unifying the request
-    did not unify these, for the same reason it did not unify the five
-    assessment results.
+    ``register`` and ``sign_in`` carry a session (a JWT cookie plus a CSRF
+    token), ``link`` is a bare acknowledgement. Unifying the request did not
+    unify these, for the same reason it did not unify the five assessment
+    results.
     """
 
     root: Union[
         IntakeCreateAccountResponse,
         IntakeSignInResponse,
-        IntakeSaveToAccountResponse,
         OkResponse,
     ]
 
@@ -314,7 +271,6 @@ CLAIM_REQUESTS: Dict[str, type] = {
     "register": IntakeClaimRegisterRequest,
     "sign_in": IntakeClaimSignInRequest,
     "link": IntakeClaimLinkRequest,
-    "session": IntakeClaimSessionRequest,
 }
 
 #: ``mode`` -> whether a JWT is required. ``register`` and ``sign_in`` are how
@@ -323,20 +279,18 @@ CLAIM_REQUIRES_AUTH: Dict[str, bool] = {
     "register": False,
     "sign_in": False,
     "link": True,
-    "session": True,
 }
 
-#: ``mode`` -> rate limit, preserved exactly from the four separate handlers.
-#: Collapsing the routes merges their buckets unless something is done about it,
-#: and these were not all the same number to begin with.
+#: ``mode`` -> rate limit, preserved exactly from the separate handlers.
+#: Collapsing the routes merges their buckets unless something is done about it.
+#: The three are one number since ``session`` (10 per minute) was removed.
 CLAIM_LIMITS: Dict[str, str] = {
     "register": "5 per minute",
     "sign_in": "5 per minute",
     "link": "5 per minute",
-    "session": "10 per minute",
 }
 
-#: What an unrecognised mode gets: the strictest of the four. A client that
+#: What an unrecognised mode gets: the strictest of the three. A client that
 #: cannot name a valid mode should not be able to probe faster than one that can.
 STRICTEST_CLAIM_LIMIT = "5 per minute"
 

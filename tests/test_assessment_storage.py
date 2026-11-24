@@ -130,6 +130,29 @@ def _store_legacy_work_pulse(user_id):
         db.session.commit()
 
 
+def _store_legacy_wpll(user_id):
+    """A claimed WPLL teaser sitting, as an intake claim stored it before 2026-11-23.
+
+    Written through the repository because nothing writes one any more: the
+    session claim that did was removed with `/start`, and the kind is retired.
+    """
+    from app import app
+    from model import db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
+
+    with app.app_context():
+        row = assessment_repository.open_current(
+            user_id, "wpll", assessment_service.CLIENT_FORM_VERSION
+        )
+        row.answers = WPLL_ANSWERS
+        row.narrative = "teaser"
+        row.status = "complete"
+        row.completed_at = auth_domain.utcnow()
+        db.session.commit()
+
+
 def _submit_core(client, csrf):
     """Answer the served form. Tokens are salted per respondent, so they cannot
     be hard-coded."""
@@ -157,20 +180,16 @@ def test_every_instrument_lands_in_one_table(client, auth, monkeypatch):
     than through a synchronous submit -- eager test execution runs the job
     inline, so the row exists by the time the 202 comes back. `focus_type`
     still submits synchronously, and `core` arrives through `assessment_store`
-    behind D-01's doorway. The retired `work_pulse` has no door any more
-    (2026-10-02), so its row is one stored before the retirement. However each
-    one got in, one query finds all five.
+    behind D-01's doorway. The two retired kinds have no door any more --
+    `work_pulse` since 2026-10-02, `wpll` since 2026-11-23 -- so their rows are
+    ones stored before the retirement. However each one got in, one query finds
+    all five.
     """
     csrf, user_id = auth
     _stub_llm(monkeypatch, BOTH_LLM_RESPONSE)
     headers = {"X-CSRF-TOKEN": csrf}
 
-    client.post(
-        "/api/v1/intake/claims",
-        json={"mode": "session", "selected_statement_ids": ["dir-1"],
-              "wpll_answers": WPLL_ANSWERS, "wpll_insight_text": "teaser"},
-        headers=headers,
-    )
+    _store_legacy_wpll(user_id)
     _store_legacy_work_pulse(user_id)
     client.post("/api/v1/assessments/focus_type/submissions",
                 json=_FOCUS_TYPE_PAYLOAD, headers=headers)
@@ -238,61 +257,98 @@ def test_every_submission_names_a_registered_form_version(client, auth, monkeypa
             assert (row.kind, row.form_version) in registered
 
 
-def test_losing_the_race_for_a_row_does_not_discard_the_caller_s_other_write(
-    client, auth, monkeypatch
-):
-    """The collision recovery must unwind the failed INSERT and nothing else.
+def _miss_once_for(monkeypatch, wanted_kind):
+    """Stub `current_submission` to miss *wanted_kind*'s row once.
 
-    `save_to_account` writes the statement selections to `user_intake` and *then*
-    opens the WPLL submission. `get_or_create_user_intake`, which `open_current`
-    replaced, recovered from a duplicate with a plain `db.session.rollback()` --
-    safe only because it happened to be the first write in its transaction. Here
-    it would throw away the selections the same request had just made and commit
-    the submission without them, and the request would still answer 200.
-
-    The race is forced rather than waited for: `current_submission` is stubbed to
-    miss once, so the INSERT runs against a row that already exists and hits
-    `uq_assessment_submissions_current` exactly as a real concurrent claim would.
+    The race is forced rather than waited for: the INSERT then runs against a
+    row that already exists and hits `uq_assessment_submissions_current` exactly
+    as a real concurrent first sitting would.
     """
-    csrf, user_id = auth
-    headers = {"X-CSRF-TOKEN": csrf}
-    claim = {"mode": "session", "wpll_answers": WPLL_ANSWERS,
-             "wpll_insight_text": "teaser"}
-
-    first = client.post(
-        "/api/v1/intake/claims",
-        json=dict(claim, selected_statement_ids=["dir-1"]),
-        headers=headers,
-    )
-    assert first.status_code == 200
-
     from solverah.repositories import assessment_repository
 
     real = assessment_repository.current_submission
     missed = {"once": False}
 
     def _miss_once(uid, kind):
-        if kind == "wpll" and not missed["once"]:
+        if kind == wanted_kind and not missed["once"]:
             missed["once"] = True
             return None
         return real(uid, kind)
 
     monkeypatch.setattr(assessment_repository, "current_submission", _miss_once)
+    return missed
 
-    second = client.post(
-        "/api/v1/intake/claims",
-        json=dict(claim, selected_statement_ids=["sus-2", "dir-3"]),
-        headers=headers,
-    )
+
+def test_losing_the_race_for_a_row_through_a_live_submit_still_stores_the_sitting(
+    client, auth, monkeypatch
+):
+    """The collision recovery, through the route that still reaches it.
+
+    Two FocusType submissions racing for a user's first sitting: the loser's
+    INSERT collides, and it must take over the winner's row rather than answer a
+    500 or leave a second current row. Re-driven through FocusType on 2026-11-23,
+    when the session claim this test used (the only caller that wrote something
+    else first) was removed with `/start`.
+    """
+    csrf, user_id = auth
+    headers = {"X-CSRF-TOKEN": csrf}
+
+    first = client.post("/api/v1/assessments/focus_type/submissions",
+                        json=_FOCUS_TYPE_PAYLOAD, headers=headers)
+    assert first.status_code == 200
+
+    missed = _miss_once_for(monkeypatch, "focus_type")
+
+    second = client.post("/api/v1/assessments/focus_type/submissions",
+                         json=_FOCUS_TYPE_PAYLOAD, headers=headers)
     assert second.status_code == 200
     assert missed["once"], "the collision path was never reached"
 
     from app import app
-    from model import AssessmentSubmission, UserIntake
+    from model import AssessmentSubmission
 
     with app.app_context():
-        intake = UserIntake.query.filter_by(user_id=user_id).one()
-        assert intake.selected_statement_ids == ["sus-2", "dir-3"]
+        rows = AssessmentSubmission.query.filter_by(user_id=user_id, kind="focus_type").all()
+        assert len(rows) == 1
+        assert rows[0].completed_at is not None
+
+
+def test_losing_the_race_for_a_row_does_not_discard_the_caller_s_other_write(
+    client, auth, monkeypatch
+):
+    """The collision recovery must unwind the failed INSERT and nothing else.
+
+    `get_or_create_user_intake`, which `open_current` replaced, recovered from a
+    duplicate with a plain `db.session.rollback()` -- safe only because it
+    happened to be the first write in its transaction. A caller that writes
+    something else first would lose that write and still commit the submission.
+    No live caller does that today (the session claim that did was removed on
+    2026-11-23), so the property is held at the repository seam, where it lives:
+    a write made earlier in the same transaction survives the collision.
+    """
+    _csrf, user_id = auth
+
+    from app import app
+    from model import AssessmentSubmission, User, db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services import assessment_service
+
+    _store_legacy_wpll(user_id)  # the row the loser collides with
+    missed = _miss_once_for(monkeypatch, "wpll")
+
+    with app.app_context():
+        db.session.get(User, user_id).name = "Written Before The Collision"
+        row = assessment_repository.open_current(
+            user_id, "wpll", assessment_service.CLIENT_FORM_VERSION
+        )
+        row.completed_at = auth_domain.utcnow()
+        db.session.commit()
+
+    assert missed["once"], "the collision path was never reached"
+
+    with app.app_context():
+        assert db.session.get(User, user_id).name == "Written Before The Collision"
         assert AssessmentSubmission.query.filter_by(
             user_id=user_id, kind="wpll"
         ).count() == 1

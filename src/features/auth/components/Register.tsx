@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../useAuth';
 import { Eye, EyeOff } from 'lucide-react';
@@ -32,15 +32,11 @@ function Register() {
 
   const { register } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const fromWpll = new URLSearchParams(location.search).get('from') === 'wpll';
 
   const registerMutation = useMutation({
     mutationFn: () => register(formData.email, formData.password, formData.name, termsAccepted),
     onSuccess: () =>
-      navigate('/verify-email', {
-        state: { email: formData.email, from: fromWpll ? 'wpll' : undefined },
-      }),
+      navigate('/verify-email', { state: { email: formData.email } }),
   });
 
   const loading = registerMutation.isPending;

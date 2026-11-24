@@ -383,8 +383,32 @@ the lookup is written there and not by a research POST because the door's steps
 are appended last and must stay so. The sign-in claim change in the same batch
 (an unconfirmed claimer's 403 parks the submission for `confirm_email`) moved no
 step: the scenario never calls the intake sign-in door -- its one claim is
-`POST /intake/claims`, the anonymous WPLL session -- so the parked claim is
+`POST /intake/claims`, the anonymous WPLL session (removed in A35, below) -- so the parked claim is
 pinned by unit tests alone. After the recapture: 0 differences across 156.
+
+**Re-baselined for the WPLL retirement and the session claim's removal
+(2026-11-23).** A deliberate change, and A35 (docs/ARCHITECTURE.md) is the
+ledger. `/start` was deleted, and with it the two doors that only it used: the
+anonymous `wpll` teaser answers 410 `kind_retired`, with no `replaced_by`,
+before authentication on every door (`work_pulse`'s shape, A32), and `POST
+/intake/claims` mode `session` is gone, so it is 422 like any unknown mode. No
+step was added, removed or reordered. `claim-wpll-session` keeps its name and
+place and now pins the 422; `queue-wpll` and `poll-wpll-job` used to be the
+`queue_and_poll` pair and are written out, the poll on `RETIRED_POLL_JOB_ID`;
+the two wpll POSTs still send no CSRF header, as they did when the teaser was
+anonymous, so the 410 is shown to come before the JWT/CSRF check. The scenario can no longer write a wpll row, so
+`_seed_legacy_wpll` writes the one the deleted claim left, right after
+`claim-wpll-session`: the catalogue's `completed`, the session's and the three
+logins' `wpll_completed` and both exports' `legacy_quiz.wpll_*` still read
+these rows, and prod still holds them. Verified before the recapture on the
+standing baseline, with the door steps converted and no seed: 18 field
+differences across 12 steps -- the four door steps (`claim-wpll-session` 200 ->
+422, `queue-wpll` 202 -> 410, `poll-wpll-job` 200 -> 410, the three also moving
+to `application/problem+json`; `submit-wpll-sync-gone` body only), both
+catalogue reads (`wpll` `requires_auth` false -> true), and the eight reads of
+the row no longer written (catalogue-after `completed`, `session-after-write`,
+three logins, two exports). With the seed only the door steps and the two
+`requires_auth` flips remain. After the recapture: 0 differences across 156.
 """
 
 from __future__ import annotations
@@ -482,7 +506,6 @@ _LLM_REPLIES = {
         "red_flags": ["decisions that only happen in the room"],
         "archetype_description": "Autonomy with an explicit target.",
     },
-    "WPLL": {"insight_text": "You are drawn to work with a visible finish line."},
 }
 
 # Order matters: CSRF tokens hold no timestamp, but masking timestamps first would
@@ -617,10 +640,9 @@ def _stub_llm() -> None:
 
     Two things are replaced, and the split matters.
 
-    The **prompt builders** become markers, which is what lets one `_chat_json`
-    stub serve ManagerMatch and WPLL. (Work Pulse shared `OPENAI_WP_MODEL` with
-    ManagerMatch, which is why markers rather than the model argument tell the
-    replies apart; its builder was deleted with the retirement, A32.)
+    The **prompt builder** becomes a marker that keys `_LLM_REPLIES`. (It was
+    one stub for ManagerMatch, WPLL and Work Pulse until those two were retired
+    -- Work Pulse in A32, WPLL in A35 -- and their builders deleted with them.)
     Replacing them here does *not* stop the handlers reading their inputs --
     the call site still evaluates them before handing them over, so a handler
     that lost access to them still fails this script.
@@ -635,11 +657,9 @@ def _stub_llm() -> None:
     assessment_prompts.build_mm_narrative_prompt = (
         lambda *_a, **_k: [{"role": "system", "content": "MM"}]
     )
-    assessment_prompts.build_wpll_insight_prompt = lambda *_a, **_k: ("WPLL", "WPLL")
 
     def _canned(messages, _model_env, _default_model):
-        marker = messages[0]["content"] if isinstance(messages, list) else "WPLL"
-        return dict(_LLM_REPLIES[marker])
+        return dict(_LLM_REPLIES[messages[0]["content"]])
 
     assessment_service._chat_json = _canned
 
@@ -1068,6 +1088,10 @@ LEGACY_WORK_PULSE_RESULT = {
 #: `GET /me/matches` -- was deleted with the six-trait build, so this script no
 #: longer imports from that path. The key is still echoed in the profile document
 #: and the export, prod rows still hold it, and five steps pin it.
+#: The insight the retired session claim stored, and the body that claim now
+#: sends to be refused. One literal so the seed reproduces A34's export bytes.
+LEGACY_WPLL_INSIGHT_TEXT = "Claimed from the anonymous session."
+
 LEGACY_CULTURE_PREFERENCES = {
     "pace": "moderate",
     "empathy": 0.5167,
@@ -1114,6 +1138,37 @@ def _seed_legacy_work_pulse(app, email: str) -> None:
         profile_repository.update_extra_key(
             user_id, "culture_preferences", lambda _stored: dict(LEGACY_CULTURE_PREFERENCES)
         )
+        db.session.commit()
+
+
+def _seed_legacy_wpll(app, email: str) -> None:
+    """Give *email* the stored WPLL row a user who claimed the retired teaser has.
+
+    `_seed_legacy_work_pulse`'s reasoning, for the instrument retired in A35:
+    every door that wrote the row is closed (the anonymous teaser and the
+    `/intake/claims` session mode), production still holds the rows, and the
+    catalogue's `completed`, the session's and login's `wpll_completed` and the
+    export's `legacy_quiz.wpll_*` still read them. Written through the
+    repository call and in the final state the deleted `save_to_account` left.
+    Its other half -- the statement selections on `user_intake` -- is not
+    seeded, because no response reads it back.
+    """
+    from model import User, db
+    from solverah.domain import auth as auth_domain
+    from solverah.repositories import assessment_repository
+    from solverah.services.assessment_service import CLIENT_FORM_VERSION
+
+    with app.app_context():
+        user_id = db.session.execute(
+            db.select(User.id).where(User.email == email)
+        ).scalar_one()
+        submission = assessment_repository.open_current(
+            user_id, "wpll", CLIENT_FORM_VERSION
+        )
+        submission.answers = WPLL_ANSWERS
+        submission.narrative = LEGACY_WPLL_INSIGHT_TEXT
+        submission.status = "complete"
+        submission.completed_at = auth_domain.utcnow()
         db.session.commit()
 
 
@@ -1384,9 +1439,10 @@ def run_scenario() -> List[Dict[str, Any]]:
     call("result-focus-type-before", "GET", "/api/v1/me/assessments/focus_type/result")
     call("result-core-absent-by-design", "GET", "/api/v1/me/assessments/core/result")
 
-    # `wpll` is the one instrument whose submit route persists nothing: the
-    # stored state arrives from the anonymous session being claimed onto the
-    # account, which is the write path 2d moves off `user_intake`.
+    # The anonymous session claim is gone (2026-11-23, A35): `mode: "session"`
+    # is now an unknown mode, 422 like any other. Kept in place and under its
+    # old name, as the retired `work_pulse` doors are (A32), so the refusal of
+    # the old body is pinned rather than silently unexercised.
     call(
         "claim-wpll-session",
         "POST",
@@ -1395,17 +1451,21 @@ def run_scenario() -> List[Dict[str, Any]]:
             "mode": "session",
             "selected_statement_ids": ["dir-1", "sus-2"],
             "wpll_answers": WPLL_ANSWERS,
-            "wpll_insight_text": "Claimed from the anonymous session.",
+            "wpll_insight_text": LEGACY_WPLL_INSIGHT_TEXT,
         },
         headers=csrf,
     )
+    # Where the claim used to write: the stored WPLL row a pre-retirement user
+    # has, so every read of a legacy row below stays pinned (A35).
+    _seed_legacy_wpll(app, EMAIL)
 
-    # The two provider-scored instruments, each captured through both doors
-    # (Phase 3c): the 410 tombstone on the old synchronous submit -- the
-    # refusal and its `replaced_by` pointer are contract -- and the job pair
-    # that took the scoring. Eager execution runs the job inside the enqueue,
-    # so the 202 already reads `succeeded` and one poll carries the result.
-    # The retired `work_pulse` keeps its four steps between them (A32).
+    # The provider-scored instrument is captured through both doors (Phase
+    # 3c): the 410 tombstone on the old synchronous submit -- the refusal and
+    # its `replaced_by` pointer are contract -- and the job pair that took the
+    # scoring. Eager execution runs the job inside the enqueue, so the 202
+    # already reads `succeeded` and one poll carries the result. There were two
+    # such instruments; `wpll` was retired on 2026-11-23 (A35), and it and the
+    # retired `work_pulse` (A32) keep their door steps ahead of it.
     def queue_and_poll(kind: str, body: dict, headers=None) -> None:
         queued = call(
             "queue-%s" % kind.replace("_", "-"),
@@ -1421,13 +1481,29 @@ def run_scenario() -> List[Dict[str, Any]]:
             "/api/v1/assessments/%s/scoring-jobs/%s" % (kind, job_id),
         )
 
+    # `wpll`, the anonymous teaser, is retired (2026-11-23, A35) the way
+    # `work_pulse` is below: 410 `kind_retired`, no `replaced_by`, refused
+    # before authentication. The two POSTs still send no CSRF header, as they
+    # did when the teaser was anonymous, so the 410 rather than a CSRF refusal
+    # is what they pin. Same names and places as the live steps they replace;
+    # the poll asks after the fixed handle no enqueue can issue now.
     call(
         "submit-wpll-sync-gone",
         "POST",
         "/api/v1/assessments/wpll/submissions",
         json={"answers": WPLL_ANSWERS},
     )
-    queue_and_poll("wpll", {"answers": WPLL_ANSWERS})
+    call(
+        "queue-wpll",
+        "POST",
+        "/api/v1/assessments/wpll/scoring-jobs",
+        json={"answers": WPLL_ANSWERS},
+    )
+    call(
+        "poll-wpll-job",
+        "GET",
+        "/api/v1/assessments/wpll/scoring-jobs/%s" % RETIRED_POLL_JOB_ID,
+    )
 
     # The original 12-question `work_pulse` is retired (2026-10-02, A32): every
     # door it had answers 410 `kind_retired` with no `replaced_by`. Its four

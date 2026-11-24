@@ -15,7 +15,6 @@ export default function ConfirmEmail() {
     (location.state as any)?.email ||
     new URLSearchParams(location.search).get('email') ||
     '';
-  const fromParam: string | undefined = (location.state as any)?.from;
 
   // G35: opened in a new tab there is no router state and no ?email=, and the
   // page used to post an empty address, which the server's "email and code are
@@ -42,10 +41,7 @@ export default function ConfirmEmail() {
       if (!res.ok) throw parseApiError(res, data, 'Verification failed. Please try again.');
     },
     onSuccess: () => {
-      setTimeout(
-        () => navigate(fromParam === 'wpll' ? '/login?from=wpll' : '/login'),
-        REDIRECT_DELAY_MS
-      );
+      setTimeout(() => navigate('/login'), REDIRECT_DELAY_MS);
     },
   });
 
@@ -184,9 +180,7 @@ export default function ConfirmEmail() {
 
           {verified && (
             <p className="text-sm text-forest-mid font-medium">
-              {fromParam === 'wpll'
-                ? 'Email verified! Signing you in to unlock your results…'
-                : 'Email verified! Redirecting to sign in…'}
+              Email verified! Redirecting to sign in…
             </p>
           )}
 

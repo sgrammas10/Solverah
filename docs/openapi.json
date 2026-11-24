@@ -303,7 +303,7 @@
             "type": "string"
           },
           "requires_auth": {
-            "description": "False only for the anonymous wpll teaser.",
+            "description": "Always true since the anonymous wpll teaser was retired (2026-11-23). Kept so the entry's shape does not change.",
             "title": "Requires Auth",
             "type": "boolean"
           },
@@ -370,24 +370,14 @@
         "type": "object"
       },
       "AssessmentScoringJobStatus": {
-        "anyOf": [
-          {
-            "$ref": "#/components/schemas/WpllScoringJobStatus"
-          },
-          {
-            "$ref": "#/components/schemas/ManagerMatchScoringJobStatus"
-          }
-        ],
-        "description": "Documentation-only union of the two poll responses.\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`.",
+        "$ref": "#/components/schemas/ManagerMatchScoringJobStatus",
+        "description": "Documentation-only union of the poll responses -- one member since the\n``wpll`` teaser was retired (2026-11-23).\n\nWhich member comes back is determined by ``{kind}`` in the path, not by\nanything in the body -- the same reason ``AssessmentSubmissionResponse``\ncannot be an OpenAPI discriminated union.  Do not validate against this;\nvalidate against :data:`SCORING_JOB_RESPONSES`. Kept as a root model rather\nthan collapsed to its one member so a second job-scored instrument is an\nadded line, not a renamed schema.",
         "title": "AssessmentScoringJobStatus"
       },
       "AssessmentSubmissionRequest": {
         "anyOf": [
           {
             "$ref": "#/components/schemas/AssessmentSubmitRequest"
-          },
-          {
-            "$ref": "#/components/schemas/WpllSubmitRequest"
           },
           {
             "$ref": "#/components/schemas/FocusTypeSubmitRequest"
@@ -406,9 +396,6 @@
           },
           {
             "$ref": "#/components/schemas/WorkPulseResult"
-          },
-          {
-            "$ref": "#/components/schemas/WpllResultResponse"
           },
           {
             "$ref": "#/components/schemas/FocusTypeResult"
@@ -3304,12 +3291,11 @@
         "type": "object"
       },
       "IntakeClaimRequest": {
-        "description": "Documentation-only union of the four claim bodies.\n\nDo not validate against this; the route enforces :data:`CLAIM_REQUESTS` per\nmode. Unlike the assessment union, this one *is* discriminated on a property\nof the payload, so a generated client can narrow it.",
+        "description": "Documentation-only union of the three claim bodies.\n\nDo not validate against this; the route enforces :data:`CLAIM_REQUESTS` per\nmode. Unlike the assessment union, this one *is* discriminated on a property\nof the payload, so a generated client can narrow it.",
         "discriminator": {
           "mapping": {
             "link": "#/components/schemas/IntakeClaimLinkRequest",
             "register": "#/components/schemas/IntakeClaimRegisterRequest",
-            "session": "#/components/schemas/IntakeClaimSessionRequest",
             "sign_in": "#/components/schemas/IntakeClaimSignInRequest"
           },
           "propertyName": "mode"
@@ -3323,9 +3309,6 @@
           },
           {
             "$ref": "#/components/schemas/IntakeClaimLinkRequest"
-          },
-          {
-            "$ref": "#/components/schemas/IntakeClaimSessionRequest"
           }
         ],
         "title": "IntakeClaimRequest"
@@ -3339,52 +3322,11 @@
             "$ref": "#/components/schemas/IntakeSignInResponse"
           },
           {
-            "$ref": "#/components/schemas/IntakeSaveToAccountResponse"
-          },
-          {
             "$ref": "#/components/schemas/OkResponse"
           }
         ],
-        "description": "Documentation-only union of the four claim results.\n\n``register`` answers 201 and the rest answer 200, and the bodies differ:\ntwo carry a session (a JWT cookie plus a CSRF token), one carries the\nquiz-completion flag, one is a bare acknowledgement. Unifying the request\ndid not unify these, for the same reason it did not unify the five\nassessment results.",
+        "description": "Documentation-only union of the three claim results.\n\n``register`` answers 201 and the rest answer 200, and the bodies differ:\n``register`` and ``sign_in`` carry a session (a JWT cookie plus a CSRF\ntoken), ``link`` is a bare acknowledgement. Unifying the request did not\nunify these, for the same reason it did not unify the five assessment\nresults.",
         "title": "IntakeClaimResponse"
-      },
-      "IntakeClaimSessionRequest": {
-        "description": "``mode: \"session\"`` -- adopt an anonymous Work Pulse Lite-Lite session.\n\nThe one mode with no submission behind it. Called right after login when\n``sessionStorage`` still holds answers from the ``/start`` flow.",
-        "properties": {
-          "mode": {
-            "const": "session",
-            "default": "session",
-            "title": "Mode",
-            "type": "string"
-          },
-          "selected_statement_ids": {
-            "items": {},
-            "title": "Selected Statement Ids",
-            "type": "array"
-          },
-          "wpll_answers": {
-            "description": "At most 5 items.",
-            "items": {
-              "$ref": "#/components/schemas/WpllAnswer"
-            },
-            "title": "Wpll Answers",
-            "type": "array"
-          },
-          "wpll_insight_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Wpll Insight Text"
-          }
-        },
-        "title": "IntakeClaimSessionRequest",
-        "type": "object"
       },
       "IntakeClaimSignInRequest": {
         "description": "``mode: \"sign_in\"`` -- attach a submission to an existing account.\n\nThe email must match the one on the submission, so a submission cannot be\nattached to an unrelated account by guessing its id.",
@@ -3579,25 +3521,6 @@
           "max_bytes"
         ],
         "title": "IntakePresignResponse",
-        "type": "object"
-      },
-      "IntakeSaveToAccountResponse": {
-        "additionalProperties": false,
-        "properties": {
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "wpll_completed": {
-            "title": "Wpll Completed",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "message",
-          "wpll_completed"
-        ],
-        "title": "IntakeSaveToAccountResponse",
         "type": "object"
       },
       "IntakeSignInResponse": {
@@ -7445,37 +7368,6 @@
         "title": "TraitReadSummary",
         "type": "object"
       },
-      "WorkPulseAnswer": {
-        "additionalProperties": true,
-        "properties": {
-          "option_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Option Id"
-          },
-          "question_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Question Id"
-          }
-        },
-        "title": "WorkPulseAnswer",
-        "type": "object"
-      },
       "WorkPulseResult": {
         "additionalProperties": true,
         "description": "The retired original Work Pulse's narrative result.\n\nPersisted to ``assessment_submissions.result`` since Phase 2d --\n``user_intake.wpl_result`` before it -- and returned verbatim by\n``GET /me/assessments/work_pulse/result``. Read-only since the instrument\nwas retired on 2026-10-02: nothing writes a new one, and its submit body\nand job-status models are deleted with the write doors.",
@@ -7511,125 +7403,6 @@
           "archetype"
         ],
         "title": "WorkPulseResult",
-        "type": "object"
-      },
-      "WpllAnswer": {
-        "additionalProperties": true,
-        "properties": {
-          "option_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Option Id"
-          },
-          "question_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Question Id"
-          }
-        },
-        "title": "WpllAnswer",
-        "type": "object"
-      },
-      "WpllResultResponse": {
-        "additionalProperties": true,
-        "description": "The teaser insight plus the titles of the sections still locked.\n\nTwo shapes can come back on a 200: the LLM-generated one below, and the\ndeterministic rules-engine fallback when the provider call fails. Both carry\n``insight_text`` and ``locked_sections``, which is why the fallback is\ninvisible to the client -- and why it is safe here and nowhere else.",
-        "properties": {
-          "insight_text": {
-            "title": "Insight Text",
-            "type": "string"
-          },
-          "locked_sections": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Locked Sections",
-            "type": "array"
-          }
-        },
-        "required": [
-          "insight_text",
-          "locked_sections"
-        ],
-        "title": "WpllResultResponse",
-        "type": "object"
-      },
-      "WpllScoringJobStatus": {
-        "additionalProperties": true,
-        "description": "``GET /assessments/wpll/scoring-jobs/{job_id}``.\n\nThe one poll that needs no JWT, because the instrument it belongs to needs\nnone: ``wpll`` is the anonymous pre-launch teaser and has no account to\nscope a handle to.  The handle *is* the authorisation -- see\n``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere\nelse.",
-        "properties": {
-          "error": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'failed'. Either a validation message the scorer authored or a fixed generic string -- never provider text, which carries prompt fragments and therefore the user's own answers.",
-            "title": "Error"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "result": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/WpllResultResponse"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "description": "Present only on 'succeeded'."
-          },
-          "status": {
-            "description": "queued, running, succeeded or failed. The last two are terminal.",
-            "title": "Status",
-            "type": "string"
-          }
-        },
-        "required": [
-          "job_id",
-          "status"
-        ],
-        "title": "WpllScoringJobStatus",
-        "type": "object"
-      },
-      "WpllSubmitRequest": {
-        "additionalProperties": false,
-        "description": "Anonymous Work Pulse Lite-Lite teaser.",
-        "properties": {
-          "answers": {
-            "description": "1-5 answers.",
-            "items": {
-              "$ref": "#/components/schemas/WorkPulseAnswer"
-            },
-            "title": "Answers",
-            "type": "array"
-          }
-        },
-        "required": [
-          "answers"
-        ],
-        "title": "WpllSubmitRequest",
         "type": "object"
       }
     },
@@ -7922,7 +7695,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs": {
       "post": {
-        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the two provider-scored instruments have this operation: `wpll` and `manager_match`. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The retired `work_pulse` answers `410` with error code `kind_retired`: it accepts no submissions and calls no provider.\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
+        "description": "The only way the provider-scored instruments score since Phase 3c. Takes the body `POST /assessments/{kind}/submissions` used to take for these kinds; answers `202` with a job handle instead of blocking on the provider. Poll `GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is `succeeded` or `failed`.\n\nOnly the provider-scored `manager_match` has this operation. `core` and `focus_type` score deterministically in-process and answer `404` here -- they are served by the synchronous submit route, which since Phase 3c serves only them. The two retired kinds, `work_pulse` and `wpll`, answer `410` with error code `kind_retired`: they accept no submissions and call no provider. Every other caller needs a JWT; `wpll`'s anonymous enqueue closed when it was retired (2026-11-23).\n\n**This shares one rate-limit budget with the synchronous submit for the same instrument.** The limit bounds provider spend, and spend does not move when the call moves to a worker (A9), so queueing and submitting draw on the same allowance rather than two.",
         "operationId": "post_assessments_assessment_kind_scoring_job",
         "parameters": [
           {
@@ -8012,7 +7785,7 @@
     },
     "/api/v1/assessments/{kind}/scoring-jobs/{job_id}": {
       "get": {
-        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\n`wpll` needs no JWT, because the instrument does not: it is the anonymous teaser, its job has no owner, and the handle is what authorises the poll. `manager_match` scopes the handle to the authenticated user. The retired `work_pulse` answers `410`.",
+        "description": "`{kind}` selects the response shape, as it does on the submit route: `result` is that instrument's own result model and nothing else, and it is present only once `status` is `succeeded`. There is no shared result envelope here for the same reason there is none there (A12).\n\nThe handle is scoped to the authenticated user. The two retired kinds, `work_pulse` and `wpll`, answer `410`; `wpll`'s anonymous poll closed when it was retired (2026-11-23).",
         "operationId": "get_assessments_assessment_kind_scoring_job_status",
         "parameters": [
           {
@@ -8087,7 +7860,7 @@
     },
     "/api/v1/assessments/{kind}/submissions": {
       "post": {
-        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\n`core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.\n\nThe two provider-scored kinds, `wpll` and `manager_match`, answer `410 Gone` here since Phase 3c: their scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The retired `work_pulse` (the original 12-question instrument, retired 2026-10-02) answers `410` with error code `kind_retired` and no `replaced_by`.",
+        "description": "Serves the two rules-scored instruments, `core` and `focus_type`, which score deterministically in-process and stay synchronous by design (A19). `{kind}` selects both the request body and the response body -- the route is shared, the payloads are not.\n\n`core` may be retaken: each sitting is stored as its own. A cooldown between sittings exists as a server setting and is off; when it is on, a retake inside it answers `409` with error code `retake_cooldown`.\n\nThe provider-scored `manager_match` answers `410 Gone` here since Phase 3c: its scoring moved off the request path, and the problem document's `replaced_by` names the `POST /assessments/{kind}/scoring-jobs` operation that took it. The two retired kinds -- `work_pulse` (the original 12-question instrument, retired 2026-10-02) and `wpll` (the anonymous pre-signup teaser, retired 2026-11-23) -- answer `410` with error code `kind_retired` and no `replaced_by`.",
         "operationId": "post_assessments_assessment_kind_submit",
         "parameters": [
           {
@@ -9098,7 +8871,7 @@
     },
     "/api/v1/intake/claims": {
       "post": {
-        "description": "Replaces `/intake/create-account`, `/intake/sign-in`, `/intake/link-account`, and `/intake/save-to-account`. All four answer the same question -- *this browser holds something anonymous, attach it to an account* -- and differ in which account and where the anonymous thing came from. `mode` is the discriminator and selects the request body, the response body, whether a JWT is required, and which rate-limit bucket the call lands in.\n\n`register` and `sign_in` are public: they are how a visitor *gets* a session, so requiring one would be circular. `link` and `session` require a JWT and the CSRF header with it.\n\nThis is `/intake/claims`, not Part 5.2's `/intake/submissions/{id}/claim`, because two of the four modes have no submission id -- `link` files a new submission rather than claiming an existing one, and `session` adopts a quiz session that was never a submission at all.",
+        "description": "Replaces `/intake/create-account`, `/intake/sign-in`, `/intake/link-account`, and `/intake/save-to-account`. All four answer the same question -- *this browser holds something anonymous, attach it to an account* -- and differ in which account and where the anonymous thing came from. `mode` is the discriminator and selects the request body, the response body, whether a JWT is required, and which rate-limit bucket the call lands in.\n\n`register` and `sign_in` are public: they are how a visitor *gets* a session, so requiring one would be circular. `link` requires a JWT and the CSRF header with it.\n\nThis is `/intake/claims`, not Part 5.2's `/intake/submissions/{id}/claim`, because `link` has no submission id -- it files a new submission rather than claiming an existing one.\n\nMode `session`, `/intake/save-to-account`'s replacement, was removed 2026-11-23 with its only caller; it now gets the same 422 as any unknown mode.",
         "operationId": "post_intake_intake_claim",
         "requestBody": {
           "content": {
@@ -9193,7 +8966,7 @@
           }
         },
         "security": [],
-        "summary": "Attach an anonymous submission or quiz session to an account",
+        "summary": "Attach an anonymous intake submission to an account",
         "tags": [
           "intake"
         ]

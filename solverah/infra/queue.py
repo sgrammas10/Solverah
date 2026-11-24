@@ -134,8 +134,11 @@ BEAT_SCHEDULE = {
         "task": "solverah.scoring.sweep_jobs",
         "schedule": timedelta(minutes=5),
     },
-    # `scoring_jobs` is the one job table with no account to cascade from -- a
-    # `wpll` scoring is anonymous -- so nothing else would ever bound it.
+    # A terminal `scoring_jobs` row is dead weight the moment its result is
+    # polled, and only account deletion removes them otherwise -- so for a live
+    # account nothing else would ever bound the table. It also clears any
+    # ownerless `wpll` row left from before that anonymous door closed
+    # (2026-11-23), which no deletion reaches.
     "scoring-jobs-purge": {
         "task": "solverah.scoring.purge_jobs",
         "schedule": timedelta(hours=6),

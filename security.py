@@ -366,66 +366,6 @@ GUEST_INSIGHTS_GLOBAL_LIMIT = "500 per day"
 
 
 # ---------------------------------------------------------------------------
-# The anonymous assessment teaser (`wpll`) -- S1
-# ---------------------------------------------------------------------------
-#
-# `POST /assessments/wpll/scoring-jobs` is the application's second
-# unauthenticated door onto a paid provider. Every accepted call commits a
-# `scoring_jobs` row and, in the worker, makes an OpenAI request with no account
-# behind it. Until S1 it carried no limit of its own at all: it rode
-# DEFAULT_LIMITS, per IP, and the 2026-09 audit probed the consequence -- 40
-# back-to-back enqueues from one address all returned 202, because 200-per-day
-# is not a rate and 50-per-hour is not a burst control.
-#
-# The endpoint that already had this right is `POST
-# /intake/quiz-preview/insights`, six lines further up this file: a per-IP limit
-# sized for a human plus a global-key bucket sized to a spend budget, with the
-# reasoning under GUEST_INSIGHTS_PER_IP_LIMIT. That reasoning transfers whole --
-# spend scales with the number of distinct IPs, so a per-IP limit alone bounds
-# the wrong quantity -- and the shape below is deliberately the same shape, not
-# a second invention.
-#
-# Two things are *not* copied, both on purpose:
-#
-#   * The global bucket gets its own scope rather than joining
-#     `intake:quiz-preview-insights:global`. They are separate instruments with
-#     separate prompts and separate budgets, and one shared bucket would mean
-#     abuse of either one silently closes the other -- two funnel entrances
-#     failing together for a reason neither log would explain.
-#
-#   * The per-IP limit keeps a per-minute term, which guest-insights does not
-#     need. wpll's enqueue returns 202 immediately, so a client can pipeline it
-#     in a way a synchronous endpoint's own latency already throttles.
-#
-# The per-IP limit REPLACES wpll's bare DEFAULT_LIMITS rather than stacking on
-# top of it: two per-IP buckets on one door is the "conflicting buckets" shape,
-# where the effective limit is whichever is tighter and neither string tells you
-# which. The day term below is the one that used to come from the defaults, kept
-# explicitly because `shared_limit` defaults to `override_defaults=True`.
-
-#: Per-IP allowance for the anonymous teaser. The burst term matches every other
-#: instrument's submit; the hour and day terms are the human envelope -- nobody
-#: fills in a five-question teaser twenty times, and a shared NAT gateway still
-#: gets room for a classroom.
-WPLL_ANON_PER_IP_LIMIT = "5 per minute;20 per hour;50 per day"
-
-#: Global daily ceiling across every caller -- the control that actually bounds
-#: spend, since the per-IP one bounds only what a single address can do. Sized
-#: like GUEST_INSIGHTS_GLOBAL_LIMIT and for the same money: a gpt-4o-mini teaser
-#: is well under a cent, so this is low-single-digit dollars per day worst case.
-#:
-#: The trade is the same one stated above for guest insights and worth restating:
-#: a global ceiling means a determined abuser can exhaust the day's budget and
-#: leave real visitors seeing 429s. That is still the better failure than an
-#: unbounded invoice, and reaching it takes many distinct addresses rather than
-#: one, because of the per-IP limit above.
-#:
-#: Like every ceiling here it is only a ceiling if the counter is shared -- which
-#: is now enforced at boot rather than hoped for; see the module docstring.
-WPLL_ANON_GLOBAL_LIMIT = "500 per day"
-
-
-# ---------------------------------------------------------------------------
 # The refresh endpoint (`POST /auth/refresh`) -- S3
 # ---------------------------------------------------------------------------
 #
@@ -453,7 +393,7 @@ WPLL_ANON_GLOBAL_LIMIT = "500 per day"
 # 9 a.m. and is nowhere near a loop.
 #
 # **No day term, deliberately**, which is the one place this shape differs from
-# WPLL_ANON_PER_IP_LIMIT above. That endpoint spends money per call and a daily
+# GUEST_INSIGHTS_PER_IP_LIMIT above. That endpoint spends money per call and a daily
 # ceiling is the budget; this one spends two INSERTs, and four refreshes per
 # browser per hour times an office is a legitimately large daily number. A day
 # term sized to survive that would bound nothing a minute term had not already

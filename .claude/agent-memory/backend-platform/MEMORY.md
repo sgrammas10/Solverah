@@ -1,4 +1,5 @@
-- [A34 G66 lookups re-baseline](rebaseline-a34-g66-lookups.md) — DONE uncommitted; company seed must record the lookup or ranked reads go no_companies
+- [A35 wpll retired re-baseline](rebaseline-a35-wpll-retired.md) — standing baseline; legacy wpll seed; audit write_event tombstone check under FOR SHARE
+- [A34 G66 lookups re-baseline](rebaseline-a34-g66-lookups.md) — superseded by A35; company seed must record the lookup or ranked reads go no_companies
 - [A33 CompanyLens re-baseline](rebaseline-a33-companylens.md) — committed 140e027, 156 steps incl. C5c switch; keys+switch popped in run_scenario; no LLM-route steps
 - [Contract seeds a legacy work_pulse row](contract-seeds-legacy-work-pulse.md) — sitting + culture_preferences LITERAL seeded; removing either moves legacy-read steps
 - [Solverah_IP in the image](dockerignore-solverah-ip.md) — nothing runtime reads it since C5b; recommend .dockerignore exclusion, causal_graph stays

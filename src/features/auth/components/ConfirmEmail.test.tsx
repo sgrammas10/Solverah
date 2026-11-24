@@ -38,7 +38,7 @@ beforeEach(() => {
 /** The verify/resend mutations need a client; fresh per render, per the
  *  useProfileForm.test precedent. Mutations never retry, so the real defaults
  *  from createQueryClient() are safe here. */
-function renderConfirmEmail(state?: { email?: string; from?: string }, search = "") {
+function renderConfirmEmail(state?: { email?: string }, search = "") {
   render(
     <QueryClientProvider client={createQueryClient()}>
       <MemoryRouter initialEntries={[{ pathname: "/verify-email", search, state }]}>
@@ -113,15 +113,6 @@ describe("ConfirmEmail - happy path", () => {
     await submitCode("123456");
     await act(async () => { vi.runAllTimers(); });
     expect(mocks.navigate).toHaveBeenCalledWith("/login");
-    vi.useRealTimers();
-  });
-
-  it("redirects to /login?from=wpll when from=wpll", async () => {
-    vi.useFakeTimers();
-    renderConfirmEmail({ email: "user@example.com", from: "wpll" });
-    await submitCode("123456");
-    await act(async () => { vi.runAllTimers(); });
-    expect(mocks.navigate).toHaveBeenCalledWith("/login?from=wpll");
     vi.useRealTimers();
   });
 

@@ -27,7 +27,6 @@ __all__ = [
     "AssessmentScoringJobStatus",
     "ManagerMatchScoringJobStatus",
     "ScoringJobAccepted",
-    "WpllScoringJobStatus",
     "AssessmentCatalogueEntry",
     "AssessmentCatalogueResponse",
     "AssessmentFormResponse",
@@ -44,39 +43,12 @@ __all__ = [
     "TraitPreferenceInput",
     "TraitPreferencesDocument",
     "TraitPreferencesPutRequest",
-    "WorkPulseAnswer",
     "WorkPulseResult",
-    "WpllResultResponse",
-    "WpllSubmitRequest",
 ]
 
-
-class WorkPulseAnswer(SolverahModel):
-    model_config = ConfigDict(extra="allow")
-
-    question_id: Optional[str] = None
-    option_id: Optional[str] = None
-
-
-class WpllSubmitRequest(SolverahModel):
-    """Anonymous Work Pulse Lite-Lite teaser."""
-
-    answers: List[WorkPulseAnswer] = Field(description="1-5 answers.")
-
-
-class WpllResultResponse(SolverahModel):
-    """The teaser insight plus the titles of the sections still locked.
-
-    Two shapes can come back on a 200: the LLM-generated one below, and the
-    deterministic rules-engine fallback when the provider call fails. Both carry
-    ``insight_text`` and ``locked_sections``, which is why the fallback is
-    invisible to the client -- and why it is safe here and nowhere else.
-    """
-
-    model_config = ConfigDict(extra="allow")
-
-    insight_text: str
-    locked_sections: List[str]
+# The anonymous `wpll` teaser's request, result and job-status models were
+# deleted when it was retired (2026-11-23, with `/start`): it has no write door
+# and no readable result, so nothing on the wire carries either shape.
 
 
 class WorkPulseResult(SolverahModel):
@@ -216,7 +188,6 @@ class AssessmentSubmissionRequest(RootModel):
 
     root: Union[
         AssessmentSubmitRequest,
-        WpllSubmitRequest,
         FocusTypeSubmitRequest,
         ManagerMatchSubmitRequest,
     ]
@@ -238,18 +209,16 @@ class AssessmentSubmissionResponse(RootModel):
     root: Union[
         AssessmentSubmitResponse,
         WorkPulseResult,
-        WpllResultResponse,
         FocusTypeResult,
         ManagerMatchResult,
     ]
 
 
 #: ``{kind}`` -> the body that kind actually accepts. This is what is enforced.
-#: The retired ``work_pulse`` has none: every door it had answers 410 before
-#: the body is read.
+#: The two retired kinds, ``work_pulse`` and ``wpll``, have none: every door
+#: they had answers 410 before the body is read.
 SUBMISSION_REQUESTS: Dict[str, type] = {
     "core": AssessmentSubmitRequest,
-    "wpll": WpllSubmitRequest,
     "focus_type": FocusTypeSubmitRequest,
     "manager_match": ManagerMatchSubmitRequest,
 }
@@ -258,7 +227,6 @@ SUBMISSION_REQUESTS: Dict[str, type] = {
 #: operation description, so the mapping is stated once rather than in prose.
 SUBMISSION_RESPONSES: Dict[str, type] = {
     "core": AssessmentSubmitResponse,
-    "wpll": WpllResultResponse,
     "focus_type": FocusTypeResult,
     "manager_match": ManagerMatchResult,
 }
@@ -280,7 +248,12 @@ class AssessmentCatalogueEntry(SolverahModel):
 
     kind: str = Field(description="Path segment: core, work_pulse, wpll, focus_type, manager_match.")
     title: str
-    requires_auth: bool = Field(description="False only for the anonymous wpll teaser.")
+    requires_auth: bool = Field(
+        description=(
+            "Always true since the anonymous wpll teaser was retired "
+            "(2026-11-23). Kept so the entry's shape does not change."
+        )
+    )
     scored_by: str = Field(
         description='"rules" or "llm". An llm-scored instrument is unavailable when the provider is.'
     )
@@ -363,21 +336,6 @@ class _ScoringJobStatusBase(SolverahModel):
     )
 
 
-class WpllScoringJobStatus(_ScoringJobStatusBase):
-    """``GET /assessments/wpll/scoring-jobs/{job_id}``.
-
-    The one poll that needs no JWT, because the instrument it belongs to needs
-    none: ``wpll`` is the anonymous pre-launch teaser and has no account to
-    scope a handle to.  The handle *is* the authorisation -- see
-    ``scoring_jobs.find_anonymous`` for why that is acceptable here and nowhere
-    else.
-    """
-
-    result: Optional[WpllResultResponse] = Field(
-        default=None, description="Present only on 'succeeded'."
-    )
-
-
 class ManagerMatchScoringJobStatus(_ScoringJobStatusBase):
     """``GET /assessments/manager_match/scoring-jobs/{job_id}``."""
 
@@ -387,18 +345,18 @@ class ManagerMatchScoringJobStatus(_ScoringJobStatusBase):
 
 
 class AssessmentScoringJobStatus(RootModel):
-    """Documentation-only union of the two poll responses.
+    """Documentation-only union of the poll responses -- one member since the
+    ``wpll`` teaser was retired (2026-11-23).
 
     Which member comes back is determined by ``{kind}`` in the path, not by
     anything in the body -- the same reason ``AssessmentSubmissionResponse``
     cannot be an OpenAPI discriminated union.  Do not validate against this;
-    validate against :data:`SCORING_JOB_RESPONSES`.
+    validate against :data:`SCORING_JOB_RESPONSES`. Kept as a root model rather
+    than collapsed to its one member so a second job-scored instrument is an
+    added line, not a renamed schema.
     """
 
-    root: Union[
-        WpllScoringJobStatus,
-        ManagerMatchScoringJobStatus,
-    ]
+    root: Union[ManagerMatchScoringJobStatus]
 
 
 #: ``{kind}`` -> the poll body that kind returns. This is what tests assert.
@@ -408,7 +366,6 @@ class AssessmentScoringJobStatus(RootModel):
 #: gained a job endpoint without a response model would be documented by the
 #: union as "one of these" while returning another shape.
 SCORING_JOB_RESPONSES: Dict[str, type] = {
-    "wpll": WpllScoringJobStatus,
     "manager_match": ManagerMatchScoringJobStatus,
 }
 

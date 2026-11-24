@@ -1,8 +1,12 @@
-"""Public intake endpoints and the four ways to attach a submission to an account.
+"""Public intake endpoints and the three ways to attach a submission to an account.
 
 Served under ``/api/v1`` with an ``/api`` alias: the resume ticket and the
-submission (the anonymous hero form), the claims endpoint that attaches either
+submission (the anonymous hero form), the claims endpoint that attaches it
 to an account, and the guest quiz preview.
+
+``POST /intake/claims`` mode ``session`` was removed the same day (ruling C):
+its only caller was the ``/start`` replay in ``Login.tsx``, deleted with
+``/start`` (G24).
 
 ``POST /intake/early-access`` was removed 2026-11-23 (G31): its only caller,
 the landing page's ``EarlyAccessModal``, was deleted 2026-09-28 and the route
@@ -49,8 +53,6 @@ from solverah.schemas.intake import (
     IntakeLinkAccountRequest,
     IntakePresignRequest,
     IntakePresignResponse,
-    IntakeSaveToAccountRequest,
-    IntakeSaveToAccountResponse,
     IntakeSignInRequest,
     IntakeSignInResponse,
 )
@@ -142,10 +144,11 @@ def _claim_scope(_endpoint: str) -> str:
 def _claim_limit() -> str:
     """The limit for the mode being claimed.
 
-    Per-mode because the four were not all the same number: three ran at 5 per
-    minute and ``save-to-account`` at 10. An unrecognised mode gets the
-    strictest of them -- a client that cannot name a valid mode should not be
-    able to probe faster than one that can.
+    Per-mode because the handlers were not all the same number: three ran at
+    5 per minute and ``save-to-account`` (mode ``session``, removed 2026-11-23)
+    at 10. An unrecognised mode gets the strictest of them -- a client that
+    cannot name a valid mode should not be able to probe faster than one that
+    can.
     """
     return CLAIM_LIMITS.get(_claim_mode(), STRICTEST_CLAIM_LIMIT)
 
@@ -212,7 +215,7 @@ def intake_create_submission():
 
 
 @document(
-    "Attach an anonymous submission or quiz session to an account",
+    "Attach an anonymous intake submission to an account",
     tags=["intake"],
     request=IntakeClaimRequest,
     request_for=lambda _view_args, payload: CLAIM_REQUESTS.get(
@@ -239,13 +242,14 @@ def intake_create_submission():
         "request body, the response body, whether a JWT is required, and which "
         "rate-limit bucket the call lands in.\n\n"
         "`register` and `sign_in` are public: they are how a visitor *gets* a "
-        "session, so requiring one would be circular. `link` and `session` "
-        "require a JWT and the CSRF header with it.\n\n"
+        "session, so requiring one would be circular. `link` requires a JWT "
+        "and the CSRF header with it.\n\n"
         "This is `/intake/claims`, not Part 5.2's "
-        "`/intake/submissions/{id}/claim`, because two of the four modes have "
-        "no submission id -- `link` files a new submission rather than claiming "
-        "an existing one, and `session` adopts a quiz session that was never a "
-        "submission at all."
+        "`/intake/submissions/{id}/claim`, because `link` has no submission id "
+        "-- it files a new submission rather than claiming an existing one.\n\n"
+        "Mode `session`, `/intake/save-to-account`'s replacement, was removed "
+        "2026-11-23 with its only caller; it now gets the same 422 as any "
+        "unknown mode."
     ),
 )
 @intake_bp.route("/intake/claims", methods=["POST"])
@@ -254,14 +258,14 @@ def intake_claim():
     """POST /intake/claims - attach anonymous intake data to an account.
 
     The mode is validated before this runs (`enforce=True` against the
-    per-mode model), so by here it is one of the four and its required fields
+    per-mode model), so by here it is one of the three and its required fields
     are present.
     """
     data = request.get_json(silent=True) or {}
     mode = data.get("mode")
 
     if CLAIM_REQUIRES_AUTH.get(mode):
-        # Not @jwt_required(): two of the four modes are deliberately public.
+        # Not @jwt_required(): two of the three modes are deliberately public.
         # verify_jwt_in_request() is the same function the decorator calls, so
         # the cookie lookup, the signature check, and -- on a POST -- the CSRF
         # check are identical.
@@ -286,10 +290,7 @@ def intake_claim():
     if user is None:
         return jsonify({"error": "User not found"}), 404
 
-    if mode == "link":
-        return _respond(intake_service.link_account(user, current_email, data))
-
-    return _respond(intake_service.save_to_account(user, data))
+    return _respond(intake_service.link_account(user, current_email, data))
 
 
 @document(

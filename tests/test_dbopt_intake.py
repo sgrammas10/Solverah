@@ -419,33 +419,6 @@ def test_sign_in_builds_its_response_before_the_commit(client, bucket):
     assert _reloads(statements, "users") == []
 
 
-SESSION_BODY = {
-    "selected_statement_ids": ["dir-1", "sus-2"],
-    "wpll_answers": [
-        {"question_id": "wpll-q%d" % i, "option_id": "wpll-q%d-c" % i}
-        for i in range(1, 6)
-    ],
-    "wpll_insight_text": "Test insight text.",
-}
-
-
-def test_save_to_account_answers_before_the_commit(client):
-    from app import app
-    from model import User, db
-    from solverah.services import intake_service
-
-    user_id = _make_user("saver@example.com")
-
-    with app.test_request_context():
-        user = db.session.get(User, user_id)
-        with count_queries() as statements:
-            result = intake_service.save_to_account(user, SESSION_BODY)
-
-    assert result.status == 200
-    assert result.body == {"message": "Intake saved", "wpll_completed": True}
-    assert _reloads(statements, "assessment_submissions") == []
-
-
 # ── user_intake: one upsert statement, race-free ────────────────────────────
 
 

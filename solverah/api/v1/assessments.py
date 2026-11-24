@@ -17,12 +17,6 @@ from __future__ import annotations
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required, verify_jwt_in_request
 
-from security import (
-    DEFAULT_LIMITS,
-    WPLL_ANON_GLOBAL_LIMIT,
-    WPLL_ANON_PER_IP_LIMIT,
-    global_rate_limit_key,
-)
 from solverah.errors import GoneError, NotFoundError
 from solverah.extensions import limiter
 from solverah.openapi import document
@@ -44,8 +38,6 @@ from solverah.schemas.assessments import (
     ScoringJobAccepted,
     TraitPreferencesDocument,
     TraitPreferencesPutRequest,
-    WpllResultResponse,
-    WpllSubmitRequest,
 )
 from solverah.schemas.manager_playbook import (
     ManagerProfileSubmitRequest,
@@ -95,30 +87,16 @@ DEFAULT_SUBMISSION_LIMIT = "5 per minute"
 #: fixed in passing.
 POLL_LIMIT = "60 per minute;2000 per day"
 
-#: Per-instrument, per-IP limits. Four are preserved exactly as the five
-#: separate handlers had them.
+#: Per-instrument limits, preserved exactly as the separate handlers had them.
 #:
-#: ``wpll`` is the one that changed, in S1. It used to be spelled
-#: ``";".join(DEFAULT_LIMITS)`` -- the global defaults, restated so that
-#: decorating the route could not silently drop the 200-per-day backstop
-#: (``shared_limit`` defaults to ``override_defaults=True``). Restating them was
-#: right; *those numbers* were not the right numbers for the application's one
-#: unauthenticated door onto a paid provider. 200/day with no burst term meant
-#: the 2026-09 audit could fire 40 enqueues from one address in 49 seconds and
-#: collect 40 ``202``s.
-#:
-#: It now carries ``WPLL_ANON_PER_IP_LIMIT``, which keeps a day term (so the
-#: backstop is still not dropped) and adds the minute and hour terms the door
-#: needed. The paired global ceiling lives on the routes themselves, below --
-#: it cannot live in this table, because it is keyed differently.
-#:
-#: The retired ``work_pulse`` has no entry: every write door refuses it, and a
-#: refusal draws the default bucket like any unlisted kind.
+#: The two retired kinds have no entry: every write door refuses them, and a
+#: refusal draws the default bucket like any unlisted kind. ``wpll`` carried
+#: its own anonymous per-IP limit, plus a global spend ceiling on the enqueue,
+#: until its anonymous door closed with it on 2026-11-23.
 SUBMISSION_LIMITS = {
     "core": DEFAULT_SUBMISSION_LIMIT,
     "focus_type": DEFAULT_SUBMISSION_LIMIT,
     "manager_match": DEFAULT_SUBMISSION_LIMIT,
-    "wpll": WPLL_ANON_PER_IP_LIMIT,
 }
 
 
@@ -149,17 +127,18 @@ def _kind_or_404(kind: str):
 def _refuse_retired(resolved) -> None:
     """Raise the 410 every write door gives a retired instrument.
 
-    The original 12-question ``work_pulse`` (retired 2026-10-02) is the only
-    one. Its own code, ``kind_retired``, rather than Phase 3c's
-    ``moved_to_scoring_jobs``: that refusal carries a forwarding address for
-    the same operation, and this one has none -- the operation is gone, not
-    moved. Raised before auth and before the body is read, like Phase 3c's,
-    because it holds for any caller sending anything. The stored result stays
-    readable at ``GET /me/assessments/work_pulse/result``.
+    Two: the original 12-question ``work_pulse`` (retired 2026-10-02) and the
+    anonymous ``wpll`` teaser (retired 2026-11-23 with ``/start``). Its own
+    code, ``kind_retired``, rather than Phase 3c's ``moved_to_scoring_jobs``:
+    that refusal carries a forwarding address for the same operation, and this
+    one has none -- the operation is gone, not moved. Raised before auth and
+    before the body is read, like Phase 3c's, because it holds for any caller
+    sending anything. ``work_pulse``'s stored result stays readable at
+    ``GET /me/assessments/work_pulse/result``.
     """
     if resolved.retired:
         raise GoneError(
-            detail=assessment_service.RETIRED_WORK_PULSE_MESSAGE,
+            detail=assessment_service.retired_message(resolved),
             errors=[{"field": "kind", "code": "kind_retired"}],
         )
 
@@ -167,10 +146,10 @@ def _refuse_retired(resolved) -> None:
 def _sync_kind_or_410(kind: str):
     """Resolve ``{kind}`` and require that it still submits synchronously.
 
-    The mirror of :func:`_job_kind_or_404`, splitting the five instruments on
+    The mirror of :func:`_job_kind_or_404`, splitting the live instruments on
     the same predicate (``scoring_jobs.is_job_eligible``) so the two routes
-    partition them identically: the three provider-scored kinds queue and are
-    refused here, the two rules-scored kinds submit here and 404 there.
+    partition them identically: the provider-scored kind queues and is refused
+    here, the two rules-scored kinds submit here and 404 there.
 
     410 rather than 404, because a 404 would lie twice over. The kind exists --
     an unknown one is the 404, above -- and this operation existed for it until
@@ -194,22 +173,22 @@ def _sync_kind_or_410(kind: str):
     return resolved
 
 
-def _require_auth_for(kind) -> None:
-    """Enforce the JWT for instruments that need one.
+def _require_auth() -> None:
+    """Enforce the JWT, after ``{kind}`` has been resolved.
 
-    ``@jwt_required()`` cannot be used here, because one of the five is
-    deliberately anonymous: ``wpll`` is the pre-launch teaser and has no account
-    to attach to yet. So the requirement moves inside the handler, where it can
-    depend on ``{kind}``.
+    Every instrument needs one since ``wpll``'s anonymous door closed
+    (2026-11-23). It stays inside the handler rather than becoming
+    ``@jwt_required()`` because of *when* it runs: an unknown kind is a 404 and
+    a retired or moved one a 410 for any caller, before auth, and the decorator
+    would turn those into 401s for a signed-out caller.
 
     ``verify_jwt_in_request()`` is the same function the decorator calls, which
     matters more than it looks: it performs the identical cookie lookup, the
     identical signature check, **and the identical CSRF check** on a
     state-changing method. Hand-rolling an "is there a cookie" test here would
-    have quietly dropped CSRF protection from four instruments.
+    quietly drop CSRF protection.
     """
-    if kind.requires_auth:
-        verify_jwt_in_request()
+    verify_jwt_in_request()
 
 
 def _submission_scope(_endpoint: str) -> str:
@@ -240,48 +219,11 @@ def _submission_scope(_endpoint: str) -> str:
     return "%s%s" % (SUBMIT_SCOPE_PREFIX, kind)
 
 
-def _anonymous_submission_scope(_endpoint: str) -> str:
-    """Bucket for the *global* spend ceiling on an anonymous instrument.
-
-    Keyed by instrument like ``_submission_scope``, and for the same reason --
-    the two anonymous doors this application has must not be able to close each
-    other. It carries its own ``:global`` suffix rather than reusing that scope
-    because the bucket underneath it is keyed on a constant, not on the caller;
-    the same name with two key functions would be one name for two different
-    counters.
-    """
-    kind = (request.view_args or {}).get("kind") or "unknown"
-    return "%s%s:global" % (SUBMIT_SCOPE_PREFIX, kind)
-
-
-def _is_authenticated_kind() -> bool:
-    """Whether the instrument being submitted needs a JWT.
-
-    Used as ``exempt_when`` on the global ceiling below, so the ceiling applies
-    to the anonymous instruments and to nothing else. Derived from the registry
-    rather than from a literal ``kind == "wpll"``, so a second anonymous
-    instrument inherits the control instead of quietly arriving without one.
-
-    An unknown ``{kind}`` counts as authenticated and is therefore exempt: it is
-    about to be a 404 from ``_job_kind_or_404``, and spending the anonymous
-    budget on requests that reach no provider would let anyone close the door
-    for real visitors by typing a name that does not exist.
-    """
-    kind = assessment_service.find_kind((request.view_args or {}).get("kind") or "")
-    return kind is None or kind.requires_auth
-
-
 def _submission_limit() -> str:
     """The limit string for the instrument being submitted.
 
-    Per-kind because the five do not have the same limit today and unifying the
-    route must not unify that either.
-
-    ``wpll`` is the one that needs stating. It carries no per-endpoint limit at
-    all, so it runs on the global defaults -- and ``@limiter.limit`` defaults to
-    ``override_defaults=True``, which means decorating it with a bare "5 per
-    minute" would have *removed* its 200-per-day cap while appearing to tighten
-    it. Naming the defaults explicitly keeps them.
+    Per-kind so that a future instrument with a different limit does not have
+    to unify it with the others to share the route.
     """
     kind = (request.view_args or {}).get("kind") or "unknown"
     return SUBMISSION_LIMITS.get(kind, DEFAULT_SUBMISSION_LIMIT)
@@ -366,29 +308,22 @@ def assessment_kind_form(kind: str):
         "between sittings exists as a server setting and is off; when it is "
         "on, a retake inside it answers `409` with error code "
         "`retake_cooldown`.\n\n"
-        "The two provider-scored kinds, `wpll` and `manager_match`, answer "
-        "`410 Gone` here since Phase 3c: their scoring moved off the request "
-        "path, and the problem document's `replaced_by` names the "
+        "The provider-scored `manager_match` answers `410 Gone` here since "
+        "Phase 3c: its scoring moved off the request path, and the problem "
+        "document's `replaced_by` names the "
         "`POST /assessments/{kind}/scoring-jobs` operation that took it. "
-        "The retired `work_pulse` (the original 12-question instrument, "
-        "retired 2026-10-02) answers `410` with error code `kind_retired` and "
-        "no `replaced_by`."
+        "The two retired kinds -- `work_pulse` (the original 12-question "
+        "instrument, retired 2026-10-02) and `wpll` (the anonymous pre-signup "
+        "teaser, retired 2026-11-23) -- answer `410` with error code "
+        "`kind_retired` and no `replaced_by`."
     ),
 )
-# NOTE: the anonymous *global* ceiling is deliberately NOT on this route, only
-# on the enqueue below. It bounds provider spend, and this route spends nothing
-# for `wpll`: `_sync_kind_or_410` refuses before auth and before the body is
-# read. Counting refusals into a shared bucket would hand anyone a way to close
-# the real teaser for every visitor by hammering a door that is already gone --
-# 500 free hits, no provider call, no cost to the attacker. The per-IP bucket
-# below still counts them, and should: it is per-caller, so it bounds only the
-# caller doing it. Same distinction POLL_LIMIT makes for the same reason.
 @assessments_bp.route("/assessments/<kind>/submissions", methods=["POST"])
 @limiter.shared_limit(_submission_limit, scope=_submission_scope)
 def assessment_kind_submit(kind: str):
     """POST /assessments/{kind}/submissions - score and persist a submission.
 
-    Phase 3c closed this route to the three provider-scored instruments; the
+    Phase 3c closed this route to the provider-scored instruments; the
     refusal is in `_sync_kind_or_410`, and it comes before auth and before the
     body is read because the operation is gone for those kinds no matter who
     asks or what they send. The rate-limit decorator stays exactly as it was:
@@ -405,10 +340,10 @@ def assessment_kind_submit(kind: str):
     quietly.
     """
     resolved = _sync_kind_or_410(kind)
-    _require_auth_for(resolved)
+    _require_auth()
 
-    user = _current_user() if resolved.requires_auth else None
-    if resolved.requires_auth and not user:
+    user = _current_user()
+    if not user:
         return jsonify({"error": "User not found"}), 404
 
     return _respond(
@@ -572,10 +507,10 @@ def submit_manager_profile():
 # Phase 3b/3c -- scoring off the request path
 # ---------------------------------------------------------------------------
 #
-# `202` + a job handle for the three instruments that call a provider. 3b added
-# these alongside the synchronous submit; 3c closed the synchronous half once
-# the frontend had moved (43a2024), so this is now the only way those three
-# score. The submit route above answers their callers 410 with a pointer here.
+# `202` + a job handle for the instruments that call a provider -- one since
+# `wpll` was retired (2026-11-23), `manager_match`. 3b added these alongside the
+# synchronous submit; 3c closed the synchronous half once the frontend had moved
+# (43a2024), so this is now the only way they score. The submit route above answers their callers 410 with a pointer here.
 #
 # `core` and `focus_type` have no job endpoint and answer 404 here. They score
 # from deterministic tables without opening a socket, and a job for work that
@@ -591,8 +526,9 @@ def _job_kind_or_404(kind: str):
     caller asked for it wrongly. It is the same answer `GET
     /assessments/{kind}/form` gives for the four instruments that serve no form.
 
-    A 410 for the retired `work_pulse`, on the enqueue and the poll alike: it
-    had this operation until 2026-10-02 and has none now.
+    A 410 for the two retired kinds, on the enqueue and the poll alike: each
+    had this operation once and has none now (`work_pulse` until 2026-10-02,
+    `wpll` until 2026-11-23).
     """
     resolved = _kind_or_404(kind)
     _refuse_retired(resolved)
@@ -628,12 +564,13 @@ def _job_kind_or_404(kind: str):
         "on the provider. Poll "
         "`GET /assessments/{kind}/scoring-jobs/{job_id}` until `status` is "
         "`succeeded` or `failed`.\n\n"
-        "Only the two provider-scored instruments have this operation: "
-        "`wpll` and `manager_match`. `core` and `focus_type` score "
-        "deterministically in-process and answer `404` here -- they are served "
-        "by the synchronous submit route, which since Phase 3c serves only "
-        "them. The retired `work_pulse` answers `410` with error code "
-        "`kind_retired`: it accepts no submissions and calls no provider.\n\n"
+        "Only the provider-scored `manager_match` has this operation. `core` "
+        "and `focus_type` score deterministically in-process and answer `404` "
+        "here -- they are served by the synchronous submit route, which since "
+        "Phase 3c serves only them. The two retired kinds, `work_pulse` and "
+        "`wpll`, answer `410` with error code `kind_retired`: they accept no "
+        "submissions and call no provider. Every other caller needs a JWT; "
+        "`wpll`'s anonymous enqueue closed when it was retired (2026-11-23).\n\n"
         "**This shares one rate-limit budget with the synchronous submit for "
         "the same instrument.** The limit bounds provider spend, and spend does "
         "not move when the call moves to a worker (A9), so queueing and "
@@ -641,8 +578,6 @@ def _job_kind_or_404(kind: str):
     ),
 )
 @assessments_bp.route("/assessments/<kind>/scoring-jobs", methods=["POST"])
-@limiter.shared_limit(WPLL_ANON_GLOBAL_LIMIT, scope=_anonymous_submission_scope,
-                      key_func=global_rate_limit_key, exempt_when=_is_authenticated_kind)
 @limiter.shared_limit(_submission_limit, scope=_submission_scope)
 def assessment_kind_scoring_job(kind: str):
     """POST /assessments/{kind}/scoring-jobs - queue the scoring, return 202.
@@ -661,25 +596,16 @@ def assessment_kind_scoring_job(kind: str):
     would convert an immediate, actionable error into a 202, a poll, and a
     failed job several seconds later.
 
-    **The second decorator is S1's, and it does a different job.** For `wpll` --
-    the one instrument with `requires_auth=False` -- this is an unauthenticated
-    route that commits a row and makes a paid provider call. A per-IP limit
-    cannot bound that, because the quantity an abuser controls freely is the
-    number of distinct addresses: N addresses buy N times the budget. The
-    `global_rate_limit_key` bucket is keyed on a constant, so it is one counter
-    for the whole deployment and it is the control that actually caps the bill.
-    `exempt_when=_is_authenticated_kind` keeps it off the other four, which have
-    an account behind them and are bounded by that instead.
-
-    This is the same two-limit shape `POST /intake/quiz-preview/insights`
-    already used; see `security.WPLL_ANON_GLOBAL_LIMIT` for what is shared with
-    it, what is not, and why.
+    Until 2026-11-23 a second, global-key ceiling sat on this route for the
+    anonymous `wpll` enqueue -- the one unauthenticated door onto a paid
+    provider. Every caller now has an account behind it, so the per-account
+    bucket above is the whole of the bound.
     """
     resolved = _job_kind_or_404(kind)
-    _require_auth_for(resolved)
+    _require_auth()
 
-    user = _current_user() if resolved.requires_auth else None
-    if resolved.requires_auth and not user:
+    user = _current_user()
+    if not user:
         return jsonify({"error": "User not found"}), 404
 
     data = request.get_json(silent=True) or {}
@@ -712,10 +638,9 @@ def assessment_kind_scoring_job(kind: str):
         "`result` is that instrument's own result model and nothing else, and "
         "it is present only once `status` is `succeeded`. There is no shared "
         "result envelope here for the same reason there is none there (A12).\n\n"
-        "`wpll` needs no JWT, because the instrument does not: it is the "
-        "anonymous teaser, its job has no owner, and the handle is what "
-        "authorises the poll. `manager_match` scopes the handle to the "
-        "authenticated user. The retired `work_pulse` answers `410`."
+        "The handle is scoped to the authenticated user. The two retired "
+        "kinds, `work_pulse` and `wpll`, answer `410`; `wpll`'s anonymous poll "
+        "closed when it was retired (2026-11-23)."
     ),
 )
 @assessments_bp.route("/assessments/<kind>/scoring-jobs/<job_id>", methods=["GET"])
@@ -732,20 +657,17 @@ def assessment_kind_scoring_job_status(kind: str, job_id: str):
     Work Pulse body.
     """
     resolved = _job_kind_or_404(kind)
-    _require_auth_for(resolved)
+    _require_auth()
 
-    if resolved.requires_auth:
-        user = _current_user()
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-        job = scoring_jobs.find_for_user(
-            user.id,
-            job_id,
-            job_type=scoring_jobs.ASSESSMENT,
-            kind=resolved.key,
-        )
-    else:
-        job = scoring_jobs.find_anonymous(job_id, kind=resolved.key)
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    job = scoring_jobs.find_for_user(
+        user.id,
+        job_id,
+        job_type=scoring_jobs.ASSESSMENT,
+        kind=resolved.key,
+    )
 
     if job is None:
         return jsonify({"error": "Job not found"}), 404

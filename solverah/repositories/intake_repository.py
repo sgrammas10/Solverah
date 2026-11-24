@@ -6,6 +6,12 @@ The ``wpll_*`` and ``wpl_*`` families beside it moved to
 release.  That is why :func:`upsert_user_intake` takes two arguments where it
 used to take five.
 
+Since 2026-11-23 nothing in the application writes ``user_intake`` at all: its
+one writer, ``intake_service.save_to_account``, went with ``/start`` (ruling C).
+:func:`upsert_user_intake` stays only because tests seed rows through it, and
+existing rows are still exported and deleted with their account.  Whether the
+table goes is a schema decision, not this module's.
+
 Nothing here commits: every statement runs on ``db.session``, inside the
 caller's transaction.  :func:`insert_submission` was the exception until
 2026-09-28.  It opened a raw psycopg2 connection and committed the row on it,
@@ -119,9 +125,12 @@ def upsert_user_intake(user_id: int, selected_ids: List[Any]) -> UserIntake:
     screen 1 of ``/start``, they are not scored, and no instrument produces them.
     So they stay here.
 
+    **No application code calls this since 2026-11-23** -- see the module
+    docstring.  Kept for the tests that seed ``user_intake`` rows.
+
     **The WPLL answers used to be written here too, and are not any more.** Phase
     2d moved them to ``assessment_submissions`` with the other four instruments'
-    data -- see ``intake_service.save_to_account``, which now writes both halves.
+    data.
     The ``wpll_*`` and ``wpl_*`` columns still exist on this table, are read by
     nothing, and are dropped in the next release; the same one-release stay
     ``users.profile_data`` is serving.

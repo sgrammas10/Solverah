@@ -50,8 +50,10 @@ def sweep_scoring_jobs(limit: int = 100) -> dict:
 def purge_scoring_jobs() -> int:
     """Delete terminal job rows past their retention window.
 
-    ``resume_parse_jobs`` has no equivalent because its rows are bounded by the
-    account they cascade from.  These are not: a ``wpll`` job is anonymous, so no
-    account deletion will ever reach it and nothing else would bound the table.
+    ``resume_parse_jobs`` has no equivalent because its rows are bounded only by
+    the account they cascade from, and that is enough there.  A scoring job's
+    row is a receipt nobody reads after a week, so it is bounded by age as well.
+    (It was also the only bound on the anonymous ``wpll`` rows, which had no
+    account; that door closed on 2026-11-23, and this sweep removes any left.)
     """
     return scoring_jobs.purge_terminal()

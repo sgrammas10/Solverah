@@ -1,9 +1,13 @@
-"""The public intake flow: presign, finalize, and the four ways to attach it.
+"""The public intake flow: presign, finalize, and the three ways to attach it.
 
 The intake funnel is: an anonymous visitor uploads a resume and fills in a form
 (``presign`` then ``finalize``), and then attaches that submission to an account
-one of four ways -- create a new one, sign in to an existing one, link it while
-already signed in, or save an anonymous quiz session onto their account.
+one of three ways -- create a new one, sign in to an existing one, or link it
+while already signed in.
+
+A fourth, ``save_to_account``, saved an anonymous Work Pulse Lite-Lite session
+from ``/start`` onto the account after login.  It went on 2026-11-23 with
+``/start`` itself (G24, ruling C); nothing on the client called it any more.
 
 Part 5.2 collapses the four attachment endpoints into a single
 ``POST /intake/submissions/{id}/claim`` with a ``mode`` discriminator, which
@@ -32,13 +36,11 @@ from solverah.domain import intake as domain
 from solverah.infra import storage
 from solverah.infra.storage import ALLOWED_MIME, MAX_BYTES
 from solverah.repositories import (
-    assessment_repository,
     intake_repository,
     profile_repository,
     user_repository,
 )
 from solverah.services import (
-    assessment_service,
     audit,
     auth_service,
     outbox,
@@ -53,7 +55,6 @@ __all__ = [
     "link_account",
     "pending_claim_status",
     "presign",
-    "save_to_account",
     "sign_in",
     "verify_upload",
 ]
@@ -61,9 +62,6 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 PRESIGN_TTL_SECONDS = 10 * 60
-
-#: Answer cap on the anonymous Work Pulse Lite-Lite session.
-MAX_WPLL_ANSWERS = 5
 
 
 @dataclass
@@ -460,61 +458,3 @@ def link_account(user: User, current_email: str, data: Dict[str, Any]) -> Intake
     db.session.commit()
 
     return IntakeResult(status=200, body={"ok": True})
-
-
-def save_to_account(user: User, data: Dict[str, Any]) -> IntakeResult:
-    """Persist an anonymous Work Pulse Lite-Lite session onto the account.
-
-    Called by the frontend immediately after login when sessionStorage carries
-    intake data from the ``/start`` flow.
-    """
-    selected_ids = data.get("selected_statement_ids", [])
-    wpll_answers = data.get("wpll_answers", [])
-    wpll_insight_text = data.get("wpll_insight_text", "") or ""
-
-    if not isinstance(selected_ids, list):
-        return _error(400, "selected_statement_ids must be a list")
-    if not isinstance(wpll_answers, list):
-        return _error(400, "wpll_answers must be a list")
-    if len(wpll_answers) > MAX_WPLL_ANSWERS:
-        return _error(400, "wpll_answers must contain at most 5 items")
-
-    # Two halves, two homes, and the split is the point of Phase 2d: the
-    # statement selections are intake data and stay on `user_intake`; the WPLL
-    # answers and their insight are one of the five assessment products and go
-    # where the other four go.
-    intake_repository.upsert_user_intake(
-        user_id=user.id, selected_ids=selected_ids
-    )
-
-    submission = assessment_repository.open_current(
-        user.id, "wpll", assessment_service.CLIENT_FORM_VERSION
-    )
-    submission.answers = wpll_answers
-    submission.narrative = wpll_insight_text or None
-    submission.status = "complete"
-    # Set on the first save that carries answers and never moved afterwards. A
-    # re-save replaces the answers -- it always has -- but "when did this person
-    # finish WPLL" is a fact about the first sitting, and a re-save is not a
-    # retake. This is the one instrument whose completion timestamp is not
-    # refreshed, which is why `open_current` leaves the field to the caller.
-    if wpll_answers and submission.completed_at is None:
-        submission.completed_at = auth_domain.utcnow()
-
-    audit.log_audit_event(
-        action="create",
-        actor_user_id=user.id,
-        resource="user_intake",
-        metadata={
-            "statement_count": len(selected_ids),
-            "answer_count": len(wpll_answers),
-        },
-    )
-    # Before the commit, for the reason given in create_account.
-    wpll_completed = submission.completed_at is not None
-    db.session.commit()
-
-    return IntakeResult(
-        status=200,
-        body={"message": "Intake saved", "wpll_completed": wpll_completed},
-    )

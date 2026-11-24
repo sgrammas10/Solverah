@@ -120,16 +120,7 @@ describe("Register - happy path", () => {
       true
     );
     expect(mocks.navigate).toHaveBeenCalledWith("/verify-email", {
-      state: { email: "test@example.com", from: undefined },
-    });
-  });
-
-  it("passes from=wpll in state when registered via ?from=wpll", async () => {
-    mocks.register.mockResolvedValueOnce(undefined);
-    renderRegister("?from=wpll");
-    await fillAndSubmit();
-    expect(mocks.navigate).toHaveBeenCalledWith("/verify-email", {
-      state: { email: "test@example.com", from: "wpll" },
+      state: { email: "test@example.com" },
     });
   });
 });

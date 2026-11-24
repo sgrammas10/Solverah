@@ -12,11 +12,12 @@
  * polling that stops on an error rather than reading "no data yet" as "still
  * running", and fail-closed handling of a status nobody recognises.
  *
- * ── EXACTLY TWO INSTRUMENTS ARE HERE, AND THAT IS THE DESIGN (A19) ───────────
+ * ── EXACTLY ONE INSTRUMENT IS HERE, AND THAT IS THE DESIGN (A19) ─────────────
  *
- * ``wpll`` and ``manager_match`` block on an OpenAI call of seconds to tens of
- * seconds. (``work_pulse`` was the third until the original 12-question
- * instrument was retired on 2026-10-02; its job routes answer 410 now.) ``core`` and ``focus_type`` score from
+ * ``manager_match`` blocks on an OpenAI call of seconds to tens of seconds.
+ * (``work_pulse`` was here until the original 12-question instrument was
+ * retired on 2026-10-02, and ``wpll`` until the anonymous teaser was retired
+ * with ``/start`` on 2026-11-23; their job routes answer 410 now.) ``core`` and ``focus_type`` score from
  * deterministic tables without opening a socket -- 211 ms and 40 ms measured,
  * including the database writes and the HTTP round trip -- so handing their
  * callers a job to poll would spend two extra round trips to deliver a slower
@@ -31,20 +32,17 @@
  *
  * ``{kind}`` is in the poll path precisely because the response model differs
  * per instrument (A12): ``result`` is that instrument's own model and nothing
- * else. A hook returning ``WpllScoringJobStatus | ManagerMatchScoringJobStatus``
- * would hand every caller a union it has to
- * re-narrow by hand, which is the shared result envelope A12 rejected, rebuilt
- * in TypeScript. Threading the kind through as a type parameter means
- * ``useScoringJobStatus("wpll", id).data.result`` is a ``WpllResultResponse``
- * at the call site and a ``ManagerMatchResult`` is a type error there. See
- * ``useScoringJob.test.tsx`` for that assertion, which `npm run type-check`
- * enforces.
+ * else. A hook returning a union of the kinds' status models would hand every
+ * caller a union it has to re-narrow by hand, which is the shared result
+ * envelope A12 rejected, rebuilt in TypeScript. Threading the kind through as a
+ * type parameter means ``useScoringJobStatus("manager_match", id).data.result``
+ * is a ``ManagerMatchResult`` at the call site. With one kind left the generic
+ * is cheap to keep, and a second job-scored instrument is a line in each map
+ * below rather than a reshaped hook.
  */
 import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
 
 import { useAuth } from "../auth";
-import { API_BASE } from "../../shared/api/api";
-import { parseApiError } from "../../shared/api/apiError";
 import type { components } from "../../shared/api/schema";
 
 type ScoringJobAccepted = components["schemas"]["ScoringJobAccepted"];
@@ -55,23 +53,21 @@ type ScoringJobAccepted = components["schemas"]["ScoringJobAccepted"];
  * `scoring_jobs.JOB_ELIGIBLE_KINDS` is the authority; this is its client-side
  * restatement. `core` and `focus_type` are absent on purpose -- see the header.
  */
-export type ScoringJobKind = "wpll" | "manager_match";
+export type ScoringJobKind = "manager_match";
 
 /**
  * `{kind}` -> the poll's response model.
  *
- * The two differ only in `result`, and that is the whole point of the path
+ * Kinds differ only in `result`, and that is the whole point of the path
  * parameter. Written as a map rather than a union so `ScoringJobStatusByKind[K]`
  * resolves to exactly one member for a known `K`.
  */
 export interface ScoringJobStatusByKind {
-  wpll: components["schemas"]["WpllScoringJobStatus"];
   manager_match: components["schemas"]["ManagerMatchScoringJobStatus"];
 }
 
 /** `{kind}` -> the enqueue's request body, which is the submit's body unchanged. */
 export interface ScoringJobRequestByKind {
-  wpll: components["schemas"]["WpllSubmitRequest"];
   manager_match: components["schemas"]["ManagerMatchSubmitRequest"];
 }
 
@@ -120,88 +116,35 @@ export function isKnownScoringPhase(status: string): status is ScoringJobPhase {
 export const SCORING_JOB_POLL_INTERVAL_MS = 3000;
 
 /**
- * `wpll` is the one kind that is not fetched with the session's credentials.
+ * Whether this kind's endpoints can be called yet: a poll issued before the
+ * session probe lands would 401 and stop as a terminal error.
  *
- * It is the anonymous pre-launch teaser: its job has no owner (the server's
- * `ck_scoring_jobs_owner_required` grants ownerless rows to `wpll` by name) and
- * the handle is the whole of its authorisation. `fetchWithAuth` sends
- * `credentials: "include"`, so routing this kind through it would start
- * attaching a signed-in visitor's cookie to a request that today carries none
- * -- a change to which branch the server takes, smuggled in under a transport
- * change. The synchronous call site this replaces used a bare `fetch`; so does
- * this.
- *
- * Takes a whole URL rather than a path suffix -- see the note on the two
- * spellings below.
+ * Every kind needs a session. `wpll`, the anonymous pre-signup teaser, was the
+ * one exception -- fetched with a bare `fetch` and no credentials -- until it was
+ * retired with `/start` on 2026-11-23.
  */
-async function anonymousJson<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(url, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...(options.headers ?? {}) },
-  });
-  const data = await res.json().catch(() => null);
-  // parseApiError rather than a bare Error so `shouldRetry` in queryClient.ts
-  // classifies this the way it classifies every other failure -- a 404 on a
-  // stale handle must not be retried three times.
-  if (!res.ok) throw parseApiError(res, data);
-  if (data === null) throw new Error("Unexpected response from server (no JSON body).");
-  return data as T;
-}
-
-/**
- * Whether this kind's endpoints can be called yet.
- *
- * `wpll` is reachable signed out; the other two are not, and a poll issued
- * before the session probe lands would 401 and stop as a terminal error.
- */
-function useScoringJobReady(kind: ScoringJobKind): boolean {
+function useScoringJobReady(): boolean {
   const { user } = useAuth();
-  return kind === "wpll" || Boolean(user);
+  return Boolean(user);
 }
-
-/*
- * ── WHY THE PATH IS WRITTEN OUT IN BOTH BRANCHES BELOW ──────────────────────
- *
- * The obvious shape is to pick a transport once -- `const request = kind ===
- * "wpll" ? anonymousJson : fetchWithAuth` -- and call `request(path)`. It works
- * at runtime and it is invisible to `tests/test_frontend_contract.py`, which
- * scans this source for two literal shapes: an API_BASE template literal, and a
- * fetchWithAuth (or streamFetch) call whose first argument is a quoted path
- * beginning with a slash. A call through a variable named `request` matches
- * neither, so these four endpoints would be the only ones in the SPA that the
- * "every path the frontend calls is one the API serves" check could not see --
- * and that check is what turns a 404 on a rarely-visited screen into a failing
- * test instead of a bug report.
- *
- * (Neither shape is written out above for the same reason: this file is scanned
- * as source, so an illustrative example in a comment would be read as a real
- * call site to a path the API does not serve.)
- *
- * So each request is spelled out on the branch that issues it. The duplication
- * is one line per branch and it keeps both call sites scannable.
- */
 
 /** `POST /assessments/{kind}/scoring-jobs` -- queue a scoring, get a job handle back. */
 export function useStartScoringJob<K extends ScoringJobKind>(kind: K) {
   const { fetchWithAuth } = useAuth();
 
   return useMutation({
-    mutationFn: (body: ScoringJobRequestByKind[K]) => {
-      const init: RequestInit = { method: "POST", body: JSON.stringify(body) };
-      return kind === "wpll"
-        ? anonymousJson<ScoringJobAccepted>(
-            `${API_BASE}/assessments/${kind}/scoring-jobs`,
-            init
-          )
-        : fetchWithAuth<ScoringJobAccepted>(`/assessments/${kind}/scoring-jobs`, init);
-    },
+    mutationFn: (body: ScoringJobRequestByKind[K]) =>
+      fetchWithAuth<ScoringJobAccepted>(`/assessments/${kind}/scoring-jobs`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 }
 
 /**
  * `GET /assessments/{kind}/scoring-jobs/{job_id}`, polled until terminal.
  *
- * The return type is this kind's model, not the union of the three.
+ * The return type is this kind's own model, not a union over kinds.
  */
 export function useScoringJobStatus<K extends ScoringJobKind>(
   kind: K,
@@ -209,7 +152,7 @@ export function useScoringJobStatus<K extends ScoringJobKind>(
   options: { pollIntervalMs?: number } = {},
 ): UseQueryResult<ScoringJobStatusByKind[K]> {
   const { fetchWithAuth } = useAuth();
-  const ready = useScoringJobReady(kind);
+  const ready = useScoringJobReady();
   const pollIntervalMs = options.pollIntervalMs ?? SCORING_JOB_POLL_INTERVAL_MS;
 
   return useQuery({
@@ -218,19 +161,11 @@ export function useScoringJobStatus<K extends ScoringJobKind>(
     // `kind` is in the key as well: two instruments' handles are distinct
     // namespaces on the server and must not share a cache entry here either.
     queryKey: scoringJobKeys.status(kind, jobId ?? ""),
-    queryFn: () => {
-      const init: RequestInit = { method: "GET" };
-      // Both spellings written out -- see the note above `useStartScoringJob`.
-      return kind === "wpll"
-        ? anonymousJson<ScoringJobStatusByKind[K]>(
-            `${API_BASE}/assessments/${kind}/scoring-jobs/${jobId}`,
-            init
-          )
-        : fetchWithAuth<ScoringJobStatusByKind[K]>(
-            `/assessments/${kind}/scoring-jobs/${jobId}`,
-            init
-          );
-    },
+    queryFn: () =>
+      fetchWithAuth<ScoringJobStatusByKind[K]>(
+        `/assessments/${kind}/scoring-jobs/${jobId}`,
+        { method: "GET" }
+      ),
     enabled: ready && jobId !== null,
     // A remount mid-poll must refetch rather than show a minute-old "queued"
     // from the global 60s staleTime (queryClient.ts's DEFAULT_STALE_TIME_MS).

@@ -7,3 +7,4 @@
 - [Retake-page sitting note](trait-prefs-retake-note.md) — D-15 line on /trait-preferences only; keep off the first-time step; G49 rewording: first answer applies at once
 - [/work-pulse router state](work-pulse-router-state.md) — { retake: true } and { traitPreferencesSaved: true }, read once + stripped; Unlock card links
 - [G47 was a misread](g47-was-a-misread.md) — RQ v5 clears error on refetch with no data; Loading… already shows; pinned, no fix
+- [wpll retired](wpll-retired.md) — 2026-11-23 ruling C: anonymous teaser 410 kind_retired, no anonymous door; owner-constraint tightening left to Sebastian
