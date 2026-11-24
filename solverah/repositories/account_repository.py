@@ -18,9 +18,10 @@ from __future__ import annotations
 
 from typing import List
 
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, text
 
 from company_evidence_store import (
+    coarsen_company_link_dates_for_user,
     delete_company_lookups_for_user,
     delete_job_postings_for_user,
 )
@@ -48,6 +49,8 @@ from solverah.repositories import (
 )
 
 __all__ = [
+    "AUDIT_METADATA_KEPT_KEYS",
+    "anonymize_retained_rows",
     "delete_personal_rows",
     "find_intakes_for_email",
     "find_job_recommendations",
@@ -225,6 +228,93 @@ def delete_personal_rows(user_id: int, intakes: List[IntakeSubmission]) -> None:
     # gives `environment_reports.employer_name_normalized`, the other employer identity
     # tied to a person. Destroying it here would NULL every retained check-in's
     # `company_link_id` and strip the research value C8 added the column for.
+    # `anonymize_retained_rows` reduces its dates to the month instead (G36).
+
+
+#: The audit `metadata` keys that survive an account deletion. Everything else is
+#: dropped from the deleted user's rows.
+#:
+#: An allowlist and not a list of keys to remove, because the failure modes differ. The
+#: key that made G36 was one nobody thought of as personal when it was written
+#: (`intake_link_account` storing the account's email), and a pre-refactor caller stored
+#: `{"error": str(exc)}` from a failed email send, which can quote the address. A
+#: denylist keeps the next such key until someone notices; this drops it until someone
+#: argues it in. What is kept is counts, booleans and closed vocabularies:
+#:
+#: * ``r2_delete_failures``, ``statement_count``, ``answer_count``,
+#:   ``revoked_siblings`` -- integers.
+#: * ``moved`` -- a boolean.
+#: * ``retired_reason`` -- one of `refresh_tokens`' REASON_* constants.
+#: * ``updated_fields`` -- profile field NAMES, already cut down to
+#:   `validators.ALLOWED_PROFILE_FIELDS` before the audit call; never a value.
+#: * ``user_id``, ``target_user_id`` -- always the actor's own id, i.e. the tombstone.
+#:
+#: Deliberately not kept: ``email`` and ``error`` (above), and ``submission_id``,
+#: ``family_id``, ``session_id`` -- ids of rows the deletion destroys, which would only
+#: be useful for joining the audit trail back to a backup that still holds them.
+AUDIT_METADATA_KEPT_KEYS = (
+    "answer_count",
+    "moved",
+    "r2_delete_failures",
+    "retired_reason",
+    "revoked_siblings",
+    "statement_count",
+    "target_user_id",
+    "updated_fields",
+    "user_id",
+)
+
+_SCRUB_AUDIT_ROWS = text(
+    """
+    UPDATE audit_log
+       SET ip_address = NULL,
+           user_agent = NULL,
+           metadata = CASE
+               WHEN json_typeof(metadata) = 'object' THEN (
+                   SELECT COALESCE(json_object_agg(entry.key, entry.value), '{}'::json)
+                     FROM json_each(audit_log.metadata) AS entry
+                    WHERE entry.key = ANY(:kept_keys)
+               )
+               ELSE '{}'::json
+           END
+     WHERE actor_user_id = :user_id
+    """
+)
+
+
+def anonymize_retained_rows(user_id: int) -> None:
+    """Cut the threads that lead from the rows deletion KEEPS back to a person (G36).
+
+    The retained rows -- assessment answers, environment reports, check-ins, company
+    links -- all hang off the tombstone id, and "de-identified" is only true if nothing
+    else hanging off that id says who it was. Two things did:
+
+    * **The audit trail.** Every row with this actor loses `ip_address` and
+      `user_agent` now rather than at retention_cleanup's 365 days, and its `metadata`
+      is cut down to :data:`AUDIT_METADATA_KEPT_KEYS`. The events themselves stay: that
+      an anonymous account read its profile or deleted itself identifies nobody.
+      Filtering on `actor_user_id` is complete, not a shortcut: every audit call site,
+      today's and the pre-refactor ones in git history, passes the acting user's id, and
+      none records another user's id or address in `metadata` -- there are no anonymous
+      events (a failed login writes no audit row) to find by email.
+    * **The company links.** Kept at month precision only (ruling 2026-11-23); a
+      company id with an exact start day can be matched to one person at a small
+      employer.
+
+    Call it AFTER the `account_deleted` event has been added to the session: the flush
+    below writes that row and the UPDATE strips the deleting request's own IP from it,
+    which is why there is no separate "log without a fingerprint" path to keep in step
+    with this one.
+
+    Does not commit -- it must land in the tombstone's transaction, or a deletion can be
+    committed with the identifying rows still in place.
+    """
+    db.session.flush()
+    db.session.execute(
+        _SCRUB_AUDIT_ROWS,
+        {"user_id": user_id, "kept_keys": list(AUDIT_METADATA_KEPT_KEYS)},
+    )
+    coarsen_company_link_dates_for_user(db, user_id, commit=False)
 
 
 def tombstone_user(user: User, tombstone_domain: str, now_iso: str, dead_password: str) -> None:

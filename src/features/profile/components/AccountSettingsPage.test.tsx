@@ -170,6 +170,31 @@ describe("data export", () => {
   });
 });
 
+// ── Deletion: what the page promises ────────────────────────────────────────
+
+describe("deletion copy", () => {
+  // Pinned because each sentence is a promise the backend has to keep (G36):
+  // account_service scrubs the audit trail and reduces the kept company links
+  // to the month so that "anonymous" and "no longer linked to you" are true.
+  it("says what is removed, and what is kept and in what form", () => {
+    renderPage();
+
+    expect(
+      screen.getByText(
+        "This permanently removes your account, profile, resume and intake records. Your " +
+          "assessment responses are kept only in de-identified form, no longer linked to you. " +
+          "This cannot be undone.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "If you told us you took a job at a company, we keep an anonymous record of that: " +
+          "which company, and the month you started and left. It can't be traced back to you.",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
 // ── Deletion: the confirmation gate ─────────────────────────────────────────
 
 describe("delete confirmation gate", () => {

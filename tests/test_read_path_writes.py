@@ -169,3 +169,142 @@ def test_reading_the_profile_document_still_records_the_read(client, auth):
     assert written.ip_address == "127.0.0.1"
     assert written.actor_user_id is not None
     assert written.event_metadata == {"target_user_id": written.actor_user_id}
+
+
+# ---------------------------------------------------------------------------
+# G36's late write: a read event that reaches the worker after the deletion.
+# ---------------------------------------------------------------------------
+
+#: What the request captured before the deletion. The task carries these as
+#: arguments, so a late write has them in hand however long it was queued.
+_LATE_FINGERPRINT = {"ip": "203.0.113.41", "user_agent": "late-read-probe/1.0"}
+
+
+def _user_id():
+    from app import app
+    from model import User
+
+    with app.app_context():
+        return User.query.filter_by(email=EMAIL).one().id
+
+
+def _late_read_rows(user_id):
+    from app import app
+    from model import AuditLog
+
+    with app.app_context():
+        return [
+            (row.ip_address, row.user_agent, dict(row.event_metadata or {}))
+            for row in AuditLog.query.filter_by(
+                actor_user_id=user_id, action="read", resource="export_probe"
+            ).order_by(AuditLog.id)
+        ]
+
+
+def _deliver_late_read(user_id):
+    """Run the queued task exactly as a worker would, after the request is gone."""
+    from app import app
+    from solverah.tasks.audit_tasks import record_audit_event
+
+    with app.app_context():
+        record_audit_event(
+            action="read",
+            actor_user_id=user_id,
+            resource="export_probe",
+            metadata={"target_user_id": user_id, "email": EMAIL},
+            **_LATE_FINGERPRINT,
+        )
+
+
+def test_a_read_event_written_after_deletion_carries_no_fingerprint(client, auth):
+    """A read enqueued just before ``DELETE /me`` can reach the worker after the
+    deletion's scrub. Written as queued, it would be the one row under the tombstone
+    id with an IP and user agent. Fails without the tombstone check in
+    ``audit.write_event``."""
+    from solverah.repositories.account_repository import AUDIT_METADATA_KEPT_KEYS
+
+    user_id = _user_id()
+    resp = client.delete(
+        "/api/v1/me", json={"confirm": "DELETE"}, headers={"X-CSRF-TOKEN": auth}
+    )
+    assert resp.status_code == 200
+
+    _deliver_late_read(user_id)
+
+    rows = _late_read_rows(user_id)
+    # Written, not dropped: the event is still the trail.
+    assert rows == [(None, None, {"target_user_id": user_id})]
+    assert set(rows[0][2]) <= set(AUDIT_METADATA_KEPT_KEYS)
+
+
+def test_a_read_event_for_a_live_account_keeps_its_fingerprint(client, auth):
+    """The control for the test above: the same delivery for an account that still
+    exists writes the row as captured. Without it, a ``write_event`` that stripped
+    every row would pass the deletion test."""
+    user_id = _user_id()
+
+    _deliver_late_read(user_id)
+
+    assert _late_read_rows(user_id) == [(
+        _LATE_FINGERPRINT["ip"], _LATE_FINGERPRINT["user_agent"],
+        {"target_user_id": user_id, "email": EMAIL},
+    )]
+
+
+def test_a_read_event_racing_an_uncommitted_deletion_waits_for_it(client, auth):
+    """The window the status check alone does not close: the deletion has tombstoned
+    the row and run its scrub but not yet committed. Without ``FOR SHARE`` the worker
+    reads the old ``active`` status, writes the fingerprint, and the scrub -- already
+    run -- never sees the row. With it, the worker waits for the deletion and writes
+    the row clean."""
+    import threading
+    import time
+
+    import sqlalchemy as sa
+
+    from app import app
+    from model import db
+
+    user_id = _user_id()
+    errors = []
+
+    def _worker():
+        try:
+            _deliver_late_read(user_id)
+        except Exception as exc:  # noqa: BLE001 -- surfaced by the assertion below
+            errors.append(exc)
+
+    with app.app_context():
+        deletion = db.engine.connect()
+        observer = db.engine.connect()
+    transaction = deletion.begin()
+    try:
+        deletion.execute(
+            sa.text("UPDATE users SET status = 'deleted' WHERE id = :id"), {"id": user_id}
+        )
+
+        thread = threading.Thread(target=_worker, daemon=True)
+        thread.start()
+
+        # Wait until the worker is blocked on the row lock, or until it has
+        # finished without blocking -- which is the failure being tested for.
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline and thread.is_alive():
+            waiting = observer.execute(sa.text(
+                "SELECT count(*) FROM pg_stat_activity "
+                "WHERE datname = current_database() AND wait_event_type = 'Lock'"
+            )).scalar()
+            if waiting:
+                break
+            time.sleep(0.05)
+        transaction.commit()
+    finally:
+        if transaction.is_active:
+            transaction.rollback()
+        deletion.close()
+        observer.close()
+
+    thread.join(timeout=10)
+    assert not thread.is_alive()
+    assert errors == []
+    assert _late_read_rows(user_id) == [(None, None, {"target_user_id": user_id})]

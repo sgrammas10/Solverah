@@ -96,6 +96,7 @@ __all__ = [
     "write_trait_records",
     # C6 additions
     "CompanyLinkView",
+    "coarsen_company_link_dates_for_user",
     "companies_with_shared_records",
     "company_links_for_user",
     "confounder_values",
@@ -1401,6 +1402,48 @@ def delete_company_links_for_user(db, user_id: int, *, commit: bool = True) -> i
     if commit:
         db.session.commit()
     return removed
+
+
+def coarsen_company_link_dates_for_user(db, user_id: int, *, commit: bool = True) -> int:
+    """Reduce every link the user made to month precision: `started_on` and `ended_on`
+    become the first day of their own month, a NULL `ended_on` stays NULL. Called by
+    account deletion only (G36, ruling 2026-11-23): the links are RETAINED under the
+    tombstone, and a company id plus an exact start day is a quasi-identifier at a small
+    employer -- the month is what the research reader needs, the day is what could be
+    matched to a person. Truncation is monotonic, so `ck_ucl_ended_after_started` still
+    holds, and it never touches `ended_on IS NULL`, so the one-open-link index does too.
+    `created_at` goes to the start of its month as well (in UTC, still a timestamptz):
+    it is the moment the user clicked "I took this job", which is usually within days
+    of the start itself, so leaving it exact would hand back the day the dates just lost.
+    Same `commit=False` convention as `delete_job_postings_for_user`. Returns the number
+    of links rewritten."""
+    from sqlalchemy import Date, cast, func
+
+    from model import UserCompanyLink
+
+    changed = (
+        db.session.query(UserCompanyLink)
+        .filter(UserCompanyLink.user_id == user_id)
+        .update(
+            {
+                UserCompanyLink.started_on: cast(
+                    func.date_trunc("month", UserCompanyLink.started_on), Date
+                ),
+                UserCompanyLink.ended_on: cast(
+                    func.date_trunc("month", UserCompanyLink.ended_on), Date
+                ),
+                # The three-argument form: without the zone the month boundary would
+                # be the session's, and the same row would land on different instants.
+                UserCompanyLink.created_at: func.date_trunc(
+                    "month", UserCompanyLink.created_at, "UTC"
+                ),
+            },
+            synchronize_session=False,
+        )
+    )
+    if commit:
+        db.session.commit()
+    return changed
 
 
 # ---------------------------------------------------------------------------

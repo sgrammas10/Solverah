@@ -1238,7 +1238,8 @@ def test_delete_retains_company_links_and_the_checkins_keep_their_anchor(client,
 
         surviving = UserCompanyLink.query.filter_by(user_id=user_id).all()
         assert [row.id for row in surviving] == [link_id]
-        assert surviving[0].started_on == today - datetime.timedelta(days=5)
+        # The link survives; its day does not (G36 -- month precision only).
+        assert surviving[0].started_on == (today - datetime.timedelta(days=5)).replace(day=1)
         assert db.session.get(PulseCheckin, checkin_id).company_link_id == link_id
 
         assert [row.id for row in UserCompanyLink.query.filter_by(user_id=bystander_id)] == [
@@ -1353,3 +1354,181 @@ def test_lookup_delete_rides_the_deletion_transaction(client, monkeypatch):
         db.session.rollback()
 
     assert _lookup_company_ids(user_id) == [company_id]
+
+
+# ── G36: what deletion keeps must not lead back to the person ────────────────
+
+
+def _seed_audit_event(user_id, action, resource, metadata):
+    """One audit row the way a request writes it: with an IP and a user agent."""
+    from app import app
+    from model import db
+    from solverah.services import audit
+
+    with app.app_context():
+        audit.log_audit_event(
+            action, user_id, resource, metadata,
+            ip="203.0.113.77", user_agent="G36-Test-Browser/1.0",
+        )
+        db.session.commit()
+
+
+def _audit_rows(user_id):
+    """(action, ip, user_agent, metadata) for every audit row the user is the actor of."""
+    from app import app
+    from model import AuditLog
+
+    with app.app_context():
+        return [
+            (row.action, row.ip_address, row.user_agent, dict(row.event_metadata or {}))
+            for row in AuditLog.query.filter_by(actor_user_id=user_id).order_by(AuditLog.id)
+        ]
+
+
+def test_delete_scrubs_the_users_audit_rows(client, monkeypatch):
+    """The retained rows hang off the tombstone id, and so does the audit trail -- so
+    "de-identified" is only true if the trail does not say who it was. After deletion no
+    audit row of the user's has an IP, a user agent, or a metadata key outside the
+    allowlist: not the `intake_link_account` row that stored the account's email, not a
+    legacy `email_send_failed` row whose error text quotes it, and not the
+    `account_deleted` row the deleting request itself writes. The events survive, and a
+    bystander's rows are untouched. Fails if `anonymize_retained_rows` is not called."""
+    import json
+
+    from solverah.repositories.account_repository import AUDIT_METADATA_KEPT_KEYS
+
+    _, bystander_id = _register_and_login(client, monkeypatch, email="g36-bystander@example.com")
+    _seed_audit_event(
+        bystander_id, "intake_link_account", "intake",
+        {"submission_id": 7, "email": "g36-bystander@example.com"},
+    )
+
+    email = "g36-audit@example.com"
+    csrf, user_id = _register_and_login(client, monkeypatch, email=email)
+    _seed_audit_event(
+        user_id, "intake_link_account", "intake", {"submission_id": 41, "email": email}
+    )
+    _seed_audit_event(
+        user_id, "email_send_failed", "email",
+        {"error": "550 mailbox unavailable: %s" % email},
+    )
+    _seed_audit_event(
+        user_id, "update", "profile",
+        {"updated_fields": ["headline", "skills"], "target_user_id": user_id},
+    )
+    _seed_audit_event(
+        user_id, "refresh_token_reuse", "user_session",
+        {"family_id": "0b0e1c2d-0000-4000-8000-000000000001", "session_id": 9,
+         "retired_reason": "rotated", "revoked_siblings": 2},
+    )
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    rows = _audit_rows(user_id)
+    by_action = {action: metadata for action, _ip, _ua, metadata in rows}
+    # Nothing was deleted to get there: the events are still the trail.
+    assert {"intake_link_account", "email_send_failed", "update", "refresh_token_reuse",
+            "account_deleted"} <= set(by_action)
+
+    for action, ip, user_agent, metadata in rows:
+        assert ip is None, action
+        assert user_agent is None, action
+        assert set(metadata) <= set(AUDIT_METADATA_KEPT_KEYS), (action, metadata)
+        assert email not in json.dumps(metadata), action
+
+    assert by_action["intake_link_account"] == {}
+    assert by_action["email_send_failed"] == {}
+    assert by_action["update"] == {
+        "updated_fields": ["headline", "skills"], "target_user_id": user_id,
+    }
+    assert by_action["refresh_token_reuse"] == {"retired_reason": "rotated", "revoked_siblings": 2}
+    assert by_action["account_deleted"] == {"r2_delete_failures": 0}
+
+    bystander = [row for row in _audit_rows(bystander_id) if row[0] == "intake_link_account"]
+    assert bystander == [(
+        "intake_link_account", "203.0.113.77", "G36-Test-Browser/1.0",
+        {"submission_id": 7, "email": "g36-bystander@example.com"},
+    )]
+
+
+def test_delete_keeps_company_links_at_month_precision_only(client, monkeypatch):
+    """Ruling 2026-11-23: a kept link keeps the month, not the day -- a company id with
+    an exact start day can be matched to one person at a small employer. Both dates go to
+    the first of their own month, an open link stays open, and a bystander's link keeps
+    its day. `created_at` -- the moment the user clicked "I took this job", usually days
+    from the start itself -- goes to the start of its month too. Fails if deletion leaves
+    the dates as the user gave them."""
+    import datetime
+
+    from app import app
+    from model import UserCompanyLink, db
+
+    clicked_at = datetime.datetime(2025, 3, 17, 10, 30, tzinfo=datetime.timezone.utc)
+
+    def _backdate_click(link_id):
+        with app.app_context():
+            db.session.get(UserCompanyLink, link_id).created_at = clicked_at
+            db.session.commit()
+
+    _, bystander_id = _register_and_login(client, monkeypatch, email="g36-month-bystander@example.com")
+    bystander_link = _seed_company_link(bystander_id, "g36-bystander-co", datetime.date(2025, 3, 17))
+    _backdate_click(bystander_link)
+
+    csrf, user_id = _register_and_login(client, monkeypatch, email="g36-month@example.com")
+    closed = _seed_company_link(
+        user_id, "g36-old-co", datetime.date(2025, 3, 17), ended_on=datetime.date(2025, 8, 31)
+    )
+    _backdate_click(closed)
+    still_open = _seed_company_link(user_id, "g36-new-co", datetime.date(2025, 9, 15))
+
+    res = client.delete("/api/v1/me", json={"confirm": "DELETE"},
+                        headers={"X-CSRF-TOKEN": csrf})
+    assert res.status_code == 200
+
+    with app.app_context():
+        old = db.session.get(UserCompanyLink, closed)
+        assert (old.started_on, old.ended_on) == (
+            datetime.date(2025, 3, 1), datetime.date(2025, 8, 1)
+        )
+        assert old.created_at == datetime.datetime(2025, 3, 1, tzinfo=datetime.timezone.utc)
+        new = db.session.get(UserCompanyLink, still_open)
+        assert (new.started_on, new.ended_on) == (datetime.date(2025, 9, 1), None)
+        # Filed just now by the seed: whatever the month, nothing below it survives.
+        assert new.created_at == new.created_at.astimezone(datetime.timezone.utc).replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0
+        )
+
+        untouched = db.session.get(UserCompanyLink, bystander_link)
+        assert untouched.started_on == datetime.date(2025, 3, 17)
+        assert untouched.created_at == clicked_at
+
+
+def test_the_anonymising_scrub_rides_the_deletion_transaction(client, monkeypatch):
+    """`anonymize_retained_rows` must not commit: a rollback after it leaves the audit
+    row and the link as they were, so a deletion that fails later never strips the audit
+    trail of an account that is still live."""
+    import datetime
+
+    email = "g36-atomic@example.com"
+    _, user_id = _register_and_login(client, monkeypatch, email=email)
+    _seed_audit_event(
+        user_id, "intake_link_account", "intake", {"submission_id": 3, "email": email}
+    )
+    link_id = _seed_company_link(user_id, "g36-atomic-co", datetime.date(2025, 3, 17))
+
+    from app import app
+    from model import UserCompanyLink, db
+    from solverah.repositories import account_repository
+
+    with app.app_context():
+        account_repository.anonymize_retained_rows(user_id)
+        db.session.rollback()
+        assert db.session.get(UserCompanyLink, link_id).started_on == datetime.date(2025, 3, 17)
+
+    seeded = [row for row in _audit_rows(user_id) if row[0] == "intake_link_account"]
+    assert seeded == [(
+        "intake_link_account", "203.0.113.77", "G36-Test-Browser/1.0",
+        {"submission_id": 3, "email": email},
+    )]

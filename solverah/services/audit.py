@@ -50,7 +50,8 @@ from typing import Any, Dict, Optional
 import sqlalchemy as sa
 from flask import has_request_context, request
 
-from model import AuditLog, db
+from model import AuditLog, User, db
+from solverah.repositories.account_repository import AUDIT_METADATA_KEPT_KEYS
 
 __all__ = [
     "log_audit_event",
@@ -66,6 +67,11 @@ logger = logging.getLogger("solverah.audit")
 #: instead of failing the request that carries it.
 _IP_MAX = 64
 _USER_AGENT_MAX = 300
+
+#: The status ``account_repository.tombstone_user`` sets.  A literal there too;
+#: ``tests/test_read_path_writes.py`` drives a real deletion, so the two cannot
+#: drift apart without that test going red.
+USER_STATUS_DELETED = "deleted"
 
 
 def request_fingerprint() -> Dict[str, Optional[str]]:
@@ -150,8 +156,26 @@ def write_event(
 
     Requires a Flask application context for ``db.engine``; the task base class
     supplies one.
+
+    **A late event for a deleted account is written already anonymised (G36).**
+    ``DELETE /me`` scrubs every audit row of the user's in its own transaction
+    (``account_repository.anonymize_retained_rows``), but a read or export
+    enqueued just before it can reach the worker after that scrub -- and would
+    then be the one row under the tombstone id that still carries an IP and a
+    user agent.  So the actor's status is read first, and a tombstoned actor's
+    event loses its fingerprint and has its metadata cut to the same allowlist
+    the scrub keeps.  See :func:`_actor_is_tombstoned` for why that read takes a
+    lock.
     """
     with db.engine.begin() as connection:
+        if actor_user_id is not None and _actor_is_tombstoned(connection, actor_user_id):
+            ip = None
+            user_agent = None
+            metadata = {
+                key: value
+                for key, value in (metadata or {}).items()
+                if key in AUDIT_METADATA_KEPT_KEYS
+            }
         connection.execute(
             sa.insert(AuditLog.__table__).values(
                 actor_user_id=actor_user_id,
@@ -162,6 +186,38 @@ def write_event(
                 metadata=metadata or {},
             )
         )
+
+
+def _actor_is_tombstoned(connection: sa.engine.Connection, actor_user_id: int) -> bool:
+    """Whether the actor's user row is a tombstone, read under ``FOR SHARE``.
+
+    One primary-key read, on the queued path only -- :func:`log_audit_event`
+    writes inside the request's own transaction, which ``anonymize_retained_rows``
+    already covers.
+
+    The lock is what makes the check race-free rather than merely likely.
+    ``tombstone_user``'s UPDATE of the user row is flushed before the scrub runs,
+    and ``FOR SHARE`` conflicts with it, so the two transactions are serialised
+    on that row whichever arrives first:
+
+    * The deletion is first: this read waits for it to commit, then sees
+      ``status = 'deleted'`` (READ COMMITTED re-reads the locked row's newest
+      version) and the event is written clean.
+    * This is first: the deletion's flush waits for this INSERT to commit, so the
+      scrub statement that follows it sees the row and strips it like any other.
+
+    Without the lock a deletion in flight between those two points would be
+    invisible here and its scrub would miss the row.  A read path holds no lock
+    on the user row (``tests/test_read_path_writes.py`` keeps GETs from writing),
+    so under eager execution this cannot wait on its own request.  A missing row
+    reads as not tombstoned; the INSERT's foreign key then decides.
+    """
+    status = connection.execute(
+        sa.select(User.__table__.c.status)
+        .where(User.__table__.c.id == actor_user_id)
+        .with_for_update(read=True)
+    ).scalar_one_or_none()
+    return status == USER_STATUS_DELETED
 
 
 def record_read_event(

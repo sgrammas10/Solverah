@@ -179,6 +179,10 @@ function AccountSettingsPage() {
             assessment responses are kept only in de-identified form, no longer linked to you.
             This cannot be undone.
           </p>
+          <p className="mt-2 text-sm text-ink-secondary leading-relaxed">
+            If you told us you took a job at a company, we keep an anonymous record of that:
+            which company, and the month you started and left. It can't be traced back to you.
+          </p>
 
           {deleteFailed && (
             <div className="mt-4 rounded bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">

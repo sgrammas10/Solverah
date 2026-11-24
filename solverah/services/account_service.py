@@ -48,8 +48,15 @@ migration:
       in CompanyLens (G66's ``user_company_lookup``: no free text, but no reader
       other than that user's own list, so keeping it would be retention with no
       reader), and every resume object in R2.
-    * ``AuditLog`` event rows are kept (they now point at the tombstone); their
-      IP/user-agent columns age out separately via retention_cleanup.py. This is also
+    * ``AuditLog`` event rows are kept (they now point at the tombstone), but
+      scrubbed in the deletion's own transaction (G36, 2026-11-23): IP and user agent
+      nulled on every row the user was the actor of -- the ``account_deleted`` event
+      included -- and ``metadata`` cut down to an allowlist of non-personal keys
+      (``account_repository.anonymize_retained_rows``). Before that, an
+      ``intake_link_account`` row kept the account's real email under the tombstone id
+      forever and every row kept an IP for retention_cleanup's 365 days, which made
+      "de-identified" untrue of everything else on this list. The same call reduces
+      C6's link dates to the month. This is also
       where ``situation_report_recalibrate`` events end up -- an ordinary
       ``log_audit_event`` call (`solverah/services/situation_report_service.py`), so it
       rides this existing handling rather than needing a mechanism of its own.
@@ -477,6 +484,10 @@ def delete_account(user: User, confirm: Any) -> AccountResult:
         resource="account",
         metadata={"r2_delete_failures": len(failed_keys)},
     )
+    # 5. What is kept must not lead back to the person (G36). After the event above
+    #    on purpose: the scrub covers that row too, so the deleting request's own IP
+    #    is not the one thing left behind.
+    account_repository.anonymize_retained_rows(user.id)
     db.session.commit()
 
     return AccountResult(
