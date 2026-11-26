@@ -901,6 +901,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/me/onboarding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Record the first-run answers
+         * @description Any subset of `career_moment`, `career_status` and `own_words`; an absent key is left alone. A moment that implies a career status sets it too, through the same write as `PATCH /me/career-status`. 400 with `error` one of "invalid_career_moment", "invalid_status", "status_conflicts_with_moment", "invalid_own_words", "own_words_too_long" (over 1000 characters after trimming) or "no_fields". Blank own words store null.
+         */
+        patch: operations["patch_me_patch_my_onboarding"];
+        trace?: never;
+    };
     "/api/v1/me/path-feedback": {
         parameters: {
             query?: never;
@@ -2169,6 +2189,18 @@ export interface components {
         DashboardResponse: {
             /** Applications */
             applications: number;
+            /**
+             * Careermoment
+             * @description The first-run career moment, or null until answered. The dashboard opens the first-run dialog on an explicit null.
+             * @default null
+             */
+            careerMoment: string | null;
+            /**
+             * Careerstatus
+             * @description The stored career status, or null when unset.
+             * @default null
+             */
+            careerStatus: string | null;
             /** Hasintakesubmission */
             hasIntakeSubmission: boolean;
             /** Jobmatches */
@@ -3863,6 +3895,56 @@ export interface components {
              * @description Always true; the operation succeeded.
              */
             ok: boolean;
+        };
+        /**
+         * OnboardingRequest
+         * @description ``PATCH /me/onboarding`` -- the first-run answers, any subset of three.
+         *
+         *     Deliberately loose here: the vocabularies, the moment-implies-status rule
+         *     and the length cap are checked in ``solverah.domain.profile`` so every
+         *     refusal is the same ``{"error": ...}`` 400. An absent key leaves the stored
+         *     value alone.
+         */
+        OnboardingRequest: {
+            /**
+             * Career Moment
+             * @description One of "off_at_work", "stay_or_go", "job_hunting", "between_jobs", "first_job", "curious". All but "job_hunting" and "curious" also set career_status.
+             * @default null
+             */
+            career_moment: string | null;
+            /**
+             * Career Status
+             * @description One of "employed", "between_jobs", "first_job".
+             * @default null
+             */
+            career_status: string | null;
+            /**
+             * Own Words
+             * @description Optional free text, at most 1000 characters after trimming. Stored verbatim and never scored; blank or null stores nothing.
+             * @default null
+             */
+            own_words: string | null;
+        };
+        /**
+         * OnboardingResponse
+         * @description The three stored values after the write (null where unset).
+         */
+        OnboardingResponse: {
+            /**
+             * Career Moment
+             * @default null
+             */
+            career_moment: string | null;
+            /**
+             * Career Status
+             * @default null
+             */
+            career_status: string | null;
+            /**
+             * Own Words
+             * @default null
+             */
+            own_words: string | null;
         };
         /** PasswordResetRequest */
         PasswordResetRequest: {
@@ -7824,6 +7906,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+            /** @description Unexpected error (RFC 9457 problem document) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetailResponse"];
+                };
+            };
+        };
+    };
+    patch_me_patch_my_onboarding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OnboardingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingResponse"];
+                };
+            };
+            /** @description Bad request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyError"];
                 };
             };
             /** @description Unexpected error (RFC 9457 problem document) */

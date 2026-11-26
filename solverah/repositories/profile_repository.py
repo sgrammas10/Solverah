@@ -229,6 +229,8 @@ def _read_state(user_id: int) -> Tuple[ProfileState, Optional[int]]:
             "linkedin_url": row.linkedin_url,
             "portfolio_url": row.portfolio_url,
             "career_status": row.career_status,
+            "career_moment": row.career_moment,
+            "own_words": row.own_words,
         },
         extra=dict(row.extra or {}),
         experiences=experiences,

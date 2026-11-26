@@ -18,8 +18,15 @@
  * feeds `IntakePromptModal` (`profileCompletion`, `hasIntakeSubmission`) and
  * both cards in the grid. Removing the endpoint is backend work this chunk is
  * explicitly not doing.
+ *
+ * FIRST RUN (2026-11-24). While `/me/dashboard` says `careerMoment: null` --
+ * explicitly null, never merely absent -- the page opens `CareerMomentDialog`
+ * ("What brings you here?", then the optional own-words step). An absent key
+ * means a server that predates the field, and opens nothing. While the moment
+ * is unanswered, and for the rest of any visit that showed the dialog, the
+ * intake prompt stays shut: two pop-ups never stack.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth';
 import { Link, useNavigate } from 'react-router-dom';
@@ -41,6 +48,8 @@ import { nextActionFor } from '../../assessments';
 import { careerStatusNavState } from '../../../shared/lib/careerStatusReturn';
 import { dashboardKeys } from '../dashboardKeys';
 import { isIntakePromptSnoozed, snoozeIntakePrompt } from '../intakePromptSnooze';
+import { isCareerMomentPromptSnoozed, snoozeCareerMomentPrompt } from '../careerMomentPromptSnooze';
+import CareerMomentDialog from './CareerMomentDialog';
 
 const iconMap: Record<string, any> = { User, FileText, Brain, Briefcase, TrendingUp };
 
@@ -141,6 +150,11 @@ function JobSeekerDashboard() {
   };
 
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+  const [careerMomentOpen, setCareerMomentOpen] = useState(false);
+  // Latched for the visit: step 1's save refetches this document with the
+  // moment filled in, and neither the dialog (still on step 2) nor the intake
+  // prompt may react to that.
+  const careerMomentShownRef = useRef(false);
   const [wplBannerDismissed, setWplBannerDismissed] = useState(false);
   const { user, fetchWithAuth } = useAuth();
 
@@ -175,6 +189,14 @@ function JobSeekerDashboard() {
 
   useEffect(() => {
     if (!dashboardData) return;
+    if (dashboardData.careerMoment === null) {
+      if (!careerMomentShownRef.current && !isCareerMomentPromptSnoozed(user?.id)) {
+        careerMomentShownRef.current = true;
+        setCareerMomentOpen(true);
+      }
+      return;
+    }
+    if (careerMomentShownRef.current) return;
     const completionPct = parseInt(dashboardData.profileCompletion ?? '0', 10);
     if (completionPct < 50 && !isIntakePromptSnoozed(user?.id)) {
       setIntakeModalOpen(true);
@@ -205,6 +227,13 @@ function JobSeekerDashboard() {
 
   return (
     <div className="min-h-screen bg-cream-base font-sans text-ink-primary">
+      {careerMomentOpen && (
+        <CareerMomentDialog
+          careerStatus={dashboardData?.careerStatus}
+          onNotNow={() => { snoozeCareerMomentPrompt(user?.id); setCareerMomentOpen(false); }}
+          onClose={() => setCareerMomentOpen(false)}
+        />
+      )}
       <IntakePromptModal
         open={intakeModalOpen}
         hasIntakeSubmission={hasIntakeSubmission ?? false}

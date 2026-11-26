@@ -1181,6 +1181,32 @@
             "title": "Applications",
             "type": "integer"
           },
+          "careerMoment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The first-run career moment, or null until answered. The dashboard opens the first-run dialog on an explicit null.",
+            "title": "Careermoment"
+          },
+          "careerStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The stored career status, or null when unset.",
+            "title": "Careerstatus"
+          },
           "hasIntakeSubmission": {
             "title": "Hasintakesubmission",
             "type": "boolean"
@@ -4408,6 +4434,96 @@
           "ok"
         ],
         "title": "OkResponse",
+        "type": "object"
+      },
+      "OnboardingRequest": {
+        "description": "``PATCH /me/onboarding`` -- the first-run answers, any subset of three.\n\nDeliberately loose here: the vocabularies, the moment-implies-status rule\nand the length cap are checked in ``solverah.domain.profile`` so every\nrefusal is the same ``{\"error\": ...}`` 400. An absent key leaves the stored\nvalue alone.",
+        "properties": {
+          "career_moment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "One of \"off_at_work\", \"stay_or_go\", \"job_hunting\", \"between_jobs\", \"first_job\", \"curious\". All but \"job_hunting\" and \"curious\" also set career_status.",
+            "title": "Career Moment"
+          },
+          "career_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "One of \"employed\", \"between_jobs\", \"first_job\".",
+            "title": "Career Status"
+          },
+          "own_words": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional free text, at most 1000 characters after trimming. Stored verbatim and never scored; blank or null stores nothing.",
+            "title": "Own Words"
+          }
+        },
+        "title": "OnboardingRequest",
+        "type": "object"
+      },
+      "OnboardingResponse": {
+        "additionalProperties": false,
+        "description": "The three stored values after the write (null where unset).",
+        "properties": {
+          "career_moment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Career Moment"
+          },
+          "career_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Career Status"
+          },
+          "own_words": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Own Words"
+          }
+        },
+        "title": "OnboardingResponse",
         "type": "object"
       },
       "PasswordResetRequest": {
@@ -10379,6 +10495,76 @@
         "summary": "Rank the companies the authenticated user looked up on the six traits",
         "tags": [
           "companies"
+        ]
+      }
+    },
+    "/api/v1/me/onboarding": {
+      "patch": {
+        "description": "Any subset of `career_moment`, `career_status` and `own_words`; an absent key is left alone. A moment that implies a career status sets it too, through the same write as `PATCH /me/career-status`. 400 with `error` one of \"invalid_career_moment\", \"invalid_status\", \"status_conflicts_with_moment\", \"invalid_own_words\", \"own_words_too_long\" (over 1000 characters after trimming) or \"no_fields\". Blank own words store null.",
+        "operationId": "patch_me_patch_my_onboarding",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Bad request"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LegacyError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetailResponse"
+                }
+              }
+            },
+            "description": "Unexpected error (RFC 9457 problem document)"
+          }
+        },
+        "security": [
+          {
+            "accessTokenCookie": []
+          },
+          {
+            "csrfHeader": []
+          }
+        ],
+        "summary": "Record the first-run answers",
+        "tags": [
+          "me"
         ]
       }
     },

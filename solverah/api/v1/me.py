@@ -72,6 +72,8 @@ from solverah.schemas.profile import (
     DashboardResponse,
     IdentityResponse,
     IdentityUpdateRequest,
+    OnboardingRequest,
+    OnboardingResponse,
     ProfileDocument,
     ProfilePatchRequest,
     ResumeCompleteRequest,
@@ -337,6 +339,37 @@ def patch_my_career_status():
     if not user:
         return jsonify({"error": "not_found"}), 404
     return _respond(profile_service.set_career_status(user, _body().get("status")))
+
+
+@document(
+    "Record the first-run answers",
+    tags=["me"],
+    request=OnboardingRequest,
+    responses={200: OnboardingResponse, 400: LegacyError, 404: LegacyError},
+    security=_AUTHENTICATED_WRITE,
+    enforce=True,
+    description=(
+        "Any subset of `career_moment`, `career_status` and `own_words`; an absent "
+        "key is left alone. A moment that implies a career status sets it too, "
+        "through the same write as `PATCH /me/career-status`. 400 with "
+        '`error` one of "invalid_career_moment", "invalid_status", '
+        '"status_conflicts_with_moment", "invalid_own_words", '
+        '"own_words_too_long" (over 1000 characters after trimming) or '
+        '"no_fields". Blank own words store null.'
+    ),
+)
+@me_bp.route("/me/onboarding", methods=["PATCH"])
+@jwt_required()
+def patch_my_onboarding():
+    """PATCH /me/onboarding - the dashboard's first-run dialog writes here.
+
+    Reads the raw body rather than the validated model, because "key absent"
+    (leave it) and "key sent as null" (clear own words) mean different things.
+    """
+    user = _current_user()
+    if not user:
+        return jsonify({"error": "not_found"}), 404
+    return _respond(profile_service.save_onboarding(user, _body()))
 
 
 # ---------------------------------------------------------------------------

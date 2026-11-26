@@ -123,6 +123,11 @@ SCALAR_COLUMNS: Tuple[Tuple[str, str], ...] = (
     ("phone", "phone"),
     ("linkedinUrl", "linkedin_url"),
     ("career_status", "career_status"),
+    # First-run answers (2026-11-24). Written only by PATCH /me/onboarding, which
+    # validates them; neither is in validators.ALLOWED_PROFILE_FIELDS, so a
+    # profile PATCH can neither set nor clear them.
+    ("career_moment", "career_moment"),
+    ("own_words", "own_words"),
 )
 
 #: Columns that exist in the table and have no source in today's document.

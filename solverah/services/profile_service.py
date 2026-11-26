@@ -59,6 +59,7 @@ __all__ = [
     "resume_upload_ticket",
     "update_identity",
     "read_profile",
+    "save_onboarding",
     "save_profile",
     "set_career_status",
     "set_skill_proficiency",
@@ -211,15 +212,65 @@ def set_career_status(user: User, status: Any) -> ProfileResult:
     if status not in domain.CAREER_STATUSES:
         return _error(400, "invalid_status")
 
-    user_id = user.id  # before the commit expires `user`; see save_profile
-    profile_repository.update_document(
-        user_id, lambda existing: {**existing, "career_status": status}
-    )
-    path_fit_repository.invalidate(user_id)  # in-transaction, with the commit below
-    db.session.commit()
-    path_cache.invalidate(user_id)  # after the commit: it caches what is now true
-
+    _write_status_fields(user.id, {"career_status": status})
     return ProfileResult(status=200, body={"career_status": status})
+
+
+def _write_status_fields(user_id: int, fields: Dict[str, Optional[str]]) -> Dict[str, Any]:
+    """Write top-level document *fields* and commit, with the status side effects.
+
+    The one write path behind both ``PATCH /me/career-status`` and
+    ``PATCH /me/onboarding``, so a status set from either drops both path caches
+    exactly as :func:`set_career_status` always has. A ``None`` value removes
+    the key, which stores NULL in its column. The path caches are dropped only
+    when ``career_status`` is among *fields*: a moment or own words alone feed
+    no suggestion.
+
+    Returns the document that was written.
+    """
+
+    def mutate(existing: Dict[str, Any]) -> Dict[str, Any]:
+        updated = dict(existing)
+        for key, value in fields.items():
+            if value is None:
+                updated.pop(key, None)
+            else:
+                updated[key] = value
+        return updated
+
+    status_changed = "career_status" in fields
+    document = profile_repository.update_document(user_id, mutate)
+    if status_changed:
+        path_fit_repository.invalidate(user_id)  # in-transaction, with the commit below
+    db.session.commit()
+    if status_changed:
+        path_cache.invalidate(user_id)  # after the commit: it caches what is now true
+    return document
+
+
+def save_onboarding(user: User, body: Any) -> ProfileResult:
+    """Record the first-run answers: career moment, career status, own words.
+
+    Validated by :func:`solverah.domain.profile.validate_onboarding`; a moment
+    that implies a status writes the status too. Everything lands in one
+    profile write and one commit, through the same path as
+    :func:`set_career_status`, so a status set here has that endpoint's side
+    effects. The answer echoes the three stored values after the write.
+    """
+    problem, update = domain.validate_onboarding(body)
+    if problem:
+        return _error(400, problem)
+
+    user_id = user.id  # before the commit expires `user`; see save_profile
+    document = _write_status_fields(user_id, update.fields)
+    return ProfileResult(
+        status=200,
+        body={
+            "career_moment": document.get("career_moment"),
+            "career_status": document.get("career_status"),
+            "own_words": document.get("own_words"),
+        },
+    )
 
 
 def set_skill_proficiency(user: User, skills: Any) -> ProfileResult:
@@ -325,6 +376,11 @@ def dashboard_data(user: User, email: str) -> ProfileResult:
             profile, activity_rows, has_work_pulse=_has_work_pulse(user.id), now=now
         ),
         "hasIntakeSubmission": profile_repository.has_intake_submission(email),
+        # Always present, null until answered: the dashboard opens the first-run
+        # dialog only on an explicit null, so a payload without the key (an
+        # older server, or a pre-deploy cache entry) never opens it.
+        "careerMoment": profile.get("career_moment"),
+        "careerStatus": profile.get("career_status"),
     }
     cache.set_json(key, body)
     return ProfileResult(status=200, body=body)

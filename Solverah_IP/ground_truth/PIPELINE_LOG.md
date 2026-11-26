@@ -31,6 +31,30 @@ packet it has been run against so far.
 
 ---
 
+## 2026-11-25 harvest — STOPPED UNDER RULE ZERO (27th consecutive), NOTHING MOVED
+
+ACTION     P-16 destination collision still unresolved (harvests 10-25 through 11-25). Pipeline is stuck: research cannot run while P-17 sits in _build_env/packets/, and the scrub keeps re-scrubbing the stale P-16 in packets_raw/. A human must decide: (a) keep the promoted anonymization/P-16_packet_ANON.txt (md5 47516b76..., 2026-10-04) or replace it with the newer scrub in packets_out (md5 c6331b07..., mtime 2026-11-09 14:30, unchanged since 11-10); (b) clear packets_out/ and packets_raw/ of P-16 and strike P-16 from to_be_scrubbed.txt; (c) let the P-17 harvest proceed. Strongly consider pausing the scrub task until then.
+RESEARCH   P-17 HCA Healthcare — RUN_REPORT.md status COMPLETE (mtime 2026-10-04 03:17 UTC, ~52 days ago, md5 69815803... unchanged). Still unharvested; structural checks not run, report not folded in or deleted, nothing moved. packets/P-17_hca_healthcare/ does not yet exist.
+SCRUB      P-16 Smartsheet — four-file set in packets_out/ (mtime 2026-11-09 14:30, all four md5s unchanged). anonymization/P-16_packet_ANON.txt, packets/P-16_smartsheet/ and _scrub_env_runs/P-16_run1/ all exist, so promotion refused. Scrub run report not folded in or deleted.
+LISTS      unchanged. to_be_researched: P-18 Fifth Third Bank, P-19 Centene · to_be_scrubbed: P-16 Smartsheet, P-17 HCA Healthcare.
+STAGED     nothing. packets_raw/ holds exactly one packet (stale P-16_packet.txt, md5 2b7b1649...). ANONYMIZATION_RULES_DRAFT.md: scrub_env copy identical to canonical (md5 b6030277...).
+REFUSED    All routing, per Rule Zero (destination files exist). Harvest ran 13:30 UTC 11-25 (~11.4h after its 02:06 UTC schedule).
+NOT YET VERIFIED — nothing promoted this run.
+
+---
+
+## 2026-11-24 harvest — STOPPED UNDER RULE ZERO (26th consecutive), NOTHING MOVED
+
+ACTION     P-16 destination collision still unresolved (harvests 10-25 through 11-24). Pipeline is stuck: research cannot run while P-17 sits in _build_env/packets/, and the scrub keeps re-scrubbing the stale P-16 in packets_raw/. A human must decide: (a) keep the promoted anonymization/P-16_packet_ANON.txt (md5 47516b76..., 2026-10-04) or replace it with the newer scrub in packets_out (md5 c6331b07..., mtime 2026-11-09 14:30, unchanged since 11-10); (b) clear packets_out/ and packets_raw/ of P-16 and strike P-16 from to_be_scrubbed.txt; (c) let the P-17 harvest proceed. Strongly consider pausing the scrub task until then.
+RESEARCH   P-17 HCA Healthcare — RUN_REPORT.md status COMPLETE (mtime 2026-10-04 03:17 UTC, ~51 days ago, md5 69815803... unchanged). Still unharvested; structural checks not run, report not folded in or deleted, nothing moved. packets/P-17_hca_healthcare/ does not yet exist.
+SCRUB      P-16 Smartsheet — four-file set in packets_out/ (mtime 2026-11-09 14:30, all four md5s unchanged). anonymization/P-16_packet_ANON.txt, packets/P-16_smartsheet/ and _scrub_env_runs/P-16_run1/ all exist, so promotion refused. Scrub run report not folded in or deleted.
+LISTS      unchanged. to_be_researched: P-18 Fifth Third Bank, P-19 Centene · to_be_scrubbed: P-16 Smartsheet, P-17 HCA Healthcare.
+STAGED     nothing. packets_raw/ holds exactly one packet (stale P-16_packet.txt, md5 2b7b1649...). ANONYMIZATION_RULES_DRAFT.md: scrub_env copy identical to canonical (md5 b6030277...).
+REFUSED    All routing, per Rule Zero (destination files exist). Harvest ran 12:38 UTC 11-24 (~10.5h after its 02:06 UTC schedule).
+NOT YET VERIFIED — nothing promoted this run.
+
+---
+
 ## 2026-11-23 harvest — STOPPED UNDER RULE ZERO (25th consecutive), NOTHING MOVED
 
 ACTION     P-16 destination collision still unresolved (harvests 10-25 through 11-23). Pipeline is stuck: research cannot run while P-17 sits in _build_env/packets/, and the scrub keeps re-scrubbing the stale P-16 in packets_raw/. A human must decide: (a) keep the promoted anonymization/P-16_packet_ANON.txt (md5 47516b76..., 2026-10-04) or replace it with the newer scrub in packets_out (md5 c6331b07..., mtime 2026-11-09 14:30, unchanged since 11-10); (b) clear packets_out/ and packets_raw/ of P-16 and strike P-16 from to_be_scrubbed.txt; (c) let the P-17 harvest proceed. Strongly consider pausing the scrub task until then.

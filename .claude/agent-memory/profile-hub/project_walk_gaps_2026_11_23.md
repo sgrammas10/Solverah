@@ -17,5 +17,5 @@ Fixed 2026-11-23 from docs/USER_SCENARIOS.md §1.2, uncommitted at hand-back:
 **How to apply:** open threads that belong to other lanes:
 - situation-report still has to make EnvironmentReportPage send `careerStatusReason: "environment_report"`.
 - core-assessments: the dashboard's `WorkPulseUnlock` card has no retake link. WorkPulsePage line ~422 still says "sixteen questions". /work-pulse ignores any retake nav state, so it takes 2 clicks.
-- uploadResume PUT ok-check FIXED same day (non-ok throws into onError, no parse enqueued). Still open, Sebastian's ruling — G41: the IntakePromptModal effect reopens the modal on every `dashboardData` change.
+- uploadResume PUT ok-check FIXED same day (non-ok throws into onError, no parse enqueued). G41 (the IntakePromptModal effect reopened the modal on every `dashboardData` change) is FIXED in 1c50165: a 7-day snooze per user.
 - Pending: core-assessments is adding `{ retake: true }` nav-state support to WorkPulsePage; the orchestrator will hand over the state shape, then update the hub's "Retake Work Pulse →" navigate call (leave it alone until then).

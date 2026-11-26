@@ -14,10 +14,14 @@ exactly, because changing them would change which of two racing writes wins.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 __all__ = [
+    "CAREER_MOMENTS",
     "CAREER_STATUSES",
+    "OWN_WORDS_MAX_CHARS",
+    "OnboardingUpdate",
     "PATH_INPUT_KEYS",
     "PROFILE_COMPLETION_FIELDS",
     "PROFICIENCY_LEVELS",
@@ -29,11 +33,29 @@ __all__ = [
     "profile_completion_percent",
     "resume_field_corrections",
     "validate_career_status",
+    "validate_onboarding",
     "validate_skill_ratings",
 ]
 
 #: Career statuses the API accepts.
 CAREER_STATUSES = {"employed", "between_jobs", "first_job"}
+
+#: First-run "What brings you here?" answers, mapped to the career status each
+#: one already implies. ``None`` means the moment says nothing about whether the
+#: user is working, so the dialog asks a follow-up instead. The ids are stored
+#: (``profiles.career_moment`` carries a CHECK on exactly these keys); the
+#: labels live in the frontend and are Julie's to revise.
+CAREER_MOMENTS: Dict[str, Optional[str]] = {
+    "off_at_work": "employed",
+    "stay_or_go": "employed",
+    "job_hunting": None,
+    "between_jobs": "between_jobs",
+    "first_job": "first_job",
+    "curious": None,
+}
+
+#: Cap on the optional "in your own words" answer, counted after trimming.
+OWN_WORDS_MAX_CHARS = 1000
 
 #: Self-rated proficiency levels.
 PROFICIENCY_LEVELS = {"beginner", "intermediate", "advanced"}
@@ -172,6 +194,75 @@ def validate_career_status(profile_data: dict) -> Optional[str]:
     if "career_status" in profile_data and profile_data["career_status"] not in CAREER_STATUSES:
         return "invalid_status"
     return None
+
+
+@dataclass(frozen=True)
+class OnboardingUpdate:
+    """A validated ``PATCH /me/onboarding`` body.
+
+    ``fields`` holds only the document keys the request actually sets. A value
+    of ``None`` means "clear this key" -- blank own words are stored as NULL.
+    """
+
+    fields: Dict[str, Optional[str]] = field(default_factory=dict)
+
+    @property
+    def sets_career_status(self) -> bool:
+        return "career_status" in self.fields
+
+
+def validate_onboarding(body: Any) -> Tuple[Optional[str], OnboardingUpdate]:
+    """Check a first-run onboarding body; return ``(problem, update)``.
+
+    Any subset of ``career_moment``, ``career_status`` and ``own_words`` may be
+    sent; an absent key leaves the stored value alone. The rules:
+
+    * ``career_moment`` must be one of :data:`CAREER_MOMENTS`. A moment that
+      implies a status writes that status too, overwriting the stored one --
+      it is the user's latest statement about themselves.
+    * ``career_status`` must be one of :data:`CAREER_STATUSES`. Sent beside a
+      moment that implies a *different* status it is refused rather than
+      silently overruled, because one of the two answers is a client bug.
+    * ``own_words`` is kept word for word apart from trimming, capped at
+      :data:`OWN_WORDS_MAX_CHARS`, and blank (or null) is stored as NULL.
+
+    An empty body is refused: there is nothing to write.
+    """
+    empty = OnboardingUpdate()
+    if not isinstance(body, dict):
+        return "no_fields", empty
+
+    fields: Dict[str, Optional[str]] = {}
+
+    if "career_moment" in body:
+        moment = body["career_moment"]
+        if not isinstance(moment, str) or moment not in CAREER_MOMENTS:
+            return "invalid_career_moment", empty
+        fields["career_moment"] = moment
+        implied = CAREER_MOMENTS[moment]
+        if implied is not None:
+            fields["career_status"] = implied
+
+    if "career_status" in body:
+        status = body["career_status"]
+        if not isinstance(status, str) or status not in CAREER_STATUSES:
+            return "invalid_status", empty
+        if fields.get("career_status", status) != status:
+            return "status_conflicts_with_moment", empty
+        fields["career_status"] = status
+
+    if "own_words" in body:
+        words = body["own_words"]
+        if words is not None and not isinstance(words, str):
+            return "invalid_own_words", empty
+        trimmed = (words or "").strip()
+        if len(trimmed) > OWN_WORDS_MAX_CHARS:
+            return "own_words_too_long", empty
+        fields["own_words"] = trimmed or None
+
+    if not fields:
+        return "no_fields", empty
+    return None, OnboardingUpdate(fields=fields)
 
 
 def resume_field_corrections(

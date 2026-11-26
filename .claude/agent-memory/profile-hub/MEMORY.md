@@ -2,4 +2,5 @@
 - [Fix wave 2026-10-02 decisions](project_fix_wave_2026_10_02_decisions.md) — status owned by control, no re-hydrate while dirty, no optimistic save, recs uncapped server-side
 - [Resume parse runs inline in prod](project_resume_parse_inline_in_prod.md) — eager Celery, no worker/beat; reaper never runs; client poll has no ceiling
 - [CompanyLens card live 2026-10-14](project_companylens_card_live.md) — hub card links /company-lens; TrustPage matching section rewritten; stale limits-aside claim left
-- [Walk gaps 2026-11-23](project_walk_gaps_2026_11_23.md) — G39/40/42/43/46/55 fixed; careerStatusReason key; R2 PUT ok-check fixed; WorkPulseUnlock, retake nav state, G41 open
+- [Walk gaps 2026-11-23](project_walk_gaps_2026_11_23.md) — G39/40/42/43/46/55 fixed; careerStatusReason key; R2 PUT ok-check fixed; WorkPulseUnlock, retake nav state open (G41 fixed 1c50165)
+- [First-run career moment 2026-11-24](project_first_run_career_moment.md) — PATCH /me/onboarding, dialog on dashboard, explicit-null gate; julie DB needs migrate+restart

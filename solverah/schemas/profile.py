@@ -23,6 +23,8 @@ __all__ = [
     "CareerStatusRequest",
     "IdentityResponse",
     "IdentityUpdateRequest",
+    "OnboardingRequest",
+    "OnboardingResponse",
     "ProfileDocument",
     "ProfilePatchRequest",
     "ResumeCompleteRequest",
@@ -45,6 +47,46 @@ class CareerStatusRequest(SolverahModel):
 
 class CareerStatusResponse(SolverahModel):
     career_status: str
+
+
+class OnboardingRequest(SolverahModel):
+    """``PATCH /me/onboarding`` -- the first-run answers, any subset of three.
+
+    Deliberately loose here: the vocabularies, the moment-implies-status rule
+    and the length cap are checked in ``solverah.domain.profile`` so every
+    refusal is the same ``{"error": ...}`` 400. An absent key leaves the stored
+    value alone.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    career_moment: Optional[str] = Field(
+        default=None,
+        description=(
+            'One of "off_at_work", "stay_or_go", "job_hunting", "between_jobs", '
+            '"first_job", "curious". All but "job_hunting" and "curious" also set '
+            "career_status."
+        ),
+    )
+    career_status: Optional[str] = Field(
+        default=None,
+        description='One of "employed", "between_jobs", "first_job".',
+    )
+    own_words: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional free text, at most 1000 characters after trimming. Stored "
+            "verbatim and never scored; blank or null stores nothing."
+        ),
+    )
+
+
+class OnboardingResponse(SolverahModel):
+    """The three stored values after the write (null where unset)."""
+
+    career_moment: Optional[str] = None
+    career_status: Optional[str] = None
+    own_words: Optional[str] = None
 
 
 class SkillRating(SolverahModel):
@@ -103,6 +145,16 @@ class DashboardResponse(SolverahModel):
     recentActivity: List[DashboardActivity] = Field(default_factory=list)
     recommendations: List[DashboardRecommendation] = Field(default_factory=list)
     hasIntakeSubmission: bool
+    careerMoment: Optional[str] = Field(
+        default=None,
+        description=(
+            "The first-run career moment, or null until answered. The dashboard "
+            "opens the first-run dialog on an explicit null."
+        ),
+    )
+    careerStatus: Optional[str] = Field(
+        default=None, description="The stored career status, or null when unset."
+    )
 
 
 # ===========================================================================

@@ -2855,6 +2855,13 @@ class Profile(db.Model):
     linkedin_url = db.Column(db.Text)
     portfolio_url = db.Column(db.Text)
     career_status = db.Column(db.Text)
+    #: The first-run "What brings you here?" answer: one of
+    #: `solverah.domain.profile.CAREER_MOMENTS`, NULL until answered. The
+    #: dashboard opens the first-run dialog while this is NULL.
+    career_moment = db.Column(db.Text)
+    #: The optional "in your own words" answer, kept verbatim (trimmed) and
+    #: never scored. Capped at 1000 characters by the domain layer, not here.
+    own_words = db.Column(db.Text)
     #: 0-100, maintained by the service on every write. The dashboard still
     #: computes its percentage from the assembled document rather than reading
     #: this, so the two cannot disagree on the request path; the column exists so
@@ -2872,6 +2879,15 @@ class Profile(db.Model):
     )
 
     user = db.relationship("User", backref=db.backref("profile", uselist=False))
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "career_moment IS NULL OR career_moment IN ("
+            "'off_at_work', 'stay_or_go', 'job_hunting', "
+            "'between_jobs', 'first_job', 'curious')",
+            name="ck_profiles_career_moment",
+        ),
+    )
 
 
 class ProfileExperience(db.Model):

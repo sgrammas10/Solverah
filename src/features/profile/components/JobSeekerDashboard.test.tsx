@@ -721,6 +721,150 @@ describe("JobSeekerDashboard - intake modal snooze (G41)", () => {
   });
 });
 
+// ─── First run: "What brings you here?" (2026-11-24) ──────────────────────────
+
+describe("JobSeekerDashboard - first-run career moment dialog", () => {
+  const KEY = (id: string) => `solverah.careerMomentPromptSnoozedUntil:${id}`;
+  const DAY = 24 * 60 * 60 * 1000;
+  /** The dashboard document the next /me/dashboard fetch answers with. */
+  let doc: Record<string, unknown>;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mocks.user = { ...mocks.user, id: "u1" };
+    doc = { ...DASHBOARD_DOC, profileCompletion: "30%", careerMoment: null, careerStatus: null };
+    mocks.fetchWithAuth.mockImplementation((path: string, init?: RequestInit) => {
+      if (path.startsWith("/me/pulse/")) return Promise.resolve({ checkins: [], events: [] });
+      if (path.startsWith("/me/situation-report")) return Promise.resolve(mocks.situationReport);
+      if (path === "/me/onboarding") {
+        const body = JSON.parse(String(init?.body));
+        // What the server does: the moment lands, and the next dashboard read sees it.
+        if (body.career_moment) doc = { ...doc, careerMoment: body.career_moment };
+        return Promise.resolve({
+          career_moment: body.career_moment ?? null,
+          career_status: body.career_status ?? null,
+          own_words: body.own_words ?? null,
+        });
+      }
+      return Promise.resolve(doc);
+    });
+  });
+  afterEach(() => window.localStorage.clear());
+
+  /** Rendered only once the dashboard document has arrived, so "stays closed"
+   *  is checked after the effect that would have opened it. */
+  const settled = () => screen.findByText("Recent Activity");
+  const dialogNamed = (name: string) => screen.queryByRole("dialog", { name });
+
+  it("opens when the server says careerMoment is explicitly null", async () => {
+    renderJobSeekerDashboard();
+    expect(await screen.findByRole("dialog", { name: "What brings you here?" })).toBeInTheDocument();
+  });
+
+  it("does NOT open when the field is missing (an older server)", async () => {
+    doc = { ...DASHBOARD_DOC, profileCompletion: "60%" };
+    renderJobSeekerDashboard();
+    await settled();
+    expect(dialogNamed("What brings you here?")).toBeNull();
+  });
+
+  it("does not open once a moment is on record", async () => {
+    doc = { ...doc, careerMoment: "curious" };
+    renderJobSeekerDashboard();
+    await settled();
+    expect(dialogNamed("What brings you here?")).toBeNull();
+  });
+
+  it("keeps the intake prompt shut while it shows", async () => {
+    renderJobSeekerDashboard();
+    await screen.findByRole("dialog", { name: "What brings you here?" });
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+
+  it("keeps the intake prompt shut while the moment is null, even when snoozed", async () => {
+    window.localStorage.setItem(KEY("u1"), String(Date.now() + DAY / 2));
+    renderJobSeekerDashboard();
+    await settled();
+    expect(dialogNamed("What brings you here?")).toBeNull();
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+
+  it("still lets the intake prompt open on a missing field (the old behaviour)", async () => {
+    doc = { ...DASHBOARD_DOC, profileCompletion: "30%" };
+    renderJobSeekerDashboard();
+    await waitFor(() => expect(screen.getByTestId("intake-modal")).toBeInTheDocument());
+  });
+
+  it("stays on step 2 after step 1's save refetches the dashboard, and the intake prompt never stacks", async () => {
+    renderJobSeekerDashboard();
+    fireEvent.click(await screen.findByRole("button", { name: "Between jobs" }));
+
+    await screen.findByRole("dialog", { name: "In your own words" });
+    // The refetch has landed with a moment and 30% completion -- the intake
+    // prompt's own condition -- and still nothing else opens this visit.
+    await waitFor(() =>
+      expect(
+        mocks.fetchWithAuth.mock.calls.filter(([path]) => path === "/me/dashboard").length,
+      ).toBeGreaterThanOrEqual(2),
+    );
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+    expect(dialogNamed("In your own words")).toBeNull();
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+
+  it("skips the follow-up when the dashboard already carries a status", async () => {
+    doc = { ...doc, careerStatus: "employed" };
+    renderJobSeekerDashboard();
+    fireEvent.click(await screen.findByRole("button", { name: "Understanding how I work" }));
+
+    await screen.findByRole("dialog", { name: "In your own words" });
+    const sent = mocks.fetchWithAuth.mock.calls.filter(([path]) => path === "/me/onboarding");
+    expect(JSON.parse(sent[0][1].body)).toEqual({ career_moment: "curious" });
+  });
+
+  it("'Not now' snoozes it for one day, for this user only", async () => {
+    renderJobSeekerDashboard();
+    const before = Date.now();
+    fireEvent.click(await screen.findByRole("button", { name: "Not now" }));
+
+    expect(dialogNamed("What brings you here?")).toBeNull();
+    const until = Number(window.localStorage.getItem(KEY("u1")));
+    expect(until - before).toBeGreaterThanOrEqual(DAY);
+    expect(until - before).toBeLessThan(DAY + 60_000);
+    expect(window.localStorage.getItem(KEY("u2"))).toBeNull();
+    // Dismissing it is not a reason to show the other pop-up instead.
+    expect(screen.queryByTestId("intake-modal")).not.toBeInTheDocument();
+  });
+
+  it("does not reopen on a fresh visit inside the snooze, and does once it lapses", async () => {
+    window.localStorage.setItem(KEY("u1"), String(Date.now() + DAY / 2));
+    const first = render(
+      <QueryClientProvider client={createQueryClient()}>
+        <MemoryRouter><JobSeekerDashboard /></MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await settled();
+    expect(dialogNamed("What brings you here?")).toBeNull();
+    first.unmount();
+
+    window.localStorage.setItem(KEY("u1"), String(Date.now() - 1000));
+    renderJobSeekerDashboard();
+    expect(await screen.findByRole("dialog", { name: "What brings you here?" })).toBeInTheDocument();
+  });
+
+  it("Esc on step 1 is 'Not now'", async () => {
+    renderJobSeekerDashboard();
+    await screen.findByRole("dialog", { name: "What brings you here?" });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(dialogNamed("What brings you here?")).toBeNull();
+    expect(window.localStorage.getItem(KEY("u1"))).not.toBeNull();
+  });
+});
+
 // ─── D-6: the working-life frame ───────────────────────────────────────────────
 
 /**
